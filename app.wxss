@@ -390,3 +390,99 @@ button::after {
     color: #a9a99a;
     font-size: 24rpx;
 }
+
+/* ---------- 底部安全区 ---------- */
+.pg {
+    padding-bottom: calc(60rpx + env(safe-area-inset-bottom));
+}
+
+.login-page {
+    padding-bottom: calc(64rpx + env(safe-area-inset-bottom));
+}
+
+/* ---------- 暗色模式（基础适配） ---------- */
+@media (prefers-color-scheme: dark) {
+    page {
+        background: #141a18;
+        color: #e8eee9;
+    }
+
+    .h1, .h2, .h3, .serif, .body, .big-number, .quote,
+    .stat__value, .section__title, .modal__title, .res-line,
+    .code-input, .grade, .guide-line, .skill-card, .fight-card {
+        color: #e8eee9;
+    }
+
+    .muted, .tiny, .pr-tiny, .code-ph, .section__sub, .eyebrow,
+    .pg__foot, .stat__label, .modal__sub, .res-note, .empty-state {
+        color: #9aa79f;
+    }
+
+    .card, .card--flat, .modal, .code-box, .empty-state, .stat,
+    .idcard, .skill-card, .skill-card--dim, .fight-card, .code-input {
+        background: #1e2723;
+        border-color: #33403a;
+        box-shadow: none;
+    }
+
+    .card--ink, .hero-card {
+        background: #24453c;
+        border-color: #24453c;
+        color: #e8eee9;
+    }
+
+    .divider, .guide-line {
+        border-color: #33403a;
+    }
+
+    .tag, .tag--grey, .tag--gold, .tag--jade, .tag--red {
+        background: #2b3832;
+        color: #d8c79a;
+    }
+
+    .tag--dark {
+        background: rgba(255, 253, 247, 0.16);
+        color: #f2eee4;
+    }
+
+    .bar {
+        background: #33403a;
+    }
+
+    .bar--dark {
+        background: rgba(255, 253, 247, 0.18);
+    }
+
+    .btn--ghost, .btn--plain {
+        background: transparent;
+        color: #e8eee9;
+        border-color: #4a5a51;
+    }
+
+    .btn--primary {
+        background: #2f6b5b;
+        color: #f2f7f3;
+    }
+
+    .btn--gold {
+        background: #8a6a2c;
+        color: #fff6e2;
+    }
+
+    .btn--red {
+        background: #8f3b34;
+        color: #fdeeea;
+    }
+
+    .jade { color: #7fc9ae; }
+    .gold { color: #e0bb72; }
+    .red { color: #e89b92; }
+
+    .login-page {
+        background: #141a18;
+    }
+
+    .mask {
+        background: rgba(0, 0, 0, 0.68);
+    }
+}

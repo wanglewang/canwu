@@ -67,3 +67,22 @@
     from { opacity: 0; transform: translateY(16rpx); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+.board-row {
+    padding: 18rpx 22rpx;
+}
+
+.board-rank {
+    display: inline-block;
+    min-width: 46rpx;
+    margin-right: 14rpx;
+    font-size: 26rpx;
+    color: #b8893b;
+    font-weight: 500;
+}
+
+.board-power {
+    font-size: 30rpx;
+    color: #2f6b5b;
+    font-weight: 500;
+}

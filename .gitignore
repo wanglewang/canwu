@@ -7,3 +7,7 @@
 # npm 依赖与小程序 npm 构建产物（发布流程会自动构建）
 node_modules/
 miniprogram_npm/
+
+# 临时校验脚本 / 日志
+.tmp-*
+*.log

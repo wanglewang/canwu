@@ -164,3 +164,84 @@
     font-size: 28rpx;
     color: #2f4a41;
 }
+
+.idcard__avatar {
+    width: 192rpx;
+    height: 218rpx;
+    border-radius: 20rpx;
+    border: 3rpx solid #d8b775;
+    background: #24453c;
+    flex-shrink: 0;
+}
+
+.role-editor__avatar {
+    width: 108rpx;
+    height: 122rpx;
+    border-radius: 14rpx;
+    border: 2rpx solid #b8893b;
+    background: #f2eee4;
+    flex-shrink: 0;
+}
+
+.sync-bar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 16rpx 22rpx;
+    margin-bottom: 18rpx;
+    border-radius: 14rpx;
+    border: 2rpx solid #e3ddcd;
+    background: #fffdf7;
+}
+
+.sync-bar__dot {
+    width: 14rpx;
+    height: 14rpx;
+    border-radius: 50%;
+    margin-right: 14rpx;
+    background: #3d8c74;
+    flex-shrink: 0;
+}
+
+.sync-bar--warn .sync-bar__dot { background: #b8893b; }
+.sync-bar--error .sync-bar__dot { background: #b4453c; }
+
+.sync-bar__text {
+    flex: 1;
+    font-size: 23rpx;
+    color: #5d6358;
+}
+
+.sync-bar--error .sync-bar__text { color: #b4453c; }
+
+.sync-bar__action {
+    font-size: 22rpx;
+    color: #2f6b5b;
+    margin-left: 12rpx;
+}
+
+.ach__glyph {
+    display: inline-block;
+    width: 44rpx;
+    height: 44rpx;
+    line-height: 44rpx;
+    text-align: center;
+    border-radius: 10rpx;
+    margin-right: 14rpx;
+    background: #ece9df;
+    color: #9a9a8b;
+    font-size: 24rpx;
+}
+
+.ach__glyph--on {
+    background: #2f6b5b;
+    color: #f2eee4;
+}
+
+.ach__progress {
+    font-size: 23rpx;
+    color: #8a8f83;
+    margin-left: 16rpx;
+    flex-shrink: 0;
+}

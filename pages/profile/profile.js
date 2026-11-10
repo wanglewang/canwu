@@ -4,9 +4,31 @@ const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const worldData = require('../../data/world.js');
 const { cloud } = require('../../utils/cloud.js');
+const social = require('../../utils/cloud-social.js');
+const share = require('../../utils/share.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
+}
+
+function timeLabel(ts) {
+  if (!ts) return '尚未同步';
+  const d = new Date(ts);
+  const pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+  return pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function syncView(status) {
+  if (status.conflict) {
+    return { label: '进度有冲突，请回洞府选择保留哪一份', tone: 'error' };
+  }
+  if (status.error) {
+    return { label: '未同步：' + status.error, tone: 'error' };
+  }
+  if (status.pending) {
+    return { label: '有改动待同步，联网后会自动补写', tone: 'warn' };
+  }
+  return { label: '已同步 · ' + timeLabel(status.lastSyncedAt), tone: 'ok' };
 }
 
 Page({
@@ -19,6 +41,14 @@ Page({
     attrsLine: '',
     statsLine: '',
     accountLabel: '',
+    avatarUrl: '',
+    syncLabel: '',
+    syncTone: 'ok',
+    achievements: [],
+    achievementShown: [],
+    achievementUnlocked: 0,
+    achievementTotal: 0,
+    showAllAchievements: false,
     showSaveCode: false,
     saveCode: '',
     showImport: false,
@@ -26,6 +56,7 @@ Page({
     showRoleEditor: false,
     draftName: '',
     draftPortrait: 0,
+    draftAvatarTemp: '',
   },
 
   onLoad: function () {
@@ -35,7 +66,12 @@ Page({
     this.loadAccount();
   },
 
-  onShow: function () { this.refresh(); },
+  onShow: function () {
+    this.refresh();
+    this.loadAccount();
+    this.loadAvatar();
+    social.publishScore(store.get());
+  },
 
   onUnload: function () { store.unsubscribe(this.listener); },
 
@@ -50,6 +86,15 @@ Page({
     }
   },
 
+  // 头像存在云存储私有路径下，显示时换一个 1 小时的签名 URL；
+  // 小程序运行时下载接口不可用，拿不到 URL 就静默回退到 CSS 道相。
+  loadAvatar: async function () {
+    const path = store.get().avatar;
+    if (!path) { this.setData({ avatarUrl: '' }); return; }
+    const r = await social.getAvatarUrl(path);
+    this.setData({ avatarUrl: r.ok ? r.url : '' });
+  },
+
   refresh: function () {
     const state = store.get();
     const ov = engine.getOverview(state);
@@ -59,6 +104,11 @@ Page({
       return { id: w.id, label: w.label, name: w.name, enabled: w.enabled, intro: w.intro, style: w.style };
     });
     const attrsLine = ov.attrs.map(function (a) { return a.name + ' ' + a.value; }).join(' · ');
+    const sync = syncView(store.getSyncStatus());
+    const achievements = engine.getAchievements(state);
+    const sorted = achievements.slice().sort(function (a, b) {
+      return Number(a.unlocked) - Number(b.unlocked);
+    });
     this.setData({
       ov: ov,
       topSkills: top,
@@ -67,7 +117,21 @@ Page({
       myCode: engine.battleCode(state),
       attrsLine: attrsLine,
       statsLine: '习得 ' + ov.unlockedCount + ' / ' + ov.skillTotal + ' 门 · 参悟 ' + ov.practiceCount + ' 次 · 胜 ' + ov.wins + ' 场',
+      syncLabel: sync.label,
+      syncTone: sync.tone,
+      achievements: achievements,
+      achievementShown: this.data.showAllAchievements ? sorted : sorted.slice(0, 6),
+      achievementUnlocked: achievements.filter(function (a) { return a.unlocked; }).length,
+      achievementTotal: achievements.length,
     });
+  },
+
+  onToggleAchievements: function () {
+    const show = !this.data.showAllAchievements;
+    const sorted = this.data.achievements.slice().sort(function (a, b) {
+      return Number(a.unlocked) - Number(b.unlocked);
+    });
+    this.setData({ showAllAchievements: show, achievementShown: show ? sorted : sorted.slice(0, 6) });
   },
 
   openRoleEditor: function () {
@@ -76,6 +140,7 @@ Page({
       showRoleEditor: true,
       draftName: s.roleName || '',
       draftPortrait: s.portrait || 0,
+      draftAvatarTemp: this.data.avatarUrl || '',
     });
   },
 
@@ -87,10 +152,32 @@ Page({
     this.setData({ draftPortrait: (this.data.draftPortrait + 1) % 6 });
   },
 
+  // chooseAvatar 给的是临时文件路径，必须上传到云存储才能跨设备保留。
+  onChooseAvatar: async function (event) {
+    const temp = event.detail && event.detail.avatarUrl;
+    if (!temp) return;
+    this.setData({ draftAvatarTemp: temp });
+    toast('正在上传头像…');
+    const r = await social.uploadAvatar(temp);
+    if (!r.ok) { toast(r.message || '头像上传失败'); return; }
+    const saved = store.commitCritical(function (s) {
+      return engine.updateRole(s, { avatar: r.path });
+    });
+    if (!saved.ok) { toast(saved.msg); return; }
+    this.setData({ avatarUrl: temp });
+    toast('头像已保存到账号');
+  },
+
+  onClearAvatar: function () {
+    store.commitCritical(function (s) { return engine.updateRole(s, { avatar: '' }); });
+    this.setData({ avatarUrl: '', draftAvatarTemp: '' });
+    toast('已换回道相');
+  },
+
   onSaveRole: function () {
     const name = this.data.draftName;
     const portrait = this.data.draftPortrait;
-    const r = store.commit(function (s) {
+    const r = store.commitCritical(function (s) {
       return engine.updateRole(s, { name: name, portrait: portrait });
     });
     if (!r.ok) { toast(r.msg); return; }
@@ -101,10 +188,18 @@ Page({
 
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
 
+  onGoBattle: function () { wx.switchTab({ url: '/pages/battle/battle' }); },
+
   onEquipTitle: function (event) {
     const id = event.currentTarget.dataset.id;
-    const r = store.commit(function (s) { return engine.equipTitle(s, id); });
+    const r = store.commitCritical(function (s) { return engine.equipTitle(s, id); });
     toast(r.ok ? (r.equipped ? '已佩戴称号' : '已卸下称号') : r.msg);
+    this.refresh();
+  },
+
+  onRetrySync: async function () {
+    const r = await store.flushCloud();
+    toast(r && r.ok ? '已重新同步' : (r && r.message ? r.message : '同步失败'));
     this.refresh();
   },
 
@@ -156,7 +251,10 @@ Page({
         const ctx = canvas.getContext('2d');
         if (!ctx) { toast('画布不可用，可长按卡片截图'); return; }
         let dpr = 2;
-        try { dpr = wx.getSystemInfoSync().pixelRatio || 2; } catch (e) { dpr = 2; }
+        try {
+          const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+          dpr = win.pixelRatio || 2;
+        } catch (e) { dpr = 2; }
 
         canvas.width = W * dpr;
         canvas.height = H * dpr;
@@ -223,7 +321,14 @@ Page({
           x: 0, y: 0, width: W, height: H,
           destWidth: W * dpr, destHeight: H * dpr,
           success: function (r) {
-            wx.previewImage({ urls: [r.tempFilePath], current: r.tempFilePath });
+            const preview = function () {
+              wx.previewImage({ urls: [r.tempFilePath], current: r.tempFilePath });
+            };
+            if (wx.showShareImageMenu) {
+              wx.showShareImageMenu({ path: r.tempFilePath, fail: preview });
+            } else {
+              preview();
+            }
           },
           fail: function () { toast('生成图片失败，可长按卡片截图'); },
         });
@@ -300,7 +405,24 @@ Page({
       success: async function (res) {
         if (!res.confirm) return;
         const flushed = await store.flushCloud();
-        if (!flushed.ok) { toast('进度尚未同步成功，请检查网络后再退出'); return; }
+        if (!flushed.ok) {
+          wx.showModal({
+            title: '还没同步成功',
+            content: '当前有改动暂未写入云端，退出会清掉本机缓存。仍要退出吗？',
+            confirmText: '仍要退出',
+            confirmColor: '#b4453c',
+            success: async function (again) {
+              if (!again.confirm) return;
+              const out = await cloud.auth.signOut();
+              if (out && out.error) { toast('退出失败：' + (out.error.message || '请重试')); return; }
+              await store.signOut();
+              getApp().resetSession();
+              getApp().awaitingLogin = true;
+              wx.reLaunch({ url: '/pages/login/login' });
+            },
+          });
+          return;
+        }
         const out = await cloud.auth.signOut();
         if (out && out.error) { toast('退出失败：' + (out.error.message || '请重试')); return; }
         await store.signOut();
@@ -310,6 +432,9 @@ Page({
       },
     });
   },
+
+  onShareAppMessage: function () { return share.appMessage(store.get()); },
+  onShareTimeline: function () { return share.timeline(store.get()); },
 
   noop: function () {},
 });

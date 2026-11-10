@@ -2,10 +2,11 @@
   "description": "《参悟》养成挂机 + 小游戏小程序（云服务账号版）",
   "packOptions": {
     "ignore": [
-      {
-        "type": "folder",
-        "value": ".workbuddy"
-      }
+      { "type": "folder", "value": ".workbuddy" },
+      { "type": "folder", "value": "node_modules" },
+      { "type": "folder", "value": "tests" },
+      { "type": "folder", "value": "scripts" },
+      { "type": "folder", "value": ".github" }
     ],
     "include": []
   },

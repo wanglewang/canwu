@@ -94,7 +94,9 @@ Page({
     },
 
     finishLogin(result) {
-        if (result.status === 'ok') {
+        // offline 表示云端暂时连不上但本机进度可用；conflict 已由 app 弹出选择框。
+        // 两者都不该把玩家卡在登录页。
+        if (result.status === 'ok' || result.status === 'offline' || result.status === 'conflict') {
             wx.switchTab({ url: '/pages/index/index' });
             return;
         }

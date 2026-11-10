@@ -3,6 +3,7 @@
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const worldData = require('../../data/world.js');
+const share = require('../../utils/share.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -69,9 +70,24 @@ Page({
     const dailyPercent = Math.min(100, Math.round(ov.daily.count / ov.daily.target * 100));
     const bt = ov.breakthrough;
     const breakPercent = bt.maxed || bt.need <= 0 ? 100 : Math.min(100, Math.round(bt.power / bt.need * 100));
+    const sync = store.getSyncStatus();
+    let syncLabel = '';
+    let syncTone = 'ok';
+    if (sync.conflict) {
+      syncLabel = '另一台设备也改过进度，请在弹窗里选保留哪一份';
+      syncTone = 'error';
+    } else if (sync.error) {
+      syncLabel = '进度暂未同步到云端：' + sync.error;
+      syncTone = 'error';
+    } else if (sync.pending || getApp().globalData.offline) {
+      syncLabel = '有改动待同步，联网后会自动补写';
+      syncTone = 'warn';
+    }
     this.setData({
       viewState: 'ready',
       ov: ov,
+      syncLabel: syncLabel,
+      syncTone: syncTone,
       dailyPercent: dailyPercent,
       breakPercent: breakPercent,
       quickSkills: quick.slice(0, 3).map(function (s) {
@@ -90,8 +106,14 @@ Page({
     this.setData({ showOffline: false, offline: null });
   },
 
+  onRetrySync: async function () {
+    const r = await store.flushCloud();
+    toast(r && r.ok ? '已重新同步' : (r && r.message ? r.message : '同步失败，请稍后再试'));
+    this.refresh();
+  },
+
   onClaimDaily: function () {
-    const r = store.commit(function (s) { return engine.claimDaily(s); });
+    const r = store.commitCritical(function (s) { return engine.claimDaily(s); });
     toast(r.ok ? '份例已领：灵气 +' + r.qi + '，灵石 +' + r.stone : r.msg);
     this.refresh();
   },
@@ -109,4 +131,7 @@ Page({
   onGoBattle: function () { wx.switchTab({ url: '/pages/battle/battle' }); },
   onGoProfile: function () { wx.switchTab({ url: '/pages/profile/profile' }); },
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
+
+  onShareAppMessage: function () { return share.appMessage(store.get()); },
+  onShareTimeline: function () { return share.timeline(store.get()); },
 });

@@ -8,10 +8,12 @@ const skillData = require('../data/skills.js');
 const practiceData = require('../data/practice.js');
 const opponentData = require('../data/opponents.js');
 const titleData = require('../data/titles.js');
+const achievementData = require('../data/achievements.js');
 
 const STORAGE_KEY = 'canwu_save_v1';
 const SAVE_PREFIX = 'CANWU1:';
 const BATTLE_PREFIX = 'CW1-';
+const SAVE_VERSION = 2;
 
 function readStorage(key) {
   try {
@@ -56,10 +58,11 @@ function createNewState() {
     skills[s.id] = { unlocked: s.source.kind === 'start', prof: 0 };
   }
   return {
-    version: 1,
+    version: SAVE_VERSION,
     worldId: 'xian',
     roleName: w.roleName,
     portrait: 0,
+    avatar: '',
     realmIndex: 0,
     skills: skills,
     resources: { qi: 0, stone: 20 },
@@ -84,12 +87,27 @@ function num(v, fallback) {
   return isFinite(n) && n >= 0 ? n : fallback;
 }
 
-function normalizeState(raw) {
+// 存档版本迁移框架：以后每次加字段，在这里补一段 if (v < N)，
+// 老档（含 CANWU1: 存档码导入的）就能平滑升级，不必到处写兜底判断。
+function migrateState(raw) {
+  if (!raw || typeof raw !== 'object') return raw;
+  const v = Math.floor(num(raw.version, 1));
+  let next = raw;
+  if (v < 2) {
+    // v1 -> v2：引入微信头像云存储路径，缺省为空即用 CSS 道相。
+    next = Object.assign({}, next, { version: 2, avatar: '' });
+  }
+  return next;
+}
+
+function normalizeState(input) {
   const base = createNewState();
+  const raw = migrateState(input);
   if (!raw || typeof raw !== 'object' || !raw.skills) return base;
   base.worldId = worldData.getWorld(raw.worldId).id;
   base.roleName = typeof raw.roleName === 'string' ? raw.roleName.slice(0, 12) : base.roleName;
   base.portrait = Math.floor(num(raw.portrait, 0)) % 6;
+  base.avatar = typeof raw.avatar === 'string' ? raw.avatar.slice(0, 200) : '';
   base.realmIndex = Math.floor(num(raw.realmIndex, 0));
   const maxRealm = worldData.getWorld(base.worldId).realms.length - 1;
   if (base.realmIndex > maxRealm) base.realmIndex = maxRealm;
@@ -275,11 +293,12 @@ function checkTitles(state) {
 
 function checkDaily(state) {
   const key = todayKey(Date.now());
-  if (state.daily.date !== key) {
-    state.daily.date = key;
-    state.daily.count = 0;
-    state.daily.claimed = false;
-  }
+  // 单调日历：设备时间被调回过去时不重置，避免把已领过的份例再领一次。
+  // 只在日期真正前进时才开启新的一天。
+  if (key <= state.daily.date) return;
+  state.daily.date = key;
+  state.daily.count = 0;
+  state.daily.claimed = false;
 }
 
 function pickIdleSkill(state) {
@@ -297,6 +316,12 @@ function settleOffline(state) {
   const now = Date.now();
   const w = worldData.getWorld(state.worldId);
   const last = num(state.lastSeen, now);
+  // 时钟倒退（改系统时间，或云端存档来自时间超前的设备）：不结算、也不把回拨值写进存档。
+  if (last > now) {
+    state.lastSeen = last;
+    checkDaily(state);
+    return null;
+  }
   const elapsedMs = Math.max(0, now - last);
   const capMs = w.idle.capHours * 3600 * 1000;
   const cappedMs = Math.min(elapsedMs, capMs);
@@ -662,6 +687,13 @@ function updateRole(state, patch) {
     const p = Math.floor(Number(patch.portrait));
     if (isFinite(p)) state.portrait = ((p % 6) + 6) % 6;
   }
+  if (patch.avatar !== undefined) {
+    const a = typeof patch.avatar === 'string' ? patch.avatar.trim() : '';
+    if (a && (a.indexOf('users/') !== 0 || a.indexOf('..') >= 0)) {
+      return { ok: false, msg: '头像路径不合法' };
+    }
+    state.avatar = a.slice(0, 200);
+  }
   return { ok: true };
 }
 
@@ -677,6 +709,72 @@ function importSaveCode(code) {
   } catch (e) {
     return { ok: false, msg: '存档码无法解析' };
   }
+}
+
+// 与榜单里的真实玩家镜像论道：只取战力与名号，不接触对方存档内容。
+function battleRival(state, rival) {
+  if (!rival || !isFinite(rival.power)) return { ok: false, msg: '没有找到这位道友' };
+  const enemyPower = Math.max(0, Math.floor(Number(rival.power)));
+  const power = computePower(state);
+  const effects = activeBattleEffects(state);
+  const rolls = rollBattle(power, enemyPower, effectValue(state, 'variance'));
+  const win = rolls.playerRoll >= rolls.enemyRoll;
+  const qi = win ? 60 : 10;
+  const stone = win ? 8 : 0;
+  state.resources.qi += qi;
+  state.resources.stone += stone;
+  if (win) state.stats.wins += 1;
+  const name = typeof rival.name === 'string' && rival.name ? rival.name.slice(0, 12) : '榜单道友';
+  addLog(state, '与「' + name + '」论道，' + (win ? '胜' : '负') + '，' + rolls.playerRoll + ' : ' + rolls.enemyRoll, 'battle');
+  return {
+    ok: true, win: win, challengeName: name, challengeTitle: '实录论道',
+    power: power, enemyPower: enemyPower,
+    playerRoll: rolls.playerRoll, enemyRoll: rolls.enemyRoll,
+    effects: effects, qi: qi, stone: stone, dropName: '',
+    line: win ? '这一场赢得干净，对方留了句「后会有期」。' : '对方收招：「道友根基还差些火候。」',
+    realmName: rival.realmName || '未知境界',
+    newTitles: checkTitles(state),
+  };
+}
+
+function achievementMetric(key, state) {
+  switch (key) {
+    case 'practiceCount': return state.stats.practiceCount;
+    case 'gradeS': return state.stats.gradeS;
+    case 'comboCount': return state.stats.comboCount;
+    case 'tierUps': return state.stats.tierUps;
+    case 'dailyClaimed': return state.stats.dailyClaimed;
+    case 'wins': return state.stats.wins;
+    case 'defeated': return state.defeated.length;
+    case 'titles': return state.titles.length;
+    case 'realmStep': return state.realmIndex + 1;
+    case 'power': return computePower(state);
+    case 'unlockedSkills': {
+      let n = 0;
+      for (let i = 0; i < skillData.SKILLS.length; i += 1) {
+        const rec = state.skills[skillData.SKILLS[i].id];
+        if (rec && rec.unlocked) n += 1;
+      }
+      return n;
+    }
+    default: return 0;
+  }
+}
+
+function getAchievements(state) {
+  return achievementData.ACHIEVEMENTS.map(function (a) {
+    const current = achievementMetric(a.key, state);
+    return {
+      id: a.id,
+      name: a.name,
+      desc: a.desc,
+      glyph: a.glyph,
+      group: a.group,
+      goal: a.goal,
+      current: Math.min(current, a.goal),
+      unlocked: current >= a.goal,
+    };
+  });
 }
 
 // ---------------------------------------------------------------- 视图数据
@@ -852,8 +950,10 @@ function getTopSkills(state, count) {
 module.exports = {
   STORAGE_KEY: STORAGE_KEY,
   SAVE_PREFIX: SAVE_PREFIX,
+  SAVE_VERSION: SAVE_VERSION,
   createNewState: createNewState,
   normalizeState: normalizeState,
+  migrateState: migrateState,
   load: load,
   save: save,
   addLog: addLog,
@@ -873,6 +973,8 @@ module.exports = {
   battleCode: battleCode,
   parseBattleCode: parseBattleCode,
   battleMirror: battleMirror,
+  battleRival: battleRival,
+  getAchievements: getAchievements,
   breakthroughInfo: breakthroughInfo,
   applyBreakthrough: applyBreakthrough,
   buySkill: buySkill,

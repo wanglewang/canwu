@@ -6,10 +6,17 @@
   </view>
 
   <block wx:if="{{ov}}">
+    <view class="sync-bar sync-bar--{{syncTone}}" bindtap="onRetrySync">
+      <text class="sync-bar__dot"></text>
+      <text class="sync-bar__text">{{syncLabel}}</text>
+      <text class="sync-bar__action">重试 ›</text>
+    </view>
+
     <view class="idcard">
       <view class="idcard__inner">
         <view class="idcard__hero">
-          <portrait variant="{{ov.portrait}}" realm="{{ov.realmIndex}}" size="normal" />
+          <image wx:if="{{avatarUrl}}" class="idcard__avatar" src="{{avatarUrl}}" mode="aspectFill" />
+          <portrait wx:else variant="{{ov.portrait}}" realm="{{ov.realmIndex}}" size="normal" />
           <view class="idcard__hero-text">
             <text class="idcard__eyebrow">参 悟 · {{ov.worldLabel}} · {{ov.worldName}}</text>
             <view class="row mt16">
@@ -42,6 +49,10 @@
       <button class="btn btn--gold" bindtap="onCopyCardText">复制文案</button>
     </view>
     <button class="btn btn--ghost btn--block mt12" bindtap="onCopyCode">复制战力码，发给朋友打镜像</button>
+    <view class="btn-row mt12">
+      <button class="btn btn--ghost" open-type="share">邀道友同修</button>
+      <button class="btn btn--ghost" bindtap="onGoBattle">看论道榜单</button>
+    </view>
     <text class="tiny mt12">也可直接长按上方卡片截图晒出。</text>
 
     <view class="section">
@@ -64,6 +75,27 @@
           <button wx:if="{{item.unlocked}}" class="btn {{item.equipped ? 'btn--plain' : 'btn--ghost'}} btn--small" data-id="{{item.id}}" bindtap="onEquipTitle">{{item.equipped ? '卸下' : '佩戴'}}</button>
         </view>
       </view>
+    </view>
+
+    <view class="section">
+      <view class="section__head">
+        <text class="section__title">成就 · 修行印记</text>
+        <text class="section__sub">{{achievementUnlocked}} / {{achievementTotal}} 已达成</text>
+      </view>
+      <view class="card card--tight" wx:for="{{achievementShown}}" wx:key="id">
+        <view class="row--between">
+          <view class="grow">
+            <view class="row">
+              <text class="ach__glyph {{item.unlocked ? 'ach__glyph--on' : ''}}">{{item.glyph}}</text>
+              <text class="h3">{{item.name}}</text>
+              <text wx:if="{{item.unlocked}}" class="tag tag--jade">已达成</text>
+            </view>
+            <text class="tiny mt8">{{item.desc}}</text>
+          </view>
+          <text class="ach__progress">{{item.current}} / {{item.goal}}</text>
+        </view>
+      </view>
+      <button class="btn btn--plain btn--block mt12" bindtap="onToggleAchievements">{{showAllAchievements ? '收起' : '查看全部成就'}}</button>
     </view>
 
     <view class="section">
@@ -115,12 +147,17 @@
       <text class="modal__title serif">立道号 · 塑道相</text>
       <text class="modal__sub">给自己一个称呼，挑一尊随身道相</text>
       <view class="role-editor__preview">
-        <portrait variant="{{draftPortrait}}" realm="{{ov ? ov.realmIndex : 0}}" size="small" />
+        <image wx:if="{{draftAvatarTemp}}" class="role-editor__avatar" src="{{draftAvatarTemp}}" mode="aspectFill" />
+        <portrait wx:else variant="{{draftPortrait}}" realm="{{ov ? ov.realmIndex : 0}}" size="small" />
         <text class="role-editor__name">{{draftName || '未命名'}}</text>
       </view>
-      <input class="role-editor__input mt16" value="{{draftName}}" bindinput="onRoleNameInput" maxlength="12" placeholder="输入道号（最多 12 字）" placeholder-class="code-ph" />
-      <button class="btn btn--ghost btn--small btn--block mt12" bindtap="onNextPortrait">换一尊道相</button>
-      <text class="tiny mt12">道号与道相随账号存档一起保存，换设备登录也会带着。</text>
+      <input class="role-editor__input mt16" type="nickname" value="{{draftName}}" bindinput="onRoleNameInput" maxlength="12" placeholder="点这里用微信昵称，或自己起道号" placeholder-class="code-ph" />
+      <view class="btn-row mt12">
+        <button class="btn btn--ghost btn--small" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">用微信头像</button>
+        <button class="btn btn--ghost btn--small" bindtap="onNextPortrait">换道相</button>
+      </view>
+      <button wx:if="{{draftAvatarTemp}}" class="btn btn--plain btn--small btn--block mt12" bindtap="onClearAvatar">换回道相</button>
+      <text class="tiny mt12">头像与昵称由你主动选择，微信不会自动给出；资料随账号存档一起保存。</text>
       <view class="modal__actions">
         <button class="btn btn--plain" bindtap="closeRoleEditor">取消</button>
         <button class="btn btn--primary" bindtap="onSaveRole">定下</button>

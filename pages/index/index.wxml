@@ -6,6 +6,11 @@
     <text class="guide-link mt8" bindtap="onGoGuide">修行指南 · 玩法与数值 ›</text>
   </view>
 
+  <view wx:if="{{syncTone !== 'ok'}}" class="alert-bar alert-bar--{{syncTone}}" bindtap="onRetrySync">
+    <text class="alert-bar__text">{{syncLabel}}</text>
+    <text class="alert-bar__action">重试 ›</text>
+  </view>
+
   <view wx:if="{{viewState === 'loading'}}" class="card">
     <text class="muted">正在推演气机…</text>
   </view>

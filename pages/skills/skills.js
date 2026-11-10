@@ -112,7 +112,7 @@ Page({
   onBuy: function () {
     const id = this.data.detail ? this.data.detail.id : '';
     if (!id) return;
-    const r = store.commit(function (s) { return engine.buySkill(s, id); });
+    const r = store.commitCritical(function (s) { return engine.buySkill(s, id); });
     toast(r.ok ? '习得《' + r.name + '》' : r.msg);
     this.refresh();
   },

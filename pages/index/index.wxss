@@ -63,3 +63,40 @@
     flex-wrap: wrap;
     margin-left: 8rpx;
 }
+
+.alert-bar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 18rpx 22rpx;
+    margin-bottom: 20rpx;
+    border-radius: 14rpx;
+    border: 2rpx solid #e3ddcd;
+    background: #fffdf7;
+}
+
+.alert-bar--warn {
+    border-color: #d8b775;
+    background: #fbf3e2;
+}
+
+.alert-bar--error {
+    border-color: #b4453c;
+    background: #f9ebe8;
+}
+
+.alert-bar__text {
+    flex: 1;
+    font-size: 23rpx;
+    color: #5d6358;
+    line-height: 1.5;
+}
+
+.alert-bar--error .alert-bar__text { color: #8f3b34; }
+
+.alert-bar__action {
+    font-size: 22rpx;
+    color: #2f6b5b;
+    margin-left: 12rpx;
+}

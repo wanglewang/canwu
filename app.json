@@ -10,24 +10,26 @@
   ],
   "window": {
     "navigationBarTitleText": "参悟",
-    "navigationBarBackgroundColor": "#f7f3e8",
-    "navigationBarTextStyle": "black",
-    "backgroundColor": "#f2eee4",
-    "backgroundTextStyle": "dark"
+    "navigationBarBackgroundColor": "@navBgColor",
+    "navigationBarTextStyle": "@navTxtStyle",
+    "backgroundColor": "@bgColor",
+    "backgroundTextStyle": "@bgTxtStyle"
   },
   "tabBar": {
-    "color": "#8a8f83",
-    "selectedColor": "#2f6b5b",
-    "backgroundColor": "#fffdf7",
-    "borderStyle": "black",
+    "color": "@tabColor",
+    "selectedColor": "@tabSelectedColor",
+    "backgroundColor": "@tabBgColor",
+    "borderStyle": "@tabBorderStyle",
     "list": [
-      { "pagePath": "pages/index/index", "text": "洞府" },
-      { "pagePath": "pages/skills/skills", "text": "功法" },
-      { "pagePath": "pages/battle/battle", "text": "论道" },
-      { "pagePath": "pages/profile/profile", "text": "道牒" }
+      { "pagePath": "pages/index/index", "text": "洞府", "iconPath": "assets/tab/home.png", "selectedIconPath": "assets/tab/home-on.png" },
+      { "pagePath": "pages/skills/skills", "text": "功法", "iconPath": "assets/tab/book.png", "selectedIconPath": "assets/tab/book-on.png" },
+      { "pagePath": "pages/battle/battle", "text": "论道", "iconPath": "assets/tab/sword.png", "selectedIconPath": "assets/tab/sword-on.png" },
+      { "pagePath": "pages/profile/profile", "text": "道牒", "iconPath": "assets/tab/seal.png", "selectedIconPath": "assets/tab/seal-on.png" }
     ]
   },
   "style": "v2",
+  "darkmode": true,
+  "themeLocation": "theme.json",
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents"
 }

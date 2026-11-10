@@ -205,7 +205,7 @@ Page({
 
     if (grade === 'F') {
       if (this.mode === 'breakthrough') {
-        store.commit(function (s) { return engine.applyBreakthrough(s, 'F'); });
+        store.commitCritical(function (s) { return engine.applyBreakthrough(s, 'F'); });
       }
       rv = {
         kind: 'abandon',
@@ -222,7 +222,7 @@ Page({
         secondary: '返回',
       };
     } else if (this.mode === 'breakthrough') {
-      const r = store.commit(function (s) { return engine.applyBreakthrough(s, grade); });
+      const r = store.commitCritical(function (s) { return engine.applyBreakthrough(s, grade); });
       rv = {
         kind: 'breakthrough',
         grade: grade,
@@ -242,7 +242,7 @@ Page({
         secondary: '去功法页',
       };
     } else {
-      const r = store.commit(function (s) {
+      const r = store.commitCritical(function (s) {
         return engine.applyPractice(s, skillId, grade, { hard: hard });
       });
       const lines = [

@@ -2,6 +2,8 @@
 
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
+const social = require('../../utils/cloud-social.js');
+const share = require('../../utils/share.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -38,6 +40,10 @@ Page({
     inputCode: '',
     showResult: false,
     result: null,
+    board: [],
+    boardError: '',
+    boardLoading: false,
+    rival: null,
   },
 
   onLoad: function () {
@@ -46,7 +52,10 @@ Page({
     this.refresh();
   },
 
-  onShow: function () { this.refresh(); },
+  onShow: function () {
+    this.refresh();
+    this.refreshBoard(false);
+  },
 
   onUnload: function () { store.unsubscribe(this.listener); },
 
@@ -67,12 +76,41 @@ Page({
     });
   },
 
+  // 榜单读公开、写仅本人；进来时顺手把自己的战绩更一次（30 秒内不重复写）。
+  refreshBoard: async function (force) {
+    if (this.data.boardLoading) return;
+    this.setData({ boardLoading: true });
+    const result = await social.refreshBoard(store.get(), !!force);
+    const rows = result.board.ok ? result.board.rows : [];
+    const rival = social.pickRival(rows, '', engine.computePower(store.get()));
+    this.setData({
+      board: rows.slice(0, 10),
+      boardError: result.board.ok ? '' : (result.board.message || '榜单暂不可用'),
+      rival: rival,
+      boardLoading: false,
+    });
+  },
+
+  onRefreshBoard: function () { this.refreshBoard(true); },
+
   onFight: function (event) {
     const id = event.currentTarget.dataset.id;
-    const r = store.commit(function (s) { return engine.battle(s, id); });
+    const r = store.commitCritical(function (s) { return engine.battle(s, id); });
     if (!r.ok) { toast(r.msg); return; }
     this.setData({ showResult: true, result: buildResult(r) });
     this.refresh();
+    this.refreshBoard(true);
+  },
+
+  // 与榜单里战力最接近的真实玩家打一场镜像，不再只是本地预设 NPC。
+  onFightRival: function () {
+    const rival = this.data.rival;
+    if (!rival) { toast('榜单上暂时只有你一人，先邀个道友'); return; }
+    const r = store.commitCritical(function (s) { return engine.battleRival(s, rival); });
+    if (!r.ok) { toast(r.msg); return; }
+    this.setData({ showResult: true, result: buildResult(r) });
+    this.refresh();
+    this.refreshBoard(true);
   },
 
   onCopyCode: function () {
@@ -100,7 +138,7 @@ Page({
   onMirrorFight: function () {
     const code = (this.data.inputCode || '').trim();
     if (!code) { toast('先粘贴一个战力码'); return; }
-    const r = store.commit(function (s) { return engine.battleMirror(s, code); });
+    const r = store.commitCritical(function (s) { return engine.battleMirror(s, code); });
     if (!r.ok) { toast(r.msg); return; }
     this.setData({ showResult: true, result: buildResult(r) });
     this.refresh();
@@ -109,6 +147,9 @@ Page({
   closeResult: function () {
     this.setData({ showResult: false, result: null });
   },
+
+  onShareAppMessage: function () { return share.appMessage(store.get()); },
+  onShareTimeline: function () { return share.timeline(store.get()); },
 
   noop: function () {},
 });
