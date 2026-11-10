@@ -25,6 +25,43 @@
     color: #8a8f83;
 }
 
+.btn-wechat {
+    margin-top: 8rpx;
+    background: #2f6b5b;
+    color: #fffdf7;
+    font-size: 30rpx;
+    letter-spacing: 2rpx;
+    border-radius: 14rpx;
+}
+
+.btn-wechat::after {
+    border: none;
+}
+
+.login-hint {
+    display: block;
+    margin-top: 18rpx;
+    text-align: center;
+    font-size: 24rpx;
+    color: #8a8f83;
+}
+
+.login-alt {
+    margin-top: 56rpx;
+    padding: 20rpx;
+    text-align: center;
+}
+
+.login-alt-text {
+    font-size: 26rpx;
+    color: #2f6b5b;
+    text-decoration: underline;
+}
+
+.login-email {
+    margin-top: 8rpx;
+}
+
 .login-note {
     margin-top: 36rpx;
     padding: 24rpx 28rpx;

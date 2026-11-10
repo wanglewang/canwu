@@ -2,7 +2,7 @@
 
 一个修仙题材的**养成挂机 + 小游戏**微信小程序：练功法、参悟小游戏、攒熟练度与战力、突破境界、论道打预设对手，顺手收集称号。
 
-> 原生微信小程序 + WorkBuddy 云服务：邮箱验证码登录，进度按账号存云端，本机只留缓存。
+> 原生微信小程序 + WorkBuddy 云服务：微信一键登录（邮箱验证码兜底），进度按账号存云端，本机只留缓存。
 > 当前状态：原型可玩，**未发布上线**，真机登录与云端读写尚未验证。
 
 ## 玩法速览
@@ -33,7 +33,7 @@
 │   ├── cloud-save.js               云端存档适配层：读写 canwu_saves
 │   ├── workbuddy-data-access.js    官方资产：单表增删改查，0 行命中视为失败
 │   └── workbuddy-cloud-diagnostics.js  官方资产：云请求失败诊断日志
-├── components/login-panel/         官方资产：邮箱验证码登录组件
+├── components/login-panel/         官方资产：邮箱验证码登录组件（兜底入口）
 ├── minigames/                      5 个小游戏，统一 create(ctx) 接口
 ├── pages/
 │   ├── index/ skills/ battle/      洞府 / 功法 / 论道
@@ -49,13 +49,17 @@
 
 1. 用**微信开发者工具**「导入项目」，选择本仓库根目录（`miniprogramRoot` 为 `./`）。
 2. 安装依赖：`npm install`；小程序需在开发者工具中执行「构建 npm」，或使用 WorkBuddy 发布流程自动构建。
-3. `project.config.json` 里的 `appid` 目前是 `touristappid`（游客模式）。真机预览或发布前请替换成自己的小程序 AppID，并在小程序后台把云服务的固定网关加入 request 合法域名。
+3. `project.config.json` 的 `appid` 已设为 `wx925cc80bd598d7ca`。真机预览前需在小程序后台把云网关 `https://mp-api.app.workbuddy.host` 加入 **request 合法域名**。
 4. 应用 `wbapp_jiVmdkW9TIl3n14p3QlIi5` 已开通云服务（Auth + Database），无需再建应用。
-5. 在 WorkBuddy 中可通过应用卡预览（H5 预览**无法**完成真实微信登录或验证云端读写，需在微信中验证）。
+5. 微信一键登录还需要两处平台侧设置：在小程序预览面板右上角「分享」里**绑定已有小程序**（扫码授权），并在应用的认证设置里**打开微信登录开关**。这两项无法由仓库代码代替。
+6. 在 WorkBuddy 中可通过应用卡预览（H5 预览**无法**完成真实微信登录或验证云端读写，需在微信中验证）。
 
 ## 登录与账号隔离
 
-- 登录方式：邮箱验证码（发送验证码 → 验证，无密码）。组件在 `components/login-panel/`，页面在 `pages/login/`。
+- 主入口 **微信一键登录**：`wx.login` 取 code + `wx.getAccountInfoSync().miniProgram.appId`（运行时真实 appid，不硬编码、不用 `wbapp_…`），调用 `cloud.auth.signInWithWechat(code, appid)`；后端负责换会话，前端不实现 `jscode2session`、不收集 AppSecret、不自行保存 openid。登录只建立身份，**不获取头像昵称**。
+- 兜底入口 **邮箱验证码**（发送 → 验证，无密码）：绑定或开关尚未配置好、或用户不愿用微信时仍可登录。组件在 `components/login-panel/`，默认折叠。
+- 两种登录方式返回同一个 WorkBuddy 会话，共用 `app.js` 的 `afterLogin()`；身份隔离完全由会话 uid 决定，换登录方式不影响 `canwu_saves` 与 RLS。
+- 前置条件：小程序已完成授权绑定、微信登录开关已启用（体验版 / 正式版各自检查）。H5 预览拿不到真实 `wx.login` code，**必须真机或体验版验证**。
 - 冷启动时 `app.js` 检查会话；未登录则跳登录页，登录成功后按该用户身份拉取云端存档。
 - 云端表 `canwu_saves`：`owner_id TEXT NOT NULL DEFAULT auth.uid() UNIQUE`、`payload JSONB`、`updated_at`。**归属由数据库填充，前端不传用户 ID**。
 - 已开启 RLS，SELECT / INSERT / UPDATE / DELETE 四条策略均限定 `owner_id = auth.uid()`，即每个账号只能读写自己那一行；表已 GRANT 给 `authenticated, anon`。
@@ -88,8 +92,8 @@ find . -name '*.js' -not -path './.git/*' -exec node --check {} \;
 
 ## 当前边界
 
-- 已完成：云服务开通、`canwu_saves` 表与 RLS 策略、服务端写入读回验证、登录组件与会话引导、按用户隔离的存档同步、静态校验。
-- **尚未验证**：微信开发者工具编译、真机 / 体验版登录、真机云端读写、发布上线。H5 预览不能证明这些能力可用。
+- 已完成：云服务开通、`canwu_saves` 表与 RLS 策略、服务端写入读回验证、微信一键登录 + 邮箱兜底、会话引导、按用户隔离的存档同步、静态校验；已写入真实 AppID。
+- **尚未验证 / 需你本人完成**：小程序授权绑定、微信登录开关、request 合法域名；微信开发者工具编译与「构建 npm」、真机 / 体验版登录、真机云端读写、发布上线。H5 预览不能证明这些能力可用。
 - 未做排行榜与真实 PVP；论道对手仍是本地预设数据。
 - `.workbuddy/`（项目记忆、应用注册）与 `*.genie`（含本机绝对路径的预览卡）由 `.gitignore` 排除，不入库。
 

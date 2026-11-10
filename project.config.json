@@ -1,5 +1,5 @@
 {
-  "description": "《参悟》养成挂机 + 小游戏小程序（原生静态版）",
+  "description": "《参悟》养成挂机 + 小游戏小程序（云服务账号版）",
   "packOptions": {
     "ignore": [
       {
@@ -17,7 +17,7 @@
     "urlCheck": true
   },
   "compileType": "miniprogram",
-  "appid": "touristappid",
+  "appid": "wx925cc80bd598d7ca",
   "projectname": "canwu",
   "miniprogramRoot": "./"
 }
