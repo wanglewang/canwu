@@ -14,6 +14,8 @@ function create(ctx) {
   const targetEnd = Math.min(96, targetStart + zoneWidth);
   const center = (targetStart + targetEnd) / 2;
   const vm = C.makeVm(0, 0, '长按蓄力，松手停在朱线区间', ctx.tip || '越靠近区间正中，评级越高');
+  vm.stage = 'charge';
+  vm.extras.showGrid = false;
   vm.extras.showCharge = true;
   vm.charge = { value: 0, start: targetStart, end: targetEnd, holding: false };
   vm.scoreText = '蓄力 0%';
@@ -119,4 +121,4 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'charge', name: '突破瓶颈', create: create };
+module.exports = { id: 'charge', name: '蓄力停区', create: create };

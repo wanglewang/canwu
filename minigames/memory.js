@@ -1,8 +1,8 @@
 'use strict';
 
-// A2 记序复现：记住闪烁次序再复现，比通关轮数。
-// 修复：闪烁时不再把序号写在格子上（原来等于直接给答案）、序列去重避免重复格难辨。
-// twist recite：纯记忆不示序号；twist stones：两次机会 + 已踏石板留痕。
+// 记序复现（背功法口诀 / 静心诀专属）：记住闪烁次序再依次点回，比通关轮数。
+// 本门机制「不示序号」：闪烁时只显口诀印记、不标先后，格子一轮内不重复，全凭记住次序。
+// 踩错一次即散功（精通以上多一盏心神）。
 
 const C = require('./common.js');
 
@@ -10,7 +10,6 @@ function create(ctx) {
   const p = ctx.params || {};
   const hard = ctx.difficulty === 'hard';
   const perks = ctx.perks || {};
-  const twist = ctx.twist || '';
   const theme = ctx.theme || {};
   const startLen = Math.min(p.grid || 9, (p.startLen || 2) + (hard ? 1 : 0));
   const flashMs = Math.max(260, (p.flashMs || 560) - (hard ? 130 : 0) + (perks.easy ? 90 : 0));
@@ -24,10 +23,9 @@ function create(ctx) {
   vm.goal = C.goalFor('C', 6, '轮');
 
   const bag = C.TimerBag();
-  const maxLives = twist === 'stones' ? 2 : 1;
+  const maxLives = 1;
   let lives = Math.max(maxLives, perks.easy ? 2 : 1);
   let sequence = [];
-  let trail = [];
   let inputIndex = 0;
   let round = 1;
   let accepting = false;
@@ -68,16 +66,6 @@ function create(ctx) {
     return C.shuffle(a);
   }
 
-  function paintTrail() {
-    C.clearCells(vm.cells);
-    if (twist === 'stones') {
-      for (let i = 0; i < trail.length; i += 1) {
-        vm.cells[trail[i]].cls = 'cell cell--trail';
-        vm.cells[trail[i]].label = glyph;
-      }
-    }
-  }
-
   function flashStep(i) {
     if (done || vm.phase !== 'flashing') return;
     C.clearCells(vm.cells);
@@ -85,10 +73,9 @@ function create(ctx) {
       vm.phase = 'input';
       accepting = true;
       inputIndex = 0;
-      trail = [];
       vm.status = '第 ' + round + ' 轮 · 请依次点出';
       vm.meter = { label: '该复述', value: 0, max: sequence.length };
-      paintTrail();
+      C.clearCells(vm.cells);
       render();
       return;
     }
@@ -129,7 +116,6 @@ function create(ctx) {
   function tap(index) {
     if (done || !accepting || vm.phase !== 'input') return;
     if (index === sequence[inputIndex]) {
-      trail.push(index);
       inputIndex += 1;
       vm.cells[index].cls = 'cell cell--ok';
       vm.cells[index].label = glyph;
@@ -174,10 +160,9 @@ function create(ctx) {
       if (done) return;
       inputIndex = 0;
       accepting = true;
-      trail = [];
       vm.status = '再试一遍这一轮';
       vm.meter = { label: '该复述', value: 0, max: sequence.length };
-      paintTrail();
+      C.clearCells(vm.cells);
       render();
     }, 550);
   }

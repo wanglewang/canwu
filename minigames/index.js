@@ -1,25 +1,31 @@
 'use strict';
 
-// 小游戏注册表。5 类底层玩法，10 门功法各挂一类中的一种变数（twist）。
-// 换包装只改 data/practice.js 与 minigames/theme.js，不动玩法内核。
+// 小游戏注册表：10 门功法各有 1 套独立玩法，另有 1 套只在境界突破时用。
+// 玩法名由模块自己导出，注册表不重复维护一份名字。
+// ctx.theme / ctx.twist 决定每门功法的配色与本门玄机，但玩法内核彼此独立：
+// 两门同类功法（如两门剑法）也不会共用同一套盘面、交互或胜负规则。
+
+const practiceData = require('../data/practice.js');
 
 const MODULES = {
   click: require('./click.js'),
+  hunt: require('./hunt.js'),
   memory: require('./memory.js'),
-  lights: require('./lights.js'),
-  mines: require('./mines.js'),
+  bridge: require('./bridge.js'),
   tempo: require('./tempo.js'),
+  sword: require('./sword.js'),
+  lights: require('./lights.js'),
+  wuxing: require('./wuxing.js'),
+  mines: require('./mines.js'),
+  seal: require('./seal.js'),
   charge: require('./charge.js'),
 };
 
-const GAME_NAMES = {
-  click: '追光点击',
-  memory: '记序复现',
-  lights: '阵灯推演',
-  mines: '辨纹探禁',
-  tempo: '节律判定',
-  charge: '蓄力停区',
-};
+// 中文玩法名统一由 data/practice.js 提供，charge 是突破专用、不在功法表里，取模块自己的名字。
+const GAME_NAMES = Object.assign({ charge: MODULES.charge.name }, practiceData.GAME_LABELS);
+
+// 突破专用，不参与功法参悟。
+const PRACTICE_GAMES = Object.keys(MODULES).filter(function (k) { return k !== 'charge'; });
 
 function createGame(gameId, ctx) {
   const mod = MODULES[gameId] || MODULES.click;
@@ -31,6 +37,7 @@ function gameName(gameId) { return GAME_NAMES[gameId] || '追光点击'; }
 module.exports = {
   MODULES: MODULES,
   GAME_NAMES: GAME_NAMES,
+  PRACTICE_GAMES: PRACTICE_GAMES,
   createGame: createGame,
   gameName: gameName,
 };

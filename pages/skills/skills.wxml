@@ -2,7 +2,7 @@
   <view class="pg__head">
     <text class="eyebrow">技 能 · 熟 练 度 · 参 悟 方 式</text>
     <text class="h1 serif">功法</text>
-    <text class="muted mt8">没有废技能，只有适合不同玩法偏好的路线。</text>
+    <text class="muted mt8">十门功法，十套玩法；同是剑法，点进去也不是同一个盘面。</text>
   </view>
 
   <view wx:if="{{ov}}" class="card card--ink">
@@ -34,6 +34,9 @@
         <text wx:else class="tag tag--grey">未得</text>
       </view>
       <text class="tiny mt8">{{item.methodName}} · {{item.desc}}</text>
+      <view class="row mt8">
+        <text class="tag tag--jade">玩法 · {{item.gameName}}</text>
+      </view>
       <block wx:if="{{item.unlocked}}">
         <view class="bar mt12">
           <view class="bar__fill" style="width:{{item.percent}}%;background:{{item.tierColor}}"></view>
@@ -60,7 +63,7 @@
         <text class="tag" style="color:{{detail.tierColor}}">{{detail.tierName}}</text>
       </view>
       <text class="modal__title serif mt12">{{detail.name}}</text>
-      <text class="modal__sub">参悟方式 · {{detail.methodName}}</text>
+      <text class="modal__sub">参悟方式 · {{detail.methodName}} · 玩法「{{detail.gameName}}」</text>
 
       <view class="modal__body">
         <text class="body">{{detail.desc}}</text>

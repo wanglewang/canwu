@@ -1,8 +1,8 @@
 'use strict';
 
-// A3 阵灯推演（Lights Out）：点一格翻转十字，令全盘点亮，比步数。
+// 阵灯推演（参悟阵眼 / 阵法入门专属）：点一格翻转它和上下左右，令全盘点亮，比步数。
 // 盘面由「全亮」随机翻转生成，保证一定有解；用求解器给出最优步数目标。
-// twist arrayEye：标出最优步数；twist wuxing：按行列分五行色。
+// 本门机制「阵眼明示」：开局标出最优步数，另有两次阵眼感应直接指出该点哪格。
 
 const C = require('./common.js');
 
@@ -55,7 +55,6 @@ function create(ctx) {
   const p = ctx.params || {};
   const hard = ctx.difficulty === 'hard';
   const perks = ctx.perks || {};
-  const twist = ctx.twist || '';
   const theme = ctx.theme || {};
   const size = Math.min(5, (p.size || 3) + (hard ? 1 : 0));
   const scramble = (p.scramble || 5) + (hard ? 3 : 0);
@@ -95,9 +94,7 @@ function create(ctx) {
     vm.scoreText = '步数 ' + moves;
     vm.gradeNow = gradeMoves(moves);
     const target = Math.max(best, size <= 3 ? 6 : size === 4 ? 10 : 14);
-    vm.goal = twist === 'arrayEye'
-      ? '最优 ' + target + ' 步 · 已走 ' + moves + ' 步'
-      : '目标 ' + target + ' 步内点亮 · 已走 ' + moves + ' 步';
+    vm.goal = '最优 ' + target + ' 步 · 已走 ' + moves + ' 步';
     vm.hint = '阵眼感应剩 ' + hintsLeft + ' 次';
   }
 
@@ -105,7 +102,7 @@ function create(ctx) {
     for (let i = 0; i < n; i += 1) {
       vm.cells[i].cls = board[i] ? 'cell cell--lit' : 'cell cell--off';
       vm.cells[i].label = board[i] ? (theme.glyph || '明') : '暗';
-      vm.cells[i].tone = twist === 'wuxing' ? 1 + (Math.floor(i / size) + (i % size)) % 5 : 0;
+      vm.cells[i].tone = 0;
     }
   }
 

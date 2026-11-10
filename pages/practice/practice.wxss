@@ -295,6 +295,222 @@
 .cell--lit.cell--t4 { background: #7d8398; }
 .cell--lit.cell--t5 { background: #3b7a8c; }
 
+/* ---------- 辨伪夺宝：真宝与影子 ---------- */
+.cell--decoy {
+    background: #8d8b7d;
+    color: #fffdf7;
+}
+
+/* ---------- 循纹渡河：竖向河道 ---------- */
+.lane-rule {
+    box-sizing: border-box;
+    margin-top: 20rpx;
+    padding: 14rpx 18rpx;
+    border-left: 6rpx solid var(--acc, #3d8c74);
+    border-radius: 10rpx;
+    background: var(--soft, #e9e3d4);
+}
+
+.grid--lane {
+    padding: 18rpx;
+    background: linear-gradient(180deg, var(--soft, #e9e3d4), var(--bg, #efe9db));
+}
+
+.grid--lane .cell {
+    height: 108rpx;
+    border-radius: 12rpx;
+}
+
+.grid--lane .cell--fog {
+    background: rgba(120, 140, 150, 0.16);
+    color: transparent;
+    border-style: dashed;
+}
+
+.grid--lane .cell--trail {
+    background: var(--soft, #e9e3d4);
+    color: var(--ink, #5d6358);
+    opacity: 0.6;
+}
+
+.grid--lane .cell--stone {
+    background: var(--bg, #efe9db);
+    color: var(--ink, #5d6358);
+    border-color: var(--acc, #3d8c74);
+    font-size: 34rpx;
+}
+
+.grid--lane .cell--stone.cell--t1 { box-shadow: inset 0 -10rpx 0 rgba(79, 143, 90, 0.5); }
+.grid--lane .cell--stone.cell--t2 { box-shadow: inset 0 -10rpx 0 rgba(194, 91, 63, 0.5); }
+.grid--lane .cell--stone.cell--t3 { box-shadow: inset 0 -10rpx 0 rgba(184, 137, 59, 0.55); }
+.grid--lane .cell--stone.cell--t4 { box-shadow: inset 0 -10rpx 0 rgba(125, 131, 152, 0.55); }
+.grid--lane .cell--stone.cell--t5 { box-shadow: inset 0 -10rpx 0 rgba(59, 122, 140, 0.55); }
+
+/* ---------- 符纹配对：牌背 / 翻开 / 已解 ---------- */
+.cell--card {
+    background: var(--ink, #5d6358);
+    color: var(--bg, #efe9db);
+    font-family: serif;
+    font-size: 38rpx;
+}
+
+.cell--flipped {
+    background: var(--bg, #efe9db);
+    color: var(--ink, #5d6358);
+    border-color: var(--acc, #3d8c74);
+    font-family: serif;
+    font-size: 38rpx;
+    animation: litPop 0.28s ease-out;
+}
+
+.cell--flipped.cell--t1 { color: #4f8f5a; }
+.cell--flipped.cell--t2 { color: #c25b3f; }
+.cell--flipped.cell--t3 { color: #a8791f; }
+.cell--flipped.cell--t4 { color: #6f5b9e; }
+.cell--flipped.cell--t5 { color: #3b7a8c; }
+
+.cell--matched {
+    background: var(--soft, #e9e3d4);
+    color: var(--ink, #5d6358);
+    opacity: 0.5;
+}
+
+/* ---------- 五行相生：五盏灯围成一环 ---------- */
+.orbit {
+    position: relative;
+    height: 480rpx;
+    margin-top: 20rpx;
+    border-radius: 20rpx;
+    background: var(--soft, #e9e3d4);
+}
+
+.orbit__core {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 190rpx;
+    height: 190rpx;
+    border: 6rpx solid var(--acc, #3d8c74);
+    border-radius: 50%;
+    background: var(--bg, #efe9db);
+    transform: translate(-50%, -50%);
+}
+
+.orbit__glyph {
+    font-family: serif;
+    font-size: 62rpx;
+    line-height: 1.2;
+}
+
+.orbit__lamp {
+    position: absolute;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 112rpx;
+    height: 112rpx;
+    border: 5rpx solid var(--frame, #fffdf7);
+    border-radius: 50%;
+    background: var(--bg, #efe9db);
+    color: var(--ink, #5d6358);
+    font-family: serif;
+    font-size: 38rpx;
+}
+
+.orbit__lamp--0 { top: 16rpx; left: 50%; transform: translateX(-50%); }
+.orbit__lamp--1 { top: 118rpx; right: 34rpx; }
+.orbit__lamp--2 { right: 74rpx; bottom: 32rpx; }
+.orbit__lamp--3 { bottom: 32rpx; left: 74rpx; }
+.orbit__lamp--4 { top: 118rpx; left: 34rpx; }
+
+.orbit__lamp--t1 { border-color: #4f8f5a; }
+.orbit__lamp--t2 { border-color: #c25b3f; }
+.orbit__lamp--t3 { border-color: #b8893b; }
+.orbit__lamp--t4 { border-color: #7d8398; }
+.orbit__lamp--t5 { border-color: #3b7a8c; }
+
+.orbit__lamp.lamp--current {
+    background: var(--acc, #3d8c74);
+    color: #fffdf7;
+    box-shadow: 0 0 0 8rpx rgba(184, 137, 59, 0.28);
+}
+
+.orbit__lamp.lamp--hit {
+    background: #b8893b;
+    color: #fffdf7;
+    animation: litPop 0.35s ease-out;
+}
+
+/* ---------- 剑招连段：卷轴 + 四个招式键 ---------- */
+.scroll {
+    box-sizing: border-box;
+    margin-top: 20rpx;
+    padding: 20rpx;
+    border-radius: 18rpx;
+    background: var(--soft, #e9e3d4);
+}
+
+.scroll__ribbon {
+    display: flex;
+    flex-wrap: wrap;
+    min-height: 88rpx;
+    margin-top: 16rpx;
+}
+
+.scroll__move {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 76rpx;
+    height: 76rpx;
+    margin: 0 10rpx 10rpx 0;
+    border: 4rpx solid var(--frame, #fffdf7);
+    border-radius: 12rpx;
+    background: var(--bg, #efe9db);
+    color: var(--ink, #5d6358);
+    font-family: serif;
+    font-size: 34rpx;
+}
+
+.scroll__move--active {
+    border-color: var(--acc, #3d8c74);
+    background: var(--acc, #3d8c74);
+    color: #fffdf7;
+    animation: litPop 0.35s ease-out;
+}
+
+.scroll__move--done { opacity: 0.42; }
+
+.scroll__keys {
+    display: flex;
+    margin-top: 20rpx;
+}
+
+.scroll__key {
+    box-sizing: border-box;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    height: 120rpx;
+    margin-right: 12rpx;
+    border: 5rpx solid var(--acc, #3d8c74);
+    border-radius: 16rpx;
+    background: var(--bg, #efe9db);
+    color: var(--ink, #5d6358);
+    font-family: serif;
+    font-size: 44rpx;
+}
+
+.scroll__key:last-child { margin-right: 0; }
+
 /* ---------- 起手式 ---------- */
 .countdown-mask {
     position: fixed;
@@ -384,4 +600,17 @@
     .heart { color: #4a5a51; }
     .twist { opacity: 0.9; }
     .res-line { border-color: #33403a; }
+    .cell--decoy { background: #4a5048; color: #d8ddd6; }
+    .cell--card { background: #2f3d35; color: #cfd8cf; }
+    .cell--flipped { background: #1e2723; color: #e8eee9; }
+    .cell--matched { background: #2b3832; color: #9aa79f; }
+    .lane-rule, .orbit, .scroll { background: #26342d; }
+    .grid--lane { background: linear-gradient(180deg, #26342d, #1e2723); }
+    .grid--lane .cell--fog { background: rgba(120, 140, 150, 0.1); }
+    .grid--lane .cell--trail { background: #2b3832; }
+    .grid--lane .cell--stone, .orbit__core, .orbit__lamp, .scroll__move, .scroll__key {
+        background: #1e2723;
+        color: #e8eee9;
+    }
+    .scroll__move--active, .orbit__lamp.lamp--current { background: var(--acc, #3d8c74); color: #fffdf7; }
 }

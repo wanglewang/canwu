@@ -68,7 +68,7 @@ Page({
         const s = groups[g].items[i];
         cards.push({
           id: s.id, name: s.name, type: s.type, desc: s.desc,
-          methodName: s.methodName, tierName: s.tierName, tierColor: s.tierColor,
+          methodName: s.methodName, gameName: s.gameName, tierName: s.tierName, tierColor: s.tierColor,
           percent: s.percent, prof: s.prof, nextText: s.nextText,
           unlocked: s.unlocked, canBuy: s.canBuy, costText: s.costText,
           affordable: s.affordable, sourceText: s.sourceText,

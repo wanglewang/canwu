@@ -1,0 +1,156 @@
+'use strict';
+
+// 辨伪夺宝（剑诀·断岳专属）：每轮同时亮起数道宝光，只有一道是真宝，其余是同门留下的影子。
+// 与「追光点击」的区别：追光是追唯一移动目标，这里是多目标里辨真伪，点错要倒扣分数与时间。
+// 盘面 4×3、有伪目标、连击提速，规则和观感都与锻造敲击不同。
+
+const C = require('./common.js');
+
+function create(ctx) {
+  const p = ctx.params || {};
+  const hard = ctx.difficulty === 'hard';
+  const perks = ctx.perks || {};
+  const theme = ctx.theme || {};
+  const duration = Math.max(9, (p.duration || 16) + (perks.easy ? 3 : 0) - (hard ? 2 : 0));
+  const baseInterval = Math.max(420, (p.interval || 1000) + (perks.easy ? 160 : 0) - (hard ? 180 : 0));
+  const grid = p.grid || 12;
+  const decoys = Math.min(grid - 1, (p.decoys || 2) + (hard ? 1 : 0));
+  const sLimit = Math.ceil(duration * 0.8);
+  const aLimit = Math.ceil(duration * 0.6);
+  const bLimit = Math.ceil(duration * 0.35);
+  const vm = C.makeVm(p.cols || 4, grid, '凝神，辨出哪一道是真宝', ctx.tip || '只点金色宝光，影子是陷阱');
+  vm.timeText = C.mmss(duration);
+  vm.scoreText = '夺宝 0';
+  vm.extras.showCombo = true;
+  vm.goal = C.goalFor('C', sLimit, '件宝光');
+
+  const bag = C.TimerBag();
+  let real = -1;
+  let lit = [];
+  let score = 0;
+  let combo = 0;
+  let fast = false;
+  let left = duration;
+  let done = false;
+  let started = false;
+
+  function render() { ctx.render(vm); }
+
+  function syncHud() {
+    vm.timeText = C.mmss(Math.max(0, left));
+    vm.progress = C.pct(duration - left, duration);
+    vm.progressText = Math.max(0, left) + ' 息';
+    vm.scoreText = '夺宝 ' + score;
+    vm.combo = combo;
+    vm.comboText = combo >= 2 ? '连夺 ×' + combo : '';
+    vm.gradeNow = C.gradeBy(score, sLimit, aLimit, bLimit);
+    vm.goal = C.goalFor(vm.gradeNow, Math.max(0, sLimit - score), '件宝光');
+  }
+
+  function finishOnce(grade, summary) {
+    if (done) return;
+    done = true;
+    bag.clear();
+    vm.phase = 'done';
+    vm.status = '参悟已毕';
+    vm.banner = grade === 'S' ? (theme.praise || '眼疾手快') : '';
+    render();
+    ctx.finish({ grade: grade, score: score, summary: summary });
+  }
+
+  function clearLit() {
+    for (let i = 0; i < lit.length; i += 1) {
+      vm.cells[lit[i]].label = '';
+      vm.cells[lit[i]].cls = 'cell';
+    }
+    lit = [];
+  }
+
+  function nextRound() {
+    // 上一轮真宝没被点到（自动换轮），连夺就断了；点中后主动换轮不清连击。
+    if (real >= 0) combo = 0;
+    clearLit();
+    const pool = C.shuffle((function () {
+      const a = [];
+      for (let i = 0; i < grid; i += 1) a.push(i);
+      return a;
+    })());
+    real = pool[0];
+    for (let i = 0; i <= decoys; i += 1) {
+      const k = pool[i];
+      lit.push(k);
+      if (i === 0) {
+        vm.cells[k].cls = 'cell cell--gold' + (fast ? ' cell--hot' : '');
+        vm.cells[k].label = theme.glyph || '宝';
+      } else {
+        vm.cells[k].cls = 'cell cell--decoy';
+        vm.cells[k].label = '影';
+      }
+    }
+    syncHud();
+    render();
+  }
+
+  function intervalNow() { return fast ? Math.max(400, Math.round(baseInterval * 0.72)) : baseInterval; }
+
+  function start() {
+    if (started) return;
+    started = true;
+    vm.phase = 'playing';
+    vm.status = '宝光乍现，辨清再出手';
+    vm.banner = theme.banner || '宝光乍现';
+    nextRound();
+    bag.every(function () {
+      left -= 1;
+      syncHud();
+      if (left <= 0) {
+        finishOnce(C.gradeBy(score, sLimit, aLimit, bLimit), '夺得 ' + score + ' 件宝光');
+        return;
+      }
+      render();
+    }, 1000);
+    bag.everyFlex(nextRound, intervalNow);
+  }
+
+  function tap(index) {
+    if (done || vm.phase !== 'playing') return;
+    if (index === real) {
+      score += 1;
+      combo += 1;
+      C.flash(vm, (theme.hit || '宝光入手') + (combo >= 3 ? ' · 连夺 ×' + combo : ''), 'gold');
+      if (combo >= 4 && !fast) {
+        fast = true;
+        vm.banner = '剑势已起 · 宝光更快';
+      }
+      vm.status = combo >= 3 ? '手稳，别被影子骗了' : '好，再看下一道';
+      real = -1;
+      nextRound();
+      return;
+    }
+    score = Math.max(0, score - 1);
+    left = Math.max(1, left - 1);
+    combo = 0;
+    fast = false;
+    vm.cells[index].cls = 'cell cell--bad';
+    vm.cells[index].label = '';
+    vm.status = theme.miss || '慢了半步';
+    C.flash(vm, '夺宝 -1 · 少一息', 'bad');
+    syncHud();
+    const i = index;
+    bag.after(function () {
+      if (done || vm.phase !== 'playing') return;
+      if (lit.indexOf(i) < 0) { vm.cells[i].cls = 'cell'; render(); }
+    }, 240);
+    render();
+  }
+
+  nextRound();
+  return C.fillController({
+    start: start,
+    tap: tap,
+    abandon: function () { finishOnce('F', '中途收功'); },
+    destroy: function () { bag.clear(); },
+  });
+}
+
+module.exports = { id: 'hunt', name: '辨伪夺宝', create: create };

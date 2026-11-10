@@ -6,6 +6,8 @@
 // controller = { start, tap, longpress, undo, hint, press, release, abandon, destroy }
 // vm = { cols, cells, phase, status, hint, timeText, scoreText, charge, ring, extras, HUD 字段 }
 // HUD 字段：progress / progressText / combo / comboText / goal / gradeNow / banner / fx / hearts / meter
+// stage = 'board' | 'lane' | 'ring' | 'charge' | 'orbit' | 'scroll'，由页面决定盘面形态。
+// lane / orbit / scroll 是对应舞台的附加渲染数据，board/ring/charge 用不到时为 null。
 
 function randInt(n) { return Math.floor(Math.random() * n); }
 
@@ -109,6 +111,10 @@ function makeVm(cols, cellCount, status, hint) {
   return {
     cols: cols,
     cells: makeCells(cellCount),
+    stage: 'board',
+    lane: null,
+    orbit: null,
+    scroll: null,
     phase: 'ready',
     status: status,
     hint: hint,

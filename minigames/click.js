@@ -1,7 +1,7 @@
 'use strict';
 
-// A1 追光点击：限时内点中亮起的目标，比命中数。
-// twist forge：连击升温，节奏变快；twist snatch：金色宝光双倍计分（门槛同步提高）。
+// 追光点击（锻造敲击 / 基础剑法专属）：限时内追着唯一亮起的炉眼下锤，比命中数。
+// 本门机制「炉火升温」：连击满 5 记后灵光游走更快，点空则连击与火候一并断掉。
 
 const C = require('./common.js');
 
@@ -14,10 +14,9 @@ function create(ctx) {
   const duration = Math.max(8, (p.duration || 15) + (perks.easy ? 3 : 0) - (hard ? 3 : 0));
   const baseInterval = Math.max(320, (p.interval || 760) + (perks.easy ? 120 : 0) - (hard ? 160 : 0));
   const grid = p.grid || 9;
-  const scale = Number(p.gradeScale || 1);
-  const sLimit = Math.ceil(duration * 1.9 * scale);
-  const aLimit = Math.ceil(duration * 1.35 * scale);
-  const bLimit = Math.ceil(duration * 0.8 * scale);
+  const sLimit = Math.ceil(duration * 1.9);
+  const aLimit = Math.ceil(duration * 1.35);
+  const bLimit = Math.ceil(duration * 0.8);
   const glyph = theme.glyph || '灵';
   const vm = C.makeVm(p.cols || 3, grid, '凝神，等灵光出现…', ctx.tip || '点中亮起的格子');
   vm.timeText = C.mmss(duration);
@@ -27,7 +26,6 @@ function create(ctx) {
 
   const bag = C.TimerBag();
   let target = -1;
-  let gold = false;
   let score = 0;
   let combo = 0;
   let hot = false;
@@ -72,9 +70,8 @@ function create(ctx) {
     let next = C.randInt(grid);
     if (next === target) next = (next + 1) % grid;
     target = next;
-    gold = twist === 'snatch' && C.randInt(100) < 22;
-    vm.cells[target].cls = 'cell cell--lit' + (gold ? ' cell--gold' : '') + (hot ? ' cell--hot' : '');
-    vm.cells[target].label = gold ? '宝' : glyph;
+    vm.cells[target].cls = 'cell cell--lit' + (hot ? ' cell--hot' : '');
+    vm.cells[target].label = glyph;
     render();
   }
 
@@ -104,10 +101,9 @@ function create(ctx) {
     if (index === target) {
       if (now - lastHitAt < 180) return;
       lastHitAt = now;
-      const gain = gold ? 2 : 1;
-      score += gain;
+      score += 1;
       combo += 1;
-      C.flash(vm, gold ? '宝光 +2' : (theme.hit || '+1') + (combo >= 3 ? ' · 连击 ×' + combo : ''), gold ? 'gold' : 'good');
+      C.flash(vm, (theme.hit || '一记落锤') + (combo >= 3 ? ' · 连击 ×' + combo : ''), 'good');
       if (twist === 'forge' && combo >= 5 && !hot) {
         hot = true;
         vm.banner = theme.banner || '炉火旺盛';

@@ -155,7 +155,7 @@ Page({
       nextText: info.maxed ? '已至大成' : '距 ' + info.nextName + ' 还差 ' + (info.nextThreshold - rec.prof),
       hardUnlocked: info.index >= 2,
       hardHint: info.index >= 2 ? '苦修已解锁：难度提高，熟练度 ×1.6' : '熟练度到「熟练」后解锁苦修（熟练度 ×1.6）',
-      perkText: '精通以后参悟自带便利：判定窗更宽、节奏更从容，扫雷还能透视三颗雷。',
+      perkText: '精通以后这一门的参悟会自带便利：判定更宽裕、时限更从容，或是多一次本门专有的照应。',
       theme: theme,
       twistName: twist.name,
       twistDesc: twist.desc,
@@ -209,7 +209,7 @@ Page({
       started: false,
       showResult: false,
       result: null,
-      hintLabel: gameId === 'lights' ? '阵眼感应' : gameId === 'mines' ? '符箓照纹' : '提示',
+      hintLabel: gameId === 'lights' ? '阵眼感应' : gameId === 'seal' ? '符箓照纹' : '提示',
     });
   },
 

@@ -1,7 +1,8 @@
 'use strict';
 
-// A4 节律判定：光环不断向内收敛，收进朱圈的一瞬点击判「圆满」，连续若干拍后按命中数评级。
-// 与蓄力停区的区别：蓄力是「长按 + 松手」，节律是「连续多拍的单点判定」。
+// 节律判定（吸纳灵气 / 吐纳诀专属）：光环不断向内收敛，收进朱圈的一瞬点击判「圆满」，
+// 连续若干拍后按命中数评级。本门机制「一息绵长」：判定窗更宽、收得更慢，适合稳住连拍。
+// 与「剑招连段」的区别：这里只判时机、不看符号；与蓄力停区的区别是「连续多拍单点」而非「长按松手」。
 // 纯数据驱动，不需要触摸坐标，也不依赖 canvas。
 
 const C = require('./common.js');
@@ -21,13 +22,13 @@ function create(ctx) {
   let window = Number(p.window || 0.09);
   let step = Number(p.speed || 0.026);
   if (twist === 'absorb') { window += 0.035; step -= 0.004; }
-  if (twist === 'combo') { window -= 0.018; step += 0.006; }
   if (hard) { window -= 0.012; step += 0.004; }
   if (perks.easy) window += 0.02;
   window = Math.max(0.045, window);
   step = Math.max(0.012, step);
 
   const vm = C.makeVm(0, 0, '气机收敛，合拍时点下', ctx.tip || '光环收进朱圈时点击');
+  vm.stage = 'ring';
   vm.extras.showGrid = false;
   vm.extras.showRing = true;
   vm.extras.showCombo = true;

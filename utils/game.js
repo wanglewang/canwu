@@ -870,7 +870,7 @@ function getSkillList(state) {
       prof: rec.prof,
       methodName: method.name,
       methodTip: method.tip,
-      gameName: method.game,
+      gameName: method.gameName,
       tierIndex: info.index,
       tierName: info.name,
       tierColor: info.color,

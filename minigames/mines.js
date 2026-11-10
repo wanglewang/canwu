@@ -1,8 +1,8 @@
 'use strict';
 
-// A3 辨纹探禁：翻遍所有安全石格，比用时。精通以上技能触发「透视 3 颗雷」。
-// 修复：触雷不再一击结束，改为扣一盏心神并让该禁制显形，三盏耗尽才收功。
-// twist tanlei：三盏心神；twist seal：额外的「符箓照纹」可显形一颗雷。
+// 辨纹探禁（秘境探雷 / 引雷符专属）：看周围数字推禁制位置，翻遍所有安全石格，比用时。
+// 本门机制「三盏心神」：误触禁制只扣一盏并让那处显形，三盏耗尽才收功；精通以上开局透视 3 颗雷。
+// 长按可插旗做记号——这与「符纹配对」的翻牌记位置是两回事。
 
 const C = require('./common.js');
 
@@ -10,7 +10,6 @@ function create(ctx) {
   const p = ctx.params || {};
   const hard = ctx.difficulty === 'hard';
   const perks = ctx.perks || {};
-  const twist = ctx.twist || '';
   const theme = ctx.theme || {};
   const cols = p.cols || 6;
   const rows = p.rows || 6;
@@ -22,7 +21,6 @@ function create(ctx) {
   vm.timeText = '00:00';
   vm.scoreText = '已探 0 / ' + (n - mineCount);
   vm.extras.showHearts = true;
-  vm.extras.showHint = twist === 'seal';
   vm.hearts = { value: maxHearts, max: maxHearts };
 
   const bag = C.TimerBag();
@@ -37,7 +35,6 @@ function create(ctx) {
   let firstTapDone = false;
   let elapsed = 0;
   let hearts = maxHearts;
-  let hintsLeft = 2;
   let done = false;
   let started = false;
 
@@ -225,34 +222,12 @@ function create(ctx) {
     render();
   }
 
-  function hint() {
-    if (done || vm.phase !== 'playing' || twist !== 'seal') return;
-    if (hintsLeft <= 0) {
-      C.flash(vm, '符箓已用尽', 'bad');
-      render();
-      return;
-    }
-    for (let i = 0; i < n; i += 1) {
-      if (mineSet[i] && !exposed[i] && !revealed[i]) {
-        exposed[i] = true;
-        flags[i] = false;
-        hintsLeft -= 1;
-        paint();
-        vm.status = '符箓照出一处雷纹（剩 ' + hintsLeft + ' 次）';
-        C.flash(vm, '雷纹显形', 'gold');
-        render();
-        return;
-      }
-    }
-  }
-
   syncHud();
   render();
   return C.fillController({
     start: start,
     tap: tap,
     longpress: longpress,
-    hint: hint,
     abandon: function () { finishOnce('F', '中途收功'); },
     destroy: function () { bag.clear(); },
   });

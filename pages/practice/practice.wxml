@@ -32,14 +32,14 @@
 
     <view class="twist mt16" style="border-color:{{theme.accent}};background:{{theme.soft}}">
       <view class="row--between">
-        <text class="h3" style="color:{{theme.ink}}">本门玄机 · {{twistName}}</text>
-        <text class="tag" style="background:{{theme.accent}};color:#fffdf7">独有</text>
+        <text class="h3" style="color:{{theme.ink}}">本门玩法 · {{twistName}}</text>
+        <text class="tag" style="background:{{theme.accent}};color:#fffdf7">只此一家</text>
       </view>
       <text class="body mt8" style="color:{{theme.ink}}">{{twistDesc}}</text>
     </view>
 
     <view class="divider"></view>
-    <text class="tiny">评级倍率：S 圆满 ×2.0 · A 上乘 ×1.4 · B 中平 ×1.0 · C 粗浅 ×0.6。局内顶部会实时显示当前评级。</text>
+    <text class="tiny">十门功法各有自己的一套玩法，连同类功法也不共用盘面与规则。评级倍率：S 圆满 ×2.0 · A 上乘 ×1.4 · B 中平 ×1.0 · C 粗浅 ×0.6。局内顶部会实时显示当前评级。</text>
 
     <block wx:if="{{showDifficulty}}">
       <view class="divider"></view>
@@ -92,7 +92,7 @@
     </view>
 
     <view class="stage">
-      <view wx:if="{{vm.extras.showCharge}}" class="charge">
+      <view wx:if="{{vm.stage === 'charge' && vm.charge}}" class="charge">
         <view class="charge__track">
           <view class="charge__zone" style="left:{{vm.charge.start}}%;width:{{chargeWidth}}%"></view>
           <view class="charge__cursor" style="left:{{vm.charge.value}}%"></view>
@@ -101,7 +101,7 @@
         <button class="btn btn--gold btn--block mt16" bindtouchstart="onPress" bindtouchend="onRelease" bindtouchcancel="onRelease" bindtap="onChargeTap">按住蓄力 · 松手定住</button>
       </view>
 
-      <view wx:if="{{vm.extras.showRing && vm.ring}}" class="ring-area" bindtap="onCellTap">
+      <view wx:if="{{vm.stage === 'ring' && vm.ring}}" class="ring-area" bindtap="onCellTap">
         <view class="ring-judge"></view>
         <view class="ring-orb ring-orb--{{vm.ring.tone}}" style="transform:scale({{vm.ring.scale}});border-color:{{theme.accent}}">
           <text style="color:{{theme.ink}}">{{theme.glyph}}</text>
@@ -109,9 +109,38 @@
         <text class="ring-tip">点按盘面 · 第 {{vm.ring.beat}} / {{vm.ring.total}} 拍</text>
       </view>
 
-      <view wx:if="{{vm.extras.showGrid}}" class="grid grid--c{{vm.cols}}" style="background:{{theme.bg}}">
+      <view wx:if="{{vm.stage === 'lane' && vm.lane}}" class="lane-rule">
+        <text class="tiny">{{vm.lane.rule}} · 正渡第 {{vm.lane.activeRow + 1}} / {{vm.lane.rows}} 层</text>
+      </view>
+
+      <view wx:if="{{(vm.stage === 'board' || vm.stage === 'lane') && vm.extras.showGrid}}" class="grid grid--c{{vm.cols}} {{vm.stage === 'lane' ? 'grid--lane' : ''}}" style="background:{{theme.bg}}">
         <view wx:for="{{vm.cells}}" wx:key="key" class="{{item.cls}} cell--t{{item.tone}}" style="border-color:{{theme.frame}}" data-index="{{index}}" bindtap="onCellTap" bindlongpress="onCellLongPress">
           <text>{{item.label}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{vm.stage === 'orbit' && vm.orbit}}" class="orbit">
+        <view class="orbit__core">
+          <text class="orbit__glyph" style="color:{{theme.ink}}">{{vm.orbit.currentText}}</text>
+          <text class="tiny">当前一行</text>
+          <text class="tiny">{{vm.orbit.rule}}</text>
+        </view>
+        <view wx:for="{{vm.orbit.lamps}}" wx:key="id" class="orbit__lamp orbit__lamp--{{index}} orbit__lamp--t{{item.tone}} {{item.cls}}" data-index="{{index}}" bindtap="onCellTap">
+          <text>{{item.label}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{vm.stage === 'scroll' && vm.scroll}}" class="scroll">
+        <text class="tiny">第 {{vm.scroll.segment}} / {{vm.scroll.total}} 段 · 照卷轴依次出招</text>
+        <view class="scroll__ribbon">
+          <view wx:for="{{vm.scroll.moves}}" wx:key="id" class="scroll__move scroll__move--{{item.state}}">
+            <text>{{item.glyph}}</text>
+          </view>
+        </view>
+        <view class="scroll__keys">
+          <view wx:for="{{vm.scroll.keys}}" wx:key="id" class="scroll__key" data-index="{{item.index}}" bindtap="onCellTap">
+            <text>{{item.glyph}}</text>
+          </view>
         </view>
       </view>
 
@@ -138,7 +167,7 @@
       <view class="grade" style="background:{{result.gradeColor}}">{{result.grade}}</view>
       <text class="modal__title serif mt16">{{result.headline}}</text>
       <text class="modal__sub">{{result.gradeTitle}} · {{result.subline}}</text>
-      <text class="tiny mt8">本门玄机 · {{twistName}}</text>
+      <text class="tiny mt8">本门玩法 · {{twistName}}</text>
 
       <view class="modal__body" wx:if="{{result.lines.length > 0}}">
         <view class="res-line" wx:for="{{result.lines}}" wx:key="k">
