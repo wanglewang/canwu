@@ -44,7 +44,10 @@
 }
 
 .guide-link {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    min-height: 64rpx;
+    padding: 0 10rpx;
     font-size: 24rpx;
     color: #2f6b5b;
 }

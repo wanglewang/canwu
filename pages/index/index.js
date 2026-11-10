@@ -14,7 +14,10 @@ Page({
     viewState: 'ready',
     ov: null,
     quickSkills: [],
+    quickSkillId: '',
+    quickLabel: '开始参悟',
     worlds: [],
+    worldOpen: false,
     showOffline: false,
     offline: null,
   },
@@ -98,6 +101,8 @@ Page({
           nextText: s.maxed ? '已至大成' : '距 ' + s.nextName + ' 还差 ' + (s.nextThreshold - s.prof),
         };
       }),
+      quickSkillId: quick.length > 0 ? quick[0].id : '',
+      quickLabel: quick.length > 0 ? '开始参悟 · ' + quick[0].name : '去看看功法',
       worlds: worlds,
     });
   },
@@ -125,6 +130,19 @@ Page({
   onPractice: function (event) {
     const id = event.currentTarget.dataset.id;
     wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
+  },
+
+  onQuickPractice: function () {
+    const id = this.data.quickSkillId;
+    if (!id) {
+      wx.switchTab({ url: '/pages/skills/skills' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
+  },
+
+  onToggleWorld: function () {
+    this.setData({ worldOpen: !this.data.worldOpen });
   },
 
   onGoSkills: function () { wx.switchTab({ url: '/pages/skills/skills' }); },

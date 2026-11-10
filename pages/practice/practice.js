@@ -274,7 +274,19 @@ Page({
   onPress: function () { if (this.controller) this.controller.press(); },
   onRelease: function () { if (this.controller) this.controller.release(); },
   onChargeTap: function () { if (this.controller) this.controller.tap(0); },
-  onAbandon: function () { if (this.controller) this.controller.abandon(); },
+  onAbandon: function () {
+    if (!this.controller || this.data.showResult) return;
+    const self = this;
+    wx.showModal({
+      title: '中途收功',
+      content: '这一局会按「走火」结算，几乎拿不到收益。确定现在收功？',
+      confirmText: '收功',
+      confirmColor: '#b4453c',
+      success: function (res) {
+        if (res.confirm && self.controller) self.controller.abandon();
+      },
+    });
+  },
 
   onFinish: function (res) {
     if (!this.pageAlive) return;

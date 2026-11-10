@@ -1,9 +1,9 @@
-<view class="pg">
+<view class="pg pg--with-bar">
   <view class="pg__head">
     <text class="eyebrow">养 成 挂 机 · 小 游 戏 参 悟</text>
     <text class="h1 serif">参悟</text>
     <text class="muted mt8">等是保底，练才是加速。</text>
-    <text class="guide-link mt8" bindtap="onGoGuide">修行指南 · 玩法与数值 ›</text>
+    <text class="guide-link text-link mt8" bindtap="onGoGuide">修行指南 · 玩法与数值 ›</text>
   </view>
 
   <view wx:if="{{syncTone !== 'ok'}}" class="alert-bar alert-bar--{{syncTone}}" bindtap="onRetrySync">
@@ -59,7 +59,7 @@
       <view class="bar">
         <view class="bar__fill" style="width:{{dailyPercent}}%"></view>
       </view>
-      <button wx:if="{{!ov.daily.claimed && ov.daily.count >= ov.daily.target}}" class="btn btn--primary btn--block mt16" bindtap="onClaimDaily">领取份例 · 灵气 +{{ov.daily.qi}} / 灵石 +{{ov.daily.stone}}</button>
+      <button wx:if="{{!ov.daily.claimed && ov.daily.count >= ov.daily.target}}" class="btn btn--gold btn--block mt16" bindtap="onClaimDaily">领取份例 · 灵气 +{{ov.daily.qi}} / 灵石 +{{ov.daily.stone}}</button>
       <text wx:elif="{{ov.daily.claimed}}" class="tag tag--jade mt16">今日份例已领</text>
       <text wx:else class="tiny mt12">再参悟 {{ov.daily.target - ov.daily.count}} 次，可领今日份例。</text>
     </view>
@@ -82,7 +82,7 @@
     <view class="section">
       <view class="section__head">
         <text class="section__title">就差一点</text>
-        <text class="section__sub" bindtap="onGoSkills">全部功法 ›</text>
+        <text class="section__sub text-link" bindtap="onGoSkills">全部功法 ›</text>
       </view>
       <view class="card card--tight" wx:for="{{quickSkills}}" wx:key="id">
         <view class="row--between">
@@ -97,7 +97,7 @@
         </view>
         <view class="row--between mt12">
           <text class="tiny">{{item.nextText}}</text>
-          <button class="btn btn--primary btn--small" data-id="{{item.id}}" bindtap="onPractice">去参悟</button>
+          <button class="btn btn--ghost btn--small" data-id="{{item.id}}" bindtap="onPractice">去参悟</button>
         </view>
       </view>
     </view>
@@ -105,7 +105,7 @@
     <view class="section">
       <view class="section__head">
         <text class="section__title">近况</text>
-        <text class="section__sub" bindtap="onGoProfile">道牒 ›</text>
+        <text class="section__sub text-link" bindtap="onGoProfile">道牒 ›</text>
       </view>
       <view class="card" wx:if="{{ov.log.length > 0}}">
         <view class="log-line" wx:for="{{ov.log}}" wx:key="at">
@@ -118,25 +118,26 @@
     <view class="section">
       <view class="section__head">
         <text class="section__title">世界</text>
-        <text class="section__sub">此界之外，另有天地</text>
+        <text class="section__sub text-link" bindtap="onToggleWorld">{{worldOpen ? '收起' : '此界之外 · 展开 ›'}}</text>
       </view>
-      <view class="card card--tight world-row" wx:for="{{worlds}}" wx:key="id">
-        <view class="grow">
-          <view class="row">
-            <text class="h3">{{item.label}} · {{item.name}}</text>
-            <text wx:if="{{item.enabled}}" class="tag tag--jade">进行中</text>
-            <text wx:else class="tag tag--grey">敬请期待</text>
+      <block wx:if="{{worldOpen}}">
+        <view class="card card--tight world-row" wx:for="{{worlds}}" wx:key="id">
+          <view class="grow">
+            <view class="row">
+              <text class="h3">{{item.label}} · {{item.name}}</text>
+              <text wx:if="{{item.enabled}}" class="tag tag--jade">进行中</text>
+              <text wx:else class="tag tag--grey">敬请期待</text>
+            </view>
+            <text class="tiny mt8">{{item.intro}}</text>
           </view>
-          <text class="tiny mt8">{{item.intro}}</text>
         </view>
-      </view>
-    </view>
-
-    <view class="btn-row">
-      <button class="btn btn--ghost" bindtap="onGoBattle">去论道</button>
-      <button class="btn btn--ghost" bindtap="onGoProfile">看道牒</button>
+      </block>
     </view>
   </block>
+
+  <view wx:if="{{viewState === 'ready' && ov}}" class="sticky-bar">
+    <button class="btn btn--primary btn--block" bindtap="onQuickPractice">{{quickLabel}}</button>
+  </view>
 
   <view class="mask" wx:if="{{showOffline && offline}}">
     <view class="modal">

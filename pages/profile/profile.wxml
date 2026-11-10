@@ -46,14 +46,14 @@
 
     <view class="btn-row">
       <button class="btn btn--primary" bindtap="onMakeCard">生成卡片图</button>
-      <button class="btn btn--gold" bindtap="onCopyCardText">复制文案</button>
+      <button class="btn btn--ghost" bindtap="onCopyCode">复制战力码</button>
     </view>
-    <button class="btn btn--ghost btn--block mt12" bindtap="onCopyCode">复制战力码，发给朋友打镜像</button>
-    <view class="btn-row mt12">
-      <button class="btn btn--ghost" open-type="share">邀道友同修</button>
-      <button class="btn btn--ghost" bindtap="onGoBattle">看论道榜单</button>
+    <view class="link-row">
+      <text class="text-link text-link--muted" bindtap="onCopyCardText">复制文案</text>
+      <text class="text-link text-link--muted" bindtap="onGoBattle">看论道榜单</text>
+      <button class="btn btn--ghost btn--compact" open-type="share">邀道友同修</button>
     </view>
-    <text class="tiny mt12">也可直接长按上方卡片截图晒出。</text>
+    <text class="tiny mt12">也可直接长按上方卡片截图晒出；战力码发给朋友可打镜像。</text>
 
     <view class="section">
       <view class="section__head">
@@ -106,28 +106,34 @@
       <view class="card">
         <text class="body">当前账号：{{accountLabel || '读取中'}}</text>
         <text class="tiny mt8">进度跟着这个账号走，换设备登录后继续修行；导出的存档码也能手动搬家。</text>
-        <view class="btn-row mt12">
+        <view class="btn-row btn-row--tight">
           <button class="btn btn--primary" bindtap="onExportSave">导出存档</button>
           <button class="btn btn--ghost" bindtap="openImport">导入存档</button>
         </view>
-        <button class="btn btn--plain btn--block mt12" bindtap="onReset">重置存档</button>
-        <button class="btn btn--ghost btn--block mt12" bindtap="onSignOut">退出登录 / 切换账号</button>
+        <view class="divider"></view>
+        <text class="tiny">以下操作不可撤销，动手前建议先导出存档</text>
+        <view class="btn-row btn-row--tight">
+          <button class="btn btn--warn btn--compact" bindtap="onReset">重置存档</button>
+          <button class="btn btn--warn btn--compact" bindtap="onSignOut">退出登录</button>
+        </view>
       </view>
     </view>
 
     <view class="section">
       <view class="section__head">
         <text class="section__title">世界</text>
-        <text class="section__sub">此界之外，另有天地</text>
+        <text class="section__sub text-link" bindtap="onToggleWorld">{{worldOpen ? '收起' : '此界之外 · 展开 ›'}}</text>
       </view>
-      <view class="card card--tight world-card" wx:for="{{worlds}}" wx:key="id">
-        <view class="row--between">
-          <text class="h3">{{item.label}} · {{item.name}}</text>
-          <text wx:if="{{item.enabled}}" class="tag tag--jade">进行中</text>
-          <text wx:else class="tag tag--grey">敬请期待</text>
+      <block wx:if="{{worldOpen}}">
+        <view class="card card--tight world-card" wx:for="{{worlds}}" wx:key="id">
+          <view class="row--between">
+            <text class="h3">{{item.label}} · {{item.name}}</text>
+            <text wx:if="{{item.enabled}}" class="tag tag--jade">进行中</text>
+            <text wx:else class="tag tag--grey">敬请期待</text>
+          </view>
+          <text class="tiny mt8">{{item.intro}}</text>
         </view>
-        <text class="tiny mt8">{{item.intro}}</text>
-      </view>
+      </block>
     </view>
 
     <view class="section">
@@ -152,7 +158,7 @@
         <text class="role-editor__name">{{draftName || '未命名'}}</text>
       </view>
       <input class="role-editor__input mt16" type="nickname" value="{{draftName}}" bindinput="onRoleNameInput" maxlength="12" placeholder="点这里用微信昵称，或自己起道号" placeholder-class="code-ph" />
-      <view class="btn-row mt12">
+      <view class="btn-row btn-row--tight">
         <button class="btn btn--ghost btn--small" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">用微信头像</button>
         <button class="btn btn--ghost btn--small" bindtap="onNextPortrait">换道相</button>
       </view>
@@ -183,8 +189,8 @@
       <input class="code-input mt16" value="{{importCode}}" bindinput="onImportInput" placeholder="CANWU1:..." placeholder-class="code-ph" />
       <button class="btn btn--plain btn--small btn--block mt12" bindtap="onPasteImport">从剪贴板读取</button>
       <view class="modal__actions">
-        <button class="btn btn--primary" bindtap="onImportSave">导入</button>
         <button class="btn btn--plain" bindtap="closeImport">取消</button>
+        <button class="btn btn--primary" bindtap="onImportSave">导入</button>
       </view>
     </view>
   </view>

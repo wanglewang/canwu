@@ -1,4 +1,4 @@
-<view class="pg" style="--acc:{{theme.accent}};--soft:{{theme.soft}};--ink:{{theme.ink}};--bg:{{theme.bg}};--frame:{{theme.frame}}">
+<view class="pg {{started && !showResult ? 'pg--with-bar' : ''}}" style="--acc:{{theme.accent}};--soft:{{theme.soft}};--ink:{{theme.ink}};--bg:{{theme.bg}};--frame:{{theme.frame}}">
 
   <view class="card card--ink pr-head">
     <view class="row--between">
@@ -54,7 +54,9 @@
     </block>
 
     <button class="btn btn--primary btn--block mt24" bindtap="onStart">开始参悟</button>
-    <button class="btn btn--plain btn--block mt12" bindtap="onBack">先不练了</button>
+    <view class="link-row">
+      <text class="text-link text-link--muted" bindtap="onBack">先不练了</text>
+    </view>
   </view>
 
   <view wx:if="{{started && !showResult && vm}}" class="card pr-play">
@@ -84,7 +86,10 @@
     </view>
 
     <text wx:if="{{vm.banner}}" class="banner mt12" style="color:{{theme.ink}};border-color:{{theme.accent}}">{{vm.banner}}</text>
-    <text class="tiny mt8">{{vm.hint}}</text>
+    <view class="row--between mt8">
+      <text class="tiny grow">{{vm.hint}}</text>
+      <view class="icon-btn" bindtap="onAbandon">收功</view>
+    </view>
 
     <view class="stage">
       <view wx:if="{{vm.extras.showCharge}}" class="charge">
@@ -113,11 +118,11 @@
       <view wx:if="{{vm.fx}}" class="fx fx--{{vm.fx.tone}} fx--k{{vm.fx.n}}">{{vm.fx.text}}</view>
     </view>
 
-    <view class="btn-row mt16">
-      <button wx:if="{{vm.extras.showUndo}}" class="btn btn--ghost btn--small" bindtap="onUndo">撤销</button>
-      <button wx:if="{{vm.extras.showHint}}" class="btn btn--ghost btn--small" bindtap="onHint">{{hintLabel}}</button>
-      <button class="btn btn--plain btn--small" bindtap="onAbandon">收功</button>
-    </view>
+  </view>
+
+  <view wx:if="{{started && !showResult && vm && (vm.extras.showUndo || vm.extras.showHint)}}" class="sticky-bar">
+    <button wx:if="{{vm.extras.showUndo}}" class="btn btn--ghost btn--small" bindtap="onUndo">撤销</button>
+    <button wx:if="{{vm.extras.showHint}}" class="btn btn--plain btn--small" bindtap="onHint">{{hintLabel}}</button>
   </view>
 
   <view wx:if="{{countdown > 0}}" class="countdown-mask" bindtap="onSkipCountdown">
@@ -156,8 +161,8 @@
       </view>
 
       <view class="modal__actions">
-        <button class="btn btn--primary" bindtap="onPrimary">{{result.primary}}</button>
         <button class="btn btn--plain" bindtap="onSecondary">{{result.secondary}}</button>
+        <button class="btn btn--primary" bindtap="onPrimary">{{result.primary}}</button>
       </view>
     </view>
   </view>

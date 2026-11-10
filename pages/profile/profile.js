@@ -37,6 +37,7 @@ Page({
     topSkills: [],
     titles: [],
     worlds: [],
+    worldOpen: false,
     myCode: '',
     attrsLine: '',
     statsLine: '',
@@ -189,6 +190,10 @@ Page({
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
 
   onGoBattle: function () { wx.switchTab({ url: '/pages/battle/battle' }); },
+
+  onToggleWorld: function () {
+    this.setData({ worldOpen: !this.data.worldOpen });
+  },
 
   onEquipTitle: function (event) {
     const id = event.currentTarget.dataset.id;

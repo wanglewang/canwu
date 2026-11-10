@@ -91,9 +91,9 @@
       </view>
 
       <view class="modal__actions">
+        <button class="btn btn--plain" bindtap="closeDetail">关闭</button>
         <button wx:if="{{detail.unlocked}}" class="btn btn--primary" bindtap="onPractice">去参悟</button>
         <button wx:elif="{{detail.canBuy}}" class="btn btn--gold" disabled="{{!canAfford}}" bindtap="onBuy">兑换</button>
-        <button class="btn btn--plain" bindtap="closeDetail">关闭</button>
       </view>
     </view>
   </view>

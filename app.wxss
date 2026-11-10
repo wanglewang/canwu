@@ -181,14 +181,14 @@ button::after {
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
-    height: 76rpx;
+    min-height: 84rpx;
     padding: 0 26rpx;
     margin: 0;
     border: 2rpx solid transparent;
     border-radius: 14rpx;
-    font-size: 27rpx;
+    font-size: 28rpx;
     font-weight: 600;
-    line-height: 1;
+    line-height: 1.2;
     letter-spacing: 1rpx;
 }
 
@@ -197,8 +197,10 @@ button::after {
 .btn--red { background: #b4453c; color: #fffdf7; }
 .btn--ghost { background: transparent; color: #2f6b5b; border-color: #b9c9bf; }
 .btn--plain { background: #f1ede1; color: #5d6358; }
+.btn--warn { background: #fbeae7; color: #a53c33; border-color: #e6bdb6; }
 .btn--block { width: 100%; }
-.btn--small { height: 62rpx; padding: 0 20rpx; font-size: 24rpx; }
+.btn--small { min-height: 72rpx; padding: 0 22rpx; font-size: 25rpx; }
+.btn--compact { min-height: 64rpx; padding: 0 22rpx; font-size: 24rpx; }
 .btn[disabled] { opacity: 0.45; }
 
 .btn-row {
@@ -207,7 +209,79 @@ button::after {
     margin-top: 20rpx;
 }
 
+/* .btn-row 自身带 20rpx 上边距，会覆盖 .mt12/.mt16，用修饰类显式指定 */
+.btn-row--tight { margin-top: 12rpx; }
+.btn-row--mid { margin-top: 16rpx; }
+.btn-row--flush { margin-top: 0; }
+
 .btn-row > .btn { flex: 1; }
+
+.link-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 20rpx;
+    margin-top: 16rpx;
+}
+
+/* 文字型点击入口：保证至少 32rpx 的可点高度，避免只有字宽能点中 */
+.text-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 64rpx;
+    padding: 0 10rpx;
+    color: #2f6b5b;
+    font-size: 24rpx;
+    line-height: 1.4;
+}
+
+.text-link--muted { color: #8a8f83; }
+
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-height: 60rpx;
+    padding: 0 20rpx;
+    border: 2rpx solid #ddd5c2;
+    border-radius: 999rpx;
+    background: rgba(255, 253, 247, 0.08);
+    color: #8a8f83;
+    font-size: 23rpx;
+    line-height: 1;
+}
+
+/* 吸底主操作条：常驻拇指区，tabBar 之上的 webview 底部 */
+.sticky-bar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+    padding: 16rpx 28rpx calc(16rpx + env(safe-area-inset-bottom));
+    background: #fffdf7;
+    border-top: 2rpx solid #e3ddcd;
+    box-shadow: 0 -8rpx 24rpx rgba(40, 52, 44, 0.08);
+}
+
+.sticky-bar > .btn { flex: 1; }
+
+.sticky-bar__side {
+    font-size: 22rpx;
+    color: #8a8f83;
+    text-align: right;
+}
+
+/* 提高优先级，避免被文件末尾的 .pg 安全区规则覆盖 */
+.pg.pg--with-bar {
+    padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
+}
 
 /* ---------- 标签 ---------- */
 .tag {
@@ -473,6 +547,28 @@ button::after {
         background: #8f3b34;
         color: #fdeeea;
     }
+
+    .btn--warn {
+        background: #3a2523;
+        color: #f0b3ac;
+        border-color: #6a3a35;
+    }
+
+    .text-link, .text-link--muted { color: #8fd0b7; }
+
+    .icon-btn {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: #4a5a51;
+        color: #9fb2a8;
+    }
+
+    .sticky-bar {
+        background: #1e2723;
+        border-top-color: #33403a;
+        box-shadow: none;
+    }
+
+    .sticky-bar__side { color: #9aa79f; }
 
     .jade { color: #7fc9ae; }
     .gold { color: #e0bb72; }

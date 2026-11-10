@@ -77,7 +77,7 @@
 ├── scripts/
 │   ├── verify.js                    零依赖静态校验
 │   └── gen-icons.js                 生成 tabBar PNG
-├── tests/                           常驻断言（game / store / minigames，含假时钟整局驱动），node tests/run.js
+├── tests/                           常驻断言（game / store / minigames / layout，含假时钟整局驱动），node tests/run.js
 ├── eslint.config.js / .github/      lint 配置与可移植 CI
 ├── package.json / package-lock.json  固定版 SDK 与工程脚本
 └── project.config.json              微信开发者工具项目配置
@@ -121,6 +121,16 @@
 - 洞府、论道、道牒、指南页都支持 `onShareAppMessage` / `onShareTimeline`；道牒的 canvas 卡片图可经 `showShareImageMenu` 直接分享（不支持时回退预览）。
 - `darkmode: true` + `theme.json` 让导航栏与 tabBar 跟随系统；`app.wxss` 有一组基础暗色覆盖，`.pg` 与登录页补了 `env(safe-area-inset-bottom)`。暗色是基础适配，真机上仍需逐页核对对比度。
 
+## 界面与按钮约定
+
+- **主操作常驻拇指区**：洞府页底部有 `sticky-bar` 吸底主按钮「开始参悟 · 推荐功法」，`.pg--with-bar` 预留底部空间；tabBar 已有的「论道 / 道牒」不再在页面底部重复放按钮。论道、道牒、指南等仍靠 tabBar 与页面内跳转。
+- **弹窗统一「次操作在左、主操作在右」**：取消 / 关闭 / 次要动作一律 `btn--plain` 在左，`btn--primary` / `btn--gold` 在右（功法详情的主按钮由 `wx:if` / `wx:elif` 互斥渲染，也排在最右）。
+- **危险操作降权但明示**：重置存档、退出登录用 `btn--warn` 警示样式，与常规操作之间加分隔线与提示文字，均为 `wx.showModal` 二次确认。分享类次要动作降为 `.text-link` 文字链。
+- **触控热区**：`.btn` ≥ 84rpx、`.btn--small` ≥ 72rpx、`.text-link` ≥ 64rpx；纯文字点击入口一律补 `.text-link`。`.btn-row` 自带 20rpx 上边距会覆盖 `.mt12` / `.mt16`，需间距时用 `.btn-row--tight` / `--mid`。
+- **减少重复整宽按钮**：论道页 10 个对手 / 秘境的挑战按钮改为卡片右侧 `btn--compact`；洞府与道牒的「世界」占位区块默认折叠。
+- **局内操作分区**：参悟页「收功」是退出操作，移到盘面上方右侧 `.icon-btn` 并加「按走火结算」确认，避免和撤销 / 提示一起放在拇指热区误触；撤销 / 提示改到局内 `sticky-bar`。
+- `tests/layout.test.js` 把以上约定固化为 11 项断言（含 WXML 标签配平、事件方法与 js 定义对应、弹窗顺序、热区尺寸、安全区留白）。
+
 ## 开发约定与工程命令
 
 - **内容即数据**：新增功法、参悟方式、对手、称号、成就或调数值，只改 `data/`，不动业务代码。
@@ -132,7 +142,7 @@
 ```bash
 npm ci            # 按 lock 还原依赖
 npm run verify    # JSON / JS 语法 / 页面组件四件套 / 主题变量 / tabBar 图标 / 隐私清单格式
-npm test          # 48 项常驻断言（内核 + 存档同步 + 小游戏假时钟整局驱动）
+npm test          # 59 项常驻断言（内核 + 存档同步 + 小游戏假时钟整局 + 布局约定）
 npm run lint      # ESLint 9（小程序全局对象与 CommonJS 已配置）
 npm run check     # 上面三项一次跑完，CI 用这个
 npm run icons     # 重新生成 tabBar 图标（零依赖）
@@ -142,9 +152,9 @@ npm run icons     # 重新生成 tabBar 图标（零依赖）
 
 ## 当前边界
 
-**已验证**：数据库表结构、trigger 覆盖伪造时间并自增版本、两张表的 RLS 策略、写入读回与探针清理；116 项静态检查、48 项 Node 断言（含 23 项小游戏假时钟整局驱动，10 门功法与突破玩法均自行结算）、ESLint 0 错误 0 警告；SDK 稳定版安装与 lock 生成；图标 PNG 结构。
+**已验证**：数据库表结构、trigger 覆盖伪造时间并自增版本、两张表的 RLS 策略、写入读回与探针清理；118 项静态检查、59 项 Node 断言（含 23 项小游戏假时钟整局驱动、11 项布局约定断言）、ESLint 0 错误 0 警告；SDK 稳定版安装与 lock 生成；图标 PNG 结构；全部 WXML 主要标签配平、事件方法与 js 定义一一对应。
 
-**尚未验证（必须真机）**：微信开发者工具编译与「构建 npm」、真机 / 体验版微信登录、真机云端存档读写与冲突弹窗、榜单读写、头像上传与签名 URL 显示、暗色与安全区实际渲染；**节律盘的 CSS 缩放、主题色变量、格子与浮字动效、5 类玩法的触屏手感**；发布上线。H5 预览不能证明这些可用。
+**尚未验证（必须真机）**：微信开发者工具编译与「构建 npm」、真机 / 体验版微信登录、真机云端存档读写与冲突弹窗、榜单读写、头像上传与签名 URL 显示、暗色与安全区实际渲染；**吸底操作条与原生 tabBar 的层叠关系、`env(safe-area-inset-bottom)` 在刘海屏上的实际留白、折叠交互、收功确认弹窗**；节律盘的 CSS 缩放、主题色变量、格子与浮字动效、5 类玩法的触屏手感；发布上线。H5 预览不能证明这些可用。
 
 **已知限制**：头像跨设备显示依赖签名 URL 与 downloadFile 合法域名，域名由第三方代管时若平台未放行会回退道相；离线收益与每日刷新用本机时钟，不能防恶意改表；榜单是「上传战绩 + 镜像对战」，不是实时同步 PVP；科幻 / 都市两套世界仍只是元数据。
 

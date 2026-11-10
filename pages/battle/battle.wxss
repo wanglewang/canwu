@@ -6,6 +6,11 @@
     margin-bottom: 16rpx;
 }
 
+.fight-card .btn {
+    flex-shrink: 0;
+    margin-left: 12rpx;
+}
+
 .code-box {
     box-sizing: border-box;
     padding: 18rpx 20rpx;

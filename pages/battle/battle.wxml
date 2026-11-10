@@ -30,10 +30,12 @@
       <text class="tiny mt8">{{item.desc}}</text>
       <view class="row--between mt12">
         <text class="tiny">战力 {{item.power}} · <text class="{{item.hintTone === 'good' ? 'jade' : 'gold'}}">{{item.hint}}</text></text>
-        <text class="tiny">灵气 +{{item.qi}} / 灵石 +{{item.stone}}</text>
+        <button class="btn {{item.cleared ? 'btn--plain' : 'btn--primary'}} btn--compact" data-id="{{item.id}}" bindtap="onFight">{{item.cleared ? '再打一场' : '挑战'}}</button>
       </view>
-      <text wx:if="{{item.dropName}}" class="tiny mt8 gold">首胜掉落《{{item.dropName}}》</text>
-      <button class="btn {{item.cleared ? 'btn--plain' : 'btn--primary'}} btn--small btn--block mt12" data-id="{{item.id}}" bindtap="onFight">{{item.cleared ? '再打一场' : '挑战'}}</button>
+      <view class="row--between mt8">
+        <text class="tiny">灵气 +{{item.qi}} / 灵石 +{{item.stone}}</text>
+        <text wx:if="{{item.dropName}}" class="tiny gold">首胜掉落《{{item.dropName}}》</text>
+      </view>
     </view>
   </view>
 
@@ -49,10 +51,9 @@
       </view>
       <text class="tiny mt8">{{item.desc}}</text>
       <view class="row--between mt12">
-        <text class="tiny">战力 {{item.power}}</text>
-        <text class="tiny">灵气 +{{item.qi}} / 灵石 +{{item.stone}}</text>
+        <text class="tiny">战力 {{item.power}} · 灵气 +{{item.qi}} / 灵石 +{{item.stone}}</text>
+        <button class="btn btn--ghost btn--compact" data-id="{{item.id}}" bindtap="onFight">入秘境</button>
       </view>
-      <button class="btn btn--ghost btn--small btn--block mt12" data-id="{{item.id}}" bindtap="onFight">入秘境</button>
     </view>
   </view>
 
@@ -85,7 +86,7 @@
         <text class="tiny mt8">{{rival.name}} · {{rival.realmName}} · 战力 {{rival.power}}</text>
         <button class="btn btn--primary btn--small btn--block mt12" bindtap="onFightRival">与之论道</button>
       </view>
-      <view class="btn-row mt12">
+      <view class="btn-row btn-row--tight">
         <button class="btn btn--plain" bindtap="onRefreshBoard">{{boardLoading ? '正在刷新…' : '刷新榜单'}}</button>
         <button class="btn btn--ghost" open-type="share">邀道友上榜</button>
       </view>

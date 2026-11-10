@@ -134,9 +134,13 @@
 }
 
 .idcard__edit {
-    margin-top: 18rpx;
+    display: inline-flex;
+    align-items: center;
+    min-height: 64rpx;
+    padding: 0 8rpx;
+    margin-top: 10rpx;
     color: #d8b775;
-    font-size: 22rpx;
+    font-size: 23rpx;
 }
 
 .role-editor__preview {
