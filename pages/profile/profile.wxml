@@ -62,16 +62,18 @@
 
     <view class="section">
       <view class="section__head">
-        <text class="section__title">存档</text>
-        <text class="section__sub">纯本地，不依赖服务器</text>
+        <text class="section__title">账号 · 存档</text>
+        <text class="section__sub">跟随账号 · 云端保存</text>
       </view>
       <view class="card">
-        <text class="body">进度只存在这台设备的浏览器/小程序本地存储里。清缓存前记得导出存档码，换设备时导入即可。</text>
-        <view class="btn-row">
+        <text class="body">当前账号：{{accountLabel || '读取中'}}</text>
+        <text class="tiny mt8">进度保存在这个账号下，换设备登录后自动同步；本机只留缓存。导出的存档码仍可用于手动迁移。</text>
+        <view class="btn-row mt12">
           <button class="btn btn--primary" bindtap="onExportSave">导出存档</button>
           <button class="btn btn--ghost" bindtap="openImport">导入存档</button>
         </view>
         <button class="btn btn--plain btn--block mt12" bindtap="onReset">重置存档</button>
+        <button class="btn btn--ghost btn--block mt12" bindtap="onSignOut">退出登录 / 切换账号</button>
       </view>
     </view>
 
@@ -93,8 +95,8 @@
     <view class="section">
       <view class="section__head"><text class="section__title">关于</text></view>
       <view class="card">
-        <text class="body">《参悟》是养成挂机 + 小游戏的静态小程序：离线收益负责保底，参悟小游戏负责加速。首版只做修仙世界，科幻与都市只换世界数据，不改业务代码。</text>
-        <text class="tiny mt12">世界观、人物、技能与文案均为原创，不使用任何具体作品的角色、剧情或台词。运行时不调用 AI，零服务器成本。</text>
+        <text class="body">《参悟》是养成挂机 + 小游戏小程序：离线收益负责保底，参悟小游戏负责加速。首版只做修仙世界，科幻与都市只换世界数据，不改业务代码。</text>
+        <text class="tiny mt12">世界观、人物、技能与文案均为原创，不使用任何具体作品的角色、剧情或台词。运行时不调用 AI；账号与存档由云端托管，按用户隔离。</text>
       </view>
     </view>
   </block>

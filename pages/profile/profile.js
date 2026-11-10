@@ -3,6 +3,7 @@
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const worldData = require('../../data/world.js');
+const { cloud } = require('../../utils/cloud.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -17,6 +18,7 @@ Page({
     myCode: '',
     attrsLine: '',
     statsLine: '',
+    accountLabel: '',
     showSaveCode: false,
     saveCode: '',
     showImport: false,
@@ -27,11 +29,23 @@ Page({
     this.listener = this.refresh.bind(this);
     store.subscribe(this.listener);
     this.refresh();
+    this.loadAccount();
   },
 
   onShow: function () { this.refresh(); },
 
   onUnload: function () { store.unsubscribe(this.listener); },
+
+  loadAccount: async function () {
+    try {
+      const result = await getApp().ensureSession();
+      const user = result && result.data && result.data.user;
+      const label = user && (user.email || user.name) ? (user.email || user.name) : '已登录';
+      this.setData({ accountLabel: label });
+    } catch (e) {
+      this.setData({ accountLabel: '已登录' });
+    }
+  },
 
   refresh: function () {
     const state = store.get();
@@ -240,6 +254,25 @@ Page({
         store.reset();
         toast('已重置，从头再来');
         self.refresh();
+      },
+    });
+  },
+
+  onSignOut: function () {
+    wx.showModal({
+      title: '退出登录',
+      content: '本机缓存会被清空，云端存档保留。下次用同一账号登录可继续。',
+      confirmText: '退出',
+      success: async function (res) {
+        if (!res.confirm) return;
+        const flushed = await store.flushCloud();
+        if (!flushed.ok) { toast('进度尚未同步成功，请检查网络后再退出'); return; }
+        const out = await cloud.auth.signOut();
+        if (out && out.error) { toast('退出失败：' + (out.error.message || '请重试')); return; }
+        await store.signOut();
+        getApp().resetSession();
+        getApp().awaitingLogin = true;
+        wx.reLaunch({ url: '/pages/login/login' });
       },
     });
   },

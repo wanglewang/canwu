@@ -1,0 +1,15 @@
+<view class="login-page">
+    <view class="login-brand">
+        <text class="login-brand-name">参悟</text>
+        <text class="login-brand-sub">登录后读取属于你的那一份云端进度</text>
+    </view>
+
+    <login-panel bind:signedin="onSignedIn" />
+
+    <view class="login-note">
+        <text>首次登录会为你创建一份新档。本机已有进度不会自动上传，可在「道牒」页导出存档码后再导入。</text>
+    </view>
+    <text class="login-error" wx:if="{{reason}}">{{reason}}</text>
+    <text class="login-error" wx:if="{{error}}">{{error}}</text>
+    <text class="login-busy" wx:if="{{busy}}">正在读取云端存档…</text>
+</view>

@@ -4,7 +4,8 @@
     "pages/skills/skills",
     "pages/battle/battle",
     "pages/profile/profile",
-    "pages/practice/practice"
+    "pages/practice/practice",
+    "pages/login/login"
   ],
   "window": {
     "navigationBarTitleText": "参悟",

@@ -1,9 +1,9 @@
 # 参悟
 
-一个修仙题材的**养成挂机 + 小游戏**微信小程序原型：练功法、参悟小游戏、攒熟练度与战力、突破境界、论道打预设对手，顺手收集称号。
+一个修仙题材的**养成挂机 + 小游戏**微信小程序：练功法、参悟小游戏、攒熟练度与战力、突破境界、论道打预设对手，顺手收集称号。
 
-> 原生微信小程序静态版：无后端、无账号、无 npm 依赖、无构建步骤，全部进度存在本机。
-> 当前状态：原型可玩，**未发布上线**。
+> 原生微信小程序 + WorkBuddy 云服务：邮箱验证码登录，进度按账号存云端，本机只留缓存。
+> 当前状态：原型可玩，**未发布上线**，真机登录与云端读写尚未验证。
 
 ## 玩法速览
 
@@ -24,42 +24,58 @@
 
 ```
 .
-├── app.js / app.json / app.wxss     小程序入口、页面注册与全局样式
+├── app.js / app.json / app.wxss     小程序入口、页面注册、全局样式与会话引导
 ├── data/                           纯数据配置：世界、功法、参悟方式、对手、称号
 ├── utils/
-│   ├── game.js                     养成内核：状态、收益、战力、对战、存档、称号判定
-│   └── store.js                    单一状态源：读写、订阅、离线结算、落盘
+│   ├── game.js                     养成内核：状态、收益、战力、对战、存档码、称号判定
+│   ├── store.js                    单一状态源：同步读写、订阅、离线结算、云端防抖同步
+│   ├── cloud.js                    唯一云客户端（endpoint / publishableKey 来自 publicConfig）
+│   ├── cloud-save.js               云端存档适配层：读写 canwu_saves
+│   ├── workbuddy-data-access.js    官方资产：单表增删改查，0 行命中视为失败
+│   └── workbuddy-cloud-diagnostics.js  官方资产：云请求失败诊断日志
+├── components/login-panel/         官方资产：邮箱验证码登录组件
 ├── minigames/                      5 个小游戏，统一 create(ctx) 接口
 ├── pages/
-│   ├── index/                      洞府（主页、挂机收益、境界）
-│   ├── skills/                     功法（习得、熟练度、技能效果）
-│   ├── battle/                     论道（NPC / 秘境 / 战力码）
-│   ├── profile/                    道牒（称号、存档导入导出、角色卡片）
-│   └── practice/                   参悟（小游戏、评级结算、突破瓶颈）
+│   ├── index/ skills/ battle/      洞府 / 功法 / 论道
+│   ├── profile/                    道牒（称号、存档导入导出、账号与退出登录）
+│   ├── practice/                   参悟（小游戏、评级结算、突破瓶颈）
+│   └── login/                      登录页（未登录时由 app.js 跳转）
+├── package.json                    云 SDK 依赖
 ├── project.config.json             微信开发者工具项目配置
 └── sitemap.json
 ```
 
 ## 运行与预览
 
-1. 用**微信开发者工具**「导入项目」，选择本仓库根目录即可（`miniprogramRoot` 为 `./`）。
-2. `project.config.json` 里的 `appid` 目前是 `touristappid`（游客模式）。要真机预览或发布，请替换成自己的小程序 AppID。
-3. 不需要 `npm install`，不需要云开发，也不需要编译构建。
-4. 在 WorkBuddy 中也可通过应用卡 `wbapp_jiVmdkW9TIl3n14p3QlIi5` 预览（本地卡，未发布）。
+1. 用**微信开发者工具**「导入项目」，选择本仓库根目录（`miniprogramRoot` 为 `./`）。
+2. 安装依赖：`npm install`；小程序需在开发者工具中执行「构建 npm」，或使用 WorkBuddy 发布流程自动构建。
+3. `project.config.json` 里的 `appid` 目前是 `touristappid`（游客模式）。真机预览或发布前请替换成自己的小程序 AppID，并在小程序后台把云服务的固定网关加入 request 合法域名。
+4. 应用 `wbapp_jiVmdkW9TIl3n14p3QlIi5` 已开通云服务（Auth + Database），无需再建应用。
+5. 在 WorkBuddy 中可通过应用卡预览（H5 预览**无法**完成真实微信登录或验证云端读写，需在微信中验证）。
 
-## 数据与存档
+## 登录与账号隔离
 
-- 存档键：`canwu_save_v1`，通过 `wx.setStorageSync` 落在本地。`store.commit()` 每次写操作后立即落盘。
-- 「道牒」页可导出 / 导入存档（导出串以 `CANWU1:` 开头），换设备或清缓存前请先导出；论道页的战力码以 `CW1-` 开头。
-- `game.normalizeState()` 会对读档做归一化与数值兜底，旧版存档可读。
-- 数据只在本机，没有服务器同步，也没有账号体系。
+- 登录方式：邮箱验证码（发送验证码 → 验证，无密码）。组件在 `components/login-panel/`，页面在 `pages/login/`。
+- 冷启动时 `app.js` 检查会话；未登录则跳登录页，登录成功后按该用户身份拉取云端存档。
+- 云端表 `canwu_saves`：`owner_id TEXT NOT NULL DEFAULT auth.uid() UNIQUE`、`payload JSONB`、`updated_at`。**归属由数据库填充，前端不传用户 ID**。
+- 已开启 RLS，SELECT / INSERT / UPDATE / DELETE 四条策略均限定 `owner_id = auth.uid()`，即每个账号只能读写自己那一行；表已 GRANT 给 `authenticated, anon`。
+- 读写前都先过 `cloud.auth.getSession()` 认证门；未登录不发任何表查询。
+
+## 存档与本地缓存
+
+- 登录后权威存档在云端；`canwu_save_v1` 只作为本机缓存，`store.commit()` 立即写本地并防抖（1.2 秒）回写云端，`App.onHide` 会补一次 flush。
+- 云端没有该账号的存档时创建一份新档。**本机旧进度不会自动上云**：如需保留，先在「道牒」页导出 `CANWU1:` 存档码，登录后导入。
+- 「道牒」页仍可导出 / 导入存档码；论道页战力码以 `CW1-` 开头。切换账号 / 退出登录会清空本机缓存，避免串号，云端存档保留。
+- `game.normalizeState()` 对读档做归一化与数值兜底。
+- 写入失败（未登录、网络错误、RLS 拒绝 0 行）会记录到 `store.getCloudError()`，不会静默当作成功。
 
 ## 开发约定
 
-- **内容即数据**：新增功法、参悟方式、对手、称号或调数值，只改 `data/` 下的文件，不动业务代码。`data/world.js` 集中放全局阈值与挂机数值。
-- **小游戏统一接口**：`create(ctx) -> controller`，`ctx` 含 `params / difficulty / perks / tip / render(vm) / finish(result)`，`result` 含 `grade / score / summary`。约定见 `minigames/common.js`，注册表在 `minigames/index.js`。换题材包装只需改 `data/practice.js`。
-- **单一状态源**：页面只读 `store.get()`，写操作一律走 `store.commit()`，跨页面刷新用 `store.subscribe()`；所有持久化集中在 `game.save()`。
-- 源码为 `'use strict'` + CommonJS（`require` / `module.exports`），ES6 语法，不引入构建工具或第三方包。
+- **内容即数据**：新增功法、参悟方式、对手、称号或调数值，只改 `data/` 下的文件，不动业务代码。
+- **小游戏统一接口**：`create(ctx) -> controller`，约定见 `minigames/common.js`，注册表在 `minigames/index.js`。
+- **单一状态源**：页面只读 `store.get()`，写操作走 `store.commit()`，刷新靠 `store.subscribe()`。页面保持同步 API，云端读写是后台异步，不阻塞交互。
+- **云适配层可替换**：`store.setCloudAdapter()` 注入 `{ load, save, resetRow }`，正式实现在 `utils/cloud-save.js`；`utils/cloud.js` 是全工程唯一的云客户端初始化点。
+- 源码为 `'use strict'` + CommonJS，ES6 语法；除云 SDK 外不引入其他第三方包，不使用打包器。
 
 本地静态校验（可选）：
 
@@ -72,8 +88,9 @@ find . -name '*.js' -not -path './.git/*' -exec node --check {} \;
 
 ## 当前边界
 
-- 尚未做微信开发者工具编译与真机预览，也未做发布上线；开发期只做过 JSON / JS 静态校验与 Node 模拟长流程压测。
-- 未接入云服务、登录、排行榜或真实 PVP；论道对手全是本地预设数据。
+- 已完成：云服务开通、`canwu_saves` 表与 RLS 策略、服务端写入读回验证、登录组件与会话引导、按用户隔离的存档同步、静态校验。
+- **尚未验证**：微信开发者工具编译、真机 / 体验版登录、真机云端读写、发布上线。H5 预览不能证明这些能力可用。
+- 未做排行榜与真实 PVP；论道对手仍是本地预设数据。
 - `.workbuddy/`（项目记忆、应用注册）与 `*.genie`（含本机绝对路径的预览卡）由 `.gitignore` 排除，不入库。
 
 工程基线来自官方 `workbuddy-native-basic@1.0.0` 模板。
