@@ -1,0 +1,69 @@
+.hero-num {
+    color: #fffdf7;
+}
+
+.fight-card {
+    margin-bottom: 16rpx;
+}
+
+.code-box {
+    box-sizing: border-box;
+    padding: 18rpx 20rpx;
+    border-radius: 12rpx;
+    background: #f1ede1;
+    color: #2f6b5b;
+    font-size: 25rpx;
+    font-weight: 600;
+    letter-spacing: 2rpx;
+    word-break: break-all;
+}
+
+.code-input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 76rpx;
+    padding: 0 20rpx;
+    border: 2rpx solid #e3ddcd;
+    border-radius: 12rpx;
+    background: #fffdf7;
+    color: #2f3a34;
+    font-size: 24rpx;
+}
+
+.code-ph {
+    color: #a9a99a;
+    font-size: 24rpx;
+}
+
+.battle-score {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 24rpx 0;
+    border-radius: 18rpx;
+    background: #f5f1e5;
+}
+
+.battle-score__side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.battle-num {
+    margin-top: 8rpx;
+    font-size: 52rpx;
+    font-weight: 700;
+    line-height: 1;
+    animation: riseIn 420ms ease-out both;
+}
+
+.battle-vs {
+    color: #a09e8f;
+    font-size: 24rpx;
+}
+
+@keyframes riseIn {
+    from { opacity: 0; transform: translateY(16rpx); }
+    to { opacity: 1; transform: translateY(0); }
+}

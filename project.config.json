@@ -1,0 +1,23 @@
+{
+  "description": "《参悟》养成挂机 + 小游戏小程序（原生静态版）",
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "folder",
+        "value": ".workbuddy"
+      }
+    ],
+    "include": []
+  },
+  "setting": {
+    "bundle": false,
+    "es6": true,
+    "minified": true,
+    "postcss": true,
+    "urlCheck": true
+  },
+  "compileType": "miniprogram",
+  "appid": "touristappid",
+  "projectname": "canwu",
+  "miniprogramRoot": "./"
+}

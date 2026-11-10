@@ -1,0 +1,108 @@
+<view class="pg">
+
+  <view class="card card--ink pr-head">
+    <view class="row--between">
+      <text class="eyebrow pr-eyebrow">{{modeLabel}}</text>
+      <text class="tag tag--dark">{{gameName}}</text>
+    </view>
+    <text class="h1 serif pr-title">{{title}}</text>
+    <text class="quote pr-desc">{{subtitle}}</text>
+    <view class="pr-prof">
+      <view class="row--between">
+        <text class="tiny pr-tiny">{{tierName}} · {{prof}}</text>
+        <text class="tiny pr-tiny">{{nextText}}</text>
+      </view>
+      <view class="bar bar--dark mt8">
+        <view class="bar__fill" style="width:{{percent}}%;background:{{tierColor}}"></view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{!started && !showResult}}" class="card">
+    <view class="row--between">
+      <text class="section__title">参悟方式 · {{methodName}}</text>
+      <text class="tag tag--jade">{{gameName}}</text>
+    </view>
+    <text class="body mt12">{{tip}}</text>
+
+    <block wx:if="{{showDifficulty}}">
+      <view class="divider"></view>
+      <text class="h3">今日功课</text>
+      <view class="btn-row">
+        <button class="btn {{difficulty === 'normal' ? 'btn--primary' : 'btn--plain'}}" data-d="normal" bindtap="onDifficulty">常课</button>
+        <button class="btn {{difficulty === 'hard' ? 'btn--gold' : 'btn--plain'}}" disabled="{{!hardUnlocked}}" data-d="hard" bindtap="onDifficulty">苦修 ×1.6</button>
+      </view>
+      <text class="tiny mt12">{{hardHint}}</text>
+      <view class="divider"></view>
+      <text class="tiny">{{perkText}}</text>
+    </block>
+
+    <button class="btn btn--primary btn--block mt24" bindtap="onStart">开始参悟</button>
+    <button class="btn btn--plain btn--block mt12" bindtap="onBack">先不练了</button>
+  </view>
+
+  <view wx:if="{{started && !showResult && vm}}" class="card">
+    <view class="row--between">
+      <text class="h3">{{vm.timeText || '正在参悟'}}</text>
+      <text class="tag tag--jade">{{vm.scoreText}}</text>
+    </view>
+    <text class="muted mt8">{{vm.status}}</text>
+    <text class="tiny mt8">{{vm.hint}}</text>
+
+    <view wx:if="{{vm.extras.showCharge}}" class="charge">
+      <view class="charge__track">
+        <view class="charge__zone" style="left:{{vm.charge.start}}%;width:{{chargeWidth}}%"></view>
+        <view class="charge__cursor" style="left:{{vm.charge.value}}%"></view>
+      </view>
+      <text class="tiny mt8">朱线区间 {{vm.charge.start}}% — {{vm.charge.end}}%</text>
+      <button class="btn btn--gold btn--block mt16" bindtouchstart="onPress" bindtouchend="onRelease" bindtouchcancel="onRelease" bindtap="onChargeTap">按住蓄力 · 松手定住</button>
+    </view>
+
+    <view wx:if="{{vm.extras.showGrid}}" class="grid grid--c{{vm.cols}}">
+      <view wx:for="{{vm.cells}}" wx:key="key" class="{{item.cls}}" data-index="{{index}}" bindtap="onCellTap" bindlongpress="onCellLongPress">
+        <text>{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="btn-row">
+      <button wx:if="{{vm.extras.showUndo}}" class="btn btn--ghost btn--small" bindtap="onUndo">撤销</button>
+      <button wx:if="{{vm.extras.showHint}}" class="btn btn--ghost btn--small" bindtap="onHint">阵眼感应</button>
+      <button class="btn btn--plain btn--small" bindtap="onAbandon">收功</button>
+    </view>
+  </view>
+
+  <view class="mask" wx:if="{{showResult && result}}">
+    <view class="modal">
+      <view class="grade" style="background:{{result.gradeColor}}">{{result.grade}}</view>
+      <text class="modal__title serif mt16">{{result.headline}}</text>
+      <text class="modal__sub">{{result.gradeTitle}} · {{result.subline}}</text>
+
+      <view class="modal__body" wx:if="{{result.lines.length > 0}}">
+        <view class="res-line" wx:for="{{result.lines}}" wx:key="k">
+          <text class="muted">{{item.k}}</text>
+          <text class="h3 jade">{{item.v}}</text>
+        </view>
+      </view>
+
+      <view class="modal__body" wx:if="{{result.notes.length > 0}}">
+        <view class="res-note" wx:for="{{result.notes}}" wx:key="*this">
+          <text class="body">· {{item}}</text>
+        </view>
+      </view>
+
+      <view class="modal__body" wx:if="{{result.titles.length > 0}}">
+        <text class="tag tag--gold">新称号</text>
+        <view class="row--wrap mt8">
+          <text class="tag tag--jade" wx:for="{{result.titles}}" wx:key="*this">{{item}}</text>
+        </view>
+      </view>
+
+      <view class="modal__actions">
+        <button class="btn btn--primary" bindtap="onPrimary">{{result.primary}}</button>
+        <button class="btn btn--plain" bindtap="onSecondary">{{result.secondary}}</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="pg__foot">参 悟 · 等是保底，练才是加速</view>
+</view>

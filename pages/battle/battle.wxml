@@ -1,0 +1,125 @@
+<view class="pg">
+  <view class="pg__head">
+    <text class="eyebrow">预 设 N P C · 异 步 战 力 码</text>
+    <text class="h1 serif">论道</text>
+    <text class="muted mt8">首版只打预设对手；战力码可和朋友打镜像，不需要服务器。</text>
+  </view>
+
+  <view wx:if="{{ov}}" class="card card--ink">
+    <view class="row--between">
+      <text class="tiny pr-tiny">{{ov.realmName}} · {{ov.roleName}}</text>
+      <text class="tag tag--dark">{{ov.equippedTitleName}}</text>
+    </view>
+    <view class="row--between mt16">
+      <text class="tiny pr-tiny">当前战力</text>
+      <text class="big-number hero-num">{{ov.power}}</text>
+    </view>
+    <text class="tiny mt12 pr-tiny">对战时双方各有 ±15% 随机波动；精通以上技能会触发特效，抬高战力或波动下限。</text>
+  </view>
+
+  <view class="section">
+    <view class="section__head">
+      <text class="section__title">同门与来客</text>
+      <text class="section__sub">首胜掉落功法</text>
+    </view>
+    <view class="card card--tight fight-card" wx:for="{{npcs}}" wx:key="id">
+      <view class="row--between">
+        <text class="h3">{{item.name}}</text>
+        <text class="tag {{item.cleared ? 'tag--jade' : 'tag--grey'}}">{{item.cleared ? '已首胜' : item.title}}</text>
+      </view>
+      <text class="tiny mt8">{{item.desc}}</text>
+      <view class="row--between mt12">
+        <text class="tiny">战力 {{item.power}} · <text class="{{item.hintTone === 'good' ? 'jade' : 'gold'}}">{{item.hint}}</text></text>
+        <text class="tiny">灵气 +{{item.qi}} / 灵石 +{{item.stone}}</text>
+      </view>
+      <text wx:if="{{item.dropName}}" class="tiny mt8 gold">首胜掉落《{{item.dropName}}》</text>
+      <button class="btn {{item.cleared ? 'btn--plain' : 'btn--primary'}} btn--small btn--block mt12" data-id="{{item.id}}" bindtap="onFight">{{item.cleared ? '再打一场' : '挑战'}}</button>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section__head">
+      <text class="section__title">秘境探索</text>
+      <text class="section__sub">资源多，不掉功法</text>
+    </view>
+    <view class="card card--tight fight-card" wx:for="{{secrets}}" wx:key="id">
+      <view class="row--between">
+        <text class="h3">{{item.name}}</text>
+        <text class="tag {{item.hintTone === 'good' ? 'tag--jade' : 'tag--grey'}}">{{item.hint}}</text>
+      </view>
+      <text class="tiny mt8">{{item.desc}}</text>
+      <view class="row--between mt12">
+        <text class="tiny">战力 {{item.power}}</text>
+        <text class="tiny">灵气 +{{item.qi}} / 灵石 +{{item.stone}}</text>
+      </view>
+      <button class="btn btn--ghost btn--small btn--block mt12" data-id="{{item.id}}" bindtap="onFight">入秘境</button>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section__head">
+      <text class="section__title">战力码 · 异步对战</text>
+      <text class="section__sub">无需服务器</text>
+    </view>
+    <view class="card">
+      <text class="h3">我的战力码</text>
+      <view class="code-box mt12">{{myCode}}</view>
+      <button class="btn btn--primary btn--small btn--block mt12" bindtap="onCopyCode">复制我的战力码</button>
+      <view class="divider"></view>
+      <text class="h3">挑战朋友的镜像</text>
+      <input class="code-input mt12" value="{{inputCode}}" bindinput="onInputCode" placeholder="粘贴 CW1- 开头的战力码" placeholder-class="code-ph" />
+      <view class="btn-row">
+        <button class="btn btn--plain btn--small" bindtap="onPasteCode">从剪贴板读取</button>
+        <button class="btn btn--gold btn--small" bindtap="onMirrorFight">打镜像</button>
+      </view>
+      <text class="tiny mt12">战力码里带着对方的战力、境界与技能段位，输入后打的是他的「镜像」。</text>
+    </view>
+  </view>
+
+  <view class="mask" wx:if="{{showResult && result}}" bindtap="closeResult">
+    <view class="modal" catchtap="noop">
+      <text class="modal__title serif">{{result.headline}}</text>
+      <text class="modal__sub">{{result.subline}}</text>
+
+      <view class="battle-score mt24">
+        <view class="battle-score__side">
+          <text class="tiny">我方挥出</text>
+          <text class="battle-num {{result.winTone}}">{{result.playerRoll}}</text>
+        </view>
+        <text class="battle-vs">对</text>
+        <view class="battle-score__side">
+          <text class="tiny">对方接下</text>
+          <text class="battle-num">{{result.enemyRoll}}</text>
+        </view>
+      </view>
+      <text class="quote mt16">{{result.line}}</text>
+
+      <view class="modal__body" wx:if="{{result.effects.length > 0}}">
+        <text class="tag tag--gold">触发特效</text>
+        <view class="res-note mt8" wx:for="{{result.effects}}" wx:key="name">
+          <text class="tiny">· {{item.name}}：{{item.text}}</text>
+        </view>
+      </view>
+
+      <view class="modal__body">
+        <view class="res-line" wx:for="{{result.lines}}" wx:key="k">
+          <text class="muted">{{item.k}}</text>
+          <text class="h3 jade">{{item.v}}</text>
+        </view>
+      </view>
+
+      <view class="modal__body" wx:if="{{result.titles.length > 0}}">
+        <text class="tag tag--gold">新称号</text>
+        <view class="row--wrap mt8">
+          <text class="tag tag--jade" wx:for="{{result.titles}}" wx:key="*this">{{item}}</text>
+        </view>
+      </view>
+
+      <view class="modal__actions">
+        <button class="btn btn--primary btn--block" bindtap="closeResult">收下</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="pg__foot">战 力 可 截 图 · 称 号 可 晒 出</view>
+</view>

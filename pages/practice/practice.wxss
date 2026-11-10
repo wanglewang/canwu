@@ -1,0 +1,111 @@
+.pr-head {
+    padding: 32rpx;
+}
+
+.pr-eyebrow {
+    color: #d8b775;
+}
+
+.pr-title {
+    display: block;
+    margin-top: 18rpx;
+    color: #fffdf7;
+}
+
+.pr-desc {
+    display: block;
+    margin-top: 12rpx;
+    color: #c9d6cd;
+    font-size: 25rpx;
+    line-height: 1.7;
+}
+
+.pr-prof {
+    margin-top: 28rpx;
+}
+
+.pr-tiny {
+    color: #c9d6cd;
+}
+
+/* ---------- 蓄力停区 ---------- */
+.charge {
+    margin-top: 24rpx;
+}
+
+.charge__track {
+    position: relative;
+    overflow: hidden;
+    height: 64rpx;
+    border-radius: 14rpx;
+    background: #e9e3d4;
+}
+
+.charge__zone {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: rgba(184, 137, 59, 0.42);
+    border-left: 5rpx solid #b4453c;
+    border-right: 5rpx solid #b4453c;
+}
+
+.charge__cursor {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 10rpx;
+    background: #2f6b5b;
+    transform: translateX(-5rpx);
+}
+
+/* ---------- 通用格子 ---------- */
+.grid {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 24rpx;
+}
+
+.cell {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 5rpx solid #fffdf7;
+    border-radius: 16rpx;
+    background: #efe9db;
+    color: #8a8f83;
+    font-size: 30rpx;
+    font-weight: 600;
+}
+
+.grid--c3 .cell { width: 33.3333%; height: 156rpx; }
+.grid--c4 .cell { width: 25%; height: 128rpx; font-size: 26rpx; }
+.grid--c6 .cell { width: 16.6666%; height: 100rpx; font-size: 24rpx; border-width: 3rpx; border-radius: 10rpx; }
+
+.cell--lit { background: #3d8c74; color: #fffdf7; }
+.cell--off { background: #e3dccb; color: #a09e8f; }
+.cell--ok { background: #b8893b; color: #fffdf7; }
+.cell--bad { background: #b4453c; color: #fffdf7; }
+.cell--hidden { background: #ddd5c1; color: #9a9a8b; }
+.cell--open { background: #f7f3e8; color: #2f6b5b; font-weight: 700; }
+.cell--flag { background: #f5ead2; color: #a2762d; }
+.cell--sensed { background: #f5e2de; color: #b4453c; }
+.cell--hint { background: #b8893b; color: #fffdf7; }
+
+/* ---------- 结果 ---------- */
+.res-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14rpx 0;
+    border-bottom: 2rpx solid #f0ebdd;
+}
+
+.res-note {
+    padding: 6rpx 0;
+}
+
+.res-note .body {
+    color: #5d6358;
+}

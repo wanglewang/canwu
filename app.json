@@ -1,0 +1,31 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/skills/skills",
+    "pages/battle/battle",
+    "pages/profile/profile",
+    "pages/practice/practice"
+  ],
+  "window": {
+    "navigationBarTitleText": "参悟",
+    "navigationBarBackgroundColor": "#f7f3e8",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f2eee4",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#8a8f83",
+    "selectedColor": "#2f6b5b",
+    "backgroundColor": "#fffdf7",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "洞府" },
+      { "pagePath": "pages/skills/skills", "text": "功法" },
+      { "pagePath": "pages/battle/battle", "text": "论道" },
+      { "pagePath": "pages/profile/profile", "text": "道牒" }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

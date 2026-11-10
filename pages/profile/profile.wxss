@@ -1,0 +1,121 @@
+.idcard {
+    box-sizing: border-box;
+    padding: 16rpx;
+    margin-bottom: 22rpx;
+    border-radius: 28rpx;
+    background: #f2eee4;
+    border: 2rpx solid #e3ddcd;
+}
+
+.idcard__inner {
+    box-sizing: border-box;
+    min-height: 780rpx;
+    padding: 44rpx 36rpx;
+    border: 3rpx solid #b8893b;
+    border-radius: 20rpx;
+    background: #2f4a41;
+    display: flex;
+    flex-direction: column;
+}
+
+.idcard__eyebrow {
+    color: #d8b775;
+    font-size: 22rpx;
+    letter-spacing: 4rpx;
+}
+
+.idcard__name {
+    font-size: 48rpx;
+    font-weight: 700;
+    color: #fffdf7;
+    margin-right: 16rpx;
+}
+
+.idcard__title {
+    margin-top: 8rpx;
+    color: #c9d6cd;
+    font-size: 24rpx;
+}
+
+.idcard__label {
+    margin-top: 36rpx;
+    color: #d8b775;
+    font-size: 21rpx;
+    letter-spacing: 4rpx;
+}
+
+.idcard__power {
+    color: #fffdf7;
+    font-family: "Songti SC", "SimSun", serif;
+    font-size: 104rpx;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.idcard__rule {
+    height: 2rpx;
+    background: rgba(255, 253, 247, 0.2);
+    margin: 20rpx 0;
+}
+
+.idcard__attrs {
+    color: #c9d6cd;
+    font-size: 24rpx;
+}
+
+.idcard__skill {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12rpx 0;
+    border-bottom: 2rpx solid rgba(255, 253, 247, 0.1);
+}
+
+.idcard__skill-name {
+    color: #fffdf7;
+    font-size: 27rpx;
+    font-weight: 600;
+}
+
+.idcard__skill-tier {
+    font-size: 23rpx;
+}
+
+.idcard__empty {
+    color: #9fb3a7;
+    font-size: 24rpx;
+    padding: 16rpx 0;
+}
+
+.idcard__stats {
+    color: #c9d6cd;
+    font-size: 23rpx;
+}
+
+.idcard__code {
+    margin-top: 12rpx;
+    color: #9fb3a7;
+    font-size: 20rpx;
+    word-break: break-all;
+}
+
+.idcard__slogan {
+    margin-top: auto;
+    padding-top: 28rpx;
+    color: #9fb3a7;
+    font-size: 21rpx;
+    letter-spacing: 2rpx;
+}
+
+.share-canvas {
+    position: fixed;
+    top: -3000px;
+    left: 0;
+    width: 600px;
+    height: 880px;
+}
+
+.title-card,
+.world-card {
+    margin-bottom: 14rpx;
+}

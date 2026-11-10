@@ -1,0 +1,102 @@
+<view class="pg">
+  <view class="pg__head">
+    <text class="eyebrow">技 能 · 熟 练 度 · 参 悟 方 式</text>
+    <text class="h1 serif">功法</text>
+    <text class="muted mt8">没有废技能，只有适合不同玩法偏好的路线。</text>
+  </view>
+
+  <view wx:if="{{ov}}" class="card card--ink">
+    <view class="row--between">
+      <text class="tiny pr-tiny">已习 {{ov.unlockedCount}} / {{ov.skillTotal}} 门</text>
+      <text class="tiny pr-tiny">{{ov.resource}} {{ov.qi}} · {{ov.currency}} {{ov.stone}}</text>
+    </view>
+    <view class="row--wrap mt16">
+      <text class="tag tag--dark" wx:for="{{legend}}" wx:key="key">{{item.name}} {{item.threshold}}</text>
+    </view>
+    <text class="tiny mt12 pr-tiny">熟练度到 100 / 400 / 1000 / 2500 依次升段；精通后解锁技能特效，大成给满加成。</text>
+  </view>
+
+  <block wx:for="{{cards}}" wx:key="id">
+    <view wx:if="{{item.showHeader}}" class="section">
+      <view class="section__head">
+        <text class="section__title">{{item.groupTitle}}</text>
+        <text class="section__sub">{{item.groupSub}}</text>
+      </view>
+    </view>
+    <view class="card card--tight skill-card {{item.dim ? 'skill-card--dim' : ''}}" data-id="{{item.id}}" bindtap="openDetail">
+      <view class="row--between">
+        <view class="row">
+          <text class="h3">{{item.name}}</text>
+          <text class="tag tag--grey skill-type">{{item.type}}</text>
+        </view>
+        <text wx:if="{{item.unlocked}}" class="tag" style="color:{{item.tierColor}}">{{item.tierName}}</text>
+        <text wx:elif="{{item.canBuy}}" class="tag tag--gold">可兑换</text>
+        <text wx:else class="tag tag--grey">未得</text>
+      </view>
+      <text class="tiny mt8">{{item.methodName}} · {{item.desc}}</text>
+      <block wx:if="{{item.unlocked}}">
+        <view class="bar mt12">
+          <view class="bar__fill" style="width:{{item.percent}}%;background:{{item.tierColor}}"></view>
+        </view>
+        <view class="row--between mt8">
+          <text class="tiny">{{item.prof}} 熟练度</text>
+          <text class="tiny">{{item.nextText}}</text>
+        </view>
+      </block>
+      <block wx:elif="{{item.canBuy}}">
+        <view class="row--between mt12">
+          <text class="tiny">{{item.costText}}</text>
+          <text class="tag {{item.affordable ? 'tag--jade' : 'tag--grey'}}">{{item.affordable ? '资源已足' : '资源不足'}}</text>
+        </view>
+      </block>
+      <text wx:else class="tiny mt12">{{item.sourceText}}</text>
+    </view>
+  </block>
+
+  <view class="mask" wx:if="{{showDetail && detail}}" bindtap="closeDetail">
+    <view class="modal" catchtap="noop">
+      <view class="row--between">
+        <text class="tag tag--grey">{{detail.type}}</text>
+        <text class="tag" style="color:{{detail.tierColor}}">{{detail.tierName}}</text>
+      </view>
+      <text class="modal__title serif mt12">{{detail.name}}</text>
+      <text class="modal__sub">参悟方式 · {{detail.methodName}}</text>
+
+      <view class="modal__body">
+        <text class="body">{{detail.desc}}</text>
+        <text class="quote mt12">{{detail.flavor}}</text>
+        <view class="divider"></view>
+        <view class="res-line">
+          <text class="muted">属性加成（随段位提高）</text>
+          <text class="h3 jade">{{detail.bonusText}}</text>
+        </view>
+        <view class="res-line">
+          <text class="muted">精通特效</text>
+          <text class="h3 {{detail.effectUnlocked ? 'gold' : 'muted'}}">{{detail.effectText}}</text>
+        </view>
+        <view class="res-line">
+          <text class="muted">获取方式</text>
+          <text class="tiny">{{detail.sourceText}}</text>
+        </view>
+        <block wx:if="{{detail.unlocked}}">
+          <view class="res-line">
+            <text class="muted">熟练度</text>
+            <text class="h3">{{detail.prof}}</text>
+          </view>
+          <view class="bar mt12">
+            <view class="bar__fill" style="width:{{detail.percent}}%;background:{{detail.tierColor}}"></view>
+          </view>
+          <text class="tiny mt8">{{detail.nextText}}</text>
+        </block>
+      </view>
+
+      <view class="modal__actions">
+        <button wx:if="{{detail.unlocked}}" class="btn btn--primary" bindtap="onPractice">去参悟</button>
+        <button wx:elif="{{detail.canBuy}}" class="btn btn--gold" disabled="{{!canAfford}}" bindtap="onBuy">兑换</button>
+        <button class="btn btn--plain" bindtap="closeDetail">关闭</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="pg__foot">点 开 功 法 可 看 详 情</view>
+</view>

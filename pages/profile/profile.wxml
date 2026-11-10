@@ -1,0 +1,129 @@
+<view class="pg">
+  <view class="pg__head">
+    <text class="eyebrow">称 号 · 成 就 · 存 档</text>
+    <text class="h1 serif">道牒</text>
+    <text class="muted mt8">练到哪一步了，一张卡片说得清。</text>
+  </view>
+
+  <block wx:if="{{ov}}">
+    <view class="idcard">
+      <view class="idcard__inner">
+        <text class="idcard__eyebrow">参 悟 · {{ov.worldLabel}} · {{ov.worldName}}</text>
+        <view class="row mt16">
+          <text class="idcard__name serif">{{ov.roleName}}</text>
+          <text class="tag tag--gold">{{ov.realmName}}</text>
+        </view>
+        <text class="idcard__title">{{ov.equippedTitleName}}</text>
+        <text class="idcard__label">战 力</text>
+        <text class="idcard__power">{{ov.power}}</text>
+        <view class="idcard__rule"></view>
+        <text class="idcard__attrs">{{attrsLine}}</text>
+        <text class="idcard__label mt24">代 表 功 法</text>
+        <view class="idcard__skill" wx:for="{{topSkills}}" wx:key="name">
+          <text class="idcard__skill-name">{{item.name}}</text>
+          <text class="idcard__skill-tier" style="color:{{item.color}}">{{item.tierName}} · {{item.prof}}</text>
+        </view>
+        <view wx:if="{{topSkills.length === 0}}" class="idcard__empty">尚未习得功法</view>
+        <view class="idcard__rule mt24"></view>
+        <text class="idcard__stats">{{statsLine}}</text>
+        <text class="idcard__code">战力码 {{myCode}}</text>
+        <text class="idcard__slogan">等是保底，练才是加速。</text>
+      </view>
+    </view>
+
+    <view class="btn-row">
+      <button class="btn btn--primary" bindtap="onMakeCard">生成卡片图</button>
+      <button class="btn btn--gold" bindtap="onCopyCardText">复制文案</button>
+    </view>
+    <button class="btn btn--ghost btn--block mt12" bindtap="onCopyCode">复制战力码，发给朋友打镜像</button>
+    <text class="tiny mt12">也可直接长按上方卡片截图晒出。</text>
+
+    <view class="section">
+      <view class="section__head">
+        <text class="section__title">称号 · 可佩戴</text>
+        <text class="section__sub">{{ov.titlesCount}} / {{ov.titlesTotal}} 已解锁</text>
+      </view>
+      <view class="card card--tight title-card" wx:for="{{titles}}" wx:key="id">
+        <view class="row--between">
+          <view class="grow">
+            <view class="row">
+              <text class="h3">{{item.name}}</text>
+              <text wx:if="{{item.equipped}}" class="tag tag--jade">佩戴中</text>
+              <text wx:elif="{{item.unlocked}}" class="tag tag--grey">已解锁</text>
+              <text wx:else class="tag tag--grey">未解锁</text>
+            </view>
+            <text class="tiny mt8">{{item.desc}}</text>
+            <text wx:if="{{!item.unlocked}}" class="tiny mt8">进度 {{item.progress}} / {{item.target}}</text>
+          </view>
+          <button wx:if="{{item.unlocked}}" class="btn {{item.equipped ? 'btn--plain' : 'btn--ghost'}} btn--small" data-id="{{item.id}}" bindtap="onEquipTitle">{{item.equipped ? '卸下' : '佩戴'}}</button>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section__head">
+        <text class="section__title">存档</text>
+        <text class="section__sub">纯本地，不依赖服务器</text>
+      </view>
+      <view class="card">
+        <text class="body">进度只存在这台设备的浏览器/小程序本地存储里。清缓存前记得导出存档码，换设备时导入即可。</text>
+        <view class="btn-row">
+          <button class="btn btn--primary" bindtap="onExportSave">导出存档</button>
+          <button class="btn btn--ghost" bindtap="openImport">导入存档</button>
+        </view>
+        <button class="btn btn--plain btn--block mt12" bindtap="onReset">重置存档</button>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section__head">
+        <text class="section__title">世界</text>
+        <text class="section__sub">内容即数据</text>
+      </view>
+      <view class="card card--tight world-card" wx:for="{{worlds}}" wx:key="id">
+        <view class="row--between">
+          <text class="h3">{{item.label}} · {{item.name}}</text>
+          <text wx:if="{{item.enabled}}" class="tag tag--jade">进行中</text>
+          <text wx:else class="tag tag--grey">敬请期待</text>
+        </view>
+        <text class="tiny mt8">{{item.intro}}</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section__head"><text class="section__title">关于</text></view>
+      <view class="card">
+        <text class="body">《参悟》是养成挂机 + 小游戏的静态小程序：离线收益负责保底，参悟小游戏负责加速。首版只做修仙世界，科幻与都市只换世界数据，不改业务代码。</text>
+        <text class="tiny mt12">世界观、人物、技能与文案均为原创，不使用任何具体作品的角色、剧情或台词。运行时不调用 AI，零服务器成本。</text>
+      </view>
+    </view>
+  </block>
+
+  <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
+
+  <view class="mask" wx:if="{{showSaveCode}}" bindtap="closeSaveCode">
+    <view class="modal" catchtap="noop">
+      <text class="modal__title serif">存档码</text>
+      <text class="modal__sub">已复制到剪贴板，请妥善保存</text>
+      <view class="code-box mt16">{{saveCode}}</view>
+      <view class="modal__actions">
+        <button class="btn btn--primary btn--block" bindtap="closeSaveCode">好</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="mask" wx:if="{{showImport}}" bindtap="closeImport">
+    <view class="modal" catchtap="noop">
+      <text class="modal__title serif">导入存档</text>
+      <text class="modal__sub">粘贴以 CANWU1: 开头的存档码</text>
+      <input class="code-input mt16" value="{{importCode}}" bindinput="onImportInput" placeholder="CANWU1:..." placeholder-class="code-ph" />
+      <button class="btn btn--plain btn--small btn--block mt12" bindtap="onPasteImport">从剪贴板读取</button>
+      <view class="modal__actions">
+        <button class="btn btn--primary" bindtap="onImportSave">导入</button>
+        <button class="btn btn--plain" bindtap="closeImport">取消</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="pg__foot">参 悟 · 内容全部数据化，换世界不改代码</view>
+</view>

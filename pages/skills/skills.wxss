@@ -1,0 +1,11 @@
+.skill-card {
+    margin-bottom: 16rpx;
+}
+
+.skill-card--dim {
+    background: #f7f3e9;
+}
+
+.skill-type {
+    margin-left: 12rpx;
+}

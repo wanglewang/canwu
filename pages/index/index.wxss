@@ -1,0 +1,44 @@
+.hero-card {
+    padding: 32rpx;
+}
+
+.hero-name {
+    font-size: 40rpx;
+    font-weight: 700;
+    color: #fffdf7;
+    margin-right: 16rpx;
+}
+
+.hero-label {
+    color: #b9c9bf;
+}
+
+.hero-num {
+    color: #fffdf7;
+}
+
+.hero-power {
+    display: flex;
+    flex-direction: column;
+}
+
+.hero-divider {
+    background: rgba(255, 253, 247, 0.16);
+}
+
+.log-line {
+    padding: 8rpx 0;
+    border-bottom: 2rpx solid #f4efe3;
+}
+
+.log-line:last-child {
+    border-bottom: none;
+}
+
+.world-row {
+    opacity: 1;
+}
+
+.world-row .tag {
+    margin-left: 14rpx;
+}
