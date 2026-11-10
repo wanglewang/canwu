@@ -2,7 +2,7 @@
   <view class="pg__head">
     <text class="eyebrow">预 设 N P C · 异 步 战 力 码</text>
     <text class="h1 serif">论道</text>
-    <text class="muted mt8">首版只打预设对手；战力码可和朋友打镜像，不需要服务器。</text>
+    <text class="muted mt8">与青云界高手过招，或凭战力码会一会朋友。</text>
   </view>
 
   <view wx:if="{{ov}}" class="card card--ink">
@@ -59,7 +59,7 @@
   <view class="section">
     <view class="section__head">
       <text class="section__title">战力码 · 异步对战</text>
-      <text class="section__sub">无需服务器</text>
+      <text class="section__sub">复制即约战</text>
     </view>
     <view class="card">
       <text class="h3">我的战力码</text>

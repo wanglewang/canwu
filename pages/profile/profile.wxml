@@ -8,12 +8,18 @@
   <block wx:if="{{ov}}">
     <view class="idcard">
       <view class="idcard__inner">
-        <text class="idcard__eyebrow">参 悟 · {{ov.worldLabel}} · {{ov.worldName}}</text>
-        <view class="row mt16">
-          <text class="idcard__name serif">{{ov.roleName}}</text>
-          <text class="tag tag--gold">{{ov.realmName}}</text>
+        <view class="idcard__hero">
+          <portrait variant="{{ov.portrait}}" realm="{{ov.realmIndex}}" size="normal" />
+          <view class="idcard__hero-text">
+            <text class="idcard__eyebrow">参 悟 · {{ov.worldLabel}} · {{ov.worldName}}</text>
+            <view class="row mt16">
+              <text class="idcard__name serif">{{ov.roleName}}</text>
+              <text class="tag tag--gold">{{ov.realmName}}</text>
+            </view>
+            <text class="idcard__title">{{ov.equippedTitleName}}</text>
+            <text class="idcard__edit" bindtap="openRoleEditor">立道号 · 塑道相 ›</text>
+          </view>
         </view>
-        <text class="idcard__title">{{ov.equippedTitleName}}</text>
         <text class="idcard__label">战 力</text>
         <text class="idcard__power">{{ov.power}}</text>
         <view class="idcard__rule"></view>
@@ -67,7 +73,7 @@
       </view>
       <view class="card">
         <text class="body">当前账号：{{accountLabel || '读取中'}}</text>
-        <text class="tiny mt8">进度保存在这个账号下，换设备登录后自动同步；本机只留缓存。导出的存档码仍可用于手动迁移。</text>
+        <text class="tiny mt8">进度跟着这个账号走，换设备登录后继续修行；导出的存档码也能手动搬家。</text>
         <view class="btn-row mt12">
           <button class="btn btn--primary" bindtap="onExportSave">导出存档</button>
           <button class="btn btn--ghost" bindtap="openImport">导入存档</button>
@@ -80,7 +86,7 @@
     <view class="section">
       <view class="section__head">
         <text class="section__title">世界</text>
-        <text class="section__sub">内容即数据</text>
+        <text class="section__sub">此界之外，另有天地</text>
       </view>
       <view class="card card--tight world-card" wx:for="{{worlds}}" wx:key="id">
         <view class="row--between">
@@ -93,15 +99,34 @@
     </view>
 
     <view class="section">
-      <view class="section__head"><text class="section__title">关于</text></view>
+      <view class="section__head"><text class="section__title">关于参悟</text></view>
       <view class="card">
-        <text class="body">《参悟》是养成挂机 + 小游戏小程序：离线收益负责保底，参悟小游戏负责加速。首版只做修仙世界，科幻与都市只换世界数据，不改业务代码。</text>
-        <text class="tiny mt12">世界观、人物、技能与文案均为原创，不使用任何具体作品的角色、剧情或台词。运行时不调用 AI；账号与存档由云端托管，按用户隔离。</text>
+        <text class="body">青云界灵气渐薄，外门弟子人人都在等一次顿悟。你不等，你去练。</text>
+        <text class="tiny mt12">不玩也在变强，玩了明显更快。每一条数值怎么算，都写在修行指南里。</text>
+        <button class="btn btn--ghost btn--block mt12" bindtap="onGoGuide">修行指南 · 玩法与数值 ›</button>
       </view>
     </view>
   </block>
 
   <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
+
+  <view class="mask" wx:if="{{showRoleEditor}}" bindtap="closeRoleEditor">
+    <view class="modal" catchtap="noop">
+      <text class="modal__title serif">立道号 · 塑道相</text>
+      <text class="modal__sub">给自己一个称呼，挑一尊随身道相</text>
+      <view class="role-editor__preview">
+        <portrait variant="{{draftPortrait}}" realm="{{ov ? ov.realmIndex : 0}}" size="small" />
+        <text class="role-editor__name">{{draftName || '未命名'}}</text>
+      </view>
+      <input class="role-editor__input mt16" value="{{draftName}}" bindinput="onRoleNameInput" maxlength="12" placeholder="输入道号（最多 12 字）" placeholder-class="code-ph" />
+      <button class="btn btn--ghost btn--small btn--block mt12" bindtap="onNextPortrait">换一尊道相</button>
+      <text class="tiny mt12">道号与道相随账号存档一起保存，换设备登录也会带着。</text>
+      <view class="modal__actions">
+        <button class="btn btn--plain" bindtap="closeRoleEditor">取消</button>
+        <button class="btn btn--primary" bindtap="onSaveRole">定下</button>
+      </view>
+    </view>
+  </view>
 
   <view class="mask" wx:if="{{showSaveCode}}" bindtap="closeSaveCode">
     <view class="modal" catchtap="noop">
@@ -127,5 +152,5 @@
     </view>
   </view>
 
-  <view class="pg__foot">参 悟 · 内容全部数据化，换世界不改代码</view>
+  <view class="pg__foot">参 悟 · 一张道牒，半生修行</view>
 </view>

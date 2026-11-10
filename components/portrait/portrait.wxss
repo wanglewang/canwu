@@ -1,0 +1,143 @@
+.portrait {
+    position: relative;
+    width: 12em;
+    height: 13.6em;
+    font-size: 16rpx;
+    overflow: hidden;
+}
+
+.portrait--small { font-size: 9rpx; }
+.portrait--normal { font-size: 16rpx; }
+.portrait--large { font-size: 24rpx; }
+
+.portrait__disc {
+    position: absolute;
+    left: 50%;
+    top: 0.4em;
+    width: 10.6em;
+    height: 10.6em;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    opacity: 0.9;
+}
+
+.portrait__halo {
+    position: absolute;
+    left: 50%;
+    top: 1.1em;
+    width: 9.2em;
+    height: 9.2em;
+    border: 0.12em solid;
+    border-radius: 50%;
+    transform-origin: center center;
+}
+
+.portrait__figure {
+    position: absolute;
+    left: 50%;
+    bottom: 0.9em;
+    width: 8em;
+    height: 9.4em;
+    transform: translateX(-50%);
+}
+
+.portrait__robe {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 5.2em;
+    height: 5.4em;
+    border-radius: 2.6em 2.6em 0.7em 0.7em;
+    transform: translateX(-50%);
+}
+
+.portrait__sleeve {
+    position: absolute;
+    bottom: 0.5em;
+    width: 1.9em;
+    height: 4.2em;
+    border-radius: 50%;
+    opacity: 0.92;
+}
+
+.portrait__sleeve--l {
+    left: 0.1em;
+    transform: rotate(20deg);
+}
+
+.portrait__sleeve--r {
+    right: 0.1em;
+    transform: rotate(-20deg);
+}
+
+.portrait__collar {
+    position: absolute;
+    left: 50%;
+    bottom: 4.8em;
+    width: 1.5em;
+    height: 1.1em;
+    border-left: 0.16em solid;
+    border-right: 0.16em solid;
+    border-radius: 0.2em;
+    transform: translateX(-50%);
+}
+
+.portrait__head {
+    position: absolute;
+    left: 50%;
+    bottom: 5.6em;
+    width: 2.5em;
+    height: 2.7em;
+    border-radius: 50%;
+    transform: translateX(-50%);
+}
+
+.portrait__bun {
+    position: absolute;
+    left: 50%;
+    bottom: 8.1em;
+    width: 1.25em;
+    height: 1.25em;
+    border-radius: 50%;
+    transform: translateX(-50%);
+}
+
+.portrait__pin {
+    position: absolute;
+    left: 50%;
+    bottom: 9.05em;
+    width: 1.7em;
+    height: 0.16em;
+    border-radius: 0.1em;
+    transform: translateX(-50%);
+}
+
+.portrait__relic {
+    position: absolute;
+    right: 0.65em;
+    bottom: 1.4em;
+    width: 0.2em;
+    height: 6.6em;
+    border-radius: 0.1em;
+    transform: rotate(16deg);
+}
+
+.portrait__base {
+    position: absolute;
+    left: 50%;
+    bottom: 0.4em;
+    width: 7.6em;
+    height: 0.45em;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    opacity: 0.75;
+}
+
+.portrait__seal {
+    position: absolute;
+    right: 0.5em;
+    bottom: 0.9em;
+    font-size: 1.5em;
+    font-family: serif;
+    opacity: 0.7;
+}

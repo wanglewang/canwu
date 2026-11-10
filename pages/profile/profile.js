@@ -23,6 +23,9 @@ Page({
     saveCode: '',
     showImport: false,
     importCode: '',
+    showRoleEditor: false,
+    draftName: '',
+    draftPortrait: 0,
   },
 
   onLoad: function () {
@@ -66,6 +69,37 @@ Page({
       statsLine: '习得 ' + ov.unlockedCount + ' / ' + ov.skillTotal + ' 门 · 参悟 ' + ov.practiceCount + ' 次 · 胜 ' + ov.wins + ' 场',
     });
   },
+
+  openRoleEditor: function () {
+    const s = store.get();
+    this.setData({
+      showRoleEditor: true,
+      draftName: s.roleName || '',
+      draftPortrait: s.portrait || 0,
+    });
+  },
+
+  closeRoleEditor: function () { this.setData({ showRoleEditor: false }); },
+
+  onRoleNameInput: function (event) { this.setData({ draftName: event.detail.value }); },
+
+  onNextPortrait: function () {
+    this.setData({ draftPortrait: (this.data.draftPortrait + 1) % 6 });
+  },
+
+  onSaveRole: function () {
+    const name = this.data.draftName;
+    const portrait = this.data.draftPortrait;
+    const r = store.commit(function (s) {
+      return engine.updateRole(s, { name: name, portrait: portrait });
+    });
+    if (!r.ok) { toast(r.msg); return; }
+    this.setData({ showRoleEditor: false });
+    this.refresh();
+    toast('道号已定下');
+  },
+
+  onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
 
   onEquipTitle: function (event) {
     const id = event.currentTarget.dataset.id;

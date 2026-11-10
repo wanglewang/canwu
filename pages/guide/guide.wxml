@@ -1,0 +1,23 @@
+<view class="pg">
+  <view class="pg__head">
+    <text class="eyebrow">修 行 指 南</text>
+    <text class="h1 serif">玩法与数值</text>
+    <text class="muted mt8">不看也能玩，看完少走弯路。</text>
+  </view>
+
+  <view class="section" wx:for="{{sections}}" wx:key="title">
+    <view class="section__head">
+      <text class="section__title">{{item.title}}</text>
+      <text class="section__sub">{{item.sub}}</text>
+    </view>
+    <view class="card">
+      <view class="guide-line" wx:for="{{item.lines}}" wx:for-item="line" wx:key="*this">
+        <text class="guide-dot">·</text>
+        <text class="body grow">{{line}}</text>
+      </view>
+    </view>
+  </view>
+
+  <button class="btn btn--primary btn--block mt24" bindtap="onBack">回去修炼</button>
+  <view class="pg__foot">参 悟 · 等是保底，练才是加速</view>
+</view>

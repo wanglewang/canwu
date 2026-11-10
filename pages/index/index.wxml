@@ -3,6 +3,7 @@
     <text class="eyebrow">养 成 挂 机 · 小 游 戏 参 悟</text>
     <text class="h1 serif">参悟</text>
     <text class="muted mt8">等是保底，练才是加速。</text>
+    <text class="guide-link mt8" bindtap="onGoGuide">修行指南 · 玩法与数值 ›</text>
   </view>
 
   <view wx:if="{{viewState === 'loading'}}" class="card">
@@ -19,9 +20,12 @@
         <text class="tag tag--dark">{{ov.worldLabel}} · {{ov.worldName}}</text>
         <text class="tag tag--dark">{{ov.equippedTitleName}}</text>
       </view>
-      <view class="row mt16">
-        <text class="serif hero-name">{{ov.roleName}}</text>
-        <text class="tag tag--gold">{{ov.realmName}}</text>
+      <view class="hero-id">
+        <portrait variant="{{ov.portrait}}" realm="{{ov.realmIndex}}" size="small" />
+        <view class="hero-id__text">
+          <text class="serif hero-name">{{ov.roleName}}</text>
+          <text class="tag tag--gold">{{ov.realmName}}</text>
+        </view>
       </view>
       <view class="hero-power mt16">
         <text class="tiny hero-label">战 力</text>
@@ -109,7 +113,7 @@
     <view class="section">
       <view class="section__head">
         <text class="section__title">世界</text>
-        <text class="section__sub">同一套系统，换数据即换皮</text>
+        <text class="section__sub">此界之外，另有天地</text>
       </view>
       <view class="card card--tight world-row" wx:for="{{worlds}}" wx:key="id">
         <view class="grow">

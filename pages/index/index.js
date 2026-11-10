@@ -108,4 +108,5 @@ Page({
   onGoSkills: function () { wx.switchTab({ url: '/pages/skills/skills' }); },
   onGoBattle: function () { wx.switchTab({ url: '/pages/battle/battle' }); },
   onGoProfile: function () { wx.switchTab({ url: '/pages/profile/profile' }); },
+  onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
 });

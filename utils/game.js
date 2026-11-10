@@ -59,6 +59,7 @@ function createNewState() {
     version: 1,
     worldId: 'xian',
     roleName: w.roleName,
+    portrait: 0,
     realmIndex: 0,
     skills: skills,
     resources: { qi: 0, stone: 20 },
@@ -88,6 +89,7 @@ function normalizeState(raw) {
   if (!raw || typeof raw !== 'object' || !raw.skills) return base;
   base.worldId = worldData.getWorld(raw.worldId).id;
   base.roleName = typeof raw.roleName === 'string' ? raw.roleName.slice(0, 12) : base.roleName;
+  base.portrait = Math.floor(num(raw.portrait, 0)) % 6;
   base.realmIndex = Math.floor(num(raw.realmIndex, 0));
   const maxRealm = worldData.getWorld(base.worldId).realms.length - 1;
   if (base.realmIndex > maxRealm) base.realmIndex = maxRealm;
@@ -648,6 +650,21 @@ function equipTitle(state, id) {
   return { ok: true, equipped: state.equippedTitle };
 }
 
+// 角色资料：道号与道相编号都是存档字段，随云端存档一起同步。
+function updateRole(state, patch) {
+  if (!patch || typeof patch !== 'object') return { ok: false, msg: '资料格式不对' };
+  if (patch.name !== undefined) {
+    const name = typeof patch.name === 'string' ? patch.name.trim().slice(0, 12) : '';
+    if (!name) return { ok: false, msg: '道号不能为空' };
+    state.roleName = name;
+  }
+  if (patch.portrait !== undefined) {
+    const p = Math.floor(Number(patch.portrait));
+    if (isFinite(p)) state.portrait = ((p % 6) + 6) % 6;
+  }
+  return { ok: true };
+}
+
 function exportSaveCode(state) {
   return SAVE_PREFIX + JSON.stringify(state);
 }
@@ -682,6 +699,7 @@ function getOverview(state) {
     worldLabel: w.label,
     worldIntro: w.intro,
     roleName: state.roleName,
+    portrait: state.portrait || 0,
     realmName: w.realms[state.realmIndex].name,
     realmIndex: state.realmIndex,
     realmCount: w.realms.length,
@@ -859,6 +877,7 @@ module.exports = {
   applyBreakthrough: applyBreakthrough,
   buySkill: buySkill,
   equipTitle: equipTitle,
+  updateRole: updateRole,
   exportSaveCode: exportSaveCode,
   importSaveCode: importSaveCode,
   getOverview: getOverview,

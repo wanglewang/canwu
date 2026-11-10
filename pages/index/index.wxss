@@ -42,3 +42,24 @@
 .world-row .tag {
     margin-left: 14rpx;
 }
+
+.guide-link {
+    display: block;
+    font-size: 24rpx;
+    color: #2f6b5b;
+}
+
+.hero-id {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-top: 16rpx;
+}
+
+.hero-id__text {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-left: 8rpx;
+}

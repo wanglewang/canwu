@@ -1,0 +1,21 @@
+<view class="portrait portrait--{{size}}">
+  <view class="portrait__disc" style="background:{{p.disc}}"></view>
+  <view
+    class="portrait__halo"
+    wx:for="{{rings}}"
+    wx:key="scale"
+    style="border-color:{{p.aura}};opacity:{{item.opacity}};transform:translateX(-50%) scale({{item.scale}})"
+  ></view>
+  <view class="portrait__figure">
+    <view class="portrait__relic" style="background:{{p.trim}}"></view>
+    <view class="portrait__sleeve portrait__sleeve--l" style="background:{{p.robe}}"></view>
+    <view class="portrait__sleeve portrait__sleeve--r" style="background:{{p.robe}}"></view>
+    <view class="portrait__robe" style="background:{{p.robe}}"></view>
+    <view class="portrait__collar" style="border-color:{{p.trim}}"></view>
+    <view class="portrait__head" style="background:{{p.skin}}"></view>
+    <view class="portrait__bun" style="background:{{p.hair}}"></view>
+    <view class="portrait__pin" style="background:{{p.trim}}"></view>
+  </view>
+  <view class="portrait__base" style="background:{{p.aura}}"></view>
+  <text class="portrait__seal" style="color:{{p.robe}}">{{p.seal}}</text>
+</view>

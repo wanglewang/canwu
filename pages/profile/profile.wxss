@@ -119,3 +119,48 @@
 .world-card {
     margin-bottom: 14rpx;
 }
+
+.idcard__hero {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.idcard__hero-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.idcard__edit {
+    margin-top: 18rpx;
+    color: #d8b775;
+    font-size: 22rpx;
+}
+
+.role-editor__preview {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-top: 24rpx;
+}
+
+.role-editor__name {
+    margin-left: 24rpx;
+    font-size: 32rpx;
+    color: #2f4a41;
+    font-weight: 500;
+}
+
+.role-editor__input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 78rpx;
+    padding: 0 20rpx;
+    background: #f7f3e8;
+    border: 2rpx solid #ddd5c2;
+    border-radius: 12rpx;
+    font-size: 28rpx;
+    color: #2f4a41;
+}

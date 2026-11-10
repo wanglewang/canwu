@@ -5,7 +5,8 @@
     "pages/battle/battle",
     "pages/profile/profile",
     "pages/practice/practice",
-    "pages/login/login"
+    "pages/login/login",
+    "pages/guide/guide"
   ],
   "window": {
     "navigationBarTitleText": "参悟",
