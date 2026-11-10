@@ -3,12 +3,20 @@
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const minigames = require('../../minigames/index.js');
+const themes = require('../../minigames/theme.js');
 const skillData = require('../../data/skills.js');
 const practiceData = require('../../data/practice.js');
 const worldData = require('../../data/world.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
+}
+
+function heartsToFlags(h) {
+  const out = [];
+  if (!h) return out;
+  for (let i = 0; i < h.max; i += 1) out.push({ id: i, on: i < h.value });
+  return out;
 }
 
 Page({
@@ -30,8 +38,16 @@ Page({
     hardHint: '',
     perkText: '',
     difficulty: 'normal',
+    theme: themes.themeOf('forge', 'click'),
+    twistName: '常规功课',
+    twistDesc: '',
+    hintLabel: '提示',
     vm: null,
     chargeWidth: 0,
+    gradeNowColor: '#8a8f83',
+    heartList: [],
+    meterPercent: 0,
+    countdown: 0,
     started: false,
     showResult: false,
     result: null,
@@ -40,6 +56,10 @@ Page({
   onLoad: function (query) {
     this.pageAlive = true;
     this.controller = null;
+    this.countdownTimers = [];
+    this.needsRebuild = false;
+    this.theme = themes.themeOf('forge', 'click');
+    this.twist = '';
     this.mode = query && query.mode === 'breakthrough' ? 'breakthrough' : 'practice';
     this.skillId = (query && query.skillId) || '';
 
@@ -63,15 +83,26 @@ Page({
   },
 
   onShow: function () {
-    if (this.pageAlive && this.mode) this.refresh();
+    if (!this.pageAlive || !this.mode) return;
+    this.refresh();
+    if (this.needsRebuild && !this.data.showResult) {
+      this.needsRebuild = false;
+      this.buildGame();
+    }
   },
 
   onHide: function () {
+    this.clearCountdown();
     if (this.controller) this.controller.destroy();
+    if (!this.data.showResult) {
+      this.needsRebuild = true;
+      this.setData({ started: false });
+    }
   },
 
   onUnload: function () {
     this.pageAlive = false;
+    this.clearCountdown();
     if (this.controller) this.controller.destroy();
     this.controller = null;
   },
@@ -80,6 +111,9 @@ Page({
     const state = store.get();
     if (this.mode === 'breakthrough') {
       const info = engine.breakthroughInfo(state);
+      this.theme = themes.themeOf('breakthrough', 'charge');
+      this.twist = '';
+      const bt = themes.twistOf('');
       this.setData({
         title: '冲关 · ' + info.nextName,
         subtitle: '战力 ' + info.power + ' 已过 ' + info.need + ' 的门槛。气机只在一线之间，按住蓄力，松手停在朱线区间。',
@@ -94,6 +128,9 @@ Page({
         hardUnlocked: false,
         hardHint: '',
         perkText: '突破成功后境界提升，战力获得额外境界加成。',
+        theme: this.theme,
+        twistName: bt.name,
+        twistDesc: '气机往复只在朱线一线，越贴近正中评级越高。',
       });
       return;
     }
@@ -101,6 +138,10 @@ Page({
     const method = practiceData.getMethod(skill.method);
     const rec = state.skills[this.skillId];
     const info = engine.tierInfo(rec.prof);
+    const theme = themes.themeOf(method.id, method.game);
+    const twist = themes.twistOf(method.twist);
+    this.theme = theme;
+    this.twist = method.twist;
     this.setData({
       title: skill.name,
       subtitle: skill.desc,
@@ -114,7 +155,10 @@ Page({
       nextText: info.maxed ? '已至大成' : '距 ' + info.nextName + ' 还差 ' + (info.nextThreshold - rec.prof),
       hardUnlocked: info.index >= 2,
       hardHint: info.index >= 2 ? '苦修已解锁：难度提高，熟练度 ×1.6' : '熟练度到「熟练」后解锁苦修（熟练度 ×1.6）',
-      perkText: '精通以后参悟自带便利：点灯可感应阵眼、扫雷透视 3 颗雷、节奏类更从容。',
+      perkText: '精通以后参悟自带便利：判定窗更宽、节奏更从容，扫雷还能透视三颗雷。',
+      theme: theme,
+      twistName: twist.name,
+      twistDesc: twist.desc,
     });
   },
 
@@ -147,16 +191,60 @@ Page({
       perks: perks,
       tip: tip,
       methodName: methodName,
+      theme: this.theme,
+      twist: this.twist,
       render: function (vm) {
         if (!self.pageAlive) return;
         self.setData({
           vm: vm,
           chargeWidth: vm.charge ? Math.max(0, vm.charge.end - vm.charge.start) : 0,
+          gradeNowColor: worldData.GRADE_COLOR[vm.gradeNow] || '#8a8f83',
+          heartList: heartsToFlags(vm.hearts),
+          meterPercent: vm.meter && vm.meter.max ? Math.round(vm.meter.value / vm.meter.max * 100) : 0,
         });
       },
       finish: function (res) { self.onFinish(res); },
     });
-    this.setData({ started: false, showResult: false, result: null });
+    this.setData({
+      started: false,
+      showResult: false,
+      result: null,
+      hintLabel: gameId === 'lights' ? '阵眼感应' : gameId === 'mines' ? '符箓照纹' : '提示',
+    });
+  },
+
+  clearCountdown: function () {
+    for (let i = 0; i < this.countdownTimers.length; i += 1) clearTimeout(this.countdownTimers[i]);
+    this.countdownTimers = [];
+    if (this.data.countdown !== 0) this.setData({ countdown: 0 });
+  },
+
+  onStart: function () {
+    if (!this.controller || this.data.started || this.data.countdown > 0) return;
+    const self = this;
+    this.setData({ countdown: 3 });
+    function step() {
+      const id = setTimeout(function () {
+        if (!self.pageAlive) return;
+        const n = self.data.countdown - 1;
+        if (n <= 0) {
+          self.setData({ countdown: 0, started: true });
+          if (self.controller) self.controller.start();
+        } else {
+          self.setData({ countdown: n });
+          step();
+        }
+      }, 380);
+      self.countdownTimers.push(id);
+    }
+    step();
+  },
+
+  onSkipCountdown: function () {
+    if (!this.pageAlive || this.data.countdown <= 0) return;
+    this.clearCountdown();
+    if (this.controller) this.controller.start();
+    this.setData({ started: true });
   },
 
   onDifficulty: function (event) {
@@ -171,15 +259,9 @@ Page({
     this.buildGame();
   },
 
-  onStart: function () {
-    if (!this.controller || this.data.started) return;
-    this.controller.start();
-    this.setData({ started: true });
-  },
-
   onCellTap: function (event) {
     if (!this.controller) return;
-    this.controller.tap(Number(event.currentTarget.dataset.index));
+    this.controller.tap(Number(event.currentTarget.dataset.index || 0));
   },
 
   onCellLongPress: function (event) {
@@ -275,9 +357,10 @@ Page({
       };
     }
 
-    if (grade === 'S' && wx.vibrateShort) {
-      try { wx.vibrateShort({ type: 'light' }); } catch (e) { /* 部分环境不支持震动 */ }
+    if (wx.vibrateShort && (grade === 'S' || grade === 'A')) {
+      try { wx.vibrateShort({ type: grade === 'S' ? 'heavy' : 'light' }); } catch (e) { /* 部分环境不支持震动 */ }
     }
+    this.clearCountdown();
     this.setData({ showResult: true, result: rv, started: false });
     this.refresh();
   },
@@ -287,8 +370,7 @@ Page({
     if (kind === 'breakthrough') { this.onBack(); return; }
     this.setData({ showResult: false, result: null });
     this.buildGame();
-    if (this.controller) this.controller.start();
-    this.setData({ started: true });
+    this.onStart();
     this.refresh();
   },
 

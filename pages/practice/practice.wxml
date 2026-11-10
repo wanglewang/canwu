@@ -1,11 +1,16 @@
-<view class="pg">
+<view class="pg" style="--acc:{{theme.accent}};--soft:{{theme.soft}};--ink:{{theme.ink}};--bg:{{theme.bg}};--frame:{{theme.frame}}">
 
   <view class="card card--ink pr-head">
     <view class="row--between">
-      <text class="eyebrow pr-eyebrow">{{modeLabel}}</text>
+      <text class="eyebrow pr-eyebrow">{{modeLabel}} · {{theme.name}}</text>
       <text class="tag tag--dark">{{gameName}}</text>
     </view>
-    <text class="h1 serif pr-title">{{title}}</text>
+    <view class="pr-title-row">
+      <text class="h1 serif pr-title">{{title}}</text>
+      <view class="pr-seal" style="border-color:{{theme.accent}};background:{{theme.soft}}">
+        <text style="color:{{theme.ink}}">{{theme.motif}}</text>
+      </view>
+    </view>
     <text class="quote pr-desc">{{subtitle}}</text>
     <view class="pr-prof">
       <view class="row--between">
@@ -25,6 +30,17 @@
     </view>
     <text class="body mt12">{{tip}}</text>
 
+    <view class="twist mt16" style="border-color:{{theme.accent}};background:{{theme.soft}}">
+      <view class="row--between">
+        <text class="h3" style="color:{{theme.ink}}">本门玄机 · {{twistName}}</text>
+        <text class="tag" style="background:{{theme.accent}};color:#fffdf7">独有</text>
+      </view>
+      <text class="body mt8" style="color:{{theme.ink}}">{{twistDesc}}</text>
+    </view>
+
+    <view class="divider"></view>
+    <text class="tiny">评级倍率：S 圆满 ×2.0 · A 上乘 ×1.4 · B 中平 ×1.0 · C 粗浅 ×0.6。局内顶部会实时显示当前评级。</text>
+
     <block wx:if="{{showDifficulty}}">
       <view class="divider"></view>
       <text class="h3">今日功课</text>
@@ -41,41 +57,83 @@
     <button class="btn btn--plain btn--block mt12" bindtap="onBack">先不练了</button>
   </view>
 
-  <view wx:if="{{started && !showResult && vm}}" class="card">
-    <view class="row--between">
-      <text class="h3">{{vm.timeText || '正在参悟'}}</text>
-      <text class="tag tag--jade">{{vm.scoreText}}</text>
+  <view wx:if="{{started && !showResult && vm}}" class="card pr-play">
+    <view class="hud">
+      <view class="row--between">
+        <text class="h3">{{vm.timeText || '正在参悟'}}</text>
+        <view class="hud__right">
+          <text wx:if="{{vm.comboText}}" class="combo-chip" style="color:{{theme.ink}}">{{vm.comboText}}</text>
+          <text class="grade-chip" style="background:{{gradeNowColor}}">{{vm.gradeNow}}</text>
+        </view>
+      </view>
+      <view wx:if="{{vm.extras.showProgress}}" class="hud__track mt8">
+        <view class="hud__fill" style="width:{{vm.progress}}%;background:{{theme.accent}}"></view>
+      </view>
+      <view class="row--between mt8">
+        <text class="tiny">{{vm.goal || vm.status}}</text>
+        <text class="tag tag--jade">{{vm.scoreText}}</text>
+      </view>
+      <view wx:if="{{vm.extras.showHearts}}" class="hearts mt8">
+        <text wx:for="{{heartList}}" wx:key="id" class="heart {{item.on ? 'heart--on' : ''}}">◆</text>
+        <text class="tiny">心神 {{vm.hearts.value}} / {{vm.hearts.max}}</text>
+      </view>
+      <view wx:if="{{vm.extras.showMeter && vm.meter}}" class="meter mt8">
+        <text class="tiny">{{vm.meter.label}} {{vm.meter.value}} / {{vm.meter.max}}</text>
+        <view class="meter__track"><view class="meter__fill" style="width:{{meterPercent}}%;background:{{theme.accent}}"></view></view>
+      </view>
     </view>
-    <text class="muted mt8">{{vm.status}}</text>
+
+    <text wx:if="{{vm.banner}}" class="banner mt12" style="color:{{theme.ink}};border-color:{{theme.accent}}">{{vm.banner}}</text>
     <text class="tiny mt8">{{vm.hint}}</text>
 
-    <view wx:if="{{vm.extras.showCharge}}" class="charge">
-      <view class="charge__track">
-        <view class="charge__zone" style="left:{{vm.charge.start}}%;width:{{chargeWidth}}%"></view>
-        <view class="charge__cursor" style="left:{{vm.charge.value}}%"></view>
+    <view class="stage">
+      <view wx:if="{{vm.extras.showCharge}}" class="charge">
+        <view class="charge__track">
+          <view class="charge__zone" style="left:{{vm.charge.start}}%;width:{{chargeWidth}}%"></view>
+          <view class="charge__cursor" style="left:{{vm.charge.value}}%"></view>
+        </view>
+        <text class="tiny mt8">朱线区间 {{vm.charge.start}}% — {{vm.charge.end}}%</text>
+        <button class="btn btn--gold btn--block mt16" bindtouchstart="onPress" bindtouchend="onRelease" bindtouchcancel="onRelease" bindtap="onChargeTap">按住蓄力 · 松手定住</button>
       </view>
-      <text class="tiny mt8">朱线区间 {{vm.charge.start}}% — {{vm.charge.end}}%</text>
-      <button class="btn btn--gold btn--block mt16" bindtouchstart="onPress" bindtouchend="onRelease" bindtouchcancel="onRelease" bindtap="onChargeTap">按住蓄力 · 松手定住</button>
+
+      <view wx:if="{{vm.extras.showRing && vm.ring}}" class="ring-area" bindtap="onCellTap">
+        <view class="ring-judge"></view>
+        <view class="ring-orb ring-orb--{{vm.ring.tone}}" style="transform:scale({{vm.ring.scale}});border-color:{{theme.accent}}">
+          <text style="color:{{theme.ink}}">{{theme.glyph}}</text>
+        </view>
+        <text class="ring-tip">点按盘面 · 第 {{vm.ring.beat}} / {{vm.ring.total}} 拍</text>
+      </view>
+
+      <view wx:if="{{vm.extras.showGrid}}" class="grid grid--c{{vm.cols}}" style="background:{{theme.bg}}">
+        <view wx:for="{{vm.cells}}" wx:key="key" class="{{item.cls}} cell--t{{item.tone}}" style="border-color:{{theme.frame}}" data-index="{{index}}" bindtap="onCellTap" bindlongpress="onCellLongPress">
+          <text>{{item.label}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{vm.fx}}" class="fx fx--{{vm.fx.tone}} fx--k{{vm.fx.n}}">{{vm.fx.text}}</view>
     </view>
 
-    <view wx:if="{{vm.extras.showGrid}}" class="grid grid--c{{vm.cols}}">
-      <view wx:for="{{vm.cells}}" wx:key="key" class="{{item.cls}}" data-index="{{index}}" bindtap="onCellTap" bindlongpress="onCellLongPress">
-        <text>{{item.label}}</text>
-      </view>
-    </view>
-
-    <view class="btn-row">
+    <view class="btn-row mt16">
       <button wx:if="{{vm.extras.showUndo}}" class="btn btn--ghost btn--small" bindtap="onUndo">撤销</button>
-      <button wx:if="{{vm.extras.showHint}}" class="btn btn--ghost btn--small" bindtap="onHint">阵眼感应</button>
+      <button wx:if="{{vm.extras.showHint}}" class="btn btn--ghost btn--small" bindtap="onHint">{{hintLabel}}</button>
       <button class="btn btn--plain btn--small" bindtap="onAbandon">收功</button>
     </view>
   </view>
 
+  <view wx:if="{{countdown > 0}}" class="countdown-mask" bindtap="onSkipCountdown">
+    <view class="countdown-inner">
+      <text class="countdown-seal" style="color:{{theme.accent}}">{{theme.motif}}</text>
+      <text class="countdown-num serif">{{countdown}}</text>
+      <text class="tiny">凝神 · 起手（点一下跳过）</text>
+    </view>
+  </view>
+
   <view class="mask" wx:if="{{showResult && result}}">
-    <view class="modal">
+    <view class="modal modal--reveal">
       <view class="grade" style="background:{{result.gradeColor}}">{{result.grade}}</view>
       <text class="modal__title serif mt16">{{result.headline}}</text>
       <text class="modal__sub">{{result.gradeTitle}} · {{result.subline}}</text>
+      <text class="tiny mt8">本门玄机 · {{twistName}}</text>
 
       <view class="modal__body" wx:if="{{result.lines.length > 0}}">
         <view class="res-line" wx:for="{{result.lines}}" wx:key="k">

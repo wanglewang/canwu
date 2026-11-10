@@ -1,10 +1,11 @@
 'use strict';
 
 // 小游戏公共工具。统一接口：create(ctx) -> controller
-// ctx = { params, difficulty, perks, tip, render(vm), finish(result) }
+// ctx = { params, difficulty, perks, tip, twist, theme, render(vm), finish(result) }
 // result = { grade: 'S'|'A'|'B'|'C'|'F', score, summary }
 // controller = { start, tap, longpress, undo, hint, press, release, abandon, destroy }
-// vm = { cols, cells, phase, status, hint, timeText, scoreText, charge, extras }
+// vm = { cols, cells, phase, status, hint, timeText, scoreText, charge, ring, extras, HUD 字段 }
+// HUD 字段：progress / progressText / combo / comboText / goal / gradeNow / banner / fx / hearts / meter
 
 function randInt(n) { return Math.floor(Math.random() * n); }
 
@@ -20,7 +21,7 @@ function shuffle(arr) {
 
 function makeCells(n) {
   const a = [];
-  for (let i = 0; i < n; i += 1) a.push({ key: i, label: '', cls: 'cell' });
+  for (let i = 0; i < n; i += 1) a.push({ key: i, label: '', cls: 'cell', tone: 0 });
   return a;
 }
 
@@ -28,6 +29,7 @@ function clearCells(cells) {
   for (let i = 0; i < cells.length; i += 1) {
     cells[i].label = '';
     cells[i].cls = 'cell';
+    cells[i].tone = 0;
   }
 }
 
@@ -44,9 +46,27 @@ function mmss(sec) {
   return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
 }
 
+function pct(part, total) {
+  if (total <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round(part / total * 100)));
+}
+
+// 一次性的浮字反馈。n 在 0/1 间交替，让 wxml 的 class 变化以重播动画。
+function flash(vm, text, tone) {
+  vm.fxSeq = (vm.fxSeq || 0) + 1;
+  vm.fx = { key: vm.fxSeq, n: vm.fxSeq % 2, text: text, tone: tone || 'good' };
+}
+
+function goalFor(grade, remain, unit) {
+  if (grade === 'S') return '已入圆满 · 稳住这一局';
+  if (remain <= 0) return '再进一点就是圆满';
+  return '再 ' + remain + ' ' + unit + '可入 S';
+}
+
 function TimerBag() {
   const intervals = [];
   const timeouts = [];
+  const flexes = [];
   return {
     every: function (fn, ms) {
       const id = setInterval(fn, ms);
@@ -58,11 +78,29 @@ function TimerBag() {
       timeouts.push(id);
       return id;
     },
+    // 可变间隔的循环：msFn() 每轮取一次间隔，用于连击升温之类的节奏变化。
+    everyFlex: function (fn, msFn) {
+      const h = { alive: true, id: null };
+      flexes.push(h);
+      function run() {
+        if (!h.alive) return;
+        fn();
+        if (!h.alive) return;
+        h.id = setTimeout(run, Math.max(16, msFn()));
+      }
+      h.id = setTimeout(run, Math.max(16, msFn()));
+      return h;
+    },
     clear: function () {
       for (let i = 0; i < intervals.length; i += 1) clearInterval(intervals[i]);
       for (let i = 0; i < timeouts.length; i += 1) clearTimeout(timeouts[i]);
+      for (let i = 0; i < flexes.length; i += 1) {
+        flexes[i].alive = false;
+        if (flexes[i].id !== null) clearTimeout(flexes[i].id);
+      }
       intervals.length = 0;
       timeouts.length = 0;
+      flexes.length = 0;
     },
   };
 }
@@ -77,7 +115,29 @@ function makeVm(cols, cellCount, status, hint) {
     timeText: '',
     scoreText: '',
     charge: null,
-    extras: { showUndo: false, showHint: false, showCharge: false, showGrid: cellCount > 0 },
+    ring: null,
+    progress: 0,
+    progressText: '',
+    combo: 0,
+    comboText: '',
+    goal: '',
+    gradeNow: 'C',
+    banner: '',
+    fx: null,
+    fxSeq: 0,
+    hearts: null,
+    meter: null,
+    extras: {
+      showUndo: false,
+      showHint: false,
+      showCharge: false,
+      showGrid: cellCount > 0,
+      showRing: false,
+      showHearts: false,
+      showMeter: false,
+      showProgress: true,
+      showCombo: false,
+    },
   };
 }
 
@@ -106,6 +166,9 @@ module.exports = {
   clearCells: clearCells,
   gradeBy: gradeBy,
   mmss: mmss,
+  pct: pct,
+  flash: flash,
+  goalFor: goalFor,
   TimerBag: TimerBag,
   makeVm: makeVm,
   fillController: fillController,

@@ -1,21 +1,29 @@
 'use strict';
 
-// A3-34 扫雷：翻遍所有安全石格，比用时。精通以上技能触发「透视 3 颗雷」。
+// A3 辨纹探禁：翻遍所有安全石格，比用时。精通以上技能触发「透视 3 颗雷」。
+// 修复：触雷不再一击结束，改为扣一盏心神并让该禁制显形，三盏耗尽才收功。
+// twist tanlei：三盏心神；twist seal：额外的「符箓照纹」可显形一颗雷。
 
 const C = require('./common.js');
 
 function create(ctx) {
-  const p = ctx.params;
+  const p = ctx.params || {};
   const hard = ctx.difficulty === 'hard';
   const perks = ctx.perks || {};
-  const cols = p.cols;
-  const rows = p.rows;
+  const twist = ctx.twist || '';
+  const theme = ctx.theme || {};
+  const cols = p.cols || 6;
+  const rows = p.rows || 6;
   const n = cols * rows;
-  const mineCount = Math.min(n - 2, p.mines + (hard ? 3 : 0));
+  const mineCount = Math.min(n - 2, (p.mines || 6) + (hard ? 3 : 0));
   const sensedCount = perks.easy ? 3 : 0;
+  const maxHearts = 3;
   const vm = C.makeVm(cols, n, '点开第一格，禁制才会显形', ctx.tip || '点开格子，长按可插旗标记');
   vm.timeText = '00:00';
   vm.scoreText = '已探 0 / ' + (n - mineCount);
+  vm.extras.showHearts = true;
+  vm.extras.showHint = twist === 'seal';
+  vm.hearts = { value: maxHearts, max: maxHearts };
 
   const bag = C.TimerBag();
   let mines = [];
@@ -23,10 +31,13 @@ function create(ctx) {
   let sensedSet = {};
   let numbers = new Array(n).fill(0);
   let revealed = new Array(n).fill(false);
+  let exposed = new Array(n).fill(false);
   let flags = new Array(n).fill(false);
   let generated = false;
   let firstTapDone = false;
   let elapsed = 0;
+  let hearts = maxHearts;
+  let hintsLeft = 2;
   let done = false;
   let started = false;
 
@@ -79,13 +90,39 @@ function create(ctx) {
 
   function render() { ctx.render(vm); }
 
+  function openedCount() {
+    let k = 0;
+    for (let i = 0; i < n; i += 1) if (revealed[i]) k += 1;
+    return k;
+  }
+
+  function gradeTime(t) {
+    if (t <= 25) return 'S';
+    if (t <= 45) return 'A';
+    if (t <= 75) return 'B';
+    return 'C';
+  }
+
+  function syncHud() {
+    const opened = openedCount();
+    const safeTotal = n - mineCount;
+    vm.timeText = C.mmss(elapsed);
+    vm.progress = C.pct(opened, safeTotal);
+    vm.progressText = opened + ' / ' + safeTotal + ' 格';
+    vm.scoreText = '已探 ' + opened + ' / ' + safeTotal;
+    vm.hearts = { value: hearts, max: maxHearts };
+    vm.gradeNow = gradeTime(elapsed);
+    vm.goal = '还剩 ' + Math.max(0, safeTotal - opened) + ' 格 · 心神 ' + hearts + ' 盏';
+  }
+
   function paint() {
-    let opened = 0;
     for (let i = 0; i < n; i += 1) {
       if (revealed[i]) {
-        opened += 1;
         vm.cells[i].cls = 'cell cell--open';
         vm.cells[i].label = numbers[i] > 0 ? String(numbers[i]) : '';
+      } else if (exposed[i]) {
+        vm.cells[i].cls = 'cell cell--mine';
+        vm.cells[i].label = theme.glyph || '雷';
       } else if (flags[i]) {
         vm.cells[i].cls = 'cell cell--flag';
         vm.cells[i].label = '旗';
@@ -97,7 +134,6 @@ function create(ctx) {
         vm.cells[i].label = '';
       }
     }
-    vm.scoreText = '已探 ' + opened + ' / ' + (n - mineCount);
   }
 
   function finishOnce(grade, summary) {
@@ -106,6 +142,7 @@ function create(ctx) {
     bag.clear();
     vm.phase = 'done';
     vm.status = '参悟已毕';
+    vm.banner = grade === 'S' ? (theme.praise || '步步不惊') : '';
     render();
     ctx.finish({ grade: grade, score: elapsed, summary: summary });
   }
@@ -130,42 +167,46 @@ function create(ctx) {
     started = true;
     vm.phase = 'playing';
     vm.status = '辨明禁制，逐格翻开';
+    vm.banner = theme.banner || '';
     generate(C.randInt(n));
     paint();
+    syncHud();
     render();
     bag.every(function () {
       if (done) return;
       elapsed += 1;
-      vm.timeText = C.mmss(elapsed);
+      syncHud();
       render();
     }, 1000);
-  }
-
-  function gradeTime(t) {
-    if (t <= 25) return 'S';
-    if (t <= 45) return 'A';
-    if (t <= 75) return 'B';
-    return 'C';
   }
 
   function tap(index) {
     if (done || vm.phase !== 'playing') return;
     if (!generated) generate(index);
-    if (flags[index] || revealed[index]) return;
+    if (flags[index] || revealed[index] || exposed[index]) return;
     if (!firstTapDone) {
       firstTapDone = true;
       if (mineSet[index]) relocate(index);
     }
     if (mineSet[index]) {
+      hearts -= 1;
+      exposed[index] = true;
       flags[index] = false;
-      vm.cells[index].cls = 'cell cell--bad';
-      vm.cells[index].label = '雷';
+      vm.status = theme.miss || '触了禁制';
+      C.flash(vm, '心神 -1 · 禁制显形', 'bad');
+      paint();
+      syncHud();
+      if (hearts <= 0) {
+        finishOnce('C', '心神耗尽，此番只算粗浅');
+        return;
+      }
       render();
-      finishOnce('C', '误触禁制，此番只算粗浅');
       return;
     }
     revealFrom(index);
     paint();
+    syncHud();
+    C.flash(vm, theme.hit || '石格无事', 'good');
     let allOpen = true;
     for (let i = 0; i < n; i += 1) {
       if (!mineSet[i] && !revealed[i]) { allOpen = false; break; }
@@ -178,20 +219,43 @@ function create(ctx) {
   }
 
   function longpress(index) {
-    if (done || vm.phase !== 'playing' || revealed[index]) return;
+    if (done || vm.phase !== 'playing' || revealed[index] || exposed[index]) return;
     flags[index] = !flags[index];
     paint();
     render();
   }
 
+  function hint() {
+    if (done || vm.phase !== 'playing' || twist !== 'seal') return;
+    if (hintsLeft <= 0) {
+      C.flash(vm, '符箓已用尽', 'bad');
+      render();
+      return;
+    }
+    for (let i = 0; i < n; i += 1) {
+      if (mineSet[i] && !exposed[i] && !revealed[i]) {
+        exposed[i] = true;
+        flags[i] = false;
+        hintsLeft -= 1;
+        paint();
+        vm.status = '符箓照出一处雷纹（剩 ' + hintsLeft + ' 次）';
+        C.flash(vm, '雷纹显形', 'gold');
+        render();
+        return;
+      }
+    }
+  }
+
+  syncHud();
   render();
   return C.fillController({
     start: start,
     tap: tap,
     longpress: longpress,
+    hint: hint,
     abandon: function () { finishOnce('F', '中途收功'); },
     destroy: function () { bag.clear(); },
   });
 }
 
-module.exports = { id: 'mines', name: '扫雷', create: create };
+module.exports = { id: 'mines', name: '辨纹探禁', create: create };
