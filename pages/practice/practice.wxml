@@ -23,6 +23,36 @@
     </view>
   </view>
 
+  <view wx:if="{{!started && !showResult && guide}}" class="card guide-card">
+    <view class="row--between" bindtap="onToggleGuide">
+      <view class="row">
+        <text class="section__title">怎么玩</text>
+        <text class="tag tag--grey">{{gameName}}</text>
+      </view>
+      <text class="text-link text-link--muted guide__toggle">{{guideOpen ? '收起' : '展开 ›'}}</text>
+    </view>
+    <text class="body mt8 guide__goal">{{guide.goal}}</text>
+    <block wx:if="{{guideOpen}}">
+      <view class="guide__steps">
+        <view wx:for="{{guide.steps}}" wx:key="*this" class="guide__step">
+          <text class="guide__no">{{index + 1}}</text>
+          <text class="tiny grow">{{item}}</text>
+        </view>
+      </view>
+      <view class="divider"></view>
+      <text class="section__title">盘上所见</text>
+      <view wx:for="{{guide.terms}}" wx:key="name" class="guide__term">
+        <text class="tag tag--jade guide__term-name">{{item.name}}</text>
+        <text class="tiny grow guide__term-desc">{{item.desc}}</text>
+      </view>
+      <view class="guide__note mt16">
+        <text class="tiny">{{guide.scoring}}</text>
+        <text class="tiny mt8">诀窍 · {{guide.tip}}</text>
+      </view>
+    </block>
+    <view wx:else class="guide__inline mt12"><text class="tiny">{{guide.inline}}</text></view>
+  </view>
+
   <view wx:if="{{!started && !showResult}}" class="card">
     <view class="row--between">
       <text class="section__title">{{twistName}}</text>
@@ -106,6 +136,7 @@
 
     <view class="pr-hint">
       <text class="tiny">{{vm.hint}}</text>
+      <view wx:if="{{guide}}" class="pr-hint__terms"><text class="tiny">{{guide.inline}}</text></view>
     </view>
 
     <view class="stage">

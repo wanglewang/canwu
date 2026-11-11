@@ -51,7 +51,7 @@ function create(ctx) {
   const life = Math.max(260, (p.life || 700) + (perks.easy ? 90 : 0));
   const gap = 90;                                   // 劈中之后的后摇，留一口换气
   const glyph = theme.glyph || '锋';
-  const edgeGlyph = '金';
+  const edgeGlyph = '金锋';    // 写明两字，别让「锋」和「金」看起来像同一类东西
 
   // 评级门槛按「每秒得分」推，不写死一套数；时长变了门槛自动跟着走。
   const sLimit = Math.ceil(duration * 47);

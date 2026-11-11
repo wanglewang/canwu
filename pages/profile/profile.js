@@ -8,6 +8,8 @@ const social = require('../../utils/cloud-social.js');
 const share = require('../../utils/share.js');
 const sfx = require('../../utils/sfx.js');
 
+const SFX_LABEL = { low: '轻', mid: '中', off: '关' };
+
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
 }
@@ -59,13 +61,13 @@ Page({
     draftName: '',
     draftPortrait: 0,
     draftAvatarTemp: '',
-    sfxOn: true,
+    sfxLabel: '轻',
   },
 
   onLoad: function () {
     this.listener = this.refresh.bind(this);
     store.subscribe(this.listener);
-    this.setData({ sfxOn: sfx.isEnabled() });
+    this.setData({ sfxLabel: SFX_LABEL[sfx.level()] || '轻' });
     this.refresh();
     this.loadAccount();
   },
@@ -193,10 +195,17 @@ Page({
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
 
   onToggleSfx: function () {
-    const on = sfx.toggle();
-    this.setData({ sfxOn: on });
-    if (on) sfx.play('hit');
-    toast(on ? '音效已开' : '音效已关');
+    const self = this;
+    const keys = ['low', 'mid', 'off'];
+    wx.showActionSheet({
+      itemList: ['轻 · 最柔和', '中 · 标准音量', '关 · 完全静音'],
+      success: function (res) {
+        const next = sfx.setLevel(keys[res.tapIndex] || 'low');
+        self.setData({ sfxLabel: SFX_LABEL[next] || '轻' });
+        if (next !== 'off') sfx.play('hit');
+      },
+      fail: function () { /* 取消就不动 */ },
+    });
   },
 
   onGoBattle: function () { wx.switchTab({ url: '/pages/battle/battle' }); },

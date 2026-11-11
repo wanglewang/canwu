@@ -111,6 +111,90 @@
     line-height: 1.55;
 }
 
+/* 局内常驻一行术语速记：玩到一半看不懂符号时不用退出查说明 */
+.pr-hint__terms {
+    margin-top: 10rpx;
+    padding: 10rpx 14rpx;
+    border-left: 6rpx solid var(--acc, #3d8c74);
+    border-radius: 0 8rpx 8rpx 0;
+    background: var(--soft, #e9e3d4);
+}
+
+.pr-hint__terms .tiny {
+    color: var(--ink, #2f6b5b);
+    line-height: 1.5;
+}
+
+/* ---------- 准备页「怎么玩」 ---------- */
+.guide__toggle {
+    font-size: 23rpx;
+}
+
+.guide__goal {
+    display: block;
+    line-height: 1.7;
+}
+
+.guide__steps {
+    margin-top: 16rpx;
+}
+
+.guide__step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12rpx;
+    margin-top: 12rpx;
+}
+
+.guide__no {
+    flex: 0 0 36rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36rpx;
+    height: 36rpx;
+    border-radius: 50%;
+    background: var(--soft, #e9e3d4);
+    color: var(--ink, #2f6b5b);
+    font-size: 20rpx;
+}
+
+.guide__step .tiny,
+.guide__term-desc {
+    line-height: 1.6;
+}
+
+.guide__term {
+    display: flex;
+    align-items: flex-start;
+    gap: 12rpx;
+    margin-top: 14rpx;
+}
+
+.guide__term-name {
+    flex: 0 0 auto;
+    max-width: 240rpx;
+    text-align: left;
+}
+
+.guide__note {
+    padding: 14rpx 16rpx;
+    border-left: 5rpx solid var(--acc, #3d8c74);
+    border-radius: 0 8rpx 8rpx 0;
+    background: var(--soft, #e9e3d4);
+}
+
+.guide__note .tiny {
+    display: block;
+    line-height: 1.6;
+}
+
+.guide__inline {
+    padding: 12rpx 14rpx;
+    border-radius: 8rpx;
+    background: var(--soft, #e9e3d4);
+}
+
 .combo-chip {
     margin-right: 12rpx;
     font-size: 26rpx;
@@ -747,6 +831,8 @@
 @media (prefers-color-scheme: dark) {
     .hud__skill { color: #9aa79f; }
     .hud__quit { border-color: #3a4a42; color: #9aa79f; }
+    .pr-hint__terms, .guide__no, .guide__note, .guide__inline { background: #26342d; }
+    .pr-hint__terms .tiny, .guide__no { color: #cfd8cf; }
     .rank-card { border-color: #33403a; }
     .rank-chain__item { background: #2b3832; color: #cfd8cf; }
     .rank-chain__item--now { background: var(--acc, #3d8c74); color: #fffdf7; }

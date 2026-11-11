@@ -2,15 +2,21 @@
 
 // 零依赖合成局内音效：16kHz / 16bit / 单声道 PCM WAV。
 // 用法：node scripts/gen-sfx.js
-// 输出：assets/sfx/*.wav（约 110KB，全部由代码合成，仓库里不留二进制来源）
+// 输出：assets/sfx/*.wav（约 90KB，全部由代码合成，仓库里不留二进制来源）
 //
-// 音色思路：不用方波电子音，走「木鱼 / 磬 / 铃 / 气声」的修真质地——
-// 每个音由若干非整数倍分音叠加，各自带指数衰减，起音加一小段噪声做击弦感。
+// 音色原则（第二版，第一版被反馈「刺耳、脑子嗡嗡」）：
+//   1. 只用基频 + 极轻的二次分音，不用非整数倍分音（金属泛音是刺耳主因）；
+//   2. 全局一阶低通把 1.5kHz 以上削掉，再补 14ms 软起音，去掉「咔」的瞬态；
+//   3. 每个音效只留一个声部，衰减压到 0.1–0.2 秒，多个音效不叠成和弦；
+//   4. 归一化峰值只到 0.52，播放在 sfx.js 里再降到 0.3 左右；
+//   5. 单声道播放：新的判定音会把上一个掐掉（见 utils/sfx.js 的 VOICE）。
+// 整体走「木鱼 / 闷磬 / 轻铃」的中低音质地，音量宁小勿大。
 
 const fs = require('fs');
 const path = require('path');
 
 const SR = 16000;
+const PEAK = 0.52;
 const OUT_DIR = path.join(__dirname, '..', 'assets', 'sfx');
 
 // 固定种子，保证每次生成的字节一致，git 不会因随机数抖动。
@@ -28,7 +34,7 @@ function blank(seconds) {
 function tone(buf, opt) {
   const at = Math.round((opt.at || 0) * SR);
   const n = Math.min(buf.length - at, Math.round(opt.dur * SR));
-  const attack = opt.attack === undefined ? 0.004 : opt.attack;
+  const attack = opt.attack === undefined ? 0.016 : opt.attack;
   const partials = opt.partials || [[1, 1, opt.decay || 0.12]];
   for (let i = 0; i < n; i += 1) {
     const t = i / SR;
@@ -42,11 +48,11 @@ function tone(buf, opt) {
   }
 }
 
-// 一阶低通白噪：只用来做「击」「擦」的瞬态，音高感靠上面的分音。
+// 一阶低通白噪：只在落子音里留极轻一点「击」的质感，音量压到几乎听不见。
 function noiseBurst(buf, opt) {
   const at = Math.round((opt.at || 0) * SR);
   const n = Math.min(buf.length - at, Math.round(opt.dur * SR));
-  const a = opt.smooth === undefined ? 0.5 : opt.smooth;
+  const a = opt.smooth === undefined ? 0.35 : opt.smooth;
   let lp = 0;
   for (let i = 0; i < n; i += 1) {
     const t = i / SR;
@@ -64,9 +70,27 @@ function sweep(buf, opt) {
     const k = t / opt.dur;
     const f = opt.from + (opt.to - opt.from) * Math.pow(k, 0.7);
     phase += (2 * Math.PI * f) / SR;
-    const env = Math.min(1, t / 0.012) * Math.exp(-t / (opt.decay || 0.1));
+    const env = Math.min(1, t / 0.02) * Math.exp(-t / (opt.decay || 0.1));
     buf[at + i] += opt.amp * env * Math.sin(phase);
   }
+}
+
+// 先把高频削掉，再补软起音/软收尾；顺序固定，避免边界爆音。
+function soften(buf) {
+  let lp = 0;
+  const a = 0.55; // ≈1.4kHz，基频全留，泛音基本压没
+  for (let i = 0; i < buf.length; i += 1) {
+    lp += a * (buf[i] - lp);
+    buf[i] = lp;
+  }
+  const fadeIn = Math.round(0.014 * SR);
+  for (let i = 0; i < fadeIn && i < buf.length; i += 1) buf[i] *= i / fadeIn;
+  const fadeOut = Math.min(buf.length, Math.round(0.012 * SR));
+  for (let i = 0; i < fadeOut; i += 1) {
+    const idx = buf.length - 1 - i;
+    buf[idx] *= i / fadeOut;
+  }
+  return buf;
 }
 
 function normalize(buf, peak) {
@@ -78,126 +102,105 @@ function normalize(buf, peak) {
   return buf;
 }
 
-// 末尾 8ms 淡出，避免截断爆音。
-function tail(buf) {
-  const n = Math.min(buf.length, Math.round(0.008 * SR));
-  for (let i = 0; i < n; i += 1) {
-    const idx = buf.length - 1 - i;
-    buf[idx] *= i / n;
-  }
-  return buf;
-}
-
 const SOUNDS = {
-  // 落子：木鱼轻击
+  // 落子：低木鱼，极短
   tap: function () {
-    const b = blank(0.12);
+    const b = blank(0.1);
     tone(b, {
-      freq: 660, dur: 0.12, amp: 0.5,
-      partials: [[1, 1, 0.035], [1.86, 0.45, 0.018], [3.1, 0.22, 0.01]],
+      freq: 392, dur: 0.1, amp: 0.5, attack: 0.008,
+      partials: [[1, 1, 0.028], [2, 0.1, 0.014]],
     });
-    noiseBurst(b, { dur: 0.012, amp: 0.16, decay: 0.005, smooth: 0.55 });
+    noiseBurst(b, { dur: 0.008, amp: 0.025, decay: 0.003, smooth: 0.25 });
     return b;
   },
 
-  // 成算：磬，单音 D5
+  // 成算：闷磬，只有一个声部
   hit: function () {
+    const b = blank(0.3);
+    tone(b, {
+      freq: 392, dur: 0.3, amp: 0.45, attack: 0.018,
+      partials: [[1, 1, 0.115], [2, 0.12, 0.055]],
+    });
+    return b;
+  },
+
+  // 失手：低而短，不轰头
+  miss: function () {
+    const b = blank(0.22);
+    tone(b, {
+      freq: 174.61, dur: 0.22, amp: 0.5, attack: 0.014,
+      partials: [[1, 1, 0.085], [2, 0.1, 0.04]],
+    });
+    noiseBurst(b, { dur: 0.02, amp: 0.03, decay: 0.008, smooth: 0.2 });
+    return b;
+  },
+
+  // 金锋 / 大得：比 hit 高一点的轻铃，不再叠第二个音
+  gold: function () {
+    const b = blank(0.34);
+    tone(b, {
+      freq: 587.33, dur: 0.34, amp: 0.4, attack: 0.018,
+      partials: [[1, 1, 0.145], [2, 0.12, 0.06]],
+    });
+    return b;
+  },
+
+  // 倒数：一声短轻铃
+  tick: function () {
+    const b = blank(0.08);
+    tone(b, {
+      freq: 523.25, dur: 0.08, amp: 0.35, attack: 0.008,
+      partials: [[1, 1, 0.022]],
+    });
+    return b;
+  },
+
+  // 起手：低气声上扬
+  go: function () {
+    const b = blank(0.28);
+    sweep(b, { from: 220, to: 440, dur: 0.22, amp: 0.22, decay: 0.11 });
+    tone(b, {
+      freq: 110, dur: 0.18, amp: 0.16, attack: 0.018,
+      partials: [[1, 1, 0.07]],
+    });
+    return b;
+  },
+
+  // 圆满：两音上行，间隔拉开，不叠成和弦
+  clear: function () {
+    const b = blank(0.62);
+    tone(b, {
+      freq: 392, dur: 0.4, amp: 0.26, attack: 0.02,
+      partials: [[1, 1, 0.16], [2, 0.1, 0.07]],
+    });
+    tone(b, {
+      at: 0.2, freq: 523.25, dur: 0.42, amp: 0.24, attack: 0.02,
+      partials: [[1, 1, 0.17], [2, 0.1, 0.07]],
+    });
+    return b;
+  },
+
+  // 收束：一个音平收，比 clear 更轻
+  settle: function () {
     const b = blank(0.42);
     tone(b, {
-      freq: 587.33, dur: 0.42, amp: 0.42,
-      partials: [[1, 1, 0.17], [2.01, 0.34, 0.09], [2.76, 0.17, 0.05], [5.4, 0.07, 0.03]],
-    });
-    noiseBurst(b, { dur: 0.01, amp: 0.1, decay: 0.004 });
-    return b;
-  },
-
-  // 失手：闷响，低而短
-  miss: function () {
-    const b = blank(0.26);
-    tone(b, {
-      freq: 155.56, dur: 0.26, amp: 0.5,
-      partials: [[1, 1, 0.1], [1.5, 0.22, 0.06], [2.02, 0.1, 0.035]],
-    });
-    noiseBurst(b, { dur: 0.03, amp: 0.22, decay: 0.012, smooth: 0.28 });
-    return b;
-  },
-
-  // 金锋 / 大得：双铃，一先一后
-  gold: function () {
-    const b = blank(0.55);
-    tone(b, {
-      freq: 1046.5, dur: 0.5, amp: 0.32,
-      partials: [[1, 1, 0.2], [2.01, 0.26, 0.09], [3.9, 0.09, 0.04]],
-    });
-    tone(b, {
-      at: 0.05, freq: 1568, dur: 0.48, amp: 0.22,
-      partials: [[1, 1, 0.17], [2.02, 0.2, 0.07]],
-    });
-    noiseBurst(b, { dur: 0.012, amp: 0.06, decay: 0.005 });
-    return b;
-  },
-
-  // 倒数：一声短铃
-  tick: function () {
-    const b = blank(0.09);
-    tone(b, {
-      freq: 880, dur: 0.09, amp: 0.34,
-      partials: [[1, 1, 0.022], [2.4, 0.3, 0.012]],
+      freq: 349.23, dur: 0.42, amp: 0.3, attack: 0.02,
+      partials: [[1, 1, 0.18], [2, 0.1, 0.08]],
     });
     return b;
   },
 
-  // 起手：剑气上扬
-  go: function () {
-    const b = blank(0.34);
-    sweep(b, { from: 300, to: 780, dur: 0.24, amp: 0.3, decay: 0.14 });
-    tone(b, {
-      freq: 110, dur: 0.2, amp: 0.34, attack: 0.006,
-      partials: [[1, 1, 0.08], [2, 0.2, 0.04]],
-    });
-    noiseBurst(b, { dur: 0.16, amp: 0.12, decay: 0.05, smooth: 0.35 });
-    return b;
-  },
-
-  // 圆满：C5 E5 G5 上行三音
-  clear: function () {
-    const b = blank(0.8);
-    const notes = [[523.25, 0], [659.25, 0.075], [783.99, 0.15]];
-    for (let i = 0; i < notes.length; i += 1) {
-      tone(b, {
-        at: notes[i][1], freq: notes[i][0], dur: 0.62, amp: 0.28,
-        partials: [[1, 1, 0.24], [2, 0.28, 0.12], [3.01, 0.1, 0.06]],
-      });
-    }
-    return b;
-  },
-
-  // 收束：G4 C5 两音平收，音量更低
-  settle: function () {
-    const b = blank(0.62);
-    tone(b, {
-      freq: 392, dur: 0.5, amp: 0.26,
-      partials: [[1, 1, 0.2], [2.01, 0.24, 0.1]],
-    });
-    tone(b, {
-      at: 0.1, freq: 523.25, dur: 0.5, amp: 0.24,
-      partials: [[1, 1, 0.2], [2.01, 0.2, 0.09]],
-    });
-    return b;
-  },
-
-  // 走火：下行两个低音
+  // 走火：两音下行，同样拉开间隔
   fail: function () {
-    const b = blank(0.62);
+    const b = blank(0.56);
     tone(b, {
-      freq: 220, dur: 0.4, amp: 0.36,
-      partials: [[1, 1, 0.16], [1.5, 0.24, 0.1], [2.02, 0.1, 0.05]],
+      freq: 174.61, dur: 0.32, amp: 0.32, attack: 0.02,
+      partials: [[1, 1, 0.13]],
     });
     tone(b, {
-      at: 0.14, freq: 174.61, dur: 0.46, amp: 0.34,
-      partials: [[1, 1, 0.18], [1.5, 0.2, 0.1]],
+      at: 0.22, freq: 146.83, dur: 0.34, amp: 0.3, attack: 0.02,
+      partials: [[1, 1, 0.14]],
     });
-    noiseBurst(b, { dur: 0.14, amp: 0.1, decay: 0.04, smooth: 0.25 });
     return b;
   },
 };
@@ -231,7 +234,7 @@ const names = Object.keys(SOUNDS);
 let total = 0;
 for (const name of names) {
   seed = 20261111;
-  const buf = tail(normalize(SOUNDS[name](), 0.82));
+  const buf = normalize(soften(SOUNDS[name]()), PEAK);
   const wav = toWav(buf);
   fs.writeFileSync(path.join(OUT_DIR, name + '.wav'), wav);
   total += wav.length;

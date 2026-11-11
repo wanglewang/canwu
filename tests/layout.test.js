@@ -148,6 +148,32 @@ check('参悟吸底条只在有操作时出现', function () {
   assert.ok(/bindtap="onBack"/.test(start), '准备页缺少退出入口');
 });
 
+check('玩法说明接进准备页，术语速记常驻局内', function () {
+  const s = read('pages/practice/practice.wxml');
+  const js = read('pages/practice/practice.js');
+  assert.ok(/class="card guide-card"/.test(s), '准备页缺少「怎么玩」卡');
+  assert.ok(/bindtap="onToggleGuide"/.test(s), '玩法说明不能收起');
+  assert.ok(/guide\.terms/.test(s) && /guide\.steps/.test(s), '说明卡没有步骤与术语表');
+  assert.ok(/class="pr-hint__terms"[\s\S]*?guide\.inline/.test(s), '局内没有常驻术语速记');
+  assert.ok(/guides\.guideOf\(gameId\)/.test(js), '页面没有按玩法取说明');
+  assert.ok(/onToggleGuide: function/.test(js), '缺少展开/收起方法');
+  assert.ok(/edgeGlyph = '金锋'/.test(read('minigames/click.js')), '金锋符号又缩回单字，容易和「锋」混淆');
+});
+
+check('音效保持柔和不叠加（刺耳问题不退回去）', function () {
+  const sfx = read('utils/sfx.js');
+  const gen = read('scripts/gen-sfx.js');
+  assert.ok(/const VOICE = \[/.test(sfx) && /cutVoice\(/.test(sfx), '判定音没有共用单声道，连击会叠成嗡鸣');
+  assert.ok(/GLOBAL_GAP/.test(sfx), '缺少全局最小间隔');
+  for (const m of sfx.matchAll(/volume:\s*([\d.]+)/g)) {
+    assert.ok(Number(m[1]) <= 0.4, '播放音量又调大了：' + m[1]);
+  }
+  for (const m of sfx.matchAll(/pool:\s*(\d+)/g)) {
+    assert.strictEqual(Number(m[1]), 1, '音效池又允许并发叠加');
+  }
+  assert.ok(/soften\(/.test(gen) && /PEAK = 0\.52/.test(gen), '合成端没有低通软起音与峰值限制');
+});
+
 check('局内音效有资源、有开关、跟着判定浮字走', function () {
   const sfx = read('utils/sfx.js');
   const practice = read('pages/practice/practice.js');

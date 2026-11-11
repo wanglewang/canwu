@@ -7,6 +7,7 @@ const index = require('../minigames/index.js');
 const themes = require('../minigames/theme.js');
 const data = require('../data/practice.js');
 const skills = require('../data/skills.js');
+const guides = require('../data/guides.js');
 
 let passed = 0;
 function check(name, fn) {
@@ -780,6 +781,24 @@ check('突破瓶颈的蓄力停区也能跑完', function () {
     assert.strictEqual(ctx.st.vm.stage, 'charge');
     ctx.c.destroy();
   } finally { restoreClock(); }
+});
+
+check('11 套玩法都有「怎么玩」说明，盘面符号讲得清', function () {
+  for (const id of Object.keys(index.MODULES)) {
+    const g = guides.guideOf(id);
+    assert.ok(g, id + ' 缺玩法说明');
+    assert.ok(g.goal && g.inline && g.scoring && g.tip, id + ' 说明字段不全');
+    assert.ok(g.steps.length >= 2, id + ' 没有操作步骤');
+    assert.ok(g.terms.length >= 2, id + ' 没有盘面术语表');
+    assert.ok(g.inline.length <= 48, id + ' 局内速记太长：' + g.inline.length);
+    for (const t of g.terms) {
+      assert.ok(t.name && t.desc, id + ' 的术语缺名字或解释：' + JSON.stringify(t));
+    }
+  }
+  const click = guides.guideOf('click');
+  assert.ok(click.terms.some(function (t) { return /锋（蓝格）/.test(t.name); }), '基础剑法没解释「锋」');
+  assert.ok(click.terms.some(function (t) { return /金锋/.test(t.name); }), '基础剑法没解释「金锋」');
+  assert.ok(/金锋/.test(click.inline), '局内速记没写金锋');
 });
 
 console.log('\n小游戏层断言全部通过（' + passed + ' 项）');

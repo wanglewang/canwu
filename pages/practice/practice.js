@@ -7,6 +7,7 @@ const themes = require('../../minigames/theme.js');
 const skillData = require('../../data/skills.js');
 const practiceData = require('../../data/practice.js');
 const worldData = require('../../data/world.js');
+const guides = require('../../data/guides.js');
 const sfx = require('../../utils/sfx.js');
 
 function toast(title) {
@@ -62,6 +63,8 @@ Page({
     showResult: false,
     result: null,
     barMode: '',
+    guide: null,
+    guideOpen: true,
   },
 
   onLoad: function (query) {
@@ -290,6 +293,7 @@ Page({
       started: false,
       showResult: false,
       result: null,
+      guide: guides.guideOf(gameId),
       hintLabel: gameId === 'lights' ? '阵眼感应' : gameId === 'seal' ? '符箓照纹' : '提示',
     });
     this.syncBar();
@@ -346,6 +350,11 @@ Page({
     sfx.play('go');
     this.setData({ started: true });
     this.syncBar();
+  },
+
+  onToggleGuide: function () {
+    this.setData({ guideOpen: !this.data.guideOpen });
+    sfx.play('tap');
   },
 
   onDifficulty: function (event) {
