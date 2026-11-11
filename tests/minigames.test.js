@@ -287,6 +287,29 @@ check('玩法中文名与模块导出一致，功法表与注册表不漂移', f
   assert.strictEqual(index.gameName('charge'), '蓄力停区');
 });
 
+// 命名分四层：功法名（典籍）/ 参悟方式（这门功课在做什么）/ 玩法名（盘面动作）/ 主题名（2 字意象）。
+// 前三层任意两层撞词，准备页就会出现「步法连环 · 步法连环」这种叠字，故固化为断言。
+check('参悟方式、玩法名、本门玄机三层互不撞词', function () {
+  const methodNames = data.PRACTICE_METHODS.map(function (m) { return m.name; });
+  const labels = Object.keys(data.GAME_LABELS).map(function (k) { return data.GAME_LABELS[k]; });
+  const twistNames = data.PRACTICE_METHODS.map(function (m) { return themes.twistOf(m.twist).name; });
+  const groups = [
+    { name: '参悟方式', list: methodNames },
+    { name: '玩法名', list: labels },
+    { name: '本门玄机', list: twistNames },
+  ];
+  for (const g of groups) {
+    assert.strictEqual(new Set(g.list).size, g.list.length, g.name + ' 内部有重名');
+  }
+  for (const n of methodNames) {
+    assert.ok(labels.indexOf(n) < 0, '参悟方式与玩法名撞词：' + n);
+    assert.ok(twistNames.indexOf(n) < 0, '参悟方式与本门玄机撞词：' + n);
+  }
+  for (const n of twistNames) {
+    assert.ok(labels.indexOf(n) < 0, '本门玄机与玩法名撞词：' + n);
+  }
+});
+
 check('10 套玩法覆盖 5 种以上不同舞台形态', function () {
   const stages = {};
   for (const m of data.PRACTICE_METHODS) {

@@ -71,17 +71,17 @@
 ```
 
 - 评级倍率 S 1.5 / A 1.2 / B 1.0 / C 0.6 / F 0.2。S 刻意压低：它要与难度档连乘，过高会让总收益失控。
-- 四个系数连乘后由 `MAX_MULTIPLIER = 8.0` 封顶，极端组合（天阶 + 绝境 + S = 10.56 倍）只算 8 倍。
+- 四个系数连乘后由 `MAX_MULTIPLIER = 8.0` 封顶，极端组合（天阶 3.2 × 绝境 2.6 × S 1.5 = 12.48 倍）只算 8 倍。
 - 境界衰减 `REALM_DECAY = 0.3`：没到品阶门槛、或超过可修上限，收益只剩 30%。**不为 0** —— 还能练，但该换功法了。
 - 越权选档（例如改页面参数）会被自动回落到已解锁的最高档并标注，不会白送倍率。
 - 缩放的是节奏（`interval` / `flashMs` / `windowMs` / `shuffleMs` / `flipMs` / `window`）、收敛速度（`speed`）与目标数量（`chainGoal` / `maxRound` / `segments` / `beats` / `scramble` / `mines` / `pairs` / `decoys` / `startLen` / `baseLen`）。**刻意不改 `grid` / `cols` / `rows` / `size`**：盘面列数受限于 wxss 的 `.grid--c3/4/6`，改了会错位。各字段按玩法安全上限 clamp。
 - 同一类型的功法共用一个**游戏族**（`data/practice.js` 的 `FAMILIES`），族内按品阶出变体（`data/skills.js` 的 `chainsOf()`）。功法页「功法谱系」把天地玄黄四档全列出来，**缺变体的档位显示空档**（如剑法的玄、地两阶），补齐只需加一门数据。
 - 每门功法记一个局内最佳分数（`state.records`，存档版本 4，老档平滑迁移），结算显示得分与「破纪录」。**分数只作纪录，不加收益** —— 评级管收益，分数管追求。
-- `scripts/simulate.js`（`npm run sim`）用固定种子的评级分布跑三组策略：只刷简单档、逐档升、天阶逐档升，并检查「越高档期望收益越高」「衰减确实疼」「极端组合被封顶」。改倍率后先跑它，再看真机手感。
+- `scripts/simulate.js`（`npm run sim`）用固定种子的评级分布跑四组策略：黄阶只刷简单、黄阶逐档升、天阶逐档升、黄阶金丹后（看衰减），并就 9 条曲线结论做断言：「越高档期望收益越高」「逐档升明显优于只刷简单」「衰减确实疼」「极端组合被封顶」。改倍率后先跑它，再看真机手感。
 
 - `minigames/theme.js` 给每门功法一套配色、格子符号、印章字与命中 / 失误 / 赞语文案；`pages/practice/` 通过根容器 CSS 变量下发到 wxss，并做了暗色覆盖。
 - `minigames/common.js` 的 `vm` 统一带 HUD 字段（进度、实时评级、连击、目标、阶段横幅、浮字、心神、副指标）与 `stage` 舞台形态：`board` 方格、`lane` 河道、`ring` 节律盘、`orbit` 五行灯环、`scroll` 招式卷轴、`charge` 蓄力条。页面据此切换盘面渲染，玩法层只输出数据。
-- 修掉过三个玩法漏洞：记忆序列闪烁时把序号写在格子上（等于直接给答案）、点击类点错毫无惩罚、扫雷触雷一击出局。
+- 修掉过三个玩法漏洞：记忆序列闪烁时把序号写在格子上（等于直接给答案）、点击类点错毫无惩罚、数格辨禁误触一次即收功。
 - 节律盘用 CSS `transform: scale()` 呈现，灯环与卷轴也都是纯 WXML/WXSS，不依赖 canvas 与触摸坐标；**真机上缩放、CSS 变量与动画效果仍需复核**。
 
 ## 角色资料与规则说明
@@ -97,35 +97,79 @@
 
 ```
 .
-├── app.js / app.json / app.wxss     入口、页面注册、全局样式（含暗色与安全区）、会话引导
-├── theme.json                       暗色 / 浅色的导航栏与 tabBar 变量
-├── assets/tab/                      8 个 tabBar 图标（scripts/gen-icons.js 零依赖生成）
-├── data/                            世界、功法、参悟方式、对手、称号、成就配置
-├── utils/
-│   ├── game.js                      养成内核：状态、收益、战力、对战、成就、存档码、版本迁移
-│   ├── store.js                     单一状态源：同步读写、pending 补写、冲突处理、同步状态
-│   ├── cloud.js                     唯一云客户端（endpoint / publishableKey 来自 publicConfig）
-│   ├── cloud-save.js                云端存档：乐观锁、upsert 回退、冲突检测、强制覆盖
-│   ├── cloud-social.js              榜单读写、真实玩家匹配、头像上传与签名 URL
-│   ├── share.js                     统一分享文案
-│   └── workbuddy-*.js               官方资产：表访问辅助与云请求诊断日志
+├── app.js                              入口：云初始化、启动检查、会话引导、afterLogin、断网重试
+├── app.json                            7 个页面注册、tabBar、darkmode
+├── app.wxss                            全局样式：色板、卡片、按钮、暗色覆盖、安全区
+├── theme.json                          导航栏与 tabBar 的明暗变量
+├── sitemap.json                        小程序索引配置
+├── project.config.json                 开发者工具项目配置（appid / miniprogramRoot）
+├── package.json / package-lock.json    固定版云 SDK 与工程脚本
+├── eslint.config.js                    ESLint 9 配置（小程序全局对象 + CommonJS）
+├── .gitignore                          排除 .workbuddy/、*.genie、node_modules/
+├── .github/workflows/ci.yml            可移植 CI：npm ci → npm run check
+├── .wbapp_<appid>.privacy.json         隐私接口声明清单（文件名带应用 appid；邮箱 / 剪贴板 / UserInfo / 发布内容）
+├── README.md                           本文件
+├── assets/tab/                         8 个 tabBar 图标（home / book / sword / seal 各两态，scripts/gen-icons.js 生成）
+│
+├── data/                               纯配置：改数值与内容只动这里
+│   ├── world.js                        世界设定、六阶熟练度阈值、评级倍率、总倍率上限与衰减、离线参数
+│   ├── skills.js                       10 门功法：类型、品阶、参悟方式、属性加成、特效、获取途径
+│   ├── practice.js                     10 套参悟方式与玩法名、游戏族、品阶表、五档难度、参数缩放
+│   ├── opponents.js                    7 个预设对手 + 3 处秘境
+│   ├── titles.js                       14 个称号（可佩戴）
+│   └── achievements.js                 14 项成就
+│
+├── minigames/                          11 个玩法模块 + 3 个公共件，统一 create(ctx) 接口
+│   ├── index.js                        注册表：game id → 模块、gameName()
+│   ├── common.js                       vm 构造、假时钟 TimerBag、评级换算、舞台与 HUD 字段
+│   ├── theme.js                        10 套主题（配色 / 符号 / 印章 / 文案）+ 本门玄机 TWIST_INFO
+│   ├── click.js                        追光点击（基础剑法）
+│   ├── hunt.js                         辨伪择真（剑诀·断岳）
+│   ├── memory.js                       记序复现（心法·静心诀）
+│   ├── bridge.js                       循纹递推（丹道·凝露丹方）
+│   ├── tempo.js                        节律判定（吐纳诀）
+│   ├── sword.js                        步法连环（身法·踏云步）
+│   ├── lights.js                       阵灯推演（阵法入门）
+│   ├── wuxing.js                       五行相生（阵法·小五行阵）
+│   ├── mines.js                        数格辨禁（符箓·照影符）
+│   ├── seal.js                         成对翻牌（心法·太虚诀）
+│   └── charge.js                       蓄力停区（境界突破专用，不挂功法）
+│
+├── utils/                              无 UI 的业务层，页面只调这里
+│   ├── game.js                         养成内核：状态、收益结算、战力、对战、成就、存档码、版本迁移
+│   ├── store.js                        单一状态源：同步读写、pending 补写、冲突处理、同步状态
+│   ├── cloud.js                        唯一云客户端（endpoint / publishableKey 来自 publicConfig）
+│   ├── cloud-save.js                   云端存档：乐观锁、upsert 回退、冲突检测、强制覆盖
+│   ├── cloud-social.js                 榜单读写、真实玩家匹配、头像上传与签名 URL
+│   ├── share.js                        统一分享文案
+│   ├── workbuddy-cloud-diagnostics.js  官方资产：云请求诊断日志
+│   └── workbuddy-data-access.js        官方资产：表访问辅助
+│
 ├── components/
-│   ├── login-panel/                 官方资产：邮箱验证码登录组件（兜底入口）
-│   └── portrait/                    纯 CSS 道相
-├── minigames/                       11 个玩法模块（10 套功法专属 + 突破专用）+ theme.js 主题表，统一 create(ctx) 接口
-├── pages/
-│   ├── index/ skills/ battle/       洞府 / 功法 / 论道（含榜单与真实玩家镜像）
-│   ├── profile/                     道牒（道号、头像、成就、同步状态、存档、账号）
-│   ├── practice/                    参悟（HUD、主题、起手式、评级结算、突破瓶颈）
-│   ├── login/                       登录页（仅「确实未登录」时才跳）
-│   └── guide/                       修行指南
+│   ├── login-panel/                    官方资产：邮箱验证码登录组件（兜底入口）
+│   └── portrait/                       纯 CSS 道相（按编号换配色、按境界加法印与光环）
+│
+├── pages/                              每个页面四件套：<name>.js / .json / .wxml / .wxss
+│   ├── index/                          洞府：资源、境界进度、推荐功法、吸底「开始参悟」
+│   ├── skills/                         藏经阁：功法卡、品阶徽章、谱系（含空档）、详情与购买
+│   ├── practice/                       参悟：准备页（品阶 / 五档难度 / 最佳）+ 6 种舞台 + 结算
+│   ├── battle/                         论道台：7 对手 + 3 秘境 + 榜单镜像 + 战力码
+│   ├── profile/                        道牒：道号、头像、称号、成就、同步状态、存档导出导入
+│   ├── login/                          登录页（仅 signed-out 时才跳）
+│   └── guide/                          修行指南，9 节
+│
 ├── scripts/
-│   ├── verify.js                    零依赖静态校验
-│   └── gen-icons.js                 生成 tabBar PNG
-├── tests/                           常驻断言（game / store / minigames / layout，含假时钟整局驱动），node tests/run.js
-├── eslint.config.js / .github/      lint 配置与可移植 CI
-├── package.json / package-lock.json  固定版 SDK 与工程脚本
-└── project.config.json              微信开发者工具项目配置
+│   ├── verify.js                       零依赖静态校验（162 项）
+│   ├── simulate.js                     收益曲线模拟（四组策略 + 9 条检查）
+│   └── gen-icons.js                    零依赖生成 tabBar PNG
+│
+└── tests/                              零依赖断言，node tests/run.js 顺序跑
+    ├── run.js                          入口：任一文件失败即非零退出
+    ├── game.test.js                    内核与结算（15 项）
+    ├── store.test.js                   存档同步与冲突（11 项）
+    ├── minigames.test.js               假时钟整局驱动（28 项）
+    ├── rank.test.js                    品阶 / 难度 / 衰减 / 迁移（22 项）
+    └── layout.test.js                  版式与按钮约定（11 项）
 ```
 
 ## 运行与预览
@@ -181,6 +225,7 @@
 - **内容即数据**：新增功法、参悟方式、对手、称号、成就或调数值，只改 `data/`，不动业务代码。
 - **一门功法一套玩法**：10 门功法各自对应 `minigames/` 里的一个模块，`data/practice.js` 的 `game` 一一映射、不复用内核；同类别的功法也必须有不同盘面与规则。新增玩法要实现模块 + 在注册表登记 + 挂到功法表，`tests/minigames.test.js` 会断言玩法唯一与同类不重样。
 - **品阶管收益、难度跟人走**：品阶挂在 `data/skills.js` 的 `tier`（`TIERS`），难度档挂在 `data/practice.js` 的 `DIFFICULTIES`，`buildParams(method, diffKey)` 只按难度档缩放参数。新增功法必须指定品阶与分类，同类内变体不得重样，盘面尺寸字段不得缩放——`tests/rank.test.js` 断言这些约定。
+- **名字分四层，互不撞词**：功法名（典籍上的名字）、参悟方式（这门功课在做什么：劈刺 / 采露 / 观窍）、玩法名（盘面上的动作：追光点击 / 循纹递推）、主题名（2 字意象：剑光 / 卦象）。前三层任意两层同名，准备页就会出现「步法连环 · 步法连环」这种叠字；**参悟方式不得与功法相斥**——剑法不练打铁、丹道不练渡河、符箓不练探雷。`tests/minigames.test.js` 断言三层不撞词。
 - **小游戏统一接口**：`create(ctx) -> controller`，见 `minigames/common.js`，注册表在 `minigames/index.js`；`vm.stage` 决定页面用哪种舞台（`board` / `lane` / `ring` / `orbit` / `scroll` / `charge`），玩法层只输出数据。`ctx.theme` / `ctx.twist` 决定表现与本门规则。
 - **单一状态源**：页面只读 `store.get()`，写走 `store.commit()` / `commitCritical()`，刷新靠 `store.subscribe()`；页面保持同步 API，云读写后台异步。
 - **云客户端唯一**：`utils/cloud.js` 是全工程唯一初始化点；`store.setCloudAdapter()` 可替换存档实现。
@@ -189,18 +234,18 @@
 ```bash
 npm ci            # 按 lock 还原依赖
 npm run verify    # JSON / JS 语法 / 页面组件四件套 / 主题变量 / tabBar 图标 / 隐私清单格式 / 品阶与难度档约定
-npm test          # 86 项常驻断言（内核 + 存档同步 + 小游戏假时钟整局 + 品阶难度 + 布局约定）
+npm test          # 87 项常驻断言（内核 + 存档同步 + 小游戏假时钟整局 + 品阶难度 + 布局约定）
 npm run sim       # 收益曲线模拟：验证高档期望更高、境界衰减生效、总倍率封顶
 npm run lint      # ESLint 9（小程序全局对象与 CommonJS 已配置）
 npm run check     # 上面四项一次跑完，CI 用这个
 npm run icons     # 重新生成 tabBar 图标（零依赖）
 ```
 
-`.github/workflows/ci.yml` 是可移植的 CI 模板（`npm ci` → `npm run check`）；仓库当前托管在 Gitee，若要启用 Gitee Go 需按其配置格式另配一份，命令相同。
+`.github/workflows/ci.yml` 是可移植的 CI 模板（`npm ci` → `npm run check`）。仓库双托管：`origin` 指向 Gitee（主），同时配了两条 pushurl，`git push` 一次同时推 Gitee 与 GitHub 镜像，`fetch` 只走 Gitee；GitHub 侧可直接用这份 workflow，Gitee Go 需按其配置格式另配一份，命令相同。
 
 ## 当前边界
 
-**已验证**：数据库表结构、trigger 覆盖伪造时间并自增版本、两张表的 RLS 策略、写入读回与探针清理；162 项静态检查、86 项 Node 断言（5 个测试文件：15 项内核 / 11 项存档同步 / 27 项小游戏假时钟整局 / 22 项品阶与难度 / 11 项布局约定）、收益曲线模拟、ESLint 0 错误 0 警告；SDK 稳定版安装与 lock 生成；图标 PNG 结构；全部 WXML 主要标签配平、事件方法与 js 定义一一对应；品阶收益单调、五档解锁门槛与倍率单调、总倍率封顶、境界两头衰减、越权回落、盘面尺寸不变、v1–v3 老档迁移到 v4。
+**已验证**：数据库表结构、trigger 覆盖伪造时间并自增版本、两张表的 RLS 策略、写入读回与探针清理；162 项静态检查、87 项 Node 断言（5 个测试文件：15 项内核 / 11 项存档同步 / 28 项小游戏假时钟整局 / 22 项品阶与难度 / 11 项布局约定）、收益曲线模拟、ESLint 0 错误 0 警告；SDK 稳定版安装与 lock 生成；图标 PNG 结构；全部 WXML 主要标签配平、事件方法与 js 定义一一对应；品阶收益单调、五档解锁门槛与倍率单调、总倍率封顶、境界两头衰减、越权回落、盘面尺寸不变、v1–v3 老档迁移到 v4。
 
 **尚未验证（必须真机）**：微信开发者工具编译与「构建 npm」、真机 / 体验版微信登录、真机云端存档读写与冲突弹窗、榜单读写、头像上传与签名 URL 显示、暗色与安全区实际渲染；**吸底操作条与原生 tabBar 的层叠关系、`env(safe-area-inset-bottom)` 在刘海屏上的实际留白、折叠交互、收功确认弹窗**；节律盘缩放、五行灯环定位、招式卷轴与按键热区、河道分层、主题色变量、格子与浮字动效、10 套玩法的触屏手感；发布上线。H5 预览不能证明这些可用。
 
