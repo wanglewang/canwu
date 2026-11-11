@@ -39,35 +39,40 @@
     </view>
 
     <view class="divider"></view>
-    <view wx:if="{{rankInfo}}" class="rank-card" style="border-color:{{theme.accent}};background:{{theme.soft}}">
+    <view wx:if="{{rankLabel}}" class="rank-card" style="border-color:{{theme.accent}};background:{{theme.soft}}">
       <view class="row--between">
-        <text class="h3" style="color:{{theme.ink}}">本门品阶 · {{rankInfo.name}}</text>
-        <text class="rank-stars" style="color:{{theme.ink}}">{{rankInfo.starsText}}</text>
+        <view class="row">
+          <text class="rank-badge" style="background:{{rankColor}}">{{rankChar}}</text>
+          <text class="h3" style="color:{{theme.ink}}">{{rankLabel}} · {{rankStars}}</text>
+        </view>
+        <text class="tiny" style="color:{{theme.ink}}">{{rankRewardText}}</text>
       </view>
-      <text class="body mt8" style="color:{{theme.ink}}">{{rankInfo.desc}}</text>
-      <view class="rank-diff mt8">
-        <text class="tiny">难度随品阶而定 · {{rankInfo.brief}}</text>
-        <text class="tiny">{{rankInfo.rewardText}} · {{bestText}}</text>
+      <view class="row--between mt8">
+        <text class="tiny" style="color:{{theme.ink}}">{{rankRealmText}}</text>
+        <text class="tiny" style="color:{{theme.ink}}">{{diffText}}</text>
       </view>
+      <text wx:if="{{decayTip}}" class="warn-note mt8">{{decayTip}}</text>
       <view class="divider"></view>
-      <text class="tiny">{{chainLabel}}</text>
+      <text class="tiny" style="color:{{theme.ink}}">{{chainLabel}} · 同类同族，变体递进</text>
       <view class="row--wrap mt8">
-        <text wx:for="{{chainItems}}" wx:key="id" class="rank-chain__item {{item.current ? 'rank-chain__item--now' : ''}}">{{item.rankName}} · {{item.name}} {{item.starsText}}</text>
+        <text wx:for="{{chainItems}}" wx:key="id" class="rank-chain__item {{item.current ? 'rank-chain__item--now' : ''}}" style="{{item.current ? 'background:' + item.tierColor + ';color:#fffdf7' : ''}}">{{item.tierName}} · {{item.name}} · {{item.gameName}}</text>
       </view>
     </view>
 
-    <view class="divider"></view>
-    <text class="tiny">十门功法各有自己的一套玩法；同类功法按基础 → 进阶 → 上乘 → 绝学分阶，品阶越高节奏越紧、目标越高、收益越厚。评级倍率：S 圆满 ×2.0 · A 上乘 ×1.4 · B 中平 ×1.0 · C 粗浅 ×0.6。</text>
+    <text wx:if="{{bestText}}" class="tiny mt12">{{bestText}}</text>
 
     <block wx:if="{{showDifficulty}}">
       <view class="divider"></view>
-      <text class="h3">今日功课 · 加练</text>
-      <text class="tiny mt8">本门难度已由品阶定好，下方只决定要不要再往上加一档。</text>
-      <view class="btn-row btn-row--mid">
-        <button class="btn {{difficulty === 'normal' ? 'btn--primary' : 'btn--plain'}}" data-d="normal" bindtap="onDifficulty">按品阶修习</button>
-        <button class="btn {{difficulty === 'hard' ? 'btn--gold' : 'btn--plain'}}" disabled="{{!hardUnlocked}}" data-d="hard" bindtap="onDifficulty">苦修 ×1.6</button>
+      <text class="h3">今日难度 · 跟人走</text>
+      <text class="tiny mt8">品阶管收益，难度管倍率。同一门功法换档就是换一局节奏：档越高倍率越高，判定也越紧。</text>
+      <view class="diff-row mt12">
+        <view wx:for="{{diffList}}" wx:key="key" class="diff-chip {{item.current ? 'diff-chip--on' : ''}} {{item.unlocked ? '' : 'diff-chip--lock'}}" data-d="{{item.key}}" bindtap="onDifficulty">
+          <text class="diff-chip__name">{{item.name}}</text>
+          <text class="diff-chip__mult">{{item.multText}}</text>
+          <text wx:if="{{!item.unlocked}}" class="diff-chip__need">{{item.lockedText}}</text>
+        </view>
       </view>
-      <text class="tiny mt12">{{hardHint}}</text>
+      <text class="tiny mt12">{{diffBrief}}</text>
       <view class="divider"></view>
       <text class="tiny">{{perkText}}</text>
     </block>

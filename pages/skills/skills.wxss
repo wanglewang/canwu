@@ -20,6 +20,18 @@
     color: #6d7a70;
 }
 
+.tag--warn {
+    margin-left: 8rpx;
+    background: #f5e2de;
+    color: #b4453c;
+}
+
+.warn-line {
+    display: block;
+    color: #b4453c;
+    line-height: 1.6;
+}
+
 .chain-card {
     padding-bottom: 18rpx;
 }
@@ -73,5 +85,7 @@
     .chain-node--got { background: #263a30; color: #9fd7bd; }
     .chain-node--empty { border-color: #3a4740; color: #6d7a70; }
     .skill-best { color: #9aa79f; }
+    .tag--warn { background: rgba(180, 69, 60, 0.20); color: #f0b4ad; }
+    .warn-line { color: #f0b4ad; }
     .rank-detail { border-color: #33403a; background: #202a25; }
 }

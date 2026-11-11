@@ -7,8 +7,9 @@
     "verify": "node scripts/verify.js",
     "test": "node tests/run.js",
     "lint": "eslint .",
+    "sim": "node scripts/simulate.js",
     "icons": "node scripts/gen-icons.js",
-    "check": "npm run verify && npm run test && npm run lint"
+    "check": "npm run verify && npm run test && npm run sim && npm run lint"
   },
   "dependencies": {
     "@tencent-ai/workbuddy-cloud-sdk": "0.1.4"

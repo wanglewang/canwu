@@ -34,11 +34,20 @@ Page({
     prof: 0,
     percent: 0,
     nextText: '',
-    hardUnlocked: false,
-    hardHint: '',
     perkText: '',
-    difficulty: 'normal',
-    rankInfo: null,
+    difficulty: 'easy',
+    diffList: [],
+    diffName: '简单',
+    diffMultText: '×1.00',
+    diffText: '',
+    diffBrief: '',
+    rankLabel: '黄阶',
+    rankChar: '黄',
+    rankColor: '#8a8f83',
+    rankStars: '★☆☆☆',
+    rankRewardText: '熟练度 ×1.00',
+    rankRealmText: '',
+    decayTip: '',
     chainItems: [],
     chainLabel: '',
     bestText: '',
@@ -129,10 +138,18 @@ Page({
         prof: info.power,
         percent: 100,
         nextText: '目标 ' + info.nextName,
-        hardUnlocked: false,
-        hardHint: '',
         perkText: '突破成功后境界提升，战力获得额外境界加成。',
-        rankInfo: null,
+        diffList: [],
+        diffName: '',
+        diffMultText: '',
+        diffText: '',
+        diffBrief: '',
+        rankLabel: '',
+        rankChar: '',
+        rankStars: '',
+        rankRewardText: '',
+        rankRealmText: '',
+        decayTip: '',
         chainItems: [],
         chainLabel: '',
         bestText: '',
@@ -148,14 +165,39 @@ Page({
     const info = engine.tierInfo(rec.prof);
     const theme = themes.themeOf(method.id, method.game);
     const twist = themes.twistOf(method.twist);
-    const rankInfo = practiceData.difficultyOf(method, skill.rank);
+    const tier = practiceData.tierOf(skill.tier);
+    const fam = practiceData.familyOf(skill.type);
+
+    // 难度档只认本门熟练度：已选的档若还没解锁，就回落到当前能选最高档。
+    const maxDiff = practiceData.bestDifficulty(rec.prof);
+    const keep = practiceData.diffKeyIndex(this.data.difficulty) <= practiceData.diffIndexOf(rec.prof);
+    const diffKey = keep ? this.data.difficulty : maxDiff;
+    const diff = practiceData.diffDetail(method, diffKey);
+    const diffList = practiceData.difficultyList(rec.prof, diffKey);
+
     const chain = skillData.chainOfType(skill.type);
     const chainItems = chain.items.map(function (it) {
-      const d = practiceData.difficultyOf(practiceData.getMethod(it.method), it.rank);
-      return { id: it.id, name: it.name, starsText: d.starsText, rankName: d.name, current: it.id === skill.id };
+      const t = practiceData.tierOf(it.tier);
+      const m = practiceData.getMethod(it.method);
+      return {
+        id: it.id, name: it.name, tierName: t.name, tierLabel: t.label,
+        tierColor: t.color, gameName: m.gameName, current: it.id === skill.id,
+      };
     });
     const best = state.records ? state.records[skill.id] : null;
     const bestText = best ? '本门最佳 ' + best.score + ' 分 · ' + best.grade + ' 档' : '本门尚无纪录，这一局就是起点';
+
+    const realms = worldData.getWorld(state.worldId).realms;
+    const realmNow = state.realmIndex + 1;
+    const maxRealmName = realms[Math.min(realms.length - 1, tier.maxRealm - 1)].name;
+    const needRealmName = realms[Math.min(realms.length - 1, tier.needRealm - 1)].name;
+    let decayTip = '';
+    if (realmNow < tier.needRealm) {
+      decayTip = '本门是' + tier.label + '功法，宜在「' + needRealmName + '」境界后修习；当前境界不够，收益只剩 30%。';
+    } else if (realmNow > tier.maxRealm) {
+      decayTip = '境界已超本门可修上限「' + maxRealmName + '」，收益只剩 30%。熟练度还能涨，但该换一门更高阶的功法了。';
+    }
+
     this.theme = theme;
     this.twist = method.twist;
     this.setData({
@@ -168,13 +210,25 @@ Page({
       tierColor: info.color,
       prof: rec.prof,
       percent: info.percent,
-      nextText: info.maxed ? '已至大成' : '距 ' + info.nextName + ' 还差 ' + (info.nextThreshold - rec.prof),
-      hardUnlocked: info.index >= 2,
-      hardHint: info.index >= 2 ? '苦修已解锁：在本门品阶难度之上再收紧一档，熟练度 ×1.6' : '熟练度到「熟练」后解锁苦修（熟练度 ×1.6）',
-      perkText: '精通以后这一门的参悟会自带便利：判定更宽裕、时限更从容，或是多一次本门专有的照应。',
-      rankInfo: rankInfo,
+      nextText: info.maxed ? '已至大圆满' : '距 ' + info.nextName + ' 还差 ' + (info.nextThreshold - rec.prof),
+      perkText: info.index >= 3
+        ? '这一门已到「' + info.name + '」：技能特效生效，参悟时判定更宽裕、时限更从容。'
+        : '熟练度到「大成」后解锁技能特效与参悟便利。',
+      difficulty: diffKey,
+      diffList: diffList,
+      diffName: diff.name,
+      diffMultText: diff.multText,
+      diffText: '可选至「' + practiceData.difficultyOf(maxDiff).name + '」',
+      diffBrief: diff.brief,
+      rankLabel: tier.label,
+      rankChar: tier.name,
+      rankStars: engine.starsOf(tier.stars),
+      rankColor: tier.color,
+      rankRewardText: '熟练度 ×' + tier.reward.toFixed(2),
+      rankRealmText: tier.maxRealm > realms.length ? '可修至元婴以上' : '可修至「' + maxRealmName + '」',
+      decayTip: decayTip,
       chainItems: chainItems,
-      chainLabel: skill.type + '一脉 · 由基础向绝学',
+      chainLabel: skill.type + '一脉 · ' + fam.core,
       bestText: bestText,
       theme: theme,
       twistName: twist.name,
@@ -195,7 +249,7 @@ Page({
       const skill = skillData.getSkill(this.skillId);
       const method = practiceData.getMethod(skill.method);
       gameId = method.game;
-      params = practiceData.buildParams(method, skill.rank);
+      params = practiceData.buildParams(method, this.data.difficulty);
       methodName = method.name;
       tip = method.tip;
       tier = engine.tierIndex(state.skills[this.skillId].prof);
@@ -207,7 +261,9 @@ Page({
     const self = this;
     this.controller = minigames.createGame(gameId, {
       params: params,
-      difficulty: this.data.difficulty,
+      // 玩法模块只认 normal / hard 两档手感；真正的五档差异全部落在 params 上。
+      difficulty: practiceData.difficultyOf(this.data.difficulty).gear,
+      diffKey: this.data.difficulty,
       perks: perks,
       tip: tip,
       methodName: methodName,
@@ -268,14 +324,17 @@ Page({
   },
 
   onDifficulty: function (event) {
-    if (this.data.started) return;
-    const d = event.currentTarget.dataset.d;
-    if (d === 'hard' && !this.data.hardUnlocked) {
-      toast('熟练度到「熟练」后才能苦修');
+    if (this.data.started || this.data.countdown > 0) return;
+    const key = event.currentTarget.dataset.d;
+    if (!key || key === this.data.difficulty) return;
+    const d = practiceData.difficultyOf(key);
+    const prof = store.get().skills[this.skillId] ? store.get().skills[this.skillId].prof : 0;
+    if (practiceData.diffKeyIndex(key) > practiceData.diffIndexOf(prof)) {
+      toast('熟练度到 ' + d.need + ' 才解锁「' + d.name + '」');
       return;
     }
-    if (d === this.data.difficulty) return;
-    this.setData({ difficulty: d });
+    this.setData({ difficulty: key });
+    this.refresh();
     this.buildGame();
   },
 
@@ -311,7 +370,7 @@ Page({
   onFinish: function (res) {
     if (!this.pageAlive) return;
     const skillId = this.skillId;
-    const hard = this.data.difficulty === 'hard';
+    const diffKey = this.data.difficulty;
     const grade = res.grade || 'C';
     const color = worldData.GRADE_COLOR[grade] || '#8a8f83';
     const gradeTitle = worldData.GRADE_TITLE[grade] || '';
@@ -357,22 +416,28 @@ Page({
       };
     } else {
       const r = store.commitCritical(function (s) {
-        return engine.applyPractice(s, skillId, grade, { hard: hard, score: res.score || 0 });
+        return engine.applyPractice(s, skillId, grade, { difficulty: diffKey, score: res.score || 0 });
       });
+      const multText = r.tierLabel + ' ×' + r.tierReward.toFixed(2)
+        + ' · ' + r.diffName + ' ×' + r.diffMult.toFixed(2)
+        + ' · ' + grade + ' ×' + r.gradeFactor.toFixed(2)
+        + (r.decayed ? ' · 衰减 ×0.3' : '');
       const lines = [
         { k: '熟练度', v: '+' + r.gain },
         { k: '灵气', v: '+' + r.qi },
         { k: '局内得分', v: String(res.score || 0) },
       ];
       if (r.stone > 0) lines.push({ k: '灵石', v: '+' + r.stone });
+      lines.push({ k: '倍率构成', v: multText });
       lines.push({ k: '挂机加速', v: '×' + r.buffMultiplier.toFixed(1) + ' · 30 分钟' });
       lines.push({ k: '当前熟练度', v: String(r.profAfter) });
       const notes = [];
       if (r.tierUp) notes.push('【' + r.skillName + '】升段至「' + r.tierName + '」，属性加成提高。');
       if (r.cross) notes.push('触类旁通：换了门功法，熟练度 ×1.15。');
       if (r.restless > 0) notes.push('心浮气躁：同一门连练 ' + r.restless + ' 次，收益递减。');
-      if (r.hard) notes.push('苦修：在本门品阶难度之上再收紧一档，熟练度 ×1.6。');
-      if (r.rankBonus > 1) notes.push('品阶加成：' + r.rankName + '功法参悟更难，熟练度 ×' + r.rankBonus.toFixed(2) + '。');
+      if (r.diffFellBack) notes.push('所选难度尚未解锁，已按「' + r.diffMaxName + '」结算。');
+      if (r.decayed) notes.push('境界不符（' + r.realmReason + '）：熟练度收益只剩 30%。');
+      if (r.capped) notes.push('总倍率已封顶 ×' + r.coreMult.toFixed(2) + '，再叠也不再加成。');
       if (r.newRecord) {
         notes.push(r.prevBest > 0
           ? '破了本门纪录：' + (res.score || 0) + ' 分，此前最佳 ' + r.prevBest + ' 分。'

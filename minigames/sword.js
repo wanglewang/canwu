@@ -1,12 +1,12 @@
 'use strict';
 
-// 剑招连段（连招输入 / 踏云步专属）：卷轴铺开一串剑招，底下四个招式键按序把整套打完。
+// 步法连环（步法连环 / 踏云步专属）：卷轴铺开一串步位，底下四个步法键按序把整套走完。
 // 与「节律判定」的区别：节律是盯光环收放的时机、只靠单点；这里是看符号、按次序输入，
-// 段数递增、打错要重来这一招并扣时间。舞台是横向招式卷轴 + 四个大按键，不是圆盘。
+// 段数递增、踏错要重来这一步并扣时间。舞台是横向步法卷轴 + 四个大按键，不是圆盘。
 
 const C = require('./common.js');
 
-const MOVES = ['劈', '刺', '撩', '格'];
+const MOVES = ['进', '退', '侧', '转'];
 
 function create(ctx) {
   const p = ctx.params || {};
@@ -17,13 +17,13 @@ function create(ctx) {
   const totalSegments = (p.segments || 4);
   const baseLen = (p.baseLen || 3) + (hard ? 1 : 0);
   const keyList = (p.moves || MOVES).slice();
-  const vm = C.makeVm(0, 0, '看清卷轴，按序出招', ctx.tip || '照着卷轴上的招式，依次点下方四个招式键');
+  const vm = C.makeVm(0, 0, '看清卷轴，按序踏位', ctx.tip || '照着卷轴上的步位，依次点下方四个步法键');
   vm.stage = 'scroll';
   vm.extras.showGrid = false;
   vm.extras.showCombo = true;
   vm.extras.showMeter = true;
   vm.timeText = C.mmss(duration);
-  vm.scoreText = '成招 0';
+  vm.scoreText = '成步 0';
   vm.scroll = {
     moves: [],
     keys: keyList.map(function (g, i) { return { id: 'k' + i, glyph: g, index: i }; }),
@@ -53,12 +53,12 @@ function create(ctx) {
     vm.timeText = C.mmss(Math.max(0, left));
     vm.progress = C.pct(segmentsDone, totalSegments);
     vm.progressText = segmentsDone + ' / ' + totalSegments + ' 段';
-    vm.scoreText = '成招 ' + hits;
+    vm.scoreText = '成步 ' + hits;
     vm.combo = combo;
     vm.comboText = combo >= 3 ? '连招 ×' + combo : '';
     vm.gradeNow = gradeBySegments();
     vm.goal = '第 ' + vm.scroll.segment + ' 段 · 还差 ' + (totalSegments - segmentsDone) + ' 段圆满';
-    vm.meter = { label: '本段招式', value: vm.scroll.cursor, max: vm.scroll.moves.length };
+    vm.meter = { label: '本段步位', value: vm.scroll.cursor, max: vm.scroll.moves.length };
     vm.hint = '打错一招只断连势、这一招要重出；段数越往后，卷轴越长。';
   }
 
@@ -96,7 +96,7 @@ function create(ctx) {
     if (started) return;
     started = true;
     vm.phase = 'playing';
-    vm.status = '起手，照卷出招';
+    vm.status = '起手，照卷踏位';
     vm.banner = theme.banner || '剑势连绵';
     newSegment();
     bag.every(function () {
@@ -142,7 +142,7 @@ function create(ctx) {
     combo = 0;
     left = Math.max(1, left - 1);
     vm.status = theme.miss || '断了招';
-    C.flash(vm, '招式错了 · 少一息', 'bad');
+    C.flash(vm, '步位错了 · 少一息', 'bad');
     syncHud();
     render();
   }
@@ -156,4 +156,4 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'sword', name: '剑招连段', create: create };
+module.exports = { id: 'sword', name: '步法连环', create: create };

@@ -14,7 +14,7 @@
       <text class="tiny pr-tiny">当前战力</text>
       <text class="big-number hero-num">{{ov.power}}</text>
     </view>
-    <text class="tiny mt12 pr-tiny">对战时双方各有 ±15% 随机波动；精通以上技能会触发特效，抬高战力或波动下限。</text>
+    <text class="tiny mt12 pr-tiny">对战时双方各有 ±15% 随机波动；大成以上技能会触发特效，抬高战力或波动下限。</text>
   </view>
 
   <view class="section">

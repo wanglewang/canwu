@@ -96,9 +96,9 @@ Page({
       quickSkills: quick.slice(0, 3).map(function (s) {
         return {
           id: s.id, name: s.name, methodName: s.methodName,
-          tierName: s.tierName, tierColor: s.tierColor,
+          tierName: s.profTierName, tierColor: s.profTierColor,
           percent: s.percent, prof: s.prof,
-          nextText: s.maxed ? '已至大成' : '距 ' + s.nextName + ' 还差 ' + (s.nextThreshold - s.prof),
+          nextText: s.maxed ? '已至大圆满' : '距 ' + s.nextName + ' 还差 ' + (s.nextThreshold - s.prof),
         };
       }),
       quickSkillId: quick.length > 0 ? quick[0].id : '',

@@ -113,31 +113,39 @@ for (const f of ['package.json', 'package-lock.json', 'README.md', 'project.conf
   else checked += 1;
 }
 
-// 8. 功法品阶与难度阶梯约定
+// 8. 功法品阶与难度档约定：品阶管收益（天地玄黄），难度档跟熟练度（五档）
 const skillMod = require('../data/skills.js');
 const practiceMod = require('../data/practice.js');
-if (skillMod.SKILLS.length !== 10 || practiceMod.RANKS.length !== 4) {
-  errors.push('功法数或品阶数不符合约定');
+if (skillMod.SKILLS.length !== 10 || practiceMod.TIERS.length !== 4 || practiceMod.DIFFICULTIES.length !== 5) {
+  errors.push('功法数、品阶数或难度档数不符合约定');
 } else checked += 1;
-const rankSeen = {};
+const tierSeen = {};
 for (const s of skillMod.SKILLS) {
-  if (!Number.isInteger(s.rank) || s.rank < 1 || s.rank > 4) errors.push('功法品阶非法: ' + s.id);
-  else { rankSeen[s.rank] = true; checked += 1; }
+  if (!practiceMod.TIERS.some((t) => t.key === s.tier)) errors.push('功法品阶非法: ' + s.id);
+  else { tierSeen[s.tier] = true; checked += 1; }
+  if (s.kind !== 'main' && s.kind !== 'skill') errors.push('功法分类非法: ' + s.id);
+  else checked += 1;
   if (!practiceMod.METHOD_MAP[s.method]) errors.push('功法指向不存在的参悟方式: ' + s.id);
   else checked += 1;
 }
-if (Object.keys(rankSeen).length !== 4) errors.push('四阶品阶中存在空阶');
+if (Object.keys(tierSeen).length !== 4) errors.push('天地玄黄中存在空阶');
 else checked += 1;
+for (let i = 1; i < practiceMod.DIFFICULTIES.length; i += 1) {
+  const prev = practiceMod.DIFFICULTIES[i - 1];
+  const cur = practiceMod.DIFFICULTIES[i];
+  if (cur.need <= prev.need || cur.mult <= prev.mult) errors.push('难度档门槛或倍率未递增: ' + cur.key);
+  else checked += 1;
+}
 let boardSafe = true;
 for (const m of practiceMod.PRACTICE_METHODS) {
-  for (let rank = 1; rank <= 4; rank += 1) {
-    const out = practiceMod.buildParams(m, rank);
+  for (const d of practiceMod.DIFFICULTIES) {
+    const out = practiceMod.buildParams(m, d.key);
     for (const key of ['grid', 'cols', 'rows', 'size']) {
       if (typeof m.params[key] === 'number' && out[key] !== m.params[key]) boardSafe = false;
     }
   }
 }
-if (!boardSafe) errors.push('品阶缩放改动了盘面尺寸字段');
+if (!boardSafe) errors.push('难度档缩放改动了盘面尺寸字段');
 else checked += 1;
 
 if (errors.length > 0) {

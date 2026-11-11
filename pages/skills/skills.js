@@ -16,7 +16,7 @@ Page({
     shop: [],
     locked: [],
     legend: [],
-    chains: [],
+    families: [],
     showDetail: false,
     detail: null,
     canAfford: false,
@@ -41,7 +41,7 @@ Page({
     const state = store.get();
     const ov = engine.getOverview(state);
     const list = engine.getSkillList(state);
-    const chains = engine.getRankChains(state);
+    const families = engine.getFamilies(state);
     const unlocked = [];
     const shop = [];
     const locked = [];
@@ -70,10 +70,15 @@ Page({
         const s = groups[g].items[i];
         cards.push({
           id: s.id, name: s.name, type: s.type, desc: s.desc,
-          methodName: s.methodName, gameName: s.gameName, tierName: s.tierName, tierColor: s.tierColor,
-          rankName: s.rankName, starsText: s.starsText, rewardText: s.rewardText,
-          rankDesc: s.rankDesc, diffBrief: s.diffBrief, bestText: s.bestText,
+          methodName: s.methodName, gameName: s.gameName,
+          tierKey: s.tierKey, tierName: s.tierName, tierLabel: s.tierLabel,
+          tierColor: s.tierColor, starsText: s.starsText, rewardText: s.rewardText,
+          tierDesc: s.tierDesc, diffText: s.diffText,
+          maxRealm: s.maxRealm, maxRealmName: s.maxRealmName, decayed: s.decayed, decayText: s.decayText,
+          needRealm: s.needRealm, needRealmName: s.needRealmName, realmOk: s.realmOk,
+          bestText: s.bestText,
           percent: s.percent, prof: s.prof, nextText: s.nextText,
+          profTierName: s.profTierName, profTierColor: s.profTierColor,
           unlocked: s.unlocked, canBuy: s.canBuy, costText: s.costText,
           affordable: s.affordable, sourceText: s.sourceText,
           effectText: s.effectText, effectUnlocked: s.effectUnlocked,
@@ -89,7 +94,7 @@ Page({
     this.setData({
       ov: ov,
       cards: cards,
-      chains: chains,
+      families: families,
       unlocked: unlocked,
       shop: shop,
       locked: locked,

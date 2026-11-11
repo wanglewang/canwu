@@ -13,7 +13,7 @@ const achievementData = require('../data/achievements.js');
 const STORAGE_KEY = 'canwu_save_v1';
 const SAVE_PREFIX = 'CANWU1:';
 const BATTLE_PREFIX = 'CW1-';
-const SAVE_VERSION = 3;
+const SAVE_VERSION = 4;
 
 function readStorage(key) {
   try {
@@ -100,8 +100,13 @@ function migrateState(raw) {
     next = Object.assign({}, next, { version: 2, avatar: '' });
   }
   if (v < 3) {
-    // v2 -> v3：引入功法品阶难度与各门功法的局内最佳纪录。
+    // v2 -> v3：引入各门功法的局内最佳纪录。
     next = Object.assign({}, next, { version: 3, records: {} });
+  }
+  if (v < 4) {
+    // v3 -> v4：品阶改「天地玄黄」，难度改由熟练度解锁（不再存在存档里的「苦修」开关）。
+    // 存档字段未变，只统一版本号；纪录与熟练度原样保留。
+    next = Object.assign({}, next, { version: 4 });
   }
   return next;
 }
@@ -240,7 +245,8 @@ function computeAttributes(state) {
     const s = skillData.SKILLS[i];
     const rec = state.skills[s.id];
     if (!rec || !rec.unlocked) continue;
-    const mul = worldData.TIERS[tierIndex(rec.prof)].bonus;
+    // 属性 = 功法条目 × 熟练度段位系数 × 品阶系数（天阶 2.2 倍，黄阶 1.0）
+    const mul = worldData.TIERS[tierIndex(rec.prof)].bonus * practiceData.tierOf(s.tier).attr;
     const keys = Object.keys(s.bonus);
     for (let k = 0; k < keys.length; k += 1) {
       attrs[keys[k]] = (attrs[keys[k]] || 0) + s.bonus[keys[k]] * mul;
@@ -424,11 +430,30 @@ function applyPractice(state, skillId, grade, options) {
   const restless = Math.pow(0.85, repeatCount);
   const cross = !isRepeat && !!state.lastPractice.skillId;
   const crossBonus = cross ? 1.15 : 1;
-  const hardBonus = opts.hard ? 1.6 : 1;
-  const rank = practiceData.rankOf(skill.rank);
-  const rankBonus = rank.reward;
 
-  const gain = Math.max(1, Math.round(method.base * factor * wuFactor * (1 + practiceBonus) * restless * crossBonus * hardBonus * rankBonus));
+  // 一个维度只管一件事：品阶管倍率、难度档管倍率与对局参数、评级管这一局打得好不好、境界管衰减。
+  // 四个系数连乘后按 MAX_MULTIPLIER 封顶，避免「天阶 + 绝境 + S」把熟练度曲线一次打穿。
+  const tier = practiceData.tierOf(skill.tier);
+  const w = worldData.getWorld(state.worldId);
+  const realmNow = state.realmIndex + 1;
+  const maxRealmName = w.realms[Math.min(w.realms.length - 1, tier.maxRealm - 1)].name;
+  const needRealmName = w.realms[Math.min(w.realms.length - 1, tier.needRealm - 1)].name;
+  // 境界两头都管：没到门槛修不动（机缘/掉落提前拿到也一样），超过可修上限则收益衰减。
+  // 衰减不为 0：还能练，但该换功法了。
+  const realmOk = realmNow >= tier.needRealm && realmNow <= tier.maxRealm;
+  const realmDecay = realmOk ? 1 : worldData.REALM_DECAY;
+
+  // 难度档只认这门功法自己的熟练度；越权选高档（例如改页面参数）自动回落到已解锁的最高档。
+  const wantIdx = practiceData.diffKeyIndex(opts.difficulty || (opts.hard ? 'hard' : 'easy'));
+  const maxIdx = practiceData.diffIndexOf(rec.prof);
+  const fellBack = wantIdx > maxIdx;
+  const diff = practiceData.DIFFICULTIES[Math.min(wantIdx, maxIdx)];
+
+  const coreRaw = tier.reward * diff.mult * factor * realmDecay;
+  const coreMult = Math.min(worldData.MAX_MULTIPLIER, coreRaw);
+  const capped = coreRaw > worldData.MAX_MULTIPLIER + 1e-9;
+
+  const gain = Math.max(1, Math.round(method.base * coreMult * wuFactor * (1 + practiceBonus) * restless * crossBonus));
 
   // 局内得分第一次真正进入养成：记住本门最佳，给重复参悟一个可追的目标。
   if (!state.records) state.records = {};
@@ -495,7 +520,6 @@ function applyPractice(state, skillId, grade, options) {
     }
   }
 
-  const w = worldData.getWorld(state.worldId);
   return {
     ok: true,
     grade: grade,
@@ -514,9 +538,25 @@ function applyPractice(state, skillId, grade, options) {
     tierName: worldData.TIERS[afterTier].name,
     restless: repeatCount > 0 ? repeatCount : 0,
     cross: cross,
-    hard: !!opts.hard,
-    rankBonus: rankBonus,
-    rankName: rank.name,
+    // 倍率构成：品阶 × 难度档 × 评级 × 境界衰减，封顶后才是实际入账的倍率。
+    tierKey: tier.key,
+    tierLabel: tier.label,
+    tierReward: tier.reward,
+    tierColor: tier.color,
+    diffKey: diff.key,
+    diffName: diff.name,
+    diffMult: diff.mult,
+    diffFellBack: fellBack,
+    diffMaxName: practiceData.DIFFICULTIES[maxIdx].name,
+    realmDecay: realmDecay,
+    decayed: realmDecay < 1,
+    realmReason: realmOk ? '' : (realmNow < tier.needRealm ? '未到「' + needRealmName + '」门槛' : '已超「' + maxRealmName + '」上限'),
+    maxRealmName: maxRealmName,
+    needRealmName: needRealmName,
+    coreRaw: Math.round(coreRaw * 100) / 100,
+    coreMult: Math.round(coreMult * 100) / 100,
+    capped: capped,
+    gradeFactor: factor,
     newRecord: newRecord,
     bestScore: bestScore,
     prevBest: prevBest,
@@ -694,6 +734,13 @@ function buySkill(state, skillId) {
   if (!state.skills[skillId]) return { ok: false, msg: '没有这门功法' };
   if (state.skills[skillId].unlocked) return { ok: false, msg: '已经习得' };
   if (s.source.kind !== 'shop' || !s.source.cost) return { ok: false, msg: '此功法需从对战或机缘中获得' };
+  // 品阶决定学习门槛：天阶要到元婴才修得动，黄阶炼气就能上手。
+  const tier = practiceData.tierOf(s.tier);
+  if (state.realmIndex + 1 < tier.needRealm) {
+    const realms = worldData.getWorld(state.worldId).realms;
+    const needName = realms[Math.min(realms.length - 1, tier.needRealm - 1)].name;
+    return { ok: false, msg: '需「' + needName + '」境界方能修习' + tier.label + '功法' };
+  }
   const cost = s.source.cost;
   const lack = [];
   if (state.resources.qi < cost.qi) lack.push('灵气 ' + (cost.qi - state.resources.qi));
@@ -890,19 +937,34 @@ function sourceText(skill) {
   return '机缘可得';
 }
 
+function starsTextOf(stars) {
+  let s = '';
+  for (let i = 0; i < 4; i += 1) s += i < stars ? '★' : '☆';
+  return s;
+}
+
+function realmNameOf(state, realmNo) {
+  const realms = worldData.getWorld(state.worldId).realms;
+  return realms[Math.min(realms.length - 1, Math.max(0, realmNo - 1))].name;
+}
+
 function getSkillList(state) {
   const list = [];
+  const realmNow = state.realmIndex + 1;
   for (let i = 0; i < skillData.SKILLS.length; i += 1) {
     const s = skillData.SKILLS[i];
     const rec = state.skills[s.id] || { unlocked: false, prof: 0 };
     const info = tierInfo(rec.prof);
     const method = practiceData.getMethod(s.method);
-    const diff = practiceData.difficultyOf(method, s.rank);
+    const tier = practiceData.tierOf(s.tier);
+    const diffNow = practiceData.difficultyOf(practiceData.bestDifficulty(rec.prof));
+    const realmOk = realmNow >= tier.needRealm && realmNow <= tier.maxRealm;
     const best = state.records ? state.records[s.id] : null;
     list.push({
       id: s.id,
       name: s.name,
       type: s.type,
+      kind: s.kind,
       desc: s.desc,
       flavor: s.flavor,
       unlocked: rec.unlocked,
@@ -910,17 +972,37 @@ function getSkillList(state) {
       methodName: method.name,
       methodTip: method.tip,
       gameName: method.gameName,
-      rank: s.rank,
-      rankName: diff.name,
-      starsText: diff.starsText,
-      rankDesc: diff.desc,
-      rewardText: diff.rewardText,
-      diffBrief: diff.brief,
+      // 品阶（天地玄黄）：只管收益倍率、属性加成与可修上限。
+      tierKey: tier.key,
+      tierName: tier.name,
+      tierLabel: tier.label,
+      tierColor: tier.color,
+      tierStars: tier.stars,
+      starsText: starsTextOf(tier.stars),
+      tierDesc: tier.desc,
+      tierReward: tier.reward,
+      rewardText: '熟练度 ×' + tier.reward.toFixed(2),
+      // 可修境界：未达门槛或超过上限，收益都衰减到 30%，熟练度仍可涨。
+      maxRealm: tier.maxRealm,
+      maxRealmName: realmNameOf(state, tier.maxRealm),
+      decayed: !realmOk,
+      decayText: realmOk
+        ? ''
+        : (realmNow < tier.needRealm
+          ? '未到「' + realmNameOf(state, tier.needRealm) + '」门槛，收益仅剩 30%'
+          : '境界已超本门上限（' + realmNameOf(state, tier.maxRealm) + '），收益仅剩 30%'),
+      needRealm: tier.needRealm,
+      needRealmName: realmNameOf(state, tier.needRealm),
+      realmOk: realmOk,
+      // 难度档：只看本门熟练度，与品阶无关。
+      diffName: diffNow.name,
+      diffMult: diffNow.mult,
+      diffText: '最高可选「' + diffNow.name + '」×' + diffNow.mult.toFixed(1),
       bestText: best ? best.score + ' 分 · ' + best.grade + ' 档' : '',
       tierIndex: info.index,
-      tierName: info.name,
-      tierColor: info.color,
-      tierDesc: info.desc,
+      profTierName: info.name,
+      profTierColor: info.color,
+      profTierDesc: info.desc,
       percent: info.percent,
       nextName: info.nextName,
       nextThreshold: info.nextThreshold,
@@ -931,54 +1013,67 @@ function getSkillList(state) {
       sourceText: sourceText(s),
       canBuy: !rec.unlocked && s.source.kind === 'shop',
       cost: s.source.cost || null,
-      hardUnlocked: rec.unlocked && info.index >= 2,
     });
   }
   return list;
 }
 
-// 按功法类别组装进阶链：每类从基础到绝学，标注品阶、难度与是否已习得。
-function getRankChains(state) {
+// 按类型组装游戏族：同族共用一套手感内核，族内按品阶由低到高排成变体链。
+// 四个品阶刻度全列出来，缺变体的档位显示空档，族内的断层一眼可见。
+function getFamilies(state) {
   const chains = skillData.chainsOf();
-  const ranks = practiceData.RANKS;
+  const tiers = practiceData.TIERS;
   const out = [];
   for (let i = 0; i < chains.length; i += 1) {
     const c = chains[i];
+    const fam = practiceData.familyOf(c.type);
     const items = [];
     const slots = [];
     for (let j = 0; j < c.items.length; j += 1) {
       const it = c.items[j];
       const method = practiceData.getMethod(it.method);
-      const d = practiceData.difficultyOf(method, it.rank);
+      const tier = practiceData.tierOf(it.tier);
       const rec = state.skills[it.id] || { unlocked: false };
       items.push({
         id: it.id,
         name: it.name,
-        rankName: d.name,
-        starsText: d.starsText,
+        tierKey: tier.key,
+        tierName: tier.name,
+        tierColor: tier.color,
+        starsText: starsTextOf(tier.stars),
         gameName: method.gameName,
+        rewardText: '×' + tier.reward.toFixed(2),
         unlocked: !!rec.unlocked,
       });
     }
-    // 四阶刻度全列出来，缺功法的阶位显示为空档，进阶链的断裂一眼可见。
-    for (let r = 0; r < ranks.length; r += 1) {
+    for (let r = 0; r < tiers.length; r += 1) {
       let found = null;
       for (let k = 0; k < items.length; k += 1) {
-        if (items[k].rankName === ranks[r].name) { found = items[k]; break; }
+        if (items[k].tierKey === tiers[r].key) { found = items[k]; break; }
       }
-      let starsText = '';
-      for (let n = 0; n < ranks.length; n += 1) starsText += n < ranks[r].stars ? '★' : '☆';
       slots.push(found || {
-        id: 'gap-' + c.type + '-' + ranks[r].rank,
-        name: '（待补全）',
-        rankName: ranks[r].name,
-        starsText: starsText,
+        id: 'gap-' + c.type + '-' + tiers[r].key,
+        name: '（待补变体）',
+        tierKey: tiers[r].key,
+        tierName: tiers[r].name,
+        tierColor: tiers[r].color,
+        starsText: starsTextOf(tiers[r].stars),
         gameName: '',
+        rewardText: '×' + tiers[r].reward.toFixed(2),
         unlocked: false,
         empty: true,
       });
     }
-    out.push({ type: c.type, label: c.type + '一脉', items: items, slots: slots });
+    out.push({
+      type: c.type,
+      label: c.type + '一脉',
+      core: fam.core,
+      note: fam.note,
+      kind: fam.kind,
+      kindLabel: fam.kind === 'main' ? '主修' : '技艺',
+      items: items,
+      slots: slots,
+    });
   }
   return out;
 }
@@ -1076,7 +1171,8 @@ module.exports = {
   importSaveCode: importSaveCode,
   getOverview: getOverview,
   getSkillList: getSkillList,
-  getRankChains: getRankChains,
+  getFamilies: getFamilies,
+  starsOf: starsTextOf,
   getChallengeList: getChallengeList,
   getTitleList: getTitleList,
   getTopSkills: getTopSkills,

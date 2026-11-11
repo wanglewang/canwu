@@ -3,17 +3,27 @@
 // 《参悟》世界与全局数值配置
 // 所有可调数值集中在此文件与 skills.js / practice.js，加内容不改业务代码。
 
+// 熟练度：玩家在这门功法上的进度，决定能选哪几档难度（难度跟人走）。
+// 阈值沿用旧设计并上调一档「大圆满」，对应最高难度「绝境」。
 const TIERS = [
-  { key: 'none', name: '未入门', threshold: 0, bonus: 0, color: '#9aa39a', desc: '只能参悟，尚无加成' },
+  { key: 'none', name: '未入门', threshold: 0, bonus: 0, color: '#9aa39a', desc: '只能参悟简单档，尚无加成' },
   { key: 'basic', name: '入门', threshold: 100, bonus: 1, color: '#3d8c74', desc: '解锁基础属性加成' },
-  { key: 'skilled', name: '熟练', threshold: 400, bonus: 1.8, color: '#2f6b5b', desc: '加成提高，解锁苦修' },
-  { key: 'master', name: '精通', threshold: 1000, bonus: 2.8, color: '#b8893b', desc: '解锁技能特效与参悟便利' },
-  { key: 'grand', name: '大成', threshold: 2500, bonus: 4, color: '#b4453c', desc: '满加成，或窥见隐藏进阶' },
+  { key: 'skilled', name: '小成', threshold: 400, bonus: 1.8, color: '#2f6b5b', desc: '解锁「普通」难度' },
+  { key: 'master', name: '大成', threshold: 1000, bonus: 2.8, color: '#b8893b', desc: '解锁「困难」难度、技能特效与参悟便利' },
+  { key: 'grand', name: '圆满', threshold: 2500, bonus: 4, color: '#b4453c', desc: '解锁「极难」难度与称号' },
+  { key: 'perfect', name: '大圆满', threshold: 6000, bonus: 5, color: '#8a5cb0', desc: '解锁「绝境」难度，这一门算练到头了' },
 ];
 
-const GRADE_FACTOR = { S: 2.0, A: 1.4, B: 1.0, C: 0.6, F: 0.2 };
+// 评级倍率：只反映这一局打得好不好，和难度档（事前的选择）连乘。
+// S 刻意压到 1.5 —— 与难度档连乘后仍受 MAX_MULTIPLIER 约束，避免总收益失控。
+const GRADE_FACTOR = { S: 1.5, A: 1.2, B: 1.0, C: 0.6, F: 0.2 };
 const GRADE_COLOR = { S: '#b4453c', A: '#b8893b', B: '#3d8c74', C: '#8a8f83', F: '#8a8f83' };
 const GRADE_TITLE = { S: '圆满', A: '上乘', B: '中平', C: '粗浅', F: '走火' };
+
+// 品阶 × 难度 × 评级 × 衰减 四个系数连乘的封顶，防止极端组合把熟练度曲线打穿。
+const MAX_MULTIPLIER = 8.0;
+// 境界超过功法可修上限后的收益衰减。不为 0：还能练，但该换功法了。
+const REALM_DECAY = 0.3;
 
 // 世界是数据：首版只启用修仙，另外两个只保留元信息，验证同一套系统的可复用性。
 const WORLDS = [
@@ -80,6 +90,8 @@ module.exports = {
   GRADE_FACTOR: GRADE_FACTOR,
   GRADE_COLOR: GRADE_COLOR,
   GRADE_TITLE: GRADE_TITLE,
+  MAX_MULTIPLIER: MAX_MULTIPLIER,
+  REALM_DECAY: REALM_DECAY,
   WORLDS: WORLDS,
   getWorld: getWorld,
 };

@@ -31,9 +31,9 @@ const THEMES = {
     hit: '气合周天', miss: '气机散了', banner: '一息绵长', praise: '吐纳自如',
   },
   combo: {
-    key: 'combo', name: '剑招', accent: '#b4453c', soft: '#f7ded9', ink: '#782b25',
-    bg: '#f3e2dd', frame: '#fff4f1', glyph: '剑', motif: '招',
-    hit: '招式合拍', miss: '断了招', banner: '剑势连绵', praise: '一气呵成',
+    key: 'combo', name: '步法', accent: '#b4453c', soft: '#f7ded9', ink: '#782b25',
+    bg: '#f3e2dd', frame: '#fff4f1', glyph: '步', motif: '步',
+    hit: '步位合拍', miss: '踏错了', banner: '踏云连环', praise: '一气呵成',
   },
   arrayEye: {
     key: 'arrayEye', name: '阵眼', accent: '#6f5b9e', soft: '#e9e3f5', ink: '#453771',
@@ -100,8 +100,8 @@ const TWIST_INFO = {
     desc: '光环向内收敛，收进朱圈的一瞬点下判「圆满」。这一门收得更慢、判定窗更宽，适合稳住连拍。',
   },
   combo: {
-    name: '剑招连段 · 卷轴出招',
-    desc: '卷轴铺开一串剑招，四个招式键要按序把整套打完。共四段、逐段变长；打错只断连势、这一招重出并少一息。',
+    name: '步法连环 · 卷轴踏位',
+    desc: '卷轴铺开一串步位，四个步法键要按序把整套走完。共四段、逐段变长；踏错只断连势、这一步重出并少一息。',
   },
   arrayEye: {
     name: '阵眼明示 · 十字翻转',

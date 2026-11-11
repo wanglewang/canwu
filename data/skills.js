@@ -1,14 +1,17 @@
 'use strict';
 
-// 技能表。熟练度阈值走 world.js 的 TIERS，这里只写每个技能自己的内容。
+const practiceData = require('./practice.js');
+
+// 技能表。熟练度阈值走 world.js 的 TIERS，品阶与可修境界走 practice.js 的 TIERS。
 // effect.type：power 对战战力 / variance 对战波动 / practice 参悟收益 / offline 挂机收益
 // source.kind：start 初始 / shop 藏经阁 / battle 首胜掉落 / chance 机缘
-// rank：功法品阶 1 基础 / 2 进阶 / 3 上乘 / 4 绝学，见 data/practice.js 的 RANKS。
-// 品阶决定参悟难度与熟练度加成；同一 type 的功法按品阶连成一条进阶链。
+// kind：main 主修（心法，决定修炼速度）/ skill 技艺（剑法、阵法、丹道、符箓、身法）
+// tier：huang 黄 / xuan 玄 / di 地 / tian 天 —— 只决定收益倍率、属性加成与可修境界上限，不决定难度。
+// 难度由玩家在这门功法上的熟练度决定（见 data/practice.js 的 DIFFICULTIES）。
 
 const SKILLS = [
   {
-    id: 'jian', name: '基础剑法', type: '剑法', method: 'forge', rank: 1,
+    id: 'jian', name: '基础剑法', type: '剑法', kind: 'skill', tier: 'huang', method: 'forge',
     desc: '外门人人会，练到极处的没几个。',
     flavor: '剑是死的，手腕是活的。',
     bonus: { shen: 3, ti: 1 },
@@ -16,7 +19,7 @@ const SKILLS = [
     source: { kind: 'start' },
   },
   {
-    id: 'zhen', name: '阵法入门', type: '阵法', method: 'arrayEye', rank: 1,
+    id: 'zhen', name: '阵法入门', type: '阵法', kind: 'skill', tier: 'huang', method: 'arrayEye',
     desc: '从点一盏灯开始，学会看懂一座阵。',
     flavor: '阵眼只在一处，找错了就得从头推。',
     bonus: { ling: 3, wu: 1 },
@@ -24,7 +27,7 @@ const SKILLS = [
     source: { kind: 'start' },
   },
   {
-    id: 'tuna', name: '吐纳诀', type: '心法', method: 'absorb', rank: 1,
+    id: 'tuna', name: '吐纳诀', type: '心法', kind: 'main', tier: 'huang', method: 'absorb',
     desc: '最不起眼的功课，也是最长久的功课。',
     flavor: '一日不练，自己知道。',
     bonus: { ling: 2, ti: 2 },
@@ -32,7 +35,7 @@ const SKILLS = [
     source: { kind: 'start' },
   },
   {
-    id: 'jingxin', name: '心法·静心诀', type: '心法', method: 'recite', rank: 2,
+    id: 'jingxin', name: '心法·静心诀', type: '心法', kind: 'main', tier: 'xuan', method: 'recite',
     desc: '心不浮，气才沉得下去。',
     flavor: '师兄说这口诀没用，他练了三年还在炼气。',
     bonus: { wu: 4 },
@@ -40,7 +43,7 @@ const SKILLS = [
     source: { kind: 'shop', cost: { qi: 40, stone: 20 } },
   },
   {
-    id: 'yunbu', name: '身法·踏云步', type: '身法', method: 'combo', rank: 2,
+    id: 'yunbu', name: '身法·踏云步', type: '身法', kind: 'skill', tier: 'xuan', method: 'combo',
     desc: '落脚之处，皆有次序。',
     flavor: '练成之前，先摔了三十次。',
     bonus: { shen: 4 },
@@ -48,7 +51,7 @@ const SKILLS = [
     source: { kind: 'shop', cost: { qi: 90, stone: 35 } },
   },
   {
-    id: 'leifu', name: '符箓·引雷符', type: '符箓', method: 'tanlei', rank: 3,
+    id: 'leifu', name: '符箓·引雷符', type: '符箓', kind: 'skill', tier: 'di', method: 'tanlei',
     desc: '画符容易，辨得清哪一格是雷才难。',
     flavor: '据说上一位画错的前辈，至今还在山上躺着。',
     bonus: { ling: 4, wu: 1 },
@@ -56,7 +59,7 @@ const SKILLS = [
     source: { kind: 'shop', cost: { qi: 160, stone: 50 } },
   },
   {
-    id: 'wuxingzhen', name: '阵法·小五行阵', type: '阵法', method: 'wuxing', rank: 3,
+    id: 'wuxingzhen', name: '阵法·小五行阵', type: '阵法', kind: 'skill', tier: 'di', method: 'wuxing',
     desc: '五盏阵灯，牵一发而动全身。',
     flavor: '师父说这叫举一反三，你觉得这叫加班。',
     bonus: { ling: 3, wu: 3 },
@@ -64,7 +67,7 @@ const SKILLS = [
     source: { kind: 'battle', opponentId: 'liuhan' },
   },
   {
-    id: 'dan', name: '丹道·凝露丹方', type: '丹道', method: 'stones', rank: 3,
+    id: 'dan', name: '丹道·凝露丹方', type: '丹道', kind: 'skill', tier: 'di', method: 'stones',
     desc: '丹方错一味，整炉丹就成炭。',
     flavor: '背丹方比炼丹难，这话你只敢心里想想。',
     bonus: { ling: 3, ti: 2 },
@@ -72,7 +75,7 @@ const SKILLS = [
     source: { kind: 'battle', opponentId: 'puppet' },
   },
   {
-    id: 'duanyue', name: '剑诀·断岳', type: '剑法', method: 'snatch', rank: 4,
+    id: 'duanyue', name: '剑诀·断岳', type: '剑法', kind: 'skill', tier: 'tian', method: 'snatch',
     desc: '一剑既出，慢的人连剑光都看不见。',
     flavor: '手快的人练剑，是有道理的。',
     bonus: { shen: 4, ti: 2 },
@@ -80,7 +83,7 @@ const SKILLS = [
     source: { kind: 'battle', opponentId: 'xueshou' },
   },
   {
-    id: 'taixu', name: '心法·太虚诀', type: '心法', method: 'seal', rank: 4,
+    id: 'taixu', name: '心法·太虚诀', type: '心法', kind: 'main', tier: 'tian', method: 'seal',
     desc: '青云界压箱底的功课，据说练到大成能看见别的世界。',
     flavor: '别的世界？大概是科幻和都市吧。',
     bonus: { wu: 5, ling: 3 },
@@ -98,12 +101,13 @@ function getSkill(id) {
   return SKILL_MAP[id] || null;
 }
 
-function rankOfSkill(id) {
+function tierOfSkill(id) {
   const s = getSkill(id);
-  return s ? s.rank : 1;
+  return s ? s.tier : 'huang';
 }
 
-// 按功法类别连成进阶链，链内按品阶升序。多阶的类别排在前面，便于功法页展示谱系。
+// 按功法类别分组：同类共用一套游戏族，族内按品阶从低到高排成变体链。
+// 多门的类别排在前面，缺档的阶位由调用方补空槽，族内的断层一眼可见。
 function chainsOf() {
   const map = {};
   for (let i = 0; i < SKILLS.length; i += 1) {
@@ -114,11 +118,13 @@ function chainsOf() {
   const keys = Object.keys(map);
   const out = [];
   for (let i = 0; i < keys.length; i += 1) {
-    const arr = map[keys[i]].slice().sort(function (a, b) { return a.rank - b.rank; });
+    const arr = map[keys[i]].slice().sort(function (a, b) {
+      return practiceData.tierIndexOf(a.tier) - practiceData.tierIndexOf(b.tier);
+    });
     out.push({
       type: keys[i],
       items: arr.map(function (s) {
-        return { id: s.id, name: s.name, rank: s.rank, method: s.method };
+        return { id: s.id, name: s.name, tier: s.tier, method: s.method };
       }),
     });
   }
@@ -136,7 +142,7 @@ module.exports = {
   SKILLS: SKILLS,
   SKILL_MAP: SKILL_MAP,
   getSkill: getSkill,
-  rankOfSkill: rankOfSkill,
+  tierOfSkill: tierOfSkill,
   chainsOf: chainsOf,
   chainOfType: chainOfType,
 };

@@ -593,7 +593,18 @@
     border-radius: 12rpx;
     padding: 20rpx 22rpx;
 }
-.rank-stars { font-size: 28rpx; letter-spacing: 4rpx; }
+.rank-badge {
+    width: 46rpx;
+    height: 46rpx;
+    margin-right: 12rpx;
+    border-radius: 8rpx;
+    color: #fffdf7;
+    font-size: 26rpx;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 .rank-diff { display: flex; flex-direction: column; gap: 6rpx; }
 .rank-chain__item {
     display: inline-block;
@@ -607,10 +618,51 @@
 }
 .rank-chain__item--now { background: var(--acc, #3d8c74); color: #fffdf7; }
 
+/* ---------- 难度档选择 ---------- */
+.warn-note {
+    display: block;
+    padding: 12rpx 16rpx;
+    border-left: 4rpx solid #b4453c;
+    border-radius: 0 8rpx 8rpx 0;
+    background: rgba(180, 69, 60, 0.10);
+    color: #8d3229;
+    font-size: 22rpx;
+    line-height: 1.65;
+}
+.diff-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10rpx;
+}
+.diff-chip {
+    width: calc((100% - 20rpx) / 3);
+    box-sizing: border-box;
+    padding: 12rpx 8rpx;
+    border: 1rpx solid rgba(0, 0, 0, 0.10);
+    border-radius: 10rpx;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rpx;
+    background: rgba(255, 255, 255, 0.6);
+}
+.diff-chip__name { font-size: 26rpx; color: #2f3b35; font-weight: 600; }
+.diff-chip__mult { font-size: 22rpx; color: #6f7b74; }
+.diff-chip__need { font-size: 18rpx; color: #b4453c; }
+.diff-chip--on { background: var(--acc, #3d8c74); border-color: var(--acc, #3d8c74); }
+.diff-chip--on .diff-chip__name, .diff-chip--on .diff-chip__mult { color: #fffdf7; }
+.diff-chip--lock { opacity: 0.55; }
+
 @media (prefers-color-scheme: dark) {
     .rank-card { border-color: #33403a; }
     .rank-chain__item { background: #2b3832; color: #cfd8cf; }
     .rank-chain__item--now { background: var(--acc, #3d8c74); color: #fffdf7; }
+    .warn-note { background: rgba(180, 69, 60, 0.18); color: #f0b4ad; }
+    .diff-chip { background: #26342d; border-color: #33403a; }
+    .diff-chip__name { color: #e8eee9; }
+    .diff-chip__mult { color: #9aa79f; }
+    .diff-chip--on { background: var(--acc, #3d8c74); border-color: var(--acc, #3d8c74); }
+    .diff-chip--on .diff-chip__name, .diff-chip--on .diff-chip__mult { color: #fffdf7; }
     .cell { border-color: #1e2723; }
     .cell--off, .cell--hidden { background: #2b3832; color: #9aa79f; }
     .cell--open { background: #26342d; color: #e8eee9; }
