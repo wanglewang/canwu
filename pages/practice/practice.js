@@ -8,6 +8,7 @@ const skillData = require('../../data/skills.js');
 const practiceData = require('../../data/practice.js');
 const worldData = require('../../data/world.js');
 const guides = require('../../data/guides.js');
+const visual = require('../../data/visual.js');
 const sfx = require('../../utils/sfx.js');
 
 function toast(title) {
@@ -67,6 +68,22 @@ Page({
     guideOpen: true,
     slashList: [],
     trailLen: 0,
+    sceneOn: false,
+    stage: visual.stageOf('forge'),
+    qiDots: [
+      { id: 1, x: 12, y: 58, o: 0.5 }, { id: 2, x: 26, y: 72, o: 0.35 },
+      { id: 3, x: 38, y: 50, o: 0.42 }, { id: 4, x: 55, y: 66, o: 0.3 },
+      { id: 5, x: 68, y: 54, o: 0.48 }, { id: 6, x: 80, y: 74, o: 0.36 },
+      { id: 7, x: 90, y: 48, o: 0.44 }, { id: 8, x: 46, y: 82, o: 0.28 },
+    ],
+    sceneLamps: [],
+    incensePercent: 100,
+    scoreNum: 0,
+    burstList: [],
+    settlePhase: 0,
+    settleFull: false,
+    settleGain: '+0',
+    settlePercent: 0,
   },
 
   onLoad: function (query) {
@@ -75,6 +92,9 @@ Page({
     this.countdownTimers = [];
     this.needsRebuild = false;
     this.lastFxKey = 0;
+    this.settleTimers = [];
+    this.burstId = 0;
+    this.lastCombo = 0;
     this.cellRects = [];
     this.swipePath = null;
     this.lastTouchX = 0;
@@ -115,17 +135,22 @@ Page({
 
   onHide: function () {
     this.clearCountdown();
+    this.clearSettleTimers();
     if (this.controller) this.controller.destroy();
     sfx.stopAll();
     if (!this.data.showResult) {
       this.needsRebuild = true;
       this.setData({ started: false });
+    } else if (this.data.sceneOn) {
+      // 切出去再回来不该卡在演出中段，直接把按钮放出来。
+      this.setData({ settlePhase: 4 });
     }
   },
 
   onUnload: function () {
     this.pageAlive = false;
     this.clearCountdown();
+    this.clearSettleTimers();
     if (this.controller) this.controller.destroy();
     this.controller = null;
     sfx.stopAll();
@@ -278,6 +303,31 @@ Page({
       twist: this.twist,
       render: function (vm) {
         if (!self.pageAlive) return;
+        const progress = typeof vm.progress === 'number' ? vm.progress : 0;
+        const incense = Math.max(0, Math.min(100, 100 - progress));
+        const lampMax = vm.hearts && vm.hearts.max ? vm.hearts.max : 3;
+        const lampOn = vm.hearts ? vm.hearts.value : Math.ceil(incense / 34);
+        const sceneLamps = [];
+        for (let i = 0; i < lampMax; i += 1) sceneLamps.push({ id: i, on: i < lampOn });
+
+        let burstList = self.data.burstList;
+        // 浮字是玩法里唯一的「判定结果」信号：音效与视觉反馈都跟着它走。
+        if (vm.fx && vm.fx.key !== self.lastFxKey) {
+          self.lastFxKey = vm.fx.key;
+          sfx.tone(vm.fx.tone);
+          if (self.data.sceneOn) {
+            const tone = vm.fx.tone;
+            if (tone === 'bad') burstList = [self.makeBurst(0)];
+            else if (tone === 'gold') burstList = [self.makeBurst(3)];
+            else burstList = [self.makeBurst(1)];
+          }
+        }
+        const combo = parseInt(String(vm.comboText || '').replace(/\D/g, ''), 10) || 0;
+        if (self.data.sceneOn && combo !== self.lastCombo && [5, 10, 20].indexOf(combo) >= 0) {
+          burstList = [self.makeBurst(2)];
+        }
+        self.lastCombo = combo;
+
         self.setData({
           vm: vm,
           chargeWidth: vm.charge ? Math.max(0, vm.charge.end - vm.charge.start) : 0,
@@ -286,25 +336,89 @@ Page({
           meterPercent: vm.meter && vm.meter.max ? Math.round(vm.meter.value / vm.meter.max * 100) : 0,
           slashList: vm.slash ? [vm.slash] : [],
           trailLen: vm.trail ? vm.trail.path.length : 0,
+          sceneLamps: sceneLamps,
+          incensePercent: incense,
+          scoreNum: Number(String(vm.scoreText || '').replace(/\D/g, '')) || 0,
+          burstList: burstList,
         });
-        // 浮字是玩法里唯一的「判定结果」信号，音效跟着它走，不用每个玩法各写一遍。
-        if (vm.fx && vm.fx.key !== self.lastFxKey) {
-          self.lastFxKey = vm.fx.key;
-          sfx.tone(vm.fx.tone);
-        }
         self.syncBar();
       },
       finish: function (res) { self.onFinish(res); },
     });
+    const stage = visual.stageOf(this.theme.key);
     this.lastFxKey = 0;
+    this.lastCombo = 0;
     this.setData({
       started: false,
       showResult: false,
       result: null,
       guide: guides.guideOf(gameId),
       hintLabel: gameId === 'lights' ? '阵眼感应' : gameId === 'seal' ? '符箓照纹' : '提示',
+      sceneOn: stage.on,
+      stage: stage,
+      burstList: [],
+      settlePhase: 0,
     });
     this.syncBar();
+  },
+
+  // 命中爆发：一次判定生成一批粒子，id 自增让 WXML 重建节点，CSS 动画才会重播。
+  makeBurst: function (level) {
+    const dots = [];
+    if (level > 0) {
+      const n = level >= 3 ? visual.MOTION.particles : level === 2 ? 6 : 4;
+      const dist = level >= 3 ? 190 : level === 2 ? 150 : 110;
+      for (let i = 0; i < n; i += 1) {
+        dots.push({
+          id: i,
+          a: Math.round(360 * i / n),
+          d: dist + (i % 3) * 24,
+          delay: (i % 4) * 18,
+        });
+      }
+    }
+    this.burstId = (this.burstId || 0) + 1;
+    return {
+      id: this.burstId,
+      level: level,
+      dots: dots,
+      flash: level === 0 ? 'miss' : level >= 3 ? 'gold' : '',
+    };
+  },
+
+  clearSettleTimers: function () {
+    const list = this.settleTimers || [];
+    for (let i = 0; i < list.length; i += 1) clearTimeout(list[i]);
+    this.settleTimers = [];
+  },
+
+  // 结算五段演出：S/A 满 1.8 秒，B/C/F 压到 900ms；全程不用逐帧 setData。
+  startSettle: function (rv, grade) {
+    this.clearSettleTimers();
+    const timeline = visual.settleTimeline(grade);
+    let gain = '+0';
+    for (let i = 0; i < rv.lines.length; i += 1) {
+      if (rv.lines[i].k === '熟练度') gain = rv.lines[i].v;
+    }
+    const self = this;
+    this.setData({
+      settlePhase: 0,
+      settleFull: visual.SETTLE.fullGrades.indexOf(grade) >= 0,
+      settleGain: gain,
+      settlePercent: this.data.percent,
+    });
+    for (let i = 1; i < timeline.length; i += 1) {
+      const id = setTimeout(function () {
+        if (self.pageAlive && self.data.showResult) self.setData({ settlePhase: i });
+      }, timeline[i]);
+      this.settleTimers.push(id);
+    }
+  },
+
+  onSkipSettle: function () {
+    if (this.data.settlePhase >= 4) return;
+    this.clearSettleTimers();
+    this.setData({ settlePhase: 4 });
   },
 
   // 吸底条只在真有操作可给的时候出现：准备页是「开始参悟」，局内只有带撤销/提示的玩法才占位。
@@ -623,9 +737,11 @@ Page({
     this.setData({ showResult: true, result: rv, started: false });
     this.syncBar();
     this.refresh();
+    if (this.data.sceneOn) this.startSettle(rv, grade);
   },
 
   onPrimary: function () {
+    this.clearSettleTimers();
     const kind = this.data.result ? this.data.result.kind : '';
     if (kind === 'breakthrough') { this.onBack(); return; }
     this.setData({ showResult: false, result: null });
@@ -635,6 +751,7 @@ Page({
   },
 
   onSecondary: function () {
+    this.clearSettleTimers();
     if (this.data.result && this.data.result.kind === 'breakthrough') {
       wx.switchTab({ url: '/pages/skills/skills' });
       return;

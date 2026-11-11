@@ -1,0 +1,694 @@
+/* 参悟 · 沉浸舞台
+   三层场景 + 游戏化 HUD + 命中粒子 + 结算五段演出。
+   舞台固定深色，不跟随 prefers-color-scheme；外围页面仍走 app.wxss 的双主题。
+   全部由纯 CSS 色块与 transform/opacity 画出，零图片资源。 */
+
+.pg--scene {
+    position: relative;
+    background: #08131c;
+    color: #e3f1f8;
+}
+
+.pg--scene .pg__foot { display: none; }
+
+/* ---------- 第一层：远层（静态） ---------- */
+.scene {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.scene__sky {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: linear-gradient(180deg, #0e2030 0%, #153146 34%, #0b1a26 66%, #08131c 100%);
+}
+
+.scene__moon {
+    position: absolute;
+    top: 132rpx;
+    right: 96rpx;
+    width: 132rpx;
+    height: 132rpx;
+}
+
+.scene__moon-halo,
+.scene__moon-ring,
+.scene__moon-core {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.scene__moon-halo {
+    width: 132rpx;
+    height: 132rpx;
+    background: rgba(207, 230, 242, 0.05);
+    animation: moonBreath 8s ease-in-out infinite alternate;
+}
+
+.scene__moon-ring {
+    width: 92rpx;
+    height: 92rpx;
+    background: rgba(207, 230, 242, 0.09);
+}
+
+.scene__moon-core {
+    width: 58rpx;
+    height: 58rpx;
+    background: #e3f1f8;
+    opacity: 0.88;
+}
+
+.scene__star {
+    position: absolute;
+    width: 4rpx;
+    height: 4rpx;
+    border-radius: 50%;
+    background: #cfe6f2;
+}
+
+.scene__star--1 { top: 108rpx; left: 108rpx; opacity: 0.45; }
+.scene__star--2 { top: 196rpx; left: 268rpx; opacity: 0.3; }
+.scene__star--3 { top: 88rpx; left: 402rpx; opacity: 0.4; }
+.scene__star--4 { top: 262rpx; left: 566rpx; opacity: 0.28; }
+
+/* 菱形剪影错开叠出三层山脊；不用 clip-path / filter，低端机也稳。 */
+.scene__ridge {
+    position: absolute;
+    border-radius: 46rpx;
+    transform: rotate(45deg);
+}
+
+.scene__ridge--far {
+    width: 420rpx;
+    height: 420rpx;
+    left: -110rpx;
+    bottom: 40%;
+    background: #173347;
+}
+
+.scene__ridge--mid {
+    width: 380rpx;
+    height: 380rpx;
+    right: -120rpx;
+    bottom: 41%;
+    background: #102437;
+}
+
+.scene__ridge--near {
+    width: 460rpx;
+    height: 460rpx;
+    left: 180rpx;
+    bottom: 34%;
+    background: #0c1c29;
+}
+
+.scene__ground {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 40%;
+    background: #08131c;
+}
+
+.scene__gate {
+    position: absolute;
+    top: 376rpx;
+    left: 50%;
+    width: 210rpx;
+    height: 108rpx;
+    margin-left: -105rpx;
+}
+
+.scene__gate-beam {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 210rpx;
+    height: 22rpx;
+    border-radius: 4rpx;
+    background: #07121b;
+}
+
+.scene__gate-post {
+    position: absolute;
+    top: 20rpx;
+    width: 18rpx;
+    height: 88rpx;
+    background: #07121b;
+}
+
+.scene__gate-post:first-of-type { left: 26rpx; }
+.scene__gate-post:last-of-type { right: 26rpx; }
+
+.scene__gate-lamp,
+.scene__gate-lamp--r {
+    position: absolute;
+    top: 62rpx;
+    width: 8rpx;
+    height: 8rpx;
+    border-radius: 50%;
+    background: #e8c46a;
+    opacity: 0.75;
+}
+
+.scene__gate-lamp { left: 30rpx; }
+.scene__gate-lamp--r { right: 30rpx; }
+
+/* ---------- 第二层：中层（常驻循环，合计 3 路） ---------- */
+.scene__clouds {
+    position: absolute;
+    top: 44%;
+    right: 0;
+    left: 0;
+    height: 260rpx;
+    animation: cloudDrift 18s ease-in-out infinite alternate;
+}
+
+.scene__cloud {
+    position: absolute;
+    height: 44rpx;
+    border-radius: 50%;
+    background: #cfe6f2;
+}
+
+.scene__cloud--1 { top: 0; left: -180rpx; width: 520rpx; opacity: 0.055; }
+.scene__cloud--2 { top: 92rpx; right: -160rpx; width: 480rpx; opacity: 0.045; }
+.scene__cloud--3 { top: 178rpx; left: -80rpx; width: 560rpx; opacity: 0.04; }
+
+.scene__qi {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    animation: qiRise 12s linear infinite;
+}
+
+.scene__qi-dot {
+    position: absolute;
+    width: 8rpx;
+    height: 8rpx;
+    border-radius: 50%;
+    background: var(--glow, #6FD4E8);
+}
+
+/* ---------- 第三层：近层（法坛与判定信息，最高对比） ---------- */
+.pg--scene .pr-play {
+    position: relative;
+    z-index: 1;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.pg--scene .tiny,
+.pg--scene .body,
+.pg--scene .hud__goal,
+.pg--scene .pr-hint .tiny { color: #9fc3d4; }
+
+.pg--scene .pr-hint__terms {
+    background: rgba(11, 35, 49, 0.82);
+    border-left-color: var(--glow, #6FD4E8);
+}
+
+.pg--scene .pr-hint__terms .tiny { color: #cfe6f2; }
+
+.pg--scene .trail-hint__name { color: #e3f1f8; }
+
+.pg--scene .grid {
+    background: var(--well, #0b2331);
+    border: 2rpx solid var(--deep, #2B7FA8);
+    box-shadow: 0 0 40rpx rgba(0, 0, 0, 0.4);
+}
+
+.pg--scene .cell {
+    background: #102c3e;
+    border-color: #1b3b50;
+    color: #7fa8bd;
+}
+
+.pg--scene .cell--path {
+    background: rgba(31, 111, 146, 0.55);
+    color: #dff5fc;
+    box-shadow: inset 0 0 0 3rpx rgba(111, 212, 232, 0.45);
+}
+
+.pg--scene .cell--pathgold {
+    background: rgba(184, 137, 59, 0.42);
+    color: #f2dda8;
+    box-shadow: inset 0 0 0 3rpx rgba(232, 196, 106, 0.5);
+}
+
+.pg--scene .cell--pathon {
+    background: #2a87ab;
+    color: #ffffff;
+    box-shadow: 0 0 26rpx rgba(111, 212, 232, 0.55);
+}
+
+.pg--scene .cell--pathgold.cell--pathon {
+    background: #b8893b;
+    box-shadow: 0 0 28rpx rgba(232, 196, 106, 0.65);
+}
+
+.pg--scene .cell--cut { background: #e8f8ff; color: #0b2331; }
+
+.pg--scene .cell__life { background: rgba(232, 196, 106, 0.85); }
+
+.pg--scene .grid__slash-beam { background: linear-gradient(90deg, transparent, #ffffff, transparent); }
+
+/* ---------- 游戏化 HUD ---------- */
+.scene-hud {
+    padding: 22rpx 24rpx 18rpx;
+    border: 2rpx solid rgba(43, 127, 168, 0.42);
+    border-radius: 18rpx;
+    background: rgba(6, 16, 25, 0.78);
+}
+
+.scene-hud__top,
+.scene-hud__right,
+.scene-hud__meter,
+.scene-hud__score { display: flex; align-items: center; }
+
+.scene-hud__top { justify-content: space-between; }
+.scene-hud__right { gap: 16rpx; }
+
+.scene-hud__id { display: flex; flex-direction: column; }
+
+.scene-hud__name {
+    font-size: 22rpx;
+    letter-spacing: 3rpx;
+    color: #9fc3d4;
+}
+
+.scene-hud__incense {
+    margin-top: 6rpx;
+    font-family: "Songti SC", "STSong", serif;
+    font-size: 38rpx;
+    color: #e3f1f8;
+}
+
+.scene-hud__lamps { display: flex; gap: 8rpx; }
+
+.scene-hud__lamp {
+    width: 14rpx;
+    height: 14rpx;
+    border-radius: 50%;
+    background: #2a4250;
+}
+
+.scene-hud__lamp--on {
+    background: #e8c46a;
+    box-shadow: 0 0 10rpx rgba(232, 196, 106, 0.7);
+}
+
+.scene-hud__grade {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48rpx;
+    height: 48rpx;
+    border-radius: 8rpx;
+    color: #fffdf7;
+    font-size: 26rpx;
+    font-weight: 700;
+    background: #b8893b;
+}
+
+.scene-hud__quit {
+    padding: 8rpx 16rpx;
+    border: 2rpx solid rgba(159, 195, 212, 0.4);
+    border-radius: 999rpx;
+    color: #9fc3d4;
+    font-size: 22rpx;
+}
+
+.scene-hud__incense-track {
+    height: 6rpx;
+    margin-top: 16rpx;
+    border-radius: 3rpx;
+    background: rgba(111, 212, 232, 0.14);
+    overflow: hidden;
+}
+
+.scene-hud__incense-fill {
+    height: 100%;
+    border-radius: 3rpx;
+    background: linear-gradient(90deg, #2B7FA8, #6FD4E8);
+}
+
+.scene-hud__meter { gap: 14rpx; margin-top: 18rpx; }
+
+.scene-hud__meter-label,
+.scene-hud__combo,
+.scene-hud__score-label {
+    flex: 0 0 auto;
+    font-size: 22rpx;
+    color: #9fc3d4;
+}
+
+.scene-hud__meter-track {
+    position: relative;
+    flex: 1;
+    height: 12rpx;
+    border-radius: 6rpx;
+    background: rgba(111, 212, 232, 0.14);
+    overflow: hidden;
+}
+
+.scene-hud__meter-fill {
+    height: 100%;
+    border-radius: 6rpx;
+    background: linear-gradient(90deg, #2B7FA8, #6FD4E8);
+}
+
+.scene-hud__meter-tick {
+    position: absolute;
+    top: 0;
+    width: 2rpx;
+    height: 100%;
+    background: rgba(8, 19, 28, 0.8);
+}
+
+.scene-hud__combo { color: #e8c46a; }
+
+.scene-hud__score { gap: 12rpx; margin-top: 16rpx; }
+
+.scene-hud__score-num {
+    font-family: "Songti SC", "STSong", serif;
+    font-size: 40rpx;
+    color: #e3f1f8;
+    line-height: 1;
+}
+
+.scene-hud__goal {
+    flex: 1;
+    text-align: right;
+    font-size: 22rpx;
+    color: #7fa8bd;
+    line-height: 1.5;
+}
+
+/* ---------- 命中反馈：三档爆发粒子 ---------- */
+.pg--scene .stage { position: relative; }
+
+.burst__flash {
+    position: absolute;
+    left: -240rpx;
+    top: -240rpx;
+    width: 480rpx;
+    height: 480rpx;
+    border-radius: 50%;
+    opacity: 0;
+    animation: flashPulse 240ms ease-out forwards;
+}
+
+.burst__flash--miss { background: rgba(180, 69, 60, 0.34); }
+.burst__flash--gold { background: rgba(232, 196, 106, 0.3); }
+
+.burst {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 6;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.burst__dot {
+    position: absolute;
+    width: 12rpx;
+    height: 12rpx;
+    margin: -6rpx 0 0 -6rpx;
+    border-radius: 50%;
+    background: var(--glow, #6FD4E8);
+    opacity: 0;
+    animation: burstFly 420ms ease-out forwards;
+}
+
+.burst--l2 .burst__dot { width: 16rpx; height: 16rpx; background: #e8c46a; }
+.burst--l3 .burst__dot { width: 20rpx; height: 20rpx; background: #f2dda8; }
+
+/* ---------- 结算：五段演出 ---------- */
+.settle {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 95;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48rpx;
+}
+
+.settle__veil {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: #040a10;
+    animation: veilIn 320ms ease-out both;
+}
+
+.settle__aura {
+    position: absolute;
+    width: 520rpx;
+    height: 520rpx;
+    border: 2rpx solid var(--glow, #6FD4E8);
+    border-radius: 50%;
+    opacity: 0;
+    animation: auraIn 700ms ease-out forwards;
+}
+
+.settle__panel {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    max-height: 84vh;
+    overflow-y: auto;
+    padding: 44rpx 36rpx 36rpx;
+    border: 2rpx solid rgba(43, 127, 168, 0.55);
+    border-radius: 28rpx;
+    background: linear-gradient(180deg, #0b2331, #08131c);
+    box-shadow: 0 0 60rpx rgba(111, 212, 232, 0.14);
+}
+
+.settle__grade-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 168rpx;
+    overflow: hidden;
+}
+
+.settle__grade {
+    font-family: "Songti SC", "STSong", serif;
+    font-size: 132rpx;
+    line-height: 1;
+    color: var(--glow, #6FD4E8);
+    animation: gradeDrop 460ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+/* 金光与裂纹挂在外层 view 上：小程序 text 组件对伪元素支持不稳。 */
+.settle__grade-wrap--full::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 240, 190, 0.6), transparent);
+    animation: goldSweep 900ms ease-out 240ms both;
+}
+
+.settle__grade-wrap--fail::before {
+    content: "";
+    position: absolute;
+    top: 14rpx;
+    left: 50%;
+    z-index: 2;
+    width: 4rpx;
+    height: 140rpx;
+    background: rgba(159, 195, 212, 0.38);
+    transform: rotate(24deg);
+}
+
+.settle__grade--fail { color: #9aa7a0; animation: gradeCrack 420ms ease-out both; }
+
+.settle__title {
+    display: block;
+    text-align: center;
+    font-family: "Songti SC", "STSong", serif;
+    font-size: 38rpx;
+    letter-spacing: 4rpx;
+    color: #e3f1f8;
+    animation: fadeUp 380ms ease-out both;
+}
+
+.settle__sub {
+    display: block;
+    margin-top: 10rpx;
+    text-align: center;
+    font-size: 23rpx;
+    color: #9fc3d4;
+    animation: fadeUp 380ms ease-out 80ms both;
+}
+
+.settle__gain {
+    margin-top: 30rpx;
+    text-align: center;
+    animation: fadeUp 420ms ease-out both;
+}
+
+.settle__gain-num {
+    font-family: "Songti SC", "STSong", serif;
+    font-size: 58rpx;
+    color: #e8c46a;
+    animation: countPop 560ms ease-out both;
+}
+
+.settle__gain-label { display: block; font-size: 22rpx; color: #9fc3d4; }
+
+.settle__bar {
+    height: 12rpx;
+    margin-top: 18rpx;
+    border-radius: 6rpx;
+    background: rgba(111, 212, 232, 0.14);
+    overflow: hidden;
+}
+
+.settle__bar-fill {
+    height: 100%;
+    border-radius: 6rpx;
+    background: linear-gradient(90deg, #2B7FA8, #6FD4E8);
+    transform-origin: left center;
+    animation: barGrow 700ms ease-out both;
+}
+
+.settle__rewards { margin-top: 26rpx; }
+
+.settle__reward {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12rpx 0;
+    border-bottom: 2rpx solid rgba(159, 195, 212, 0.16);
+    font-size: 24rpx;
+    animation: fadeUp 320ms ease-out both;
+}
+
+.settle__reward-k { color: #9fc3d4; }
+.settle__reward-v { color: #e3f1f8; }
+
+.settle__notes {
+    margin-top: 18rpx;
+    font-size: 22rpx;
+    line-height: 1.6;
+    color: #7fa8bd;
+    animation: fadeUp 320ms ease-out both;
+}
+
+.settle__actions {
+    display: flex;
+    gap: 16rpx;
+    margin-top: 32rpx;
+    animation: fadeUp 360ms ease-out both;
+}
+
+.settle__actions > .btn { flex: 1; }
+
+.settle__actions .btn--plain {
+    background: rgba(159, 195, 212, 0.12);
+    border-color: rgba(159, 195, 212, 0.35);
+    color: #cfe6f2;
+}
+
+.settle__actions .btn--primary {
+    background: #2a87ab;
+    border-color: #6FD4E8;
+    color: #ffffff;
+}
+
+.settle__skip {
+    position: absolute;
+    bottom: 44rpx;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 22rpx;
+    color: rgba(159, 195, 212, 0.7);
+}
+
+@keyframes moonBreath {
+    from { transform: translate(-50%, -50%) scale(0.86); opacity: 0.5; }
+    to { transform: translate(-50%, -50%) scale(1.14); opacity: 1; }
+}
+@keyframes cloudDrift {
+    from { transform: translateX(-40rpx); }
+    to { transform: translateX(40rpx); }
+}
+@keyframes qiRise {
+    from { transform: translateY(40rpx); opacity: 0.45; }
+    50% { opacity: 0.9; }
+    to { transform: translateY(-40rpx); opacity: 0.45; }
+}
+@keyframes burstFly {
+    0% { opacity: 0; transform: rotate(var(--a, 0deg)) translateX(0) scale(0.5); }
+    22% { opacity: 1; }
+    100% { opacity: 0; transform: rotate(var(--a, 0deg)) translateX(var(--d, 120rpx)) scale(1); }
+}
+@keyframes flashPulse {
+    0% { opacity: 0; transform: scale(0.55); }
+    35% { opacity: 1; }
+    100% { opacity: 0; transform: scale(1.15); }
+}
+@keyframes veilIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes auraIn {
+    0% { opacity: 0; transform: scale(1.8); }
+    45% { opacity: 0.5; }
+    100% { opacity: 0; transform: scale(0.5); }
+}
+@keyframes gradeDrop {
+    from { opacity: 0; transform: scale(2.2); }
+    to { opacity: 1; transform: scale(1); }
+}
+@keyframes gradeCrack {
+    from { opacity: 0; transform: scale(1.6) rotate(-6deg); }
+    to { opacity: 1; transform: scale(1) rotate(0); }
+}
+@keyframes goldSweep {
+    from { opacity: 0; transform: translateX(-160%); }
+    20% { opacity: 1; }
+    to { opacity: 0; transform: translateX(420%); }
+}
+@keyframes countPop {
+    from { opacity: 0; transform: scale(0.55); }
+    to { opacity: 1; transform: scale(1); }
+}
+@keyframes barGrow {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16rpx); }
+    to { opacity: 1; transform: translateY(0); }
+}

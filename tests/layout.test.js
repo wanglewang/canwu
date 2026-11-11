@@ -140,7 +140,8 @@ check('参悟局内隐藏功法头卡，盘面优先', function () {
 check('参悟吸底条只在有操作时出现', function () {
   const s = read('pages/practice/practice.wxml');
   const js = read('pages/practice/practice.js');
-  assert.ok(/class="pg \{\{barMode \? 'pg--with-bar' : ''\}\}"/.test(s), '页面未按 barMode 留底部空间');
+  assert.ok(/class="pg \{\{barMode \? 'pg--with-bar' : ''\}\}[^"]*"/.test(s), '页面未按 barMode 留底部空间');
+  assert.ok(/sceneOn && started && !showResult \? 'pg--scene' : ''/.test(s), '沉浸舞台没有按样板开关与局内状态挂载');
   assert.ok(/barMode === 'start'/.test(s) && /barMode === 'tools'/.test(s), '吸底条缺少开始/工具两种形态');
   assert.ok(/syncBar: function/.test(js), '缺少吸底条状态同步');
   const start = (s.match(/barMode === 'start'[\s\S]*?<\/view>/) || [])[0] || '';
@@ -234,6 +235,63 @@ check('吸底条适配安全区且有高优先级底部留白', function () {
   const css = read('app.wxss');
   assert.ok(/env\(safe-area-inset-bottom\)/.test((css.match(/\.sticky-bar \{[\s\S]*?\}/) || [])[0] || ''));
   assert.ok(/\.pg\.pg--with-bar \{/.test(css), '留白选择器优先级不足');
+});
+
+check('视觉标准落在唯一真源，样板阶段只对基础剑法开', function () {
+  const v = require('../data/visual.js');
+  assert.strictEqual(Object.keys(v.FAMILIES).length, 5, '五类主题色板不齐');
+  assert.deepStrictEqual(Object.keys(v.ENABLED), ['forge'], '样板阶段不该一次改十套');
+  assert.ok(v.isOn('forge') && !v.isOn('snatch'), '沉浸舞台开关没按主题生效');
+  assert.ok(v.MOTION.particles <= v.MOTION.particleCap && v.MOTION.particleCap <= 12, '粒子超预算');
+  assert.ok(v.MOTION.loops <= 3, '常驻循环动画超预算');
+  assert.strictEqual(v.settleTimeline('S')[4], 1800, 'S 级结算不是 1.8 秒');
+  assert.strictEqual(v.settleTimeline('C')[4], 900, 'B/C/F 结算没压到 900ms');
+  assert.ok(/@import\s+"\.\/styles\/scene\.wxss"/.test(read('app.wxss')), '场景样式没有全局引入');
+});
+
+check('三层场景与游戏化 HUD 已接线，玩法模块不碰视觉', function () {
+  const s = read('pages/practice/practice.wxml');
+  const js = read('pages/practice/practice.js');
+  for (const cls of ['scene__sky', 'scene__moon', 'scene__ridge', 'scene__gate', 'scene__clouds', 'scene__qi']) {
+    assert.ok(s.indexOf(cls) >= 0, '缺少场景层：' + cls);
+  }
+  for (const cls of ['scene-hud__incense', 'scene-hud__lamp', 'scene-hud__meter', 'scene-hud__score-num']) {
+    assert.ok(s.indexOf(cls) >= 0, '缺少游戏化 HUD：' + cls);
+  }
+  assert.ok(/visual\.stageOf\(this\.theme\.key\)/.test(js), '舞台主题没有从唯一真源取');
+  assert.ok(/incensePercent/.test(js) && /makeBurst/.test(js), '香炷或命中爆发没接线');
+  for (const f of fs.readdirSync(path.join(ROOT, 'minigames'))) {
+    if (!/\.js$/.test(f)) continue;
+    const src = read('minigames/' + f);
+    assert.ok(!/require\(.*visual|scene__|--glow/.test(src), '玩法模块混进了视觉字段：' + f);
+  }
+});
+
+check('结算五段演出可跳过，且只替换样板玩法的弹窗', function () {
+  const s = read('pages/practice/practice.wxml');
+  const js = read('pages/practice/practice.js');
+  for (let i = 1; i <= 4; i += 1) {
+    assert.ok(s.indexOf('settlePhase >= ' + i) >= 0, '结算缺少第 ' + i + ' 段');
+  }
+  assert.ok(/bindtap="onSkipSettle"/.test(s), '演出没有跳过入口');
+  assert.ok(/onSkipSettle: function/.test(js) && /startSettle: function/.test(js), '演出时序没有落地');
+  assert.ok(/visual\.settleTimeline\(grade\)/.test(js), '没有按评级选满/短演出');
+  const settleAt = s.indexOf('class="settle"');
+  const oldModal = s.indexOf('wx:elif="{{showResult && result}}"');
+  assert.ok(settleAt > 0 && oldModal > settleAt, '旧结算卡没有作为非样板玩法的 wx:elif 分支保留');
+  assert.ok(/catchtap="onPrimary"/.test(s), '结算按钮会冒泡触发跳过');
+});
+
+check('舞台动画只动 transform / opacity，不超循环预算', function () {
+  const css = read('styles/scene.wxss');
+  const blocks = css.match(/@keyframes\s+[\w-]+\s*\{[\s\S]*?\n\}/g) || [];
+  assert.ok(blocks.length >= 10, '关键帧数量不对');
+  for (const b of blocks) {
+    assert.ok(!/\b(left|top|right|bottom|width|height|background|box-shadow|filter)\s*:/.test(b),
+      '关键帧里出现会触发重排 / 重绘的属性：' + b.slice(0, 40));
+  }
+  const v = require('../data/visual.js');
+  assert.ok((css.match(/infinite/g) || []).length <= v.MOTION.loops, '常驻循环动画超过 3 路');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');
