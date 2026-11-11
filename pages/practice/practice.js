@@ -26,7 +26,6 @@ Page({
     showDifficulty: true,
     title: '',
     subtitle: '',
-    methodName: '',
     gameName: '',
     tip: '',
     tierName: '',
@@ -34,19 +33,15 @@ Page({
     prof: 0,
     percent: 0,
     nextText: '',
-    perkText: '',
     difficulty: 'easy',
     diffList: [],
     diffName: '简单',
     diffMultText: '×1.00',
-    diffText: '',
-    diffBrief: '',
     rankLabel: '黄阶',
     rankChar: '黄',
     rankColor: '#8a8f83',
     rankStars: '★☆☆☆',
     rankRewardText: '熟练度 ×1.00',
-    rankRealmText: '',
     decayTip: '',
     chainItems: [],
     chainLabel: '',
@@ -126,36 +121,30 @@ Page({
       const info = engine.breakthroughInfo(state);
       this.theme = themes.themeOf('breakthrough', 'charge');
       this.twist = '';
-      const bt = themes.twistOf('');
       this.setData({
         title: '冲关 · ' + info.nextName,
-        subtitle: '战力 ' + info.power + ' 已过 ' + info.need + ' 的门槛。气机只在一线之间，按住蓄力，松手停在朱线区间。',
-        methodName: '突破瓶颈',
+        subtitle: '战力 ' + info.power + ' 已过 ' + info.need + ' 的门槛。',
         gameName: '蓄力停区',
-        tip: '越靠近区间正中，评级越高；偏离区间则此番不成，可再来一次。',
+        tip: '松手停在朱线正中，评级最高',
         tierName: info.currentName,
         tierColor: '#b8893b',
         prof: info.power,
         percent: 100,
         nextText: '目标 ' + info.nextName,
-        perkText: '突破成功后境界提升，战力获得额外境界加成。',
         diffList: [],
         diffName: '',
         diffMultText: '',
-        diffText: '',
-        diffBrief: '',
         rankLabel: '',
         rankChar: '',
         rankStars: '',
         rankRewardText: '',
-        rankRealmText: '',
         decayTip: '',
         chainItems: [],
         chainLabel: '',
         bestText: '',
         theme: this.theme,
-        twistName: bt.name,
-        twistDesc: '气机往复只在朱线一线，越贴近正中评级越高。',
+        twistName: '长按蓄力',
+        twistDesc: '按住蓄力，松手停在朱线区间。越贴近正中，评级越高。',
       });
       return;
     }
@@ -166,7 +155,6 @@ Page({
     const theme = themes.themeOf(method.id, method.game);
     const twist = themes.twistOf(method.twist);
     const tier = practiceData.tierOf(skill.tier);
-    const fam = practiceData.familyOf(skill.type);
 
     // 难度档只认本门熟练度：已选的档若还没解锁，就回落到当前能选最高档。
     const maxDiff = practiceData.bestDifficulty(rec.prof);
@@ -177,15 +165,14 @@ Page({
 
     const chain = skillData.chainOfType(skill.type);
     const chainItems = chain.items.map(function (it) {
-      const t = practiceData.tierOf(it.tier);
-      const m = practiceData.getMethod(it.method);
       return {
-        id: it.id, name: it.name, tierName: t.name, tierLabel: t.label,
-        tierColor: t.color, gameName: m.gameName, current: it.id === skill.id,
+        id: it.id, name: it.name,
+        tierColor: practiceData.tierOf(it.tier).color,
+        current: it.id === skill.id,
       };
     });
     const best = state.records ? state.records[skill.id] : null;
-    const bestText = best ? '本门最佳 ' + best.score + ' 分 · ' + best.grade + ' 档' : '本门尚无纪录，这一局就是起点';
+    const bestText = best ? '本门最佳 ' + best.score + ' 分 · ' + best.grade + ' 档' : '';
 
     const realms = worldData.getWorld(state.worldId).realms;
     const realmNow = state.realmIndex + 1;
@@ -193,9 +180,9 @@ Page({
     const needRealmName = realms[Math.min(realms.length - 1, tier.needRealm - 1)].name;
     let decayTip = '';
     if (realmNow < tier.needRealm) {
-      decayTip = '本门是' + tier.label + '功法，宜在「' + needRealmName + '」境界后修习；当前境界不够，收益只剩 30%。';
+      decayTip = '宜在「' + needRealmName + '」后修习，当前境界不足，收益只剩三成。';
     } else if (realmNow > tier.maxRealm) {
-      decayTip = '境界已超本门可修上限「' + maxRealmName + '」，收益只剩 30%。熟练度还能涨，但该换一门更高阶的功法了。';
+      decayTip = '已超本门可修上限「' + maxRealmName + '」，收益只剩三成，该换更高阶的功法了。';
     }
 
     this.theme = theme;
@@ -203,7 +190,6 @@ Page({
     this.setData({
       title: skill.name,
       subtitle: skill.desc,
-      methodName: method.name,
       gameName: minigames.gameName(method.game),
       tip: method.tip,
       tierName: info.name,
@@ -211,24 +197,18 @@ Page({
       prof: rec.prof,
       percent: info.percent,
       nextText: info.maxed ? '已至大圆满' : '距 ' + info.nextName + ' 还差 ' + (info.nextThreshold - rec.prof),
-      perkText: info.index >= 3
-        ? '这一门已到「' + info.name + '」：技能特效生效，参悟时判定更宽裕、时限更从容。'
-        : '熟练度到「大成」后解锁技能特效与参悟便利。',
       difficulty: diffKey,
       diffList: diffList,
       diffName: diff.name,
       diffMultText: diff.multText,
-      diffText: '可选至「' + practiceData.difficultyOf(maxDiff).name + '」',
-      diffBrief: diff.brief,
       rankLabel: tier.label,
       rankChar: tier.name,
       rankStars: engine.starsOf(tier.stars),
       rankColor: tier.color,
       rankRewardText: '熟练度 ×' + tier.reward.toFixed(2),
-      rankRealmText: tier.maxRealm > realms.length ? '可修至元婴以上' : '可修至「' + maxRealmName + '」',
       decayTip: decayTip,
       chainItems: chainItems,
-      chainLabel: skill.type + '一脉 · ' + fam.core,
+      chainLabel: skill.type + ' 一脉',
       bestText: bestText,
       theme: theme,
       twistName: twist.name,

@@ -49,14 +49,6 @@
     color: #c9d6cd;
 }
 
-/* ---------- 本门玄机 ---------- */
-.twist {
-    box-sizing: border-box;
-    padding: 22rpx;
-    border-left: 8rpx solid #3d8c74;
-    border-radius: 12rpx;
-}
-
 /* ---------- 局内 HUD ---------- */
 .pr-play {
     padding-bottom: 28rpx;
@@ -673,7 +665,6 @@
     .ring-orb--good { background: #22392f; }
     .ring-orb--miss { background: #3a2523; }
     .heart { color: #4a5a51; }
-    .twist { opacity: 0.9; }
     .res-line { border-color: #33403a; }
     .cell--decoy { background: #4a5048; color: #d8ddd6; }
     .cell--card { background: #2f3d35; color: #cfd8cf; }

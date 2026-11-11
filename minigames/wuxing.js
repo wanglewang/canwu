@@ -78,7 +78,7 @@ function create(ctx) {
     vm.gradeNow = gradeNow();
     vm.goal = chain >= goal ? '已入圆满 · 稳住这一局' : '再连 ' + (goal - best) + ' 位可入 S';
     vm.meter = { label: '相生之窗', value: Math.round(windowMs / 100) / 10, max: Math.round(startWindow / 100) / 10 };
-    vm.hint = '中央是「' + ELEMENTS[current] + '」，点它相生的下一盏；连生越长，留给你的一息越短。';
+    vm.hint = '中央是「' + ELEMENTS[current] + '」，点它相生的下一盏。';
   }
 
   function finishOnce(grade, summary) {

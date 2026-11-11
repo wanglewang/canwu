@@ -1,8 +1,8 @@
 <view class="pg">
   <view class="pg__head">
-    <text class="eyebrow">技 能 · 品 阶 · 难 度 档</text>
+    <text class="eyebrow">藏 经 阁</text>
     <text class="h1 serif">功法</text>
-    <text class="muted mt8">十门功法分六类游戏族，同族按品阶出变体；天地玄黄管收益，难度档跟熟练度走。</text>
+    <text class="muted mt8">十门功法，六族玩法，品阶定收益。</text>
   </view>
 
   <view wx:if="{{ov}}" class="card card--ink">
@@ -13,22 +13,20 @@
     <view class="row--wrap mt16">
       <text class="tag tag--dark" wx:for="{{legend}}" wx:key="key">{{item.name}} {{item.threshold}}</text>
     </view>
-    <text class="tiny mt12 pr-tiny">熟练度决定能选到哪一档难度：入门 100 开普通、大成 1000 开困难、圆满 2500 开极难、大圆满 6000 开绝境。大成同时解锁技能特效。</text>
   </view>
 
   <view class="card chain-card">
     <view class="row--between">
-      <text class="section__title">功法谱系 · 游戏族</text>
+      <text class="section__title">功法谱系</text>
       <text class="tag tag--grey">黄 → 天</text>
     </view>
-    <text class="tiny mt8">同类功法共用一套手感内核，族内按品阶递进出变体。缺变体的品阶留空档，一眼能看出这一脉还差哪一档。</text>
     <view wx:for="{{families}}" wx:key="type" class="chain-row mt12">
       <view class="row--between">
         <text class="chain-row__label">{{item.label}}</text>
-        <text class="tiny">{{item.kindLabel}} · {{item.core}}</text>
+        <text class="tiny">{{item.kindLabel}}</text>
       </view>
       <view class="row--wrap mt8">
-        <text wx:for="{{item.slots}}" wx:for-item="node" wx:key="id" class="chain-node {{node.empty ? 'chain-node--empty' : ''}} {{node.unlocked ? 'chain-node--got' : ''}}">{{node.tierName}} · {{node.name}}{{node.gameName ? ' · ' + node.gameName : ''}}</text>
+        <text wx:for="{{item.slots}}" wx:for-item="node" wx:key="id" class="chain-node {{node.empty ? 'chain-node--empty' : ''}} {{node.unlocked ? 'chain-node--got' : ''}}">{{node.tierName}} · {{node.name}}</text>
       </view>
     </view>
   </view>
@@ -51,13 +49,13 @@
         <text wx:elif="{{item.canBuy}}" class="tag tag--gold">可兑换</text>
         <text wx:else class="tag tag--grey">未得</text>
       </view>
-      <text class="tiny mt8">{{item.methodName}} · {{item.desc}}</text>
+      <text class="tiny mt8">{{item.desc}}</text>
       <view class="row mt8">
-        <text class="tag tag--jade">玩法 · {{item.gameName}}</text>
-        <text wx:if="{{item.bestText}}" class="tiny skill-best">本门最佳 {{item.bestText}}</text>
+        <text class="tag tag--jade">{{item.gameName}}</text>
+        <text wx:if="{{item.bestText}}" class="tiny skill-best">最佳 {{item.bestText}}</text>
       </view>
       <view class="row mt8">
-        <text class="tiny">{{item.rewardText}} · {{item.diffText}}</text>
+        <text class="tiny">{{item.rewardText}}</text>
         <text wx:if="{{item.decayed}}" class="tag tag--warn">衰减中</text>
       </view>
       <block wx:if="{{item.unlocked}}">
@@ -87,24 +85,15 @@
         <text class="tag" style="background:{{detail.tierColor}};color:#fffdf7">{{detail.tierLabel}} {{detail.starsText}}</text>
       </view>
       <text class="modal__title serif mt12">{{detail.name}}</text>
-      <text class="modal__sub">参悟方式 · {{detail.methodName}} · 玩法「{{detail.gameName}}」</text>
+      <text class="modal__sub">{{detail.gameName}}</text>
 
       <view class="rank-detail mt12">
         <view class="row--between">
-          <text class="tag tag--gold">{{detail.tierLabel}}</text>
-          <text class="tiny">{{detail.rewardText}}</text>
-        </view>
-        <text class="body mt8">{{detail.tierDesc}}</text>
-        <view class="res-line mt8">
-          <text class="muted">可修境界</text>
+          <text class="tag tag--gold">{{detail.tierLabel}} · {{detail.rewardText}}</text>
           <text class="tiny">{{detail.maxRealmName}}以内不衰减</text>
         </view>
-        <view class="res-line">
-          <text class="muted">当前可选难度</text>
-          <text class="tiny">{{detail.diffText}}</text>
-        </view>
         <text wx:if="{{detail.decayed}}" class="warn-line mt8">{{detail.decayText}}</text>
-        <text wx:if="{{detail.bestText}}" class="tiny mt8">本门最佳：{{detail.bestText}}</text>
+        <text wx:if="{{detail.bestText}}" class="tiny mt8">最佳 {{detail.bestText}}</text>
       </view>
 
       <view class="modal__body">
@@ -112,7 +101,7 @@
         <text class="quote mt12">{{detail.flavor}}</text>
         <view class="divider"></view>
         <view class="res-line">
-          <text class="muted">属性加成（随段位与品阶提高）</text>
+          <text class="muted">属性加成</text>
           <text class="h3 jade">{{detail.bonusText}}</text>
         </view>
         <view class="res-line">
@@ -143,5 +132,5 @@
     </view>
   </view>
 
-  <view class="pg__foot">点 开 功 法 可 看 详 情</view>
+  <view class="pg__foot">一 门 一 法 · 各 有 门 道</view>
 </view>

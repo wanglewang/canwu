@@ -1,9 +1,9 @@
 <view class="pg pg--with-bar">
   <view class="pg__head">
-    <text class="eyebrow">养 成 挂 机 · 小 游 戏 参 悟</text>
+    <text class="eyebrow">洞 府</text>
     <text class="h1 serif">参悟</text>
     <text class="muted mt8">等是保底，练才是加速。</text>
-    <text class="guide-link text-link mt8" bindtap="onGoGuide">修行指南 · 玩法与数值 ›</text>
+    <text class="guide-link text-link mt8" bindtap="onGoGuide">修行指南 ›</text>
   </view>
 
   <view wx:if="{{syncTone !== 'ok'}}" class="alert-bar alert-bar--{{syncTone}}" bindtap="onRetrySync">
@@ -70,7 +70,7 @@
         <text class="section__sub">{{ov.realmIndex + 1}} / {{ov.realmCount}}</text>
       </view>
       <block wx:if="{{!ov.breakthrough.maxed}}">
-        <text class="body">下一境「{{ov.breakthrough.nextName}}」需战力 {{ov.breakthrough.need}}，当前 {{ov.breakthrough.power}}。到瓶颈后要过一道蓄力关。</text>
+        <text class="body">下一境「{{ov.breakthrough.nextName}}」需战力 {{ov.breakthrough.need}}，当前 {{ov.breakthrough.power}}。</text>
         <view class="bar mt12">
           <view class="bar__fill" style="width:{{breakPercent}}%;background:#b8893b"></view>
         </view>
@@ -88,7 +88,7 @@
         <view class="row--between">
           <view>
             <text class="h3">{{item.name}}</text>
-            <text class="tiny"> · {{item.methodName}}</text>
+            <text class="tiny">{{item.methodName}}</text>
           </view>
           <text class="tag" style="color:{{item.tierColor}}">{{item.tierName}}</text>
         </view>
@@ -155,7 +155,7 @@
         </view>
       </view>
       <text wx:if="{{offline.capped}}" class="tiny mt12">超过 8 小时的部分不累计，回来练一局更快。</text>
-      <text wx:if="{{offline.buffMinutes > 0}}" class="tiny mt8">其中 {{offline.buffMinutes}} 分钟享受了参悟 buff。</text>
+      <text wx:if="{{offline.buffMinutes > 0}}" class="tiny mt8">其中 {{offline.buffMinutes}} 分钟带着挂机加成。</text>
       <view class="modal__actions">
         <button class="btn btn--primary btn--block" bindtap="closeOffline">收下，去练一局</button>
       </view>

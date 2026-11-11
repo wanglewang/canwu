@@ -25,21 +25,12 @@
 
   <view wx:if="{{!started && !showResult}}" class="card">
     <view class="row--between">
-      <text class="section__title">参悟方式 · {{methodName}}</text>
+      <text class="section__title">{{twistName}}</text>
       <text class="tag tag--jade">{{gameName}}</text>
     </view>
-    <text class="body mt12">{{tip}}</text>
+    <text class="body mt8">{{twistDesc}}</text>
 
-    <view class="twist mt16" style="border-color:{{theme.accent}};background:{{theme.soft}}">
-      <view class="row--between">
-        <text class="h3" style="color:{{theme.ink}}">本门玩法 · {{twistName}}</text>
-        <text class="tag" style="background:{{theme.accent}};color:#fffdf7">只此一家</text>
-      </view>
-      <text class="body mt8" style="color:{{theme.ink}}">{{twistDesc}}</text>
-    </view>
-
-    <view class="divider"></view>
-    <view wx:if="{{rankLabel}}" class="rank-card" style="border-color:{{theme.accent}};background:{{theme.soft}}">
+    <view wx:if="{{rankLabel}}" class="rank-card mt16" style="border-color:{{theme.accent}};background:{{theme.soft}}">
       <view class="row--between">
         <view class="row">
           <text class="rank-badge" style="background:{{rankColor}}">{{rankChar}}</text>
@@ -47,15 +38,11 @@
         </view>
         <text class="tiny" style="color:{{theme.ink}}">{{rankRewardText}}</text>
       </view>
-      <view class="row--between mt8">
-        <text class="tiny" style="color:{{theme.ink}}">{{rankRealmText}}</text>
-        <text class="tiny" style="color:{{theme.ink}}">{{diffText}}</text>
-      </view>
       <text wx:if="{{decayTip}}" class="warn-note mt8">{{decayTip}}</text>
       <view class="divider"></view>
-      <text class="tiny" style="color:{{theme.ink}}">{{chainLabel}} · 同类同族，变体递进</text>
+      <text class="tiny" style="color:{{theme.ink}}">{{chainLabel}}</text>
       <view class="row--wrap mt8">
-        <text wx:for="{{chainItems}}" wx:key="id" class="rank-chain__item {{item.current ? 'rank-chain__item--now' : ''}}" style="{{item.current ? 'background:' + item.tierColor + ';color:#fffdf7' : ''}}">{{item.tierName}} · {{item.name}} · {{item.gameName}}</text>
+        <text wx:for="{{chainItems}}" wx:key="id" class="rank-chain__item {{item.current ? 'rank-chain__item--now' : ''}}" style="{{item.current ? 'background:' + item.tierColor + ';color:#fffdf7' : ''}}">{{item.name}}</text>
       </view>
     </view>
 
@@ -63,8 +50,7 @@
 
     <block wx:if="{{showDifficulty}}">
       <view class="divider"></view>
-      <text class="h3">今日难度 · 跟人走</text>
-      <text class="tiny mt8">品阶管收益，难度管倍率。同一门功法换档就是换一局节奏：档越高倍率越高，判定也越紧。</text>
+      <text class="section__title">难度</text>
       <view class="diff-row mt12">
         <view wx:for="{{diffList}}" wx:key="key" class="diff-chip {{item.current ? 'diff-chip--on' : ''}} {{item.unlocked ? '' : 'diff-chip--lock'}}" data-d="{{item.key}}" bindtap="onDifficulty">
           <text class="diff-chip__name">{{item.name}}</text>
@@ -72,9 +58,6 @@
           <text wx:if="{{!item.unlocked}}" class="diff-chip__need">{{item.lockedText}}</text>
         </view>
       </view>
-      <text class="tiny mt12">{{diffBrief}}</text>
-      <view class="divider"></view>
-      <text class="tiny">{{perkText}}</text>
     </block>
 
     <button class="btn btn--primary btn--block mt24" bindtap="onStart">开始参悟</button>
@@ -121,7 +104,7 @@
           <view class="charge__zone" style="left:{{vm.charge.start}}%;width:{{chargeWidth}}%"></view>
           <view class="charge__cursor" style="left:{{vm.charge.value}}%"></view>
         </view>
-        <text class="tiny mt8">朱线区间 {{vm.charge.start}}% — {{vm.charge.end}}%</text>
+        <text class="tiny mt8">松手停在朱线内，越居中越好</text>
         <button class="btn btn--gold btn--block mt16" bindtouchstart="onPress" bindtouchend="onRelease" bindtouchcancel="onRelease" bindtap="onChargeTap">按住蓄力 · 松手定住</button>
       </view>
 
@@ -191,7 +174,6 @@
       <view class="grade" style="background:{{result.gradeColor}}">{{result.grade}}</view>
       <text class="modal__title serif mt16">{{result.headline}}</text>
       <text class="modal__sub">{{result.gradeTitle}} · {{result.subline}}</text>
-      <text class="tiny mt8">本门玩法 · {{twistName}}</text>
 
       <view class="modal__body" wx:if="{{result.lines.length > 0}}">
         <view class="res-line" wx:for="{{result.lines}}" wx:key="k">

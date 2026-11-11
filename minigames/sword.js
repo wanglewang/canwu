@@ -59,7 +59,7 @@ function create(ctx) {
     vm.gradeNow = gradeBySegments();
     vm.goal = '第 ' + vm.scroll.segment + ' 段 · 还差 ' + (totalSegments - segmentsDone) + ' 段圆满';
     vm.meter = { label: '本段步位', value: vm.scroll.cursor, max: vm.scroll.moves.length };
-    vm.hint = '打错一招只断连势、这一招要重出；段数越往后，卷轴越长。';
+    vm.hint = '踏错只需重走这一步。';
   }
 
   function finishOnce(grade, summary) {

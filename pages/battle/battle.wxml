@@ -1,6 +1,6 @@
 <view class="pg">
   <view class="pg__head">
-    <text class="eyebrow">预 设 N P C · 真 实 道 友 · 异 步 战 力 码</text>
+    <text class="eyebrow">论 道 台</text>
     <text class="h1 serif">论道</text>
     <text class="muted mt8">与青云界高手过招，或凭战力码会一会朋友。</text>
   </view>
@@ -11,10 +11,9 @@
       <text class="tag tag--dark">{{ov.equippedTitleName}}</text>
     </view>
     <view class="row--between mt16">
-      <text class="tiny pr-tiny">当前战力</text>
+      <text class="tiny pr-tiny">当前战力 · 出手 ±15%</text>
       <text class="big-number hero-num">{{ov.power}}</text>
     </view>
-    <text class="tiny mt12 pr-tiny">对战时双方各有 ±15% 随机波动；大成以上技能会触发特效，抬高战力或波动下限。</text>
   </view>
 
   <view class="section">
@@ -109,7 +108,6 @@
         <button class="btn btn--plain btn--small" bindtap="onPasteCode">从剪贴板读取</button>
         <button class="btn btn--gold btn--small" bindtap="onMirrorFight">打镜像</button>
       </view>
-      <text class="tiny mt12">战力码里带着对方的战力、境界与技能段位，输入后打的是他的「镜像」。</text>
     </view>
   </view>
 

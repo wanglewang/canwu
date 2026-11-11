@@ -70,10 +70,9 @@ Page({
         const s = groups[g].items[i];
         cards.push({
           id: s.id, name: s.name, type: s.type, desc: s.desc,
-          methodName: s.methodName, gameName: s.gameName,
+          gameName: s.gameName,
           tierKey: s.tierKey, tierName: s.tierName, tierLabel: s.tierLabel,
           tierColor: s.tierColor, starsText: s.starsText, rewardText: s.rewardText,
-          tierDesc: s.tierDesc, diffText: s.diffText,
           maxRealm: s.maxRealm, maxRealmName: s.maxRealmName, decayed: s.decayed, decayText: s.decayText,
           needRealm: s.needRealm, needRealmName: s.needRealmName, realmOk: s.realmOk,
           bestText: s.bestText,

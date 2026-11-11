@@ -1,6 +1,6 @@
 <view class="pg">
   <view class="pg__head">
-    <text class="eyebrow">称 号 · 成 就 · 存 档</text>
+    <text class="eyebrow">修 行 记</text>
     <text class="h1 serif">道牒</text>
     <text class="muted mt8">练到哪一步了，一张卡片说得清。</text>
   </view>
@@ -53,7 +53,6 @@
       <text class="text-link text-link--muted" bindtap="onGoBattle">看论道榜单</text>
       <button class="btn btn--ghost btn--compact" open-type="share">邀道友同修</button>
     </view>
-    <text class="tiny mt12">也可直接长按上方卡片截图晒出；战力码发给朋友可打镜像。</text>
 
     <view class="section">
       <view class="section__head">
@@ -105,7 +104,7 @@
       </view>
       <view class="card">
         <text class="body">当前账号：{{accountLabel || '读取中'}}</text>
-        <text class="tiny mt8">进度跟着这个账号走，换设备登录后继续修行；导出的存档码也能手动搬家。</text>
+        <text class="tiny mt8">换设备登录后进度自动接续。</text>
         <view class="btn-row btn-row--tight">
           <button class="btn btn--primary" bindtap="onExportSave">导出存档</button>
           <button class="btn btn--ghost" bindtap="openImport">导入存档</button>
@@ -140,8 +139,7 @@
       <view class="section__head"><text class="section__title">关于参悟</text></view>
       <view class="card">
         <text class="body">青云界灵气渐薄，外门弟子人人都在等一次顿悟。你不等，你去练。</text>
-        <text class="tiny mt12">不玩也在变强，玩了明显更快。每一条数值怎么算，都写在修行指南里。</text>
-        <button class="btn btn--ghost btn--block mt12" bindtap="onGoGuide">修行指南 · 玩法与数值 ›</button>
+        <button class="btn btn--ghost btn--block mt12" bindtap="onGoGuide">修行指南 ›</button>
       </view>
     </view>
   </block>
@@ -163,7 +161,6 @@
         <button class="btn btn--ghost btn--small" bindtap="onNextPortrait">换道相</button>
       </view>
       <button wx:if="{{draftAvatarTemp}}" class="btn btn--plain btn--small btn--block mt12" bindtap="onClearAvatar">换回道相</button>
-      <text class="tiny mt12">头像与昵称由你主动选择，微信不会自动给出；资料随账号存档一起保存。</text>
       <view class="modal__actions">
         <button class="btn btn--plain" bindtap="closeRoleEditor">取消</button>
         <button class="btn btn--primary" bindtap="onSaveRole">定下</button>

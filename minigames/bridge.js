@@ -103,7 +103,7 @@ function create(ctx) {
     vm.meter = { label: '循纹目标', value: target, max: toneMax };
     vm.lane.activeRow = activeRow;
     vm.lane.target = target;
-    vm.hint = '只点当前这一层的石板；踩过的层会留下渡痕，未到的层还罩着水雾。';
+    vm.hint = '只点当前这一层，踩过的会留渡痕。';
   }
 
   function finishOnce(grade, summary) {
