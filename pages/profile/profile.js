@@ -6,6 +6,7 @@ const worldData = require('../../data/world.js');
 const { cloud } = require('../../utils/cloud.js');
 const social = require('../../utils/cloud-social.js');
 const share = require('../../utils/share.js');
+const sfx = require('../../utils/sfx.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -58,11 +59,13 @@ Page({
     draftName: '',
     draftPortrait: 0,
     draftAvatarTemp: '',
+    sfxOn: true,
   },
 
   onLoad: function () {
     this.listener = this.refresh.bind(this);
     store.subscribe(this.listener);
+    this.setData({ sfxOn: sfx.isEnabled() });
     this.refresh();
     this.loadAccount();
   },
@@ -188,6 +191,13 @@ Page({
   },
 
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
+
+  onToggleSfx: function () {
+    const on = sfx.toggle();
+    this.setData({ sfxOn: on });
+    if (on) sfx.play('hit');
+    toast(on ? '音效已开' : '音效已关');
+  },
 
   onGoBattle: function () { wx.switchTab({ url: '/pages/battle/battle' }); },
 

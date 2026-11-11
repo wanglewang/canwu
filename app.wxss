@@ -272,6 +272,17 @@ button::after {
 
 .sticky-bar > .btn { flex: 1; }
 
+/* 局内工具条：紧贴底部，按钮靠右不铺满，避免和盘面抢视线 */
+.sticky-bar--tools {
+    justify-content: flex-end;
+    gap: 14rpx;
+}
+
+.sticky-bar--tools > .btn {
+    flex: 0 0 auto;
+    min-width: 208rpx;
+}
+
 .sticky-bar__side {
     font-size: 22rpx;
     color: #8a8f83;
@@ -280,7 +291,7 @@ button::after {
 
 /* 提高优先级，避免被文件末尾的 .pg 安全区规则覆盖 */
 .pg.pg--with-bar {
-    padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
+    padding-bottom: calc(152rpx + env(safe-area-inset-bottom));
 }
 
 /* ---------- 标签 ---------- */

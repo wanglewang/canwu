@@ -121,15 +121,44 @@ check('不可撤销操作使用警示样式并与常规操作分区', function (
   assert.ok(/btn--warn/.test(read('app.wxss')), 'app.wxss 未定义 .btn--warn');
 });
 
-check('参悟局内收功移出拇指区且带二次确认', function () {
+check('参悟局内收功放在屏幕上方且带二次确认', function () {
   const s = read('pages/practice/practice.wxml');
   const js = read('pages/practice/practice.js');
-  assert.ok(/class="icon-btn" bindtap="onAbandon"/.test(s), '收功不是独立的小入口');
-  const bar = (s.match(/<view[^>]*class="sticky-bar"[\s\S]*?<\/view>/) || [])[0] || '';
+  assert.ok(/class="hud__quit" bindtap="onAbandon"/.test(s), '收功不在局内 HUD 上方的独立小入口');
+  const bar = (s.match(/<view[^>]*class="sticky-bar[^"]*"[\s\S]*?<\/view>/) || [])[0] || '';
   assert.ok(bar.length > 0, '局内缺少吸底辅助操作条');
   assert.ok(!/onAbandon/.test(bar), '收功仍放在拇指热区，容易误触');
-  assert.ok(/bindtap="onUndo"/.test(bar) && /bindtap="onHint"/.test(bar), '撤销/提示未移入吸底条');
+  assert.ok(/bindtap="onUndo"/.test(s) && /bindtap="onHint"/.test(s), '撤销/提示未放进吸底条');
   assert.ok(/中途收功/.test(js) && /wx\.showModal/.test(js), '收功缺少二次确认');
+});
+
+check('参悟局内隐藏功法头卡，盘面优先', function () {
+  const s = read('pages/practice/practice.wxml');
+  assert.ok(/wx:if="\{\{!started \|\| showResult\}\}" class="card card--ink pr-head"/.test(s), '局内仍渲染功法头卡，挤占盘面');
+});
+
+check('参悟吸底条只在有操作时出现', function () {
+  const s = read('pages/practice/practice.wxml');
+  const js = read('pages/practice/practice.js');
+  assert.ok(/class="pg \{\{barMode \? 'pg--with-bar' : ''\}\}"/.test(s), '页面未按 barMode 留底部空间');
+  assert.ok(/barMode === 'start'/.test(s) && /barMode === 'tools'/.test(s), '吸底条缺少开始/工具两种形态');
+  assert.ok(/syncBar: function/.test(js), '缺少吸底条状态同步');
+  const start = (s.match(/barMode === 'start'[\s\S]*?<\/view>/) || [])[0] || '';
+  assert.ok(/bindtap="onStart"/.test(start), '准备页的开始按钮不在吸底条里');
+  assert.ok(/bindtap="onBack"/.test(start), '准备页缺少退出入口');
+});
+
+check('局内音效有资源、有开关、跟着判定浮字走', function () {
+  const sfx = read('utils/sfx.js');
+  const practice = read('pages/practice/practice.js');
+  const profile = read('pages/profile/profile.wxml');
+  for (const f of ['tap', 'hit', 'miss', 'gold', 'tick', 'go', 'clear', 'settle', 'fail']) {
+    assert.ok(new RegExp('\\b' + f + ':\\s*\\{').test(sfx), 'sfx 缺少音效：' + f);
+    assert.ok(fs.existsSync(path.join(ROOT, 'assets/sfx', f + '.wav')), '缺少音效文件 assets/sfx/' + f + '.wav');
+  }
+  assert.ok(/sfx\.tone\(vm\.fx\.tone\)/.test(practice), '局内浮字没有接音效');
+  assert.ok(/sfx\.warm\(\)/.test(practice), '进入参悟页没有预热音频上下文');
+  assert.ok(/onToggleSfx/.test(profile), '道牒页缺少音效开关');
 });
 
 check('论道页对手按钮改为卡片右侧紧凑按钮', function () {

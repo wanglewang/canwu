@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "sim": "node scripts/simulate.js",
     "icons": "node scripts/gen-icons.js",
+    "sfx": "node scripts/gen-sfx.js",
     "check": "npm run verify && npm run test && npm run sim && npm run lint"
   },
   "dependencies": {

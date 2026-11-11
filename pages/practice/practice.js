@@ -7,6 +7,7 @@ const themes = require('../../minigames/theme.js');
 const skillData = require('../../data/skills.js');
 const practiceData = require('../../data/practice.js');
 const worldData = require('../../data/world.js');
+const sfx = require('../../utils/sfx.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -60,6 +61,7 @@ Page({
     started: false,
     showResult: false,
     result: null,
+    barMode: '',
   },
 
   onLoad: function (query) {
@@ -67,10 +69,12 @@ Page({
     this.controller = null;
     this.countdownTimers = [];
     this.needsRebuild = false;
+    this.lastFxKey = 0;
     this.theme = themes.themeOf('forge', 'click');
     this.twist = '';
     this.mode = query && query.mode === 'breakthrough' ? 'breakthrough' : 'practice';
     this.skillId = (query && query.skillId) || '';
+    sfx.warm();
 
     if (this.mode === 'breakthrough') {
       const info = engine.breakthroughInfo(store.get());
@@ -103,6 +107,7 @@ Page({
   onHide: function () {
     this.clearCountdown();
     if (this.controller) this.controller.destroy();
+    sfx.stopAll();
     if (!this.data.showResult) {
       this.needsRebuild = true;
       this.setData({ started: false });
@@ -114,6 +119,7 @@ Page({
     this.clearCountdown();
     if (this.controller) this.controller.destroy();
     this.controller = null;
+    sfx.stopAll();
   },
 
   refresh: function () {
@@ -270,15 +276,35 @@ Page({
           heartList: heartsToFlags(vm.hearts),
           meterPercent: vm.meter && vm.meter.max ? Math.round(vm.meter.value / vm.meter.max * 100) : 0,
         });
+        // 浮字是玩法里唯一的「判定结果」信号，音效跟着它走，不用每个玩法各写一遍。
+        if (vm.fx && vm.fx.key !== self.lastFxKey) {
+          self.lastFxKey = vm.fx.key;
+          sfx.tone(vm.fx.tone);
+        }
+        self.syncBar();
       },
       finish: function (res) { self.onFinish(res); },
     });
+    this.lastFxKey = 0;
     this.setData({
       started: false,
       showResult: false,
       result: null,
       hintLabel: gameId === 'lights' ? '阵眼感应' : gameId === 'seal' ? '符箓照纹' : '提示',
     });
+    this.syncBar();
+  },
+
+  // 吸底条只在真有操作可给的时候出现：准备页是「开始参悟」，局内只有带撤销/提示的玩法才占位。
+  // 其余玩法不挂条也不留底部空白，盘面能多占一截屏幕。
+  syncBar: function () {
+    if (!this.pageAlive) return;
+    const vm = this.data.vm;
+    let mode = '';
+    if (this.data.showResult) mode = '';
+    else if (this.data.started) mode = vm && (vm.extras.showUndo || vm.extras.showHint) ? 'tools' : '';
+    else mode = 'start';
+    if (mode !== this.data.barMode) this.setData({ barMode: mode });
   },
 
   clearCountdown: function () {
@@ -290,16 +316,21 @@ Page({
   onStart: function () {
     if (!this.controller || this.data.started || this.data.countdown > 0) return;
     const self = this;
+    this.clearCountdown();
     this.setData({ countdown: 3 });
+    sfx.play('tick');
     function step() {
       const id = setTimeout(function () {
         if (!self.pageAlive) return;
         const n = self.data.countdown - 1;
         if (n <= 0) {
           self.setData({ countdown: 0, started: true });
+          sfx.play('go');
           if (self.controller) self.controller.start();
+          self.syncBar();
         } else {
           self.setData({ countdown: n });
+          sfx.play('tick');
           step();
         }
       }, 380);
@@ -312,7 +343,9 @@ Page({
     if (!this.pageAlive || this.data.countdown <= 0) return;
     this.clearCountdown();
     if (this.controller) this.controller.start();
+    sfx.play('go');
     this.setData({ started: true });
+    this.syncBar();
   },
 
   onDifficulty: function (event) {
@@ -332,16 +365,29 @@ Page({
 
   onCellTap: function (event) {
     if (!this.controller) return;
+    const before = this.lastFxKey;
     this.controller.tap(Number(event.currentTarget.dataset.index || 0));
+    // 玩法没给浮字（点空、翻已开的格子）就补一声轻响，让每次触碰都有回应。
+    if (this.lastFxKey === before) sfx.play('tap');
   },
 
   onCellLongPress: function (event) {
     if (!this.controller) return;
+    const before = this.lastFxKey;
     this.controller.longpress(Number(event.currentTarget.dataset.index));
+    if (this.lastFxKey === before) sfx.play('tap');
   },
 
-  onUndo: function () { if (this.controller) this.controller.undo(); },
-  onHint: function () { if (this.controller) this.controller.hint(); },
+  onUndo: function () {
+    if (!this.controller) return;
+    this.controller.undo();
+    sfx.play('tap');
+  },
+  onHint: function () {
+    if (!this.controller) return;
+    this.controller.hint();
+    sfx.play('tick');
+  },
   onPress: function () { if (this.controller) this.controller.press(); },
   onRelease: function () { if (this.controller) this.controller.release(); },
   onChargeTap: function () { if (this.controller) this.controller.tap(0); },
@@ -456,8 +502,12 @@ Page({
     if (wx.vibrateShort && (grade === 'S' || grade === 'A')) {
       try { wx.vibrateShort({ type: grade === 'S' ? 'heavy' : 'light' }); } catch (e) { /* 部分环境不支持震动 */ }
     }
+    if (grade === 'S' || grade === 'A') sfx.play('clear');
+    else if (grade === 'F') sfx.play('fail');
+    else sfx.play('settle');
     this.clearCountdown();
     this.setData({ showResult: true, result: rv, started: false });
+    this.syncBar();
     this.refresh();
   },
 

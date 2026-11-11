@@ -51,12 +51,64 @@
 
 /* ---------- 局内 HUD ---------- */
 .pr-play {
-    padding-bottom: 28rpx;
+    padding: 26rpx 28rpx 24rpx;
+}
+
+/* 局内不再显示功法头卡，靠这一行小字交代「在练哪门、什么难度」 */
+.hud__top {
+    align-items: flex-start;
+}
+
+.hud__id {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.hud__skill {
+    color: #9a9a8b;
+    font-size: 20rpx;
+    letter-spacing: 2rpx;
+}
+
+.hud__time {
+    margin-top: 4rpx;
+    font-size: 40rpx;
+    line-height: 1.2;
 }
 
 .hud__right {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
+    padding-top: 6rpx;
+}
+
+/* 收功：留在屏幕上方，离拇指热区远一点，误触代价太大 */
+.hud__quit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 56rpx;
+    margin-left: 14rpx;
+    padding: 0 18rpx;
+    border: 2rpx solid rgba(120, 130, 120, 0.3);
+    border-radius: 999rpx;
+    color: #8a8f83;
+    font-size: 22rpx;
+    line-height: 1;
+}
+
+.hud__goal {
+    line-height: 1.5;
+}
+
+.pr-hint {
+    margin-top: 12rpx;
+}
+
+.pr-hint .tiny {
+    line-height: 1.55;
 }
 
 .combo-chip {
@@ -693,6 +745,8 @@
 .diff-chip--lock { opacity: 0.55; }
 
 @media (prefers-color-scheme: dark) {
+    .hud__skill { color: #9aa79f; }
+    .hud__quit { border-color: #3a4a42; color: #9aa79f; }
     .rank-card { border-color: #33403a; }
     .rank-chain__item { background: #2b3832; color: #cfd8cf; }
     .rank-chain__item--now { background: var(--acc, #3d8c74); color: #fffdf7; }

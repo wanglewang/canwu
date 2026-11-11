@@ -1,6 +1,6 @@
-<view class="pg {{started && !showResult ? 'pg--with-bar' : ''}}" style="--acc:{{theme.accent}};--soft:{{theme.soft}};--ink:{{theme.ink}};--bg:{{theme.bg}};--frame:{{theme.frame}}">
+<view class="pg {{barMode ? 'pg--with-bar' : ''}}" style="--acc:{{theme.accent}};--soft:{{theme.soft}};--ink:{{theme.ink}};--bg:{{theme.bg}};--frame:{{theme.frame}}">
 
-  <view class="card card--ink pr-head">
+  <view wx:if="{{!started || showResult}}" class="card card--ink pr-head">
     <view class="row--between">
       <text class="eyebrow pr-eyebrow">{{modeLabel}} · {{theme.name}}</text>
       <text class="tag tag--dark">{{gameName}}</text>
@@ -58,7 +58,10 @@
 
     <block wx:if="{{showDifficulty}}">
       <view class="divider"></view>
-      <text class="section__title">难度</text>
+      <view class="row--between">
+        <text class="section__title">难度</text>
+        <text class="tiny">{{diffName}} · {{diffMultText}}</text>
+      </view>
       <view class="diff-row mt12">
         <view wx:for="{{diffList}}" wx:key="key" class="diff-chip {{item.current ? 'diff-chip--on' : ''}} {{item.unlocked ? '' : 'diff-chip--lock'}}" data-d="{{item.key}}" bindtap="onDifficulty">
           <text class="diff-chip__name">{{item.name}}</text>
@@ -67,27 +70,26 @@
         </view>
       </view>
     </block>
-
-    <button class="btn btn--primary btn--block mt24" bindtap="onStart">开始参悟</button>
-    <view class="link-row">
-      <text class="text-link text-link--muted" bindtap="onBack">先不练了</text>
-    </view>
   </view>
 
   <view wx:if="{{started && !showResult && vm}}" class="card pr-play">
     <view class="hud">
-      <view class="row--between">
-        <text class="h3">{{vm.timeText || '正在参悟'}}</text>
+      <view class="row--between hud__top">
+        <view class="hud__id">
+          <text class="eyebrow hud__skill">{{title}}<text wx:if="{{diffName}}"> · {{diffName}}</text></text>
+          <text class="hud__time serif">{{vm.timeText || '正在参悟'}}</text>
+        </view>
         <view class="hud__right">
           <text wx:if="{{vm.comboText}}" class="combo-chip" style="color:{{theme.ink}}">{{vm.comboText}}</text>
           <text class="grade-chip" style="background:{{gradeNowColor}}">{{vm.gradeNow}}</text>
+          <view class="hud__quit" bindtap="onAbandon">收功</view>
         </view>
       </view>
       <view wx:if="{{vm.extras.showProgress}}" class="hud__track mt8">
         <view class="hud__fill" style="width:{{vm.progress}}%;background:{{theme.accent}}"></view>
       </view>
       <view class="row--between mt8">
-        <text class="tiny">{{vm.goal || vm.status}}</text>
+        <text class="tiny grow hud__goal">{{vm.goal || vm.status}}</text>
         <text class="tag tag--jade">{{vm.scoreText}}</text>
       </view>
       <view wx:if="{{vm.extras.showHearts}}" class="hearts mt8">
@@ -101,9 +103,9 @@
     </view>
 
     <text wx:if="{{vm.banner}}" class="banner mt12" style="color:{{theme.ink}};border-color:{{theme.accent}}">{{vm.banner}}</text>
-    <view class="row--between mt8">
-      <text class="tiny grow">{{vm.hint}}</text>
-      <view class="icon-btn" bindtap="onAbandon">收功</view>
+
+    <view class="pr-hint">
+      <text class="tiny">{{vm.hint}}</text>
     </view>
 
     <view class="stage">
@@ -165,7 +167,12 @@
 
   </view>
 
-  <view wx:if="{{started && !showResult && vm && (vm.extras.showUndo || vm.extras.showHint)}}" class="sticky-bar">
+  <view wx:if="{{barMode === 'start'}}" class="sticky-bar">
+    <text class="text-link text-link--muted" bindtap="onBack">先不练了</text>
+    <button class="btn btn--primary" bindtap="onStart">开始参悟</button>
+  </view>
+
+  <view wx:if="{{barMode === 'tools'}}" class="sticky-bar sticky-bar--tools">
     <button wx:if="{{vm.extras.showUndo}}" class="btn btn--ghost btn--small" bindtap="onUndo">撤销</button>
     <button wx:if="{{vm.extras.showHint}}" class="btn btn--plain btn--small" bindtap="onHint">{{hintLabel}}</button>
   </view>

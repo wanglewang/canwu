@@ -139,6 +139,13 @@
       <view class="section__head"><text class="section__title">关于参悟</text></view>
       <view class="card">
         <text class="body">青云界灵气渐薄，外门弟子人人都在等一次顿悟。你不等，你去练。</text>
+        <view class="row--between mt16">
+          <view class="sfx-text grow">
+            <text class="h3">局内音效</text>
+            <text class="tiny mt8">落子、成算、失手的声响，关掉更安静</text>
+          </view>
+          <button class="btn btn--ghost btn--compact" bindtap="onToggleSfx">{{sfxOn ? '已开' : '已关'}}</button>
+        </view>
         <button class="btn btn--ghost btn--block mt12" bindtap="onGoGuide">修行指南 ›</button>
       </view>
     </view>
