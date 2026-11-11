@@ -51,6 +51,20 @@
       </view>
     </view>
 
+    <view wx:if="{{rec}}" class="card card--ink rec-card">
+      <view class="row--between">
+        <text class="section__title">今日之课</text>
+        <text class="tag tag--dark">{{rec.profTierName}}</text>
+      </view>
+      <text class="h2 serif mt12">{{rec.name}}</text>
+      <text class="tiny hero-label mt8">{{rec.methodName}} · {{rec.reason}}</text>
+      <view class="bar bar--dark mt12">
+        <view class="bar__fill" style="width:{{rec.percent}}%;background:{{rec.profTierColor}}"></view>
+      </view>
+      <text class="body mt12 hero-label">{{rec.next}}</text>
+      <button class="btn btn--gold btn--block mt16" bindtap="onQuickPractice">{{rec.id ? '就练这门' : '去功法页看看'}}</button>
+    </view>
+
     <view class="card">
       <view class="section__head">
         <text class="section__title">今日参悟</text>

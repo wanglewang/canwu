@@ -14,6 +14,7 @@ Page({
     viewState: 'ready',
     ov: null,
     quickSkills: [],
+    rec: null,
     quickSkillId: '',
     quickLabel: '开始参悟',
     worlds: [],
@@ -70,6 +71,7 @@ Page({
         intro: w.intro,
       };
     });
+    const rec = engine.recommend(state);
     const dailyPercent = Math.min(100, Math.round(ov.daily.count / ov.daily.target * 100));
     const bt = ov.breakthrough;
     const breakPercent = bt.maxed || bt.need <= 0 ? 100 : Math.min(100, Math.round(bt.power / bt.need * 100));
@@ -101,8 +103,9 @@ Page({
           nextText: s.maxed ? '已至大圆满' : '距 ' + s.nextName + ' 还差 ' + (s.nextThreshold - s.prof),
         };
       }),
-      quickSkillId: quick.length > 0 ? quick[0].id : '',
-      quickLabel: quick.length > 0 ? '开始参悟 · ' + quick[0].name : '去看看功法',
+      rec: rec,
+      quickSkillId: rec.id || (quick.length > 0 ? quick[0].id : ''),
+      quickLabel: rec.id ? '开始参悟 · ' + rec.name : '去看看功法',
       worlds: worlds,
     });
   },

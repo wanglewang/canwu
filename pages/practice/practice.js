@@ -49,6 +49,7 @@ Page({
     theme: themes.themeOf('forge', 'click'),
     twistName: '常规功课',
     twistDesc: '',
+    stageRules: [],
     hintLabel: '提示',
     vm: null,
     chargeWidth: 0,
@@ -145,6 +146,7 @@ Page({
         theme: this.theme,
         twistName: '长按蓄力',
         twistDesc: '按住蓄力，松手停在朱线区间。越贴近正中，评级越高。',
+        stageRules: [],
       });
       return;
     }
@@ -185,6 +187,15 @@ Page({
       decayTip = '已超本门可修上限「' + maxRealmName + '」，收益只剩三成，该换更高阶的功法了。';
     }
 
+    const stageRules = practiceData.stageRulesOf(method.id).map(function (r) {
+      return {
+        name: r.name,
+        desc: r.desc,
+        on: rec.prof >= worldData.TIERS[r.at].threshold,
+        atName: worldData.TIERS[r.at].name,
+      };
+    });
+
     this.theme = theme;
     this.twist = method.twist;
     this.setData({
@@ -213,6 +224,7 @@ Page({
       theme: theme,
       twistName: twist.name,
       twistDesc: twist.desc,
+      stageRules: stageRules,
     });
   },
 

@@ -71,12 +71,12 @@ function advance(ms) {
 }
 
 // ---------------------------------------------------------------- 驱动
-function makeCtx(method) {
-  const st = { vm: null, finished: null, flash: [], roundKey: '', plan: null, planAt: 0, at: 0, pressed: false, seen: {} };
+function makeCtx(method, perks) {
+  const st = { vm: null, finished: null, flash: [], roundKey: '', plan: null, planAt: 0, at: 0, pressed: false, seen: {}, sawReverse: false };
   const c = index.createGame(method.game, {
     params: method.params,
     difficulty: 'normal',
-    perks: {},
+    perks: perks || {},
     tip: method.tip,
     twist: method.twist,
     theme: themes.themeOf(method.id, method.game),
@@ -86,6 +86,7 @@ function makeCtx(method) {
         st.flash = [];
         st.roundKey = vm.timeText;
       }
+      if (vm.timeText && vm.timeText.indexOf('逆诵') >= 0) st.sawReverse = true;
       if (vm.phase === 'flashing') {
         for (let i = 0; i < vm.cells.length; i += 1) {
           if (vm.cells[i].cls.indexOf('cell--lit') >= 0 && st.flash[st.flash.length - 1] !== i) st.flash.push(i);
@@ -164,12 +165,17 @@ function actionFor(game) {
     };
   }
   if (game === 'lights') {
-    return function (vm, c, st) {
-      if (st.plan === null) {
-        const board = vm.cells.map(function (x) { return x.cls.indexOf('cell--lit') >= 0; });
-        st.plan = solve(board, vm.cols);
+    return function (vm, c) {
+      // 限时连解：盘面会换，每一步都按当前盘重算最优解。
+      const board = vm.cells.map(function (x) { return x.cls.indexOf('cell--dead') >= 0 ? true : x.cls.indexOf('cell--lit') >= 0; });
+      const plan = solve(board, vm.cols);
+      const dead = [];
+      for (let i = 0; i < vm.cells.length; i += 1) {
+        if (vm.cells[i].cls.indexOf('cell--dead') >= 0) dead.push(i);
       }
-      if (st.planAt < st.plan.length) { c.tap(st.plan[st.planAt]); st.planAt += 1; }
+      for (let i = 0; i < plan.length; i += 1) {
+        if (dead.indexOf(plan[i]) < 0) { c.tap(plan[i]); return; }
+      }
     };
   }
   if (game === 'wuxing') {
@@ -243,7 +249,7 @@ const LIMITS = {
   bridge: [50000, 60],
   tempo: [80000, 40],
   sword: [25000, 60],
-  lights: [20000, 80],
+  lights: [46000, 80],
   wuxing: [26000, 60],
   mines: [20000, 80],
   seal: [75000, 60],
@@ -525,6 +531,77 @@ check('记忆序列第一轮内不出现重复格子', function () {
     assert.strictEqual(ctx.st.vm.phase, 'input', '未进入复述阶段');
     assert.ok(ctx.st.flash.length >= 2, '未收集到完整一轮');
     assert.strictEqual(new Set(ctx.st.flash).size, ctx.st.flash.length);
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('记序复现：复述有息数，息尽折一盏心神', function () {
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('recite'));
+    ctx.c.start();
+    let t = 0;
+    while (t < 14000 && ctx.st.vm.phase !== 'input') { advance(60); t += 60; }
+    assert.strictEqual(ctx.st.vm.phase, 'input', '未进入复述阶段');
+    assert.ok(ctx.st.vm.goal.indexOf('余') >= 0, '复述阶段没有显示剩余息数');
+    const before = ctx.st.vm.hearts.value;
+    for (let i = 0; i < 400 && ctx.st.vm.hearts.value === before && !ctx.st.finished; i += 1) advance(100);
+    assert.ok(ctx.st.vm.hearts.value < before, '干等着不点，居然不折心神');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('记序复现：长按抢记跳过剩余闪烁', function () {
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('recite'));
+    ctx.c.start();
+    let t = 0;
+    while (t < 14000 && ctx.st.vm.phase !== 'flashing') { advance(60); t += 60; }
+    ctx.c.longpress(0);
+    assert.strictEqual(ctx.st.vm.phase, 'input', '抢记之后没有直接进入复述');
+    assert.ok(ctx.st.vm.banner.indexOf('抢记') >= 0, '抢记没有给出倍率提示');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('记序复现：大成解锁逆诵', function () {
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('recite'), { tier: 3 });
+    ctx.c.start();
+    drive(ctx, 'memory', 60000, 60);
+    assert.ok(ctx.st.sawReverse, '大成之后没有出现逆诵轮');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('阵灯推演：解亮一盘立刻起下一盘', function () {
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('arrayEye'));
+    ctx.c.start();
+    drive(ctx, 'lights', 16000, 60);
+    const s = ctx.st.vm.scoreText;
+    assert.ok(/已解 [1-9]/.test(s), '限时连解没有累计解阵数：' + s);
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('阵灯推演：大成开死门，点到整盘复位并罚时', function () {
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('arrayEye'), { tier: 3 });
+    ctx.c.start();
+    let deadAt = -1;
+    for (let i = 0; i < ctx.st.vm.cells.length; i += 1) {
+      if (ctx.st.vm.cells[i].cls.indexOf('cell--dead') >= 0) { deadAt = i; break; }
+    }
+    assert.ok(deadAt >= 0, '大成之后盘上没有死门');
+    const before = ctx.st.vm.timeText;
+    ctx.c.tap(deadAt);
+    assert.ok(ctx.st.vm.status.indexOf('死门') >= 0 || ctx.st.vm.fx.text.indexOf('死门') >= 0, '点死门没有反馈');
+    assert.notStrictEqual(ctx.st.vm.timeText, before);
     ctx.c.destroy();
   } finally { restoreClock(); }
 });

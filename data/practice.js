@@ -37,7 +37,7 @@ const PRACTICE_METHODS = [
     desc: '口诀次第闪过，错一字则气机紊乱。这一门不给你看序号，全凭记住次序。',
     tip: '按原序点回，记岔即散功',
     base: 38,
-    params: { grid: 9, cols: 3, startLen: 2, maxRound: 7, flashMs: 560, gapMs: 260 },
+    params: { grid: 9, cols: 3, startLen: 2, maxRound: 7, flashMs: 560, gapMs: 260, msPerNote: 480 },
   },
   {
     id: 'stones', name: '循纹采露', game: 'bridge', theme: 'stones', twist: 'stones',
@@ -65,7 +65,7 @@ const PRACTICE_METHODS = [
     desc: '点亮一处，四面随之翻转。要让整座阵法同时亮起，阵眼只在一处。',
     tip: '点一格翻上下左右，全亮为成',
     base: 42,
-    params: { size: 3, scramble: 5 },
+    params: { size: 3, scramble: 5, duration: 40 },
   },
   {
     id: 'wuxing', name: '排布阵灯', game: 'wuxing', theme: 'wuxing', twist: 'wuxing',
@@ -214,7 +214,7 @@ function difficultyList(prof, current) {
 
 // ---------------------------------------------------------------- 参数缩放
 // 时间 / 判定窗类：pace 越小越难。window 是 0~1 的小数，保留三位。
-const PACE_KEYS = ['interval', 'flashMs', 'gapMs', 'windowMs', 'shuffleMs', 'flipMs', 'window'];
+const PACE_KEYS = ['interval', 'flashMs', 'gapMs', 'windowMs', 'shuffleMs', 'flipMs', 'window', 'msPerNote'];
 // 判定窗口类：只影响「亮着的那一下有多久来得及」，收紧得比 pace 陡 ——
 // 窗口每短一成，容错掉的不是一成。多个玩法共用同一个字段名也互不影响。
 const WINDOW_KEYS = ['life'];
@@ -224,7 +224,7 @@ const GOAL_KEYS = ['chainGoal', 'maxRound', 'segments', 'beats', 'scramble', 'mi
 const SPEED_KEY = 'speed';
 
 const FIELD_LABELS = {
-  interval: '灵光间隔', life: '剑光停留', flashMs: '闪烁时长', gapMs: '闪烁间隔', windowMs: '相生之窗',
+  interval: '灵光间隔', life: '剑光停留', flashMs: '闪烁时长', gapMs: '闪烁间隔', windowMs: '相生之窗', msPerNote: '每字息数',
   shuffleMs: '水流变阵', flipMs: '翻牌停留', window: '判定窗', speed: '气机收敛',
   chainGoal: '连生目标', maxRound: '口诀轮数', segments: '步法段数', beats: '息数',
   scramble: '打乱步数', mines: '禁制数', pairs: '符对数', decoys: '影子数',
@@ -268,7 +268,7 @@ function buildParams(method, diffKey) {
 }
 
 function fmtField(key, value) {
-  const ms = key === 'interval' || key === 'life' || key === 'flashMs' || key === 'gapMs' || key === 'windowMs' || key === 'shuffleMs' || key === 'flipMs';
+  const ms = key === 'interval' || key === 'life' || key === 'flashMs' || key === 'gapMs' || key === 'windowMs' || key === 'shuffleMs' || key === 'flipMs' || key === 'msPerNote';
   return value + (ms ? 'ms' : '');
 }
 
@@ -303,6 +303,25 @@ function diffDetail(method, diffKey) {
   };
 }
 
+// ---------------------------------------------------------------- 阶段新法
+// 熟练度不只是「解锁更难的同一件事」：到了某个阶段，这一门的规则本身会变。
+// at 用的是熟练度阶段下标（world.TIERS）：0 未入门 / 1 入门 / 2 小成 / 3 大成 / 4 圆满 / 5 大圆满。
+// 目前只在重做过的玩法上落地；没写的方法就是还没有阶段新法。
+const STAGE_RULES = {
+  recite: [
+    { at: 3, name: '逆诵', desc: '第 3 轮起，奇轮要从未字往前点回' },
+    { at: 4, name: '叠印', desc: '第 5 轮起，口诀里会出现重复的格子' },
+  ],
+  arrayEye: [
+    { at: 3, name: '死门', desc: '盘上多一格死门，点到整盘复位并罚三秒' },
+    { at: 4, name: '双门', desc: '死门增至两格' },
+  ],
+};
+
+function stageRulesOf(methodId) {
+  return STAGE_RULES[methodId] || [];
+}
+
 module.exports = {
   PRACTICE_METHODS: PRACTICE_METHODS,
   METHOD_MAP: METHOD_MAP,
@@ -310,6 +329,7 @@ module.exports = {
   FAMILIES: FAMILIES,
   TIERS: TIERS,
   DIFFICULTIES: DIFFICULTIES,
+  STAGE_RULES: STAGE_RULES,
   getMethod: getMethod,
   familyOf: familyOf,
   tierOf: tierOf,
@@ -321,4 +341,5 @@ module.exports = {
   difficultyList: difficultyList,
   buildParams: buildParams,
   diffDetail: diffDetail,
+  stageRulesOf: stageRulesOf,
 };

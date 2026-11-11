@@ -1018,6 +1018,60 @@ function getSkillList(state) {
   return list;
 }
 
+// 修炼建议：首页只回答一个问题——现在练哪门、为什么、下一步是什么。
+// 排序不看品阶也不看熟练度绝对值，看「离下一个阶段最近」，并按阶段跨度归一，
+// 免得高熟练度功法永远霸榜；已达可修上限（收益只剩三成）的功法往后压。
+function recommend(state) {
+  const list = getSkillList(state);
+  const pool = list.filter(function (s) { return s.unlocked; });
+  const usable = pool.filter(function (s) { return !s.maxed && s.realmOk; });
+  const cand = usable.length ? usable : pool.filter(function (s) { return !s.maxed; });
+
+  let pick = null;
+  for (let i = 0; i < cand.length; i += 1) {
+    const s = cand[i];
+    const floor = worldData.TIERS[s.tierIndex] ? worldData.TIERS[s.tierIndex].threshold : 0;
+    const span = Math.max(1, s.nextThreshold - floor);
+    const ratio = Math.max(0, s.nextThreshold - s.prof) / span;
+    const bias = (s.realmOk ? 0 : 0.35) - (s.prof === 0 ? 0.05 : 0);
+    const score = ratio + bias;
+    if (!pick || score < pick.score) pick = { skill: s, score: score, ratio: ratio };
+  }
+
+  if (!pick) {
+    return {
+      id: '', name: '十门皆已圆满', methodName: '本门无新课',
+      profTierName: '大圆满', profTierColor: worldData.TIERS[worldData.TIERS.length - 1].color,
+      gap: 0, percent: 100, maxed: true,
+      reason: '十门功法都练到了大圆满',
+      next: '去论道台试试秘境，那里还有没打过的对手。',
+    };
+  }
+
+  const s = pick.skill;
+  const gap = Math.max(0, s.nextThreshold - s.prof);
+  const idx = practiceData.diffIndexOf(s.prof);
+  const nextDiff = practiceData.DIFFICULTIES[idx + 1];
+  let next;
+  if (!s.realmOk) next = s.decayText + '，这门先放一放。';
+  else if (nextDiff && nextDiff.need - s.prof <= gap) next = '先到 ' + nextDiff.need + ' 熟练度解锁「' + nextDiff.name + '」档，倍率 ×' + nextDiff.mult.toFixed(1) + '。';
+  else if (nextDiff) next = '本门现可选到「' + s.diffName + '」，往上一档是「' + nextDiff.name + '」。';
+  else next = '本门已开到最高一档，练的是手上的稳。';
+
+  return {
+    id: s.id,
+    name: s.name,
+    methodName: s.methodName,
+    profTierName: s.profTierName,
+    profTierColor: s.profTierColor,
+    gap: gap,
+    percent: Math.round((1 - pick.ratio) * 100),
+    maxed: false,
+    reason: '距「' + s.nextName + '」还差 ' + gap + ' 熟练度',
+    next: next,
+  };
+}
+
 // 按类型组装游戏族：同族共用一套手感内核，族内按品阶由低到高排成变体链。
 // 四个品阶刻度全列出来，缺变体的档位显示空档，族内的断层一眼可见。
 function getFamilies(state) {
@@ -1172,6 +1226,7 @@ module.exports = {
   getOverview: getOverview,
   getSkillList: getSkillList,
   getFamilies: getFamilies,
+  recommend: recommend,
   starsOf: starsTextOf,
   getChallengeList: getChallengeList,
   getTitleList: getTitleList,

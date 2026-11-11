@@ -30,6 +30,14 @@
     </view>
     <text class="body mt8">{{twistDesc}}</text>
 
+    <view wx:if="{{stageRules.length}}" class="mt16">
+      <text class="section__title">本门新法</text>
+      <view wx:for="{{stageRules}}" wx:key="name" class="stage-rule">
+        <text class="tag {{item.on ? 'tag--jade' : 'tag--grey'}}">{{item.on ? '已得' : item.atName}}</text>
+        <text class="tiny grow stage-rule__text">{{item.name}} · {{item.desc}}</text>
+      </view>
+    </view>
+
     <view wx:if="{{rankLabel}}" class="rank-card mt16" style="border-color:{{theme.accent}};background:{{theme.soft}}">
       <view class="row--between">
         <view class="row">
