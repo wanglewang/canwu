@@ -1,8 +1,8 @@
 'use strict';
 
-// 符纹配对（破解封印 / 太虚诀专属）：十二张符牌扣在案上，翻开两张，纹样相同才解得一对。
-// 与「辨纹探禁」的区别：探禁是看数字推雷位、还能插旗；这里是记位置的翻牌配对，
-// 没有数字、没有雷，只有「翻开—记住—盖回」；符箓照纹可替你亮出一对。
+// 成对翻牌（内视观窍 / 太虚诀专属）：十二处气窍阖在盘中，翻开两处，卦象相同才通一对。
+// 与「数格辨禁」的区别：探禁是看数字推禁位、还能插旗；这里是记位置的翻牌配对，
+// 没有数字、没有禁制，只有「翻开—记住—阖上」；入定可观想照见一对。
 
 const C = require('./common.js');
 
@@ -19,12 +19,12 @@ function create(ctx) {
   const flipMs = Math.max(450, (p.flipMs || 850) - (hard ? 150 : 0) + (perks.easy ? 200 : 0));
   const timeLimit = p.timeLimit || 70;
   const hintsLeft = 2 + (perks.easy ? 1 : 0);
-  const vm = C.makeVm(cols, n, '翻开两张符牌，纹样相同才解得一对', ctx.tip || '记住翻过的符纹，把成对的都解出来');
+  const vm = C.makeVm(cols, n, '翻开两处气窍，卦象相同才通一对', ctx.tip || '记住翻过的卦象，把成对的都解出来');
   vm.timeText = '00:00';
-  vm.scoreText = '符对 0 / ' + pairs;
+  vm.scoreText = '气窍 0 / ' + pairs;
   vm.extras.showHint = true;
   vm.extras.showMeter = true;
-  vm.hint = '符箓照纹剩 ' + hintsLeft + ' 次';
+  vm.hint = '入定照见剩 ' + hintsLeft + ' 次';
 
   const bag = C.TimerBag();
   const deck = [];
@@ -58,11 +58,11 @@ function create(ctx) {
     vm.timeText = C.mmss(elapsed);
     vm.progress = C.pct(pairsDone, pairs);
     vm.progressText = pairsDone + ' / ' + pairs + ' 对';
-    vm.scoreText = '符对 ' + pairsDone + ' / ' + pairs;
+    vm.scoreText = '气窍 ' + pairsDone + ' / ' + pairs;
     vm.gradeNow = gradeNow();
-    vm.goal = pairsDone >= pairs ? '封印已解' : '还剩 ' + (pairs - pairsDone) + ' 对 · 翻牌 ' + flips + ' 次';
-    vm.meter = { label: '已解符对', value: pairsDone, max: pairs };
-    vm.hint = '翻牌 ' + flips + ' 次 · 符箓照纹剩 ' + hints + ' 次';
+    vm.goal = pairsDone >= pairs ? '诸窍皆通' : '还剩 ' + (pairs - pairsDone) + ' 对 · 翻牌 ' + flips + ' 次';
+    vm.meter = { label: '已通气窍', value: pairsDone, max: pairs };
+    vm.hint = '翻牌 ' + flips + ' 次 · 入定照见剩 ' + hints + ' 次';
     vm.pair = { locked: locked, first: first, matched: pairsDone, flips: flips };
   }
 
@@ -78,7 +78,7 @@ function create(ctx) {
         vm.cells[i].tone = 1 + (SIGNS.indexOf(deck[i]) % 5);
       } else {
         vm.cells[i].cls = 'cell cell--card';
-        vm.cells[i].label = theme.motif || '印';
+        vm.cells[i].label = theme.motif || '观';
         vm.cells[i].tone = 0;
       }
     }
@@ -90,7 +90,7 @@ function create(ctx) {
     bag.clear();
     vm.phase = 'done';
     vm.status = '参悟已毕';
-    vm.banner = grade === 'S' ? (theme.praise || '破印而出') : '';
+    vm.banner = grade === 'S' ? (theme.praise || '洞若观火') : '';
     render();
     ctx.finish({ grade: grade, score: pairsDone, summary: summary });
   }
@@ -99,8 +99,8 @@ function create(ctx) {
     if (started) return;
     started = true;
     vm.phase = 'playing';
-    vm.status = '翻牌辨纹，成对的才解得开';
-    vm.banner = theme.banner || '封松动了';
+    vm.status = '翻牌辨象，成对的才通得开';
+    vm.banner = theme.banner || '灵光一线';
     paint();
     syncHud();
     render();
@@ -108,7 +108,7 @@ function create(ctx) {
       elapsed += 1;
       syncHud();
       if (elapsed >= timeLimit) {
-        finishOnce('C', '只解出 ' + pairsDone + ' 对，时辰到了');
+        finishOnce('C', '只通了 ' + pairsDone + ' 对，时辰到了');
         return;
       }
       render();
@@ -123,7 +123,7 @@ function create(ctx) {
     paint();
     if (first < 0) {
       first = index;
-      vm.status = '记住这一纹，再翻一张';
+      vm.status = '记住这一象，再翻一处';
       syncHud();
       render();
       return;
@@ -134,20 +134,20 @@ function create(ctx) {
       matched[a] = true;
       matched[index] = true;
       pairsDone += 1;
-      C.flash(vm, (theme.hit || '符纹渐明') + ' · 解 ' + pairsDone + ' 对', 'gold');
-      vm.status = '成对，封印松了一分';
+      C.flash(vm, (theme.hit || '气窍相合') + ' · 通 ' + pairsDone + ' 对', 'gold');
+      vm.status = '相合，气窍通了一分';
       paint();
       syncHud();
       if (pairsDone >= pairs) {
-        finishOnce(gradeNow(), pairs + ' 对符纹全解 · ' + elapsed + ' 秒 · 翻牌 ' + flips + ' 次');
+        finishOnce(gradeNow(), pairs + ' 对卦象全通 · ' + elapsed + ' 秒 · 翻牌 ' + flips + ' 次');
         return;
       }
       render();
       return;
     }
     locked = true;
-    vm.status = '纹样不合，再看一眼';
-    C.flash(vm, '纹样不合', 'bad');
+    vm.status = '卦象不合，再看一眼';
+    C.flash(vm, '卦象不合', 'bad');
     syncHud();
     render();
     bag.after(function () {
@@ -164,7 +164,7 @@ function create(ctx) {
   function hint() {
     if (done || vm.phase !== 'playing' || locked) return;
     if (hints <= 0) {
-      C.flash(vm, '符箓已用尽', 'bad');
+      C.flash(vm, '入定已散', 'bad');
       render();
       return;
     }
@@ -182,8 +182,8 @@ function create(ctx) {
       vm.cells[pick[k]].cls = 'cell cell--hint';
       vm.cells[pick[k]].label = deck[pick[k]];
     }
-    vm.status = '符箓照出一对（剩 ' + hints + ' 次）';
-    C.flash(vm, '符纹显形', 'gold');
+    vm.status = '入定照见一对（剩 ' + hints + ' 次）';
+    C.flash(vm, '卦象显形', 'gold');
     syncHud();
     render();
     bag.after(function () {
@@ -208,4 +208,4 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'seal', name: '符纹配对', create: create };
+module.exports = { id: 'seal', name: '成对翻牌', create: create };

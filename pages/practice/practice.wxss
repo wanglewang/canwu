@@ -287,13 +287,13 @@
 .cell--lit.cell--t4 { background: #7d8398; }
 .cell--lit.cell--t5 { background: #3b7a8c; }
 
-/* ---------- 辨伪夺宝：真宝与影子 ---------- */
+/* ---------- 辨伪择真：真招与虚影 ---------- */
 .cell--decoy {
     background: #8d8b7d;
     color: #fffdf7;
 }
 
-/* ---------- 循纹渡河：竖向河道 ---------- */
+/* ---------- 循纹递推：竖向河道 ---------- */
 .lane-rule {
     box-sizing: border-box;
     margin-top: 20rpx;
@@ -338,7 +338,7 @@
 .grid--lane .cell--stone.cell--t4 { box-shadow: inset 0 -10rpx 0 rgba(125, 131, 152, 0.55); }
 .grid--lane .cell--stone.cell--t5 { box-shadow: inset 0 -10rpx 0 rgba(59, 122, 140, 0.55); }
 
-/* ---------- 符纹配对：牌背 / 翻开 / 已解 ---------- */
+/* ---------- 成对翻牌：牌背 / 翻开 / 已通 ---------- */
 .cell--card {
     background: var(--ink, #5d6358);
     color: var(--bg, #efe9db);

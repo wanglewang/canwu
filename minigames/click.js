@@ -1,7 +1,7 @@
 'use strict';
 
-// 追光点击（锻造敲击 / 基础剑法专属）：限时内追着唯一亮起的炉眼下锤，比命中数。
-// 本门机制「炉火升温」：连击满 5 记后灵光游走更快，点空则连击与火候一并断掉。
+// 追光点击（循光劈刺 / 基础剑法专属）：限时内追着唯一亮起的剑光劈刺，比命中数。
+// 本门机制「剑势渐疾」：连中 5 记后剑光游走更快，劈空则连击与剑势一并断掉。
 
 const C = require('./common.js');
 
@@ -18,7 +18,7 @@ function create(ctx) {
   const aLimit = Math.ceil(duration * 1.35);
   const bLimit = Math.ceil(duration * 0.8);
   const glyph = theme.glyph || '灵';
-  const vm = C.makeVm(p.cols || 3, grid, '凝神，等灵光出现…', ctx.tip || '点中亮起的格子');
+  const vm = C.makeVm(p.cols || 3, grid, '凝神，等剑光亮起…', ctx.tip || '点中亮起的格子');
   vm.timeText = C.mmss(duration);
   vm.scoreText = '命中 0';
   vm.extras.showCombo = true;
@@ -79,7 +79,7 @@ function create(ctx) {
     if (started) return;
     started = true;
     vm.phase = 'playing';
-    vm.status = '灵光已现，快！';
+    vm.status = '剑光已现，快！';
     vm.banner = theme.banner || '';
     syncHud();
     moveTarget();
@@ -103,10 +103,10 @@ function create(ctx) {
       lastHitAt = now;
       score += 1;
       combo += 1;
-      C.flash(vm, (theme.hit || '一记落锤') + (combo >= 3 ? ' · 连击 ×' + combo : ''), 'good');
+      C.flash(vm, (theme.hit || '一剑中的') + (combo >= 3 ? ' · 连击 ×' + combo : ''), 'good');
       if (twist === 'forge' && combo >= 5 && !hot) {
         hot = true;
-        vm.banner = theme.banner || '炉火旺盛';
+        vm.banner = theme.banner || '剑光乍起';
       }
       vm.status = combo >= 3 ? '手稳，别断' : '好，再快一点';
       syncHud();
@@ -117,8 +117,8 @@ function create(ctx) {
     hot = false;
     vm.banner = '';
     vm.cells[index].cls = 'cell cell--bad';
-    vm.status = theme.miss || '点空了';
-    C.flash(vm, theme.miss || '点空了', 'bad');
+    vm.status = theme.miss || '劈空了';
+    C.flash(vm, theme.miss || '劈空了', 'bad');
     syncHud();
     const i = index;
     bag.after(function () {

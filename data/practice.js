@@ -4,6 +4,11 @@
 // 10 门功法对应 10 套互不复用内核的小游戏；同是剑法、同是阵法，也不会点进去是同一个盘面。
 // game 取值见 minigames/index.js：click / hunt / memory / bridge / tempo / sword / lights / wuxing / mines / seal。
 // charge 仅用于境界突破，不挂功法。
+//
+// 命名分工：「参悟方式」写这一门功课具体在做什么（劈刺 / 采露 / 观窍），
+// 「玩法名」写盘面上的动作（追光点击 / 循纹递推）。两者不可重名，也不可与功法本身相斥——
+// 剑法不练打铁，丹道不练渡河，符箓不练探雷。
+// id 是稳定键（存档、纪录都按它索引），改文案时不要动 id。
 // base 是熟练度收益基数，按各玩法的通关难度分别配平。
 //
 // 一个维度只管一件事：
@@ -14,16 +19,16 @@
 
 const PRACTICE_METHODS = [
   {
-    id: 'forge', name: '锻造敲击', game: 'click', theme: 'forge', twist: 'forge',
-    desc: '炉火正旺，火星落处便是该下锤的地方。连着敲不空手，炉子会越烧越旺。',
-    tip: '火星亮起就点，连击满五记会更快',
+    id: 'forge', name: '循光劈刺', game: 'click', theme: 'forge', twist: 'forge',
+    desc: '剑光在桩上亮起，就劈那一点。劈空一回，手腕得从头稳。',
+    tip: '剑光亮起就劈，连中五记更快',
     base: 32,
     params: { duration: 15, interval: 760, grid: 9, cols: 3 },
   },
   {
-    id: 'snatch', name: '夺宝抢手速', game: 'hunt', theme: 'snatch', twist: 'snatch',
-    desc: '宝光只现一瞬，同门还会留下影子晃你的眼。认准金色那一道，慢半步就被顺走了。',
-    tip: '只点金色真宝，影子碰不得',
+    id: 'snatch', name: '辨锋截击', game: 'hunt', theme: 'snatch', twist: 'snatch',
+    desc: '几道剑光同时亮，只有一道是真招。认准了抢先截，慢了会被反制。',
+    tip: '只截真招，影子劈不得',
     base: 36,
     params: { duration: 16, interval: 1000, grid: 12, cols: 4, decoys: 2 },
   },
@@ -35,9 +40,9 @@ const PRACTICE_METHODS = [
     params: { grid: 9, cols: 3, startLen: 2, maxRound: 7, flashMs: 560, gapMs: 260 },
   },
   {
-    id: 'stones', name: '循纹渡河', game: 'bridge', theme: 'stones', twist: 'stones',
-    desc: '石板各刻一道纹，该踩哪块不看运气看递推。水流一转，位置就全变了。',
-    tip: '踩比上一层多一道的纹',
+    id: 'stones', name: '循纹采露', game: 'bridge', theme: 'stones', twist: 'stones',
+    desc: '灵露凝在河石上，每层只一道纹对得上方子。水流一转，石位就换。',
+    tip: '采比上一层多一道纹的露',
     base: 36,
     params: { rows: 5, cols: 3, shuffleMs: 3200, timeLimit: 45 },
   },
@@ -49,8 +54,8 @@ const PRACTICE_METHODS = [
     params: { beats: 8, speed: 0.026, window: 0.09 },
   },
   {
-    id: 'combo', name: '步法连环', game: 'sword', theme: 'combo', twist: 'combo',
-    desc: '落脚之处皆有次序，卷轴铺开一串步位。一步踏错，整套就散了。',
+    id: 'combo', name: '照卷踏位', game: 'sword', theme: 'combo', twist: 'combo',
+    desc: '卷轴铺开一串步位，落脚之处皆有次序。一步踏错，整套就散。',
     tip: '照卷轴顺序，点对应步法键',
     base: 40,
     params: { duration: 20, segments: 4, baseLen: 3, moves: ['进', '退', '侧', '转'] },
@@ -70,33 +75,34 @@ const PRACTICE_METHODS = [
     params: { duration: 20, chainGoal: 10, windowMs: 2600 },
   },
   {
-    id: 'tanlei', name: '秘境探雷', game: 'mines', theme: 'tanlei', twist: 'tanlei',
-    desc: '禁制藏在石格之下，翻遍所有安全格才算探明秘境。误触一次还稳得住心神。',
+    id: 'tanlei', name: '持符探禁', game: 'mines', theme: 'tanlei', twist: 'tanlei',
+    desc: '照影符一照，石格下的禁制便现形。漏一处，这座秘境就算白探。',
     tip: '看数字推禁制，长按插旗',
     base: 50,
     params: { cols: 6, rows: 6, mines: 6 },
   },
   {
-    id: 'seal', name: '破解封印', game: 'seal', theme: 'seal', twist: 'seal',
-    desc: '十二张符牌扣在案上，纹样成对方能解开一层封印。手里还有符箓能照出一对。',
-    tip: '翻开两张，配成一对',
+    id: 'seal', name: '内视观窍', game: 'seal', theme: 'seal', twist: 'seal',
+    desc: '十二处气窍阖着，两两相合才通一层。入定深了，会先照见一对。',
+    tip: '翻开两窍，卦象相合为一对',
     base: 56,
     params: { pairs: 6, cols: 4, flipMs: 850, timeLimit: 70 },
   },
 ];
 
-// 玩法中文名。与 minigames/ 各模块导出的 name 一一对应，测试会断言两者不漂移。
+// 玩法中文名：只写盘面上的动作，不写题材。与 minigames/ 各模块导出的 name 一一对应，
+// 测试会断言两者不漂移。参悟方式名与这里不可重复（否则准备页标题和标签会撞词）。
 const GAME_LABELS = {
   click: '追光点击',
-  hunt: '辨伪夺宝',
+  hunt: '辨伪择真',
   memory: '记序复现',
-  bridge: '循纹渡河',
+  bridge: '循纹递推',
   tempo: '节律判定',
   sword: '步法连环',
   lights: '阵灯推演',
   wuxing: '五行相生',
-  mines: '辨纹探禁',
-  seal: '符纹配对',
+  mines: '数格辨禁',
+  seal: '成对翻牌',
 };
 
 // 游戏族：同类功法共用一套手感内核，族内按品阶递进出变体。
@@ -105,8 +111,8 @@ const FAMILIES = {
   剑法: { core: '点格辨光', note: '同族都是看光点按，换的是判定与干扰', kind: 'skill' },
   阵法: { core: '阵灯推演', note: '同族都在推阵灯，换的是推演方向与步数目标', kind: 'skill' },
   心法: { core: '记忆与节律', note: '三门主修各考一样：节拍、记性、配对', kind: 'main' },
-  丹道: { core: '循纹渡河', note: '看纹路递推，只有一门', kind: 'skill' },
-  符箓: { core: '辨纹探禁', note: '看数字推禁制，只有一门', kind: 'skill' },
+  丹道: { core: '循纹递推', note: '看纹路递推，只有一门', kind: 'skill' },
+  符箓: { core: '数格辨禁', note: '看数字推禁制，只有一门', kind: 'skill' },
   身法: { core: '步法连环', note: '照卷轴踏位，只有一门', kind: 'skill' },
 };
 

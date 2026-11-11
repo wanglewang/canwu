@@ -117,7 +117,7 @@
       </view>
 
       <view wx:if="{{vm.stage === 'lane' && vm.lane}}" class="lane-rule">
-        <text class="tiny">{{vm.lane.rule}} · 正渡第 {{vm.lane.activeRow + 1}} / {{vm.lane.rows}} 层</text>
+        <text class="tiny">{{vm.lane.rule}} · 正采第 {{vm.lane.activeRow + 1}} / {{vm.lane.rows}} 层</text>
       </view>
 
       <view wx:if="{{(vm.stage === 'board' || vm.stage === 'lane') && vm.extras.showGrid}}" class="grid grid--c{{vm.cols}} {{vm.stage === 'lane' ? 'grid--lane' : ''}}" style="background:{{theme.bg}}">

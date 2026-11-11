@@ -1,8 +1,8 @@
 'use strict';
 
-// 辨纹探禁（秘境探雷 / 引雷符专属）：看周围数字推禁制位置，翻遍所有安全石格，比用时。
-// 本门机制「三盏心神」：误触禁制只扣一盏并让那处显形，三盏耗尽才收功；精通以上开局透视 3 颗雷。
-// 长按可插旗做记号——这与「符纹配对」的翻牌记位置是两回事。
+// 数格辨禁（持符探禁 / 照影符专属）：看周围数字推禁制位置，翻遍所有安全石格，比用时。
+// 本门机制「三盏心神」：误触禁制只扣一盏并让那处显形，三盏耗尽才收功；精通以上开局照见 3 处禁制。
+// 长按可插旗做记号——这与「成对翻牌」的翻牌记位置是两回事。
 
 const C = require('./common.js');
 
@@ -119,13 +119,13 @@ function create(ctx) {
         vm.cells[i].label = numbers[i] > 0 ? String(numbers[i]) : '';
       } else if (exposed[i]) {
         vm.cells[i].cls = 'cell cell--mine';
-        vm.cells[i].label = theme.glyph || '雷';
+        vm.cells[i].label = theme.glyph || '禁';
       } else if (flags[i]) {
         vm.cells[i].cls = 'cell cell--flag';
         vm.cells[i].label = '旗';
       } else if (sensedSet[i]) {
         vm.cells[i].cls = 'cell cell--sensed';
-        vm.cells[i].label = '雷';
+        vm.cells[i].label = '禁';
       } else {
         vm.cells[i].cls = 'cell cell--hidden';
         vm.cells[i].label = '';
@@ -233,4 +233,4 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'mines', name: '辨纹探禁', create: create };
+module.exports = { id: 'mines', name: '数格辨禁', create: create };

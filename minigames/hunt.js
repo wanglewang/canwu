@@ -1,8 +1,8 @@
 'use strict';
 
-// 辨伪夺宝（剑诀·断岳专属）：每轮同时亮起数道宝光，只有一道是真宝，其余是同门留下的影子。
-// 与「追光点击」的区别：追光是追唯一移动目标，这里是多目标里辨真伪，点错要倒扣分数与时间。
-// 盘面 4×3、有伪目标、连击提速，规则和观感都与锻造敲击不同。
+// 辨伪择真（辨锋截击 / 剑诀·断岳专属）：每轮同时亮起数道剑光，只有一道是真招，其余是虚影。
+// 与「追光点击」的区别：追光是追唯一移动目标，这里是多目标里辨真伪，劈错要倒扣分数与时间。
+// 盘面 4×3、有虚影、连截提速，规则和观感都与循光劈刺不同。
 
 const C = require('./common.js');
 
@@ -18,11 +18,11 @@ function create(ctx) {
   const sLimit = Math.ceil(duration * 0.8);
   const aLimit = Math.ceil(duration * 0.6);
   const bLimit = Math.ceil(duration * 0.35);
-  const vm = C.makeVm(p.cols || 4, grid, '凝神，辨出哪一道是真宝', ctx.tip || '只点金色宝光，影子是陷阱');
+  const vm = C.makeVm(p.cols || 4, grid, '凝神，辨出哪一道是真招', ctx.tip || '只截真招，虚影是陷阱');
   vm.timeText = C.mmss(duration);
-  vm.scoreText = '夺宝 0';
+  vm.scoreText = '截击 0';
   vm.extras.showCombo = true;
-  vm.goal = C.goalFor('C', sLimit, '件宝光');
+  vm.goal = C.goalFor('C', sLimit, '道剑光');
 
   const bag = C.TimerBag();
   let real = -1;
@@ -40,11 +40,11 @@ function create(ctx) {
     vm.timeText = C.mmss(Math.max(0, left));
     vm.progress = C.pct(duration - left, duration);
     vm.progressText = Math.max(0, left) + ' 息';
-    vm.scoreText = '夺宝 ' + score;
+    vm.scoreText = '截击 ' + score;
     vm.combo = combo;
-    vm.comboText = combo >= 2 ? '连夺 ×' + combo : '';
+    vm.comboText = combo >= 2 ? '连截 ×' + combo : '';
     vm.gradeNow = C.gradeBy(score, sLimit, aLimit, bLimit);
-    vm.goal = C.goalFor(vm.gradeNow, Math.max(0, sLimit - score), '件宝光');
+    vm.goal = C.goalFor(vm.gradeNow, Math.max(0, sLimit - score), '道剑光');
   }
 
   function finishOnce(grade, summary) {
@@ -53,7 +53,7 @@ function create(ctx) {
     bag.clear();
     vm.phase = 'done';
     vm.status = '参悟已毕';
-    vm.banner = grade === 'S' ? (theme.praise || '眼疾手快') : '';
+    vm.banner = grade === 'S' ? (theme.praise || '后发先至') : '';
     render();
     ctx.finish({ grade: grade, score: score, summary: summary });
   }
@@ -81,7 +81,7 @@ function create(ctx) {
       lit.push(k);
       if (i === 0) {
         vm.cells[k].cls = 'cell cell--gold' + (fast ? ' cell--hot' : '');
-        vm.cells[k].label = theme.glyph || '宝';
+        vm.cells[k].label = theme.glyph || '剑';
       } else {
         vm.cells[k].cls = 'cell cell--decoy';
         vm.cells[k].label = '影';
@@ -97,14 +97,14 @@ function create(ctx) {
     if (started) return;
     started = true;
     vm.phase = 'playing';
-    vm.status = '宝光乍现，辨清再出手';
-    vm.banner = theme.banner || '宝光乍现';
+    vm.status = '剑光乱眼，辨清再出手';
+    vm.banner = theme.banner || '剑光乱眼';
     nextRound();
     bag.every(function () {
       left -= 1;
       syncHud();
       if (left <= 0) {
-        finishOnce(C.gradeBy(score, sLimit, aLimit, bLimit), '夺得 ' + score + ' 件宝光');
+        finishOnce(C.gradeBy(score, sLimit, aLimit, bLimit), '截住 ' + score + ' 道真招');
         return;
       }
       render();
@@ -117,10 +117,10 @@ function create(ctx) {
     if (index === real) {
       score += 1;
       combo += 1;
-      C.flash(vm, (theme.hit || '宝光入手') + (combo >= 3 ? ' · 连夺 ×' + combo : ''), 'gold');
+      C.flash(vm, (theme.hit || '截住真招') + (combo >= 3 ? ' · 连夺 ×' + combo : ''), 'gold');
       if (combo >= 4 && !fast) {
         fast = true;
-        vm.banner = '剑势已起 · 宝光更快';
+        vm.banner = '剑势已起 · 剑光更快';
       }
       vm.status = combo >= 3 ? '手稳，别被影子骗了' : '好，再看下一道';
       real = -1;
@@ -133,8 +133,8 @@ function create(ctx) {
     fast = false;
     vm.cells[index].cls = 'cell cell--bad';
     vm.cells[index].label = '';
-    vm.status = theme.miss || '慢了半步';
-    C.flash(vm, '夺宝 -1 · 少一息', 'bad');
+    vm.status = theme.miss || '劈中虚影';
+    C.flash(vm, '劈错 -1 · 少一息', 'bad');
     syncHud();
     const i = index;
     bag.after(function () {
@@ -153,4 +153,4 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'hunt', name: '辨伪夺宝', create: create };
+module.exports = { id: 'hunt', name: '辨伪择真', create: create };

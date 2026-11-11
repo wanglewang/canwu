@@ -51,11 +51,12 @@ const SKILLS = [
     source: { kind: 'shop', cost: { qi: 90, stone: 35 } },
   },
   {
-    id: 'leifu', name: '符箓·引雷符', type: '符箓', kind: 'skill', tier: 'di', method: 'tanlei',
-    desc: '画符容易，辨得清哪一格是雷才难。',
-    flavor: '据说上一位画错的前辈，至今还在山上躺着。',
+    // id 沿用旧名（引雷符），存档与纪录都按 id 索引，改名不动 id。
+    id: 'leifu', name: '符箓·照影符', type: '符箓', kind: 'skill', tier: 'di', method: 'tanlei',
+    desc: '符光扫过，藏在石格下的禁制无所遁形。',
+    flavor: '照影符不伤人，只照出你不想看见的东西。',
     bonus: { ling: 4, wu: 1 },
-    effect: { type: 'power', value: 0.08, text: '引雷：对战战力 +8%' },
+    effect: { type: 'practice', value: 0.10, text: '照影：参悟熟练度 +10%' },
     source: { kind: 'shop', cost: { qi: 160, stone: 50 } },
   },
   {

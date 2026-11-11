@@ -91,7 +91,7 @@ function makeCtx(method) {
           if (vm.cells[i].cls.indexOf('cell--lit') >= 0 && st.flash[st.flash.length - 1] !== i) st.flash.push(i);
         }
       }
-      // 符纹配对：记住翻开过的符纹与位置，供驱动策略使用。
+      // 成对翻牌：记住翻开过的卦象与位置，供驱动策略使用。
       for (let i = 0; i < vm.cells.length; i += 1) {
         if (vm.cells[i].cls.indexOf('cell--flipped') >= 0) st.seen[vm.cells[i].label] = i;
       }
@@ -325,7 +325,7 @@ check('所有本门玩法都有名称与说明', function () {
 });
 
 // ---------------------------------------------------------------- 断言：各自独有机制
-check('辨伪夺宝：4×3 盘面同时出现真宝与影子', function () {
+check('辨伪择真：4×3 盘面同时出现真招与虚影', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('snatch'));
@@ -338,7 +338,7 @@ check('辨伪夺宝：4×3 盘面同时出现真宝与影子', function () {
   } finally { restoreClock(); }
 });
 
-check('循纹渡河：竖向河道逐层推进，只有当前层可点', function () {
+check('循纹递推：竖向河道逐层推进，只有当前层可点', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('stones'));
@@ -387,7 +387,7 @@ check('五行相生：五盏灯环 + 中央当前一行', function () {
   } finally { restoreClock(); }
 });
 
-check('符纹配对：十二张牌扣着，符箓能照出一对', function () {
+check('成对翻牌：十二处气窍阖着，入定能照见一对', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('seal'));
