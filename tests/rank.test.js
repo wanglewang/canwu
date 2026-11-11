@@ -232,7 +232,7 @@ check('难度档缩放不碰盘面尺寸，且各档参数确有区分', functio
 check('节奏不越过触屏安全下限', function () {
   for (const m of practice.PRACTICE_METHODS) {
     const out = practice.buildParams(m, 'desperate');
-    for (const key of ['interval', 'flashMs', 'gapMs', 'flipMs', 'shuffleMs']) {
+    for (const key of ['interval', 'life', 'flashMs', 'gapMs', 'flipMs', 'shuffleMs']) {
       if (typeof out[key] === 'number') {
         assert.ok(out[key] >= 150, m.id + ' 的 ' + key + ' 压到 ' + out[key] + 'ms，低于安全下限');
       }

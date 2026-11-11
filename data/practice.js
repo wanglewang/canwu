@@ -20,10 +20,10 @@
 const PRACTICE_METHODS = [
   {
     id: 'forge', name: '循光劈刺', game: 'click', theme: 'forge', twist: 'forge',
-    desc: '剑光在桩上亮起，就劈那一点。劈空一回，手腕得从头稳。',
-    tip: '剑光亮起就劈，连中五记更快',
+    desc: '剑光在桩上亮起，细线走完之前劈中它。劈空一记，少一息。',
+    tip: '追着剑光劈，劈空少一息',
     base: 32,
-    params: { duration: 15, interval: 760, grid: 9, cols: 3 },
+    params: { duration: 15, life: 700, grid: 9, cols: 3 },
   },
   {
     id: 'snatch', name: '辨锋截击', game: 'hunt', theme: 'snatch', twist: 'snatch',
@@ -160,11 +160,11 @@ function tierIndexOf(key) {
 // 同时 pace 收紧、goal 抬高 —— 想拿高倍率必须真打得过。
 
 const DIFFICULTIES = [
-  { key: 'easy', name: '简单', need: 0, mult: 1.00, pace: 1.18, goal: 0.85, gear: 'normal', desc: '节奏最缓、目标最宽，先把这一门的手感练稳。' },
-  { key: 'normal', name: '普通', need: 400, mult: 1.30, pace: 1.00, goal: 1.00, gear: 'normal', desc: '标准节奏与目标，小成之后才开。' },
-  { key: 'hard', name: '困难', need: 1000, mult: 1.70, pace: 0.88, goal: 1.12, gear: 'hard', desc: '节奏收紧、目标抬高，失误的余地更小。' },
-  { key: 'expert', name: '极难', need: 2500, mult: 2.10, pace: 0.78, goal: 1.22, gear: 'hard', desc: '几乎没有容错，一乱就掉档。' },
-  { key: 'desperate', name: '绝境', need: 6000, mult: 2.60, pace: 0.70, goal: 1.32, gear: 'hard', desc: '给练到极处的人：最快节奏、最高目标、最高倍率。' },
+  { key: 'easy', name: '简单', need: 0, mult: 1.00, pace: 1.18, windowPace: 1.50, goal: 0.85, gear: 'normal', desc: '节奏最缓、目标最宽，先把这一门的手感练稳。' },
+  { key: 'normal', name: '普通', need: 400, mult: 1.30, pace: 1.00, windowPace: 1.21, goal: 1.00, gear: 'normal', desc: '标准节奏与目标，小成之后才开。' },
+  { key: 'hard', name: '困难', need: 1000, mult: 1.70, pace: 0.88, windowPace: 1.00, goal: 1.12, gear: 'hard', desc: '节奏收紧、目标抬高，失误的余地更小。' },
+  { key: 'expert', name: '极难', need: 2500, mult: 2.10, pace: 0.78, windowPace: 0.83, goal: 1.22, gear: 'hard', desc: '几乎没有容错，一乱就掉档。' },
+  { key: 'desperate', name: '绝境', need: 6000, mult: 2.60, pace: 0.70, windowPace: 0.64, goal: 1.32, gear: 'hard', desc: '给练到极处的人：最快节奏、最高目标、最高倍率。' },
 ];
 
 const DIFF_MAP = {};
@@ -215,13 +215,16 @@ function difficultyList(prof, current) {
 // ---------------------------------------------------------------- 参数缩放
 // 时间 / 判定窗类：pace 越小越难。window 是 0~1 的小数，保留三位。
 const PACE_KEYS = ['interval', 'flashMs', 'gapMs', 'windowMs', 'shuffleMs', 'flipMs', 'window'];
+// 判定窗口类：只影响「亮着的那一下有多久来得及」，收紧得比 pace 陡 ——
+// 窗口每短一成，容错掉的不是一成。多个玩法共用同一个字段名也互不影响。
+const WINDOW_KEYS = ['life'];
 // 数量 / 目标类：goal 越大越难。均为整数。
 const GOAL_KEYS = ['chainGoal', 'maxRound', 'segments', 'beats', 'scramble', 'mines', 'pairs', 'decoys', 'startLen', 'baseLen'];
 // speed 是光环每 tick 的收缩量，方向与时间类相反。
 const SPEED_KEY = 'speed';
 
 const FIELD_LABELS = {
-  interval: '灵光间隔', flashMs: '闪烁时长', gapMs: '闪烁间隔', windowMs: '相生之窗',
+  interval: '灵光间隔', life: '剑光停留', flashMs: '闪烁时长', gapMs: '闪烁间隔', windowMs: '相生之窗',
   shuffleMs: '水流变阵', flipMs: '翻牌停留', window: '判定窗', speed: '气机收敛',
   chainGoal: '连生目标', maxRound: '口诀轮数', segments: '步法段数', beats: '息数',
   scramble: '打乱步数', mines: '禁制数', pairs: '符对数', decoys: '影子数',
@@ -252,6 +255,10 @@ function buildParams(method, diffKey) {
     const k = PACE_KEYS[i];
     if (typeof out[k] === 'number') out[k] = Math.round(out[k] * d.pace * 1000) / 1000;
   }
+  for (let i = 0; i < WINDOW_KEYS.length; i += 1) {
+    const k = WINDOW_KEYS[i];
+    if (typeof out[k] === 'number') out[k] = Math.round(out[k] * d.windowPace);
+  }
   for (let i = 0; i < GOAL_KEYS.length; i += 1) {
     const k = GOAL_KEYS[i];
     if (typeof out[k] === 'number') out[k] = Math.max(1, Math.min(capFor(k, out), Math.round(out[k] * d.goal)));
@@ -261,7 +268,7 @@ function buildParams(method, diffKey) {
 }
 
 function fmtField(key, value) {
-  const ms = key === 'interval' || key === 'flashMs' || key === 'gapMs' || key === 'windowMs' || key === 'shuffleMs' || key === 'flipMs';
+  const ms = key === 'interval' || key === 'life' || key === 'flashMs' || key === 'gapMs' || key === 'windowMs' || key === 'shuffleMs' || key === 'flipMs';
   return value + (ms ? 'ms' : '');
 }
 
@@ -271,7 +278,7 @@ function diffDetail(method, diffKey) {
   const base = buildParams(method, 'easy');
   const now = buildParams(method, diffKey);
   const changes = [];
-  const ordered = PACE_KEYS.concat(GOAL_KEYS, [SPEED_KEY]);
+  const ordered = PACE_KEYS.concat(WINDOW_KEYS, GOAL_KEYS, [SPEED_KEY]);
   for (let i = 0; i < ordered.length && changes.length < 3; i += 1) {
     const k = ordered[i];
     if (typeof now[k] !== 'number' || typeof base[k] !== 'number') continue;

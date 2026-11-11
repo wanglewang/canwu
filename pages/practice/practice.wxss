@@ -247,6 +247,7 @@
 
 .cell {
     box-sizing: border-box;
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -279,6 +280,50 @@
 .cell--trail { background: var(--soft, #dcecf1); color: var(--ink, #22505f); }
 .cell--gold { background: #b8893b; color: #fffdf7; }
 .cell--hot { box-shadow: inset 0 0 0 6rpx rgba(255, 243, 205, 0.55); }
+
+/* ---------- 循光劈刺：剑光寿命线 / 金锋 / 劈中 ---------- */
+.cell__life {
+    position: absolute;
+    left: 10rpx;
+    right: 10rpx;
+    bottom: 9rpx;
+    height: 6rpx;
+    border-radius: 3rpx;
+    background: rgba(255, 253, 247, 0.92);
+    transform-origin: left center;
+    animation-name: lifeDrain;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+    pointer-events: none;
+}
+
+@keyframes lifeDrain {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+}
+
+.cell--edge {
+    background: #b8893b;
+    color: #fffdf7;
+    box-shadow: inset 0 0 0 6rpx rgba(255, 243, 205, 0.85);
+    animation: litPop 0.3s ease-out;
+}
+
+.cell--hit {
+    background: #fffdf7;
+    color: var(--acc, #4a6b86);
+    animation: hitPop 0.18s ease-out;
+}
+
+.cell--faded {
+    background: #cfc8b8;
+    color: #9a9a8b;
+}
+
+@keyframes hitPop {
+    0% { transform: scale(1.07); }
+    100% { transform: scale(1); }
+}
 
 /* 五行分色只作用于亮起的格子，t0 留给主题主色 */
 .cell--lit.cell--t1 { background: #4f8f5a; }

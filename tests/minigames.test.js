@@ -361,6 +361,73 @@ check('辨伪择真：4×3 盘面同时出现真招与虚影', function () {
   } finally { restoreClock(); }
 });
 
+check('循光劈刺：剑光带寿命，线的尽头没劈到就算漏', function () {
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('forge'));
+    ctx.c.start();
+    const lit = ctx.st.vm.cells.filter(function (c) { return c.cls.indexOf('cell--lit') >= 0; });
+    assert.strictEqual(lit.length, 1, '同一时刻只该有一道剑光');
+    assert.ok(lit[0].life > 0, '剑光没有寿命，玩家看不出还剩多久');
+    const before = ctx.st.vm.scoreText;
+    advance(900);                       // 站着一动不动，等它自己灭
+    assert.strictEqual(ctx.st.vm.scoreText, before, '漏剑不该加分');
+    assert.strictEqual(ctx.st.vm.comboText, '', '漏剑之后剑势该断');
+    assert.ok(ctx.st.vm.status.indexOf('慢') >= 0, '漏剑没有给出提示');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('循光劈刺：劈空罚一息，与剑诀·断岳同规矩', function () {
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('forge'));
+    ctx.c.start();
+    let wrong = -1;
+    for (let i = 0; i < ctx.st.vm.cells.length; i += 1) {
+      if (ctx.st.vm.cells[i].cls.indexOf('cell--lit') < 0) { wrong = i; break; }
+    }
+    assert.ok(wrong >= 0);
+    ctx.c.tap(wrong);
+    assert.strictEqual(ctx.st.vm.progressText, '14 息', '劈空没有扣掉一息');
+    assert.ok(ctx.st.vm.status.indexOf('空') >= 0);
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('循光劈刺：连击 5 记起算剑势，第 5 道剑光换成金锋', function () {
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('forge'));
+    ctx.c.start();
+    function pick(cls) {
+      for (let i = 0; i < ctx.st.vm.cells.length; i += 1) {
+        if (ctx.st.vm.cells[i].cls.indexOf(cls) >= 0) return i;
+      }
+      return -1;
+    }
+    for (let n = 0; n < 4; n += 1) {
+      const i = pick('cell--lit');
+      assert.ok(i >= 0, '第 ' + (n + 1) + ' 道剑光没有亮起');
+      ctx.c.tap(i);
+      advance(120);
+    }
+    assert.strictEqual(ctx.st.vm.scoreText, '得分 40');
+    assert.ok(ctx.st.vm.meter && ctx.st.vm.meter.label.indexOf('剑势') >= 0, '没有剑势条');
+
+    // 第五道换成金锋：只有它亮着，寿命比寻常剑光短
+    const edge = pick('cell--edge');
+    assert.ok(edge >= 0, '第 5 道剑光没有换成金锋');
+    assert.strictEqual(pick('cell--lit'), -1, '金锋该取代寻常剑光，而不是同时亮两格');
+    assert.ok(ctx.st.vm.cells[edge].life > 0 && ctx.st.vm.cells[edge].life < 700, '金锋寿命没有缩短');
+
+    ctx.c.tap(edge);
+    // 连到第 5 记，剑势 ×1.5，金锋 20 分算 30 分
+    assert.strictEqual(ctx.st.vm.scoreText, '得分 70');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
 check('循纹递推：竖向河道逐层推进，只有当前层可点', function () {
   installClock();
   try {

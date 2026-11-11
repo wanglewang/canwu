@@ -80,6 +80,11 @@ function TimerBag() {
       timeouts.push(id);
       return id;
     },
+    // 单独撤掉一个 after：光点换位、提前劈中时要把旧的寿命计时掐掉。
+    off: function (id) {
+      if (id === null || id === undefined) return;
+      clearTimeout(id);
+    },
     // 可变间隔的循环：msFn() 每轮取一次间隔，用于连击升温之类的节奏变化。
     everyFlex: function (fn, msFn) {
       const h = { alive: true, id: null };

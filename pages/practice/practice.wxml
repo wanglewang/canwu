@@ -122,6 +122,7 @@
 
       <view wx:if="{{(vm.stage === 'board' || vm.stage === 'lane') && vm.extras.showGrid}}" class="grid grid--c{{vm.cols}} {{vm.stage === 'lane' ? 'grid--lane' : ''}}" style="background:{{theme.bg}}">
         <view wx:for="{{vm.cells}}" wx:key="key" class="{{item.cls}} cell--t{{item.tone}}" style="border-color:{{theme.frame}}" data-index="{{index}}" bindtap="onCellTap" bindlongpress="onCellLongPress">
+          <view wx:if="{{item.life}}" class="cell__life" style="animation-duration:{{item.life}}ms;animation-delay:{{item.lifeDelay}}ms"></view>
           <text>{{item.label}}</text>
         </view>
       </view>
