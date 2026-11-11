@@ -11,27 +11,39 @@ function check(name, fn) {
   console.log('OK  ' + name);
 }
 
-check('新档版本为 2 且带头像字段', function () {
+check('新档版本为 3 且带头像与纪录字段', function () {
   const s = game.createNewState();
-  assert.strictEqual(s.version, 2);
+  assert.strictEqual(s.version, 3);
   assert.strictEqual(s.avatar, '');
+  assert.deepStrictEqual(s.records, {});
 });
 
-check('v1 存档可迁移到 v2', function () {
+check('v1 存档可迁移到 v3', function () {
   const old = game.createNewState();
   delete old.avatar;
+  delete old.records;
   old.version = 1;
   const n = game.normalizeState(old);
-  assert.strictEqual(n.version, 2);
+  assert.strictEqual(n.version, 3);
   assert.strictEqual(n.avatar, '');
+  assert.deepStrictEqual(n.records, {});
   assert.ok(n.skills && Object.keys(n.skills).length > 0);
+});
+
+check('v2 存档迁移后补出空纪录表', function () {
+  const old = game.createNewState();
+  delete old.records;
+  old.version = 2;
+  const n = game.normalizeState(old);
+  assert.strictEqual(n.version, 3);
+  assert.deepStrictEqual(n.records, {});
 });
 
 check('无 version 的老存档也能兜底', function () {
   const old = game.createNewState();
   delete old.version;
   const n = game.normalizeState(old);
-  assert.strictEqual(n.version, 2);
+  assert.strictEqual(n.version, 3);
 });
 
 check('存档码导出导入往返一致', function () {
@@ -44,7 +56,7 @@ check('存档码导出导入往返一致', function () {
   assert.strictEqual(r.state.roleName, '青云散人');
   assert.strictEqual(r.state.portrait, 3);
   assert.strictEqual(r.state.resources.qi, 321);
-  assert.strictEqual(r.state.version, 2);
+  assert.strictEqual(r.state.version, 3);
 });
 
 check('非法存档码被拒绝', function () {

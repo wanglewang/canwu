@@ -2,7 +2,7 @@
   <view class="pg__head">
     <text class="eyebrow">技 能 · 熟 练 度 · 参 悟 方 式</text>
     <text class="h1 serif">功法</text>
-    <text class="muted mt8">十门功法，十套玩法；同是剑法，点进去也不是同一个盘面。</text>
+    <text class="muted mt8">十门功法，十套玩法；同类功法按基础 → 进阶 → 上乘 → 绝学分阶，难度与收益逐级递增。</text>
   </view>
 
   <view wx:if="{{ov}}" class="card card--ink">
@@ -14,6 +14,20 @@
       <text class="tag tag--dark" wx:for="{{legend}}" wx:key="key">{{item.name}} {{item.threshold}}</text>
     </view>
     <text class="tiny mt12 pr-tiny">熟练度到 100 / 400 / 1000 / 2500 依次升段；精通后解锁技能特效，大成给满加成。</text>
+  </view>
+
+  <view class="card chain-card">
+    <view class="row--between">
+      <text class="section__title">功法谱系</text>
+      <text class="tag tag--grey">基础 → 绝学</text>
+    </view>
+    <text class="tiny mt8">同一脉的功法循序渐进：品阶越高，参悟节奏越紧、目标越高，熟练度收益也越厚。</text>
+    <view wx:for="{{chains}}" wx:key="type" class="chain-row mt12">
+      <text class="chain-row__label">{{item.label}}</text>
+      <view class="row--wrap">
+        <text wx:for="{{item.slots}}" wx:for-item="node" wx:key="id" class="chain-node {{node.empty ? 'chain-node--empty' : ''}} {{node.unlocked ? 'chain-node--got' : ''}}">{{node.rankName}} · {{node.name}} {{node.starsText}}</text>
+      </view>
+    </view>
   </view>
 
   <block wx:for="{{cards}}" wx:key="id">
@@ -28,6 +42,7 @@
         <view class="row">
           <text class="h3">{{item.name}}</text>
           <text class="tag tag--grey skill-type">{{item.type}}</text>
+          <text class="tag tag--gold skill-rank">{{item.rankName}} {{item.starsText}}</text>
         </view>
         <text wx:if="{{item.unlocked}}" class="tag" style="color:{{item.tierColor}}">{{item.tierName}}</text>
         <text wx:elif="{{item.canBuy}}" class="tag tag--gold">可兑换</text>
@@ -36,6 +51,7 @@
       <text class="tiny mt8">{{item.methodName}} · {{item.desc}}</text>
       <view class="row mt8">
         <text class="tag tag--jade">玩法 · {{item.gameName}}</text>
+        <text wx:if="{{item.bestText}}" class="tiny skill-best">本门最佳 {{item.bestText}}</text>
       </view>
       <block wx:if="{{item.unlocked}}">
         <view class="bar mt12">
@@ -64,6 +80,16 @@
       </view>
       <text class="modal__title serif mt12">{{detail.name}}</text>
       <text class="modal__sub">参悟方式 · {{detail.methodName}} · 玩法「{{detail.gameName}}」</text>
+
+      <view class="rank-detail mt12">
+        <view class="row--between">
+          <text class="tag tag--gold">{{detail.rankName}} · {{detail.starsText}}</text>
+          <text class="tiny">{{detail.rewardText}}</text>
+        </view>
+        <text class="body mt8">{{detail.rankDesc}}</text>
+        <text class="tiny mt8">{{detail.diffBrief}}</text>
+        <text wx:if="{{detail.bestText}}" class="tiny mt8">本门最佳：{{detail.bestText}}</text>
+      </view>
 
       <view class="modal__body">
         <text class="body">{{detail.desc}}</text>

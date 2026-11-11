@@ -9,3 +9,69 @@
 .skill-type {
     margin-left: 12rpx;
 }
+
+.skill-rank {
+    margin-left: 8rpx;
+    font-size: 20rpx;
+}
+
+.skill-best {
+    margin-left: 12rpx;
+    color: #6d7a70;
+}
+
+.chain-card {
+    padding-bottom: 18rpx;
+}
+
+.chain-row {
+    border-top: 1rpx solid rgba(0, 0, 0, 0.06);
+    padding-top: 14rpx;
+}
+
+.chain-row__label {
+    display: block;
+    font-size: 24rpx;
+    color: #6d7a70;
+    margin-bottom: 8rpx;
+}
+
+.chain-node {
+    display: inline-block;
+    margin: 0 10rpx 10rpx 0;
+    padding: 8rpx 14rpx;
+    border-radius: 8rpx;
+    background: #eeeae0;
+    color: #8a8f83;
+    font-size: 22rpx;
+    line-height: 1.5;
+}
+
+.chain-node--got {
+    background: #e2efe8;
+    color: #2f6b5b;
+}
+
+.chain-node--empty {
+    background: transparent;
+    border: 1rpx dashed rgba(0, 0, 0, 0.14);
+    color: #a5aca3;
+}
+
+.rank-detail {
+    border: 1rpx solid rgba(0, 0, 0, 0.08);
+    border-radius: 12rpx;
+    padding: 18rpx 20rpx;
+    background: #faf7ef;
+}
+
+@media (prefers-color-scheme: dark) {
+    .skill-card--dim { background: #202a25; }
+    .chain-row { border-color: #33403a; }
+    .chain-row__label { color: #9aa79f; }
+    .chain-node { background: #2b3832; color: #9aa79f; }
+    .chain-node--got { background: #263a30; color: #9fd7bd; }
+    .chain-node--empty { border-color: #3a4740; color: #6d7a70; }
+    .skill-best { color: #9aa79f; }
+    .rank-detail { border-color: #33403a; background: #202a25; }
+}

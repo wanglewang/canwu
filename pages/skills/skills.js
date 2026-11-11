@@ -16,6 +16,7 @@ Page({
     shop: [],
     locked: [],
     legend: [],
+    chains: [],
     showDetail: false,
     detail: null,
     canAfford: false,
@@ -40,6 +41,7 @@ Page({
     const state = store.get();
     const ov = engine.getOverview(state);
     const list = engine.getSkillList(state);
+    const chains = engine.getRankChains(state);
     const unlocked = [];
     const shop = [];
     const locked = [];
@@ -69,6 +71,8 @@ Page({
         cards.push({
           id: s.id, name: s.name, type: s.type, desc: s.desc,
           methodName: s.methodName, gameName: s.gameName, tierName: s.tierName, tierColor: s.tierColor,
+          rankName: s.rankName, starsText: s.starsText, rewardText: s.rewardText,
+          rankDesc: s.rankDesc, diffBrief: s.diffBrief, bestText: s.bestText,
           percent: s.percent, prof: s.prof, nextText: s.nextText,
           unlocked: s.unlocked, canBuy: s.canBuy, costText: s.costText,
           affordable: s.affordable, sourceText: s.sourceText,
@@ -85,6 +89,7 @@ Page({
     this.setData({
       ov: ov,
       cards: cards,
+      chains: chains,
       unlocked: unlocked,
       shop: shop,
       locked: locked,

@@ -13,7 +13,7 @@ const achievementData = require('../data/achievements.js');
 const STORAGE_KEY = 'canwu_save_v1';
 const SAVE_PREFIX = 'CANWU1:';
 const BATTLE_PREFIX = 'CW1-';
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 
 function readStorage(key) {
   try {
@@ -74,6 +74,8 @@ function createNewState() {
       practiceCount: 0, wins: 0, comboCount: 0,
       gradeS: 0, dailyClaimed: 0, tierUps: 0,
     },
+    // 每门功法的局内最佳：{ score, grade, at }，用于「破纪录」反馈与功法页展示。
+    records: {},
     daily: { date: todayKey(Date.now()), count: 0, claimed: false },
     equippedTitle: '',
     titles: [],
@@ -96,6 +98,10 @@ function migrateState(raw) {
   if (v < 2) {
     // v1 -> v2：引入微信头像云存储路径，缺省为空即用 CSS 道相。
     next = Object.assign({}, next, { version: 2, avatar: '' });
+  }
+  if (v < 3) {
+    // v2 -> v3：引入功法品阶难度与各门功法的局内最佳纪录。
+    next = Object.assign({}, next, { version: 3, records: {} });
   }
   return next;
 }
@@ -143,6 +149,20 @@ function normalizeState(input) {
     base.daily.date = raw.daily.date;
     base.daily.count = Math.floor(num(raw.daily.count, 0));
     base.daily.claimed = !!raw.daily.claimed;
+  }
+  if (raw.records && typeof raw.records === 'object') {
+    const ids = Object.keys(raw.records);
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = ids[i];
+      if (!skillData.SKILL_MAP[id]) continue;
+      const r = raw.records[id];
+      if (!r || typeof r !== 'object') continue;
+      base.records[id] = {
+        score: Math.floor(num(r.score, 0)),
+        grade: typeof r.grade === 'string' ? r.grade.slice(0, 2) : 'C',
+        at: num(r.at, 0),
+      };
+    }
   }
   if (Array.isArray(raw.titles)) base.titles = raw.titles.filter(function (x) { return typeof x === 'string'; });
   if (typeof raw.equippedTitle === 'string') base.equippedTitle = raw.equippedTitle;
@@ -405,8 +425,20 @@ function applyPractice(state, skillId, grade, options) {
   const cross = !isRepeat && !!state.lastPractice.skillId;
   const crossBonus = cross ? 1.15 : 1;
   const hardBonus = opts.hard ? 1.6 : 1;
+  const rank = practiceData.rankOf(skill.rank);
+  const rankBonus = rank.reward;
 
-  const gain = Math.max(1, Math.round(method.base * factor * wuFactor * (1 + practiceBonus) * restless * crossBonus * hardBonus));
+  const gain = Math.max(1, Math.round(method.base * factor * wuFactor * (1 + practiceBonus) * restless * crossBonus * hardBonus * rankBonus));
+
+  // 局内得分第一次真正进入养成：记住本门最佳，给重复参悟一个可追的目标。
+  if (!state.records) state.records = {};
+  const score = Math.max(0, Math.floor(num(opts.score, 0)));
+  const prev = state.records[skillId];
+  const prevBest = prev ? Math.floor(num(prev.score, 0)) : 0;
+  const newRecord = score > prevBest;
+  if (newRecord) state.records[skillId] = { score: score, grade: grade, at: Date.now() };
+  else if (!prev) state.records[skillId] = { score: 0, grade: grade, at: Date.now() };
+  const bestScore = Math.max(prevBest, score);
 
   state.lastPractice = { skillId: skillId, at: Date.now() };
   state.repeatCount = repeatCount;
@@ -483,6 +515,11 @@ function applyPractice(state, skillId, grade, options) {
     restless: repeatCount > 0 ? repeatCount : 0,
     cross: cross,
     hard: !!opts.hard,
+    rankBonus: rankBonus,
+    rankName: rank.name,
+    newRecord: newRecord,
+    bestScore: bestScore,
+    prevBest: prevBest,
     buffMultiplier: state.buff.multiplier,
     fortune: fortune,
     newTitles: checkTitles(state),
@@ -860,6 +897,8 @@ function getSkillList(state) {
     const rec = state.skills[s.id] || { unlocked: false, prof: 0 };
     const info = tierInfo(rec.prof);
     const method = practiceData.getMethod(s.method);
+    const diff = practiceData.difficultyOf(method, s.rank);
+    const best = state.records ? state.records[s.id] : null;
     list.push({
       id: s.id,
       name: s.name,
@@ -871,6 +910,13 @@ function getSkillList(state) {
       methodName: method.name,
       methodTip: method.tip,
       gameName: method.gameName,
+      rank: s.rank,
+      rankName: diff.name,
+      starsText: diff.starsText,
+      rankDesc: diff.desc,
+      rewardText: diff.rewardText,
+      diffBrief: diff.brief,
+      bestText: best ? best.score + ' 分 · ' + best.grade + ' 档' : '',
       tierIndex: info.index,
       tierName: info.name,
       tierColor: info.color,
@@ -889,6 +935,52 @@ function getSkillList(state) {
     });
   }
   return list;
+}
+
+// 按功法类别组装进阶链：每类从基础到绝学，标注品阶、难度与是否已习得。
+function getRankChains(state) {
+  const chains = skillData.chainsOf();
+  const ranks = practiceData.RANKS;
+  const out = [];
+  for (let i = 0; i < chains.length; i += 1) {
+    const c = chains[i];
+    const items = [];
+    const slots = [];
+    for (let j = 0; j < c.items.length; j += 1) {
+      const it = c.items[j];
+      const method = practiceData.getMethod(it.method);
+      const d = practiceData.difficultyOf(method, it.rank);
+      const rec = state.skills[it.id] || { unlocked: false };
+      items.push({
+        id: it.id,
+        name: it.name,
+        rankName: d.name,
+        starsText: d.starsText,
+        gameName: method.gameName,
+        unlocked: !!rec.unlocked,
+      });
+    }
+    // 四阶刻度全列出来，缺功法的阶位显示为空档，进阶链的断裂一眼可见。
+    for (let r = 0; r < ranks.length; r += 1) {
+      let found = null;
+      for (let k = 0; k < items.length; k += 1) {
+        if (items[k].rankName === ranks[r].name) { found = items[k]; break; }
+      }
+      let starsText = '';
+      for (let n = 0; n < ranks.length; n += 1) starsText += n < ranks[r].stars ? '★' : '☆';
+      slots.push(found || {
+        id: 'gap-' + c.type + '-' + ranks[r].rank,
+        name: '（待补全）',
+        rankName: ranks[r].name,
+        starsText: starsText,
+        gameName: '',
+        unlocked: false,
+        empty: true,
+      });
+    }
+    out.push({ type: c.type, label: c.type + '一脉', items: items, slots: slots });
+  }
+  return out;
 }
 
 function getChallengeList(state) {
@@ -984,6 +1076,7 @@ module.exports = {
   importSaveCode: importSaveCode,
   getOverview: getOverview,
   getSkillList: getSkillList,
+  getRankChains: getRankChains,
   getChallengeList: getChallengeList,
   getTitleList: getTitleList,
   getTopSkills: getTopSkills,

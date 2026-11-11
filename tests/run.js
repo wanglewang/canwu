@@ -4,7 +4,7 @@
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const FILES = ['game.test.js', 'store.test.js', 'minigames.test.js', 'layout.test.js'];
+const FILES = ['game.test.js', 'store.test.js', 'minigames.test.js', 'rank.test.js', 'layout.test.js'];
 let failed = 0;
 
 for (const file of FILES) {

@@ -113,6 +113,33 @@ for (const f of ['package.json', 'package-lock.json', 'README.md', 'project.conf
   else checked += 1;
 }
 
+// 8. 功法品阶与难度阶梯约定
+const skillMod = require('../data/skills.js');
+const practiceMod = require('../data/practice.js');
+if (skillMod.SKILLS.length !== 10 || practiceMod.RANKS.length !== 4) {
+  errors.push('功法数或品阶数不符合约定');
+} else checked += 1;
+const rankSeen = {};
+for (const s of skillMod.SKILLS) {
+  if (!Number.isInteger(s.rank) || s.rank < 1 || s.rank > 4) errors.push('功法品阶非法: ' + s.id);
+  else { rankSeen[s.rank] = true; checked += 1; }
+  if (!practiceMod.METHOD_MAP[s.method]) errors.push('功法指向不存在的参悟方式: ' + s.id);
+  else checked += 1;
+}
+if (Object.keys(rankSeen).length !== 4) errors.push('四阶品阶中存在空阶');
+else checked += 1;
+let boardSafe = true;
+for (const m of practiceMod.PRACTICE_METHODS) {
+  for (let rank = 1; rank <= 4; rank += 1) {
+    const out = practiceMod.buildParams(m, rank);
+    for (const key of ['grid', 'cols', 'rows', 'size']) {
+      if (typeof m.params[key] === 'number' && out[key] !== m.params[key]) boardSafe = false;
+    }
+  }
+}
+if (!boardSafe) errors.push('品阶缩放改动了盘面尺寸字段');
+else checked += 1;
+
 if (errors.length > 0) {
   console.error('静态校验失败（' + errors.length + ' 项）:');
   for (const e of errors) console.error('  - ' + e);

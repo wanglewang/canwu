@@ -38,6 +38,10 @@ Page({
     hardHint: '',
     perkText: '',
     difficulty: 'normal',
+    rankInfo: null,
+    chainItems: [],
+    chainLabel: '',
+    bestText: '',
     theme: themes.themeOf('forge', 'click'),
     twistName: '常规功课',
     twistDesc: '',
@@ -128,6 +132,10 @@ Page({
         hardUnlocked: false,
         hardHint: '',
         perkText: '突破成功后境界提升，战力获得额外境界加成。',
+        rankInfo: null,
+        chainItems: [],
+        chainLabel: '',
+        bestText: '',
         theme: this.theme,
         twistName: bt.name,
         twistDesc: '气机往复只在朱线一线，越贴近正中评级越高。',
@@ -140,6 +148,14 @@ Page({
     const info = engine.tierInfo(rec.prof);
     const theme = themes.themeOf(method.id, method.game);
     const twist = themes.twistOf(method.twist);
+    const rankInfo = practiceData.difficultyOf(method, skill.rank);
+    const chain = skillData.chainOfType(skill.type);
+    const chainItems = chain.items.map(function (it) {
+      const d = practiceData.difficultyOf(practiceData.getMethod(it.method), it.rank);
+      return { id: it.id, name: it.name, starsText: d.starsText, rankName: d.name, current: it.id === skill.id };
+    });
+    const best = state.records ? state.records[skill.id] : null;
+    const bestText = best ? '本门最佳 ' + best.score + ' 分 · ' + best.grade + ' 档' : '本门尚无纪录，这一局就是起点';
     this.theme = theme;
     this.twist = method.twist;
     this.setData({
@@ -154,8 +170,12 @@ Page({
       percent: info.percent,
       nextText: info.maxed ? '已至大成' : '距 ' + info.nextName + ' 还差 ' + (info.nextThreshold - rec.prof),
       hardUnlocked: info.index >= 2,
-      hardHint: info.index >= 2 ? '苦修已解锁：难度提高，熟练度 ×1.6' : '熟练度到「熟练」后解锁苦修（熟练度 ×1.6）',
+      hardHint: info.index >= 2 ? '苦修已解锁：在本门品阶难度之上再收紧一档，熟练度 ×1.6' : '熟练度到「熟练」后解锁苦修（熟练度 ×1.6）',
       perkText: '精通以后这一门的参悟会自带便利：判定更宽裕、时限更从容，或是多一次本门专有的照应。',
+      rankInfo: rankInfo,
+      chainItems: chainItems,
+      chainLabel: skill.type + '一脉 · 由基础向绝学',
+      bestText: bestText,
       theme: theme,
       twistName: twist.name,
       twistDesc: twist.desc,
@@ -175,7 +195,7 @@ Page({
       const skill = skillData.getSkill(this.skillId);
       const method = practiceData.getMethod(skill.method);
       gameId = method.game;
-      params = method.params;
+      params = practiceData.buildParams(method, skill.rank);
       methodName = method.name;
       tip = method.tip;
       tier = engine.tierIndex(state.skills[this.skillId].prof);
@@ -337,11 +357,12 @@ Page({
       };
     } else {
       const r = store.commitCritical(function (s) {
-        return engine.applyPractice(s, skillId, grade, { hard: hard });
+        return engine.applyPractice(s, skillId, grade, { hard: hard, score: res.score || 0 });
       });
       const lines = [
         { k: '熟练度', v: '+' + r.gain },
         { k: '灵气', v: '+' + r.qi },
+        { k: '局内得分', v: String(res.score || 0) },
       ];
       if (r.stone > 0) lines.push({ k: '灵石', v: '+' + r.stone });
       lines.push({ k: '挂机加速', v: '×' + r.buffMultiplier.toFixed(1) + ' · 30 分钟' });
@@ -350,7 +371,13 @@ Page({
       if (r.tierUp) notes.push('【' + r.skillName + '】升段至「' + r.tierName + '」，属性加成提高。');
       if (r.cross) notes.push('触类旁通：换了门功法，熟练度 ×1.15。');
       if (r.restless > 0) notes.push('心浮气躁：同一门连练 ' + r.restless + ' 次，收益递减。');
-      if (r.hard) notes.push('苦修：难度提高，熟练度 ×1.6。');
+      if (r.hard) notes.push('苦修：在本门品阶难度之上再收紧一档，熟练度 ×1.6。');
+      if (r.rankBonus > 1) notes.push('品阶加成：' + r.rankName + '功法参悟更难，熟练度 ×' + r.rankBonus.toFixed(2) + '。');
+      if (r.newRecord) {
+        notes.push(r.prevBest > 0
+          ? '破了本门纪录：' + (res.score || 0) + ' 分，此前最佳 ' + r.prevBest + ' 分。'
+          : '立下本门首个纪录：' + (res.score || 0) + ' 分。');
+      } else if (r.bestScore > 0) notes.push('本门最佳 ' + r.bestScore + ' 分，这回 ' + (res.score || 0) + ' 分。');
       if (r.fortune) notes.push(r.fortune.text);
       if (r.dailyReady) notes.push('今日参悟已满，回洞府可领份例。');
       rv = {

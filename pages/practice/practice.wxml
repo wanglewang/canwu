@@ -39,13 +39,32 @@
     </view>
 
     <view class="divider"></view>
-    <text class="tiny">十门功法各有自己的一套玩法，连同类功法也不共用盘面与规则。评级倍率：S 圆满 ×2.0 · A 上乘 ×1.4 · B 中平 ×1.0 · C 粗浅 ×0.6。局内顶部会实时显示当前评级。</text>
+    <view wx:if="{{rankInfo}}" class="rank-card" style="border-color:{{theme.accent}};background:{{theme.soft}}">
+      <view class="row--between">
+        <text class="h3" style="color:{{theme.ink}}">本门品阶 · {{rankInfo.name}}</text>
+        <text class="rank-stars" style="color:{{theme.ink}}">{{rankInfo.starsText}}</text>
+      </view>
+      <text class="body mt8" style="color:{{theme.ink}}">{{rankInfo.desc}}</text>
+      <view class="rank-diff mt8">
+        <text class="tiny">难度随品阶而定 · {{rankInfo.brief}}</text>
+        <text class="tiny">{{rankInfo.rewardText}} · {{bestText}}</text>
+      </view>
+      <view class="divider"></view>
+      <text class="tiny">{{chainLabel}}</text>
+      <view class="row--wrap mt8">
+        <text wx:for="{{chainItems}}" wx:key="id" class="rank-chain__item {{item.current ? 'rank-chain__item--now' : ''}}">{{item.rankName}} · {{item.name}} {{item.starsText}}</text>
+      </view>
+    </view>
+
+    <view class="divider"></view>
+    <text class="tiny">十门功法各有自己的一套玩法；同类功法按基础 → 进阶 → 上乘 → 绝学分阶，品阶越高节奏越紧、目标越高、收益越厚。评级倍率：S 圆满 ×2.0 · A 上乘 ×1.4 · B 中平 ×1.0 · C 粗浅 ×0.6。</text>
 
     <block wx:if="{{showDifficulty}}">
       <view class="divider"></view>
-      <text class="h3">今日功课</text>
-      <view class="btn-row">
-        <button class="btn {{difficulty === 'normal' ? 'btn--primary' : 'btn--plain'}}" data-d="normal" bindtap="onDifficulty">常课</button>
+      <text class="h3">今日功课 · 加练</text>
+      <text class="tiny mt8">本门难度已由品阶定好，下方只决定要不要再往上加一档。</text>
+      <view class="btn-row btn-row--mid">
+        <button class="btn {{difficulty === 'normal' ? 'btn--primary' : 'btn--plain'}}" data-d="normal" bindtap="onDifficulty">按品阶修习</button>
         <button class="btn {{difficulty === 'hard' ? 'btn--gold' : 'btn--plain'}}" disabled="{{!hardUnlocked}}" data-d="hard" bindtap="onDifficulty">苦修 ×1.6</button>
       </view>
       <text class="tiny mt12">{{hardHint}}</text>
