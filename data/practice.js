@@ -34,8 +34,8 @@ const PRACTICE_METHODS = [
   },
   {
     id: 'recite', name: '背功法口诀', game: 'memory', theme: 'recite', twist: 'recite',
-    desc: '口诀次第闪过，错一字则气机紊乱。这一门不给你看序号，全凭记住次序。',
-    tip: '按原序点回，记岔即散功',
+    desc: '口诀次第闪过，按原序点回。看漏了可以抢记，赌自己记住了多少。',
+    tip: '按原序点回，长按可抢记',
     base: 38,
     params: { grid: 9, cols: 3, startLen: 2, maxRound: 7, flashMs: 560, gapMs: 260, msPerNote: 480 },
   },
@@ -65,7 +65,7 @@ const PRACTICE_METHODS = [
     desc: '点亮一处，四面随之翻转。要让整座阵法同时亮起，阵眼只在一处。',
     tip: '点一格翻上下左右，全亮为成',
     base: 42,
-    params: { size: 3, scramble: 5, duration: 40 },
+    params: { size: 3, steps: 2, duration: 36 },
   },
   {
     id: 'wuxing', name: '排布阵灯', game: 'wuxing', theme: 'wuxing', twist: 'wuxing',
@@ -160,11 +160,11 @@ function tierIndexOf(key) {
 // 同时 pace 收紧、goal 抬高 —— 想拿高倍率必须真打得过。
 
 const DIFFICULTIES = [
-  { key: 'easy', name: '简单', need: 0, mult: 1.00, pace: 1.18, windowPace: 1.50, goal: 0.85, gear: 'normal', desc: '节奏最缓、目标最宽，先把这一门的手感练稳。' },
-  { key: 'normal', name: '普通', need: 400, mult: 1.30, pace: 1.00, windowPace: 1.21, goal: 1.00, gear: 'normal', desc: '标准节奏与目标，小成之后才开。' },
-  { key: 'hard', name: '困难', need: 1000, mult: 1.70, pace: 0.88, windowPace: 1.00, goal: 1.12, gear: 'hard', desc: '节奏收紧、目标抬高，失误的余地更小。' },
-  { key: 'expert', name: '极难', need: 2500, mult: 2.10, pace: 0.78, windowPace: 0.83, goal: 1.22, gear: 'hard', desc: '几乎没有容错，一乱就掉档。' },
-  { key: 'desperate', name: '绝境', need: 6000, mult: 2.60, pace: 0.70, windowPace: 0.64, goal: 1.32, gear: 'hard', desc: '给练到极处的人：最快节奏、最高目标、最高倍率。' },
+  { key: 'easy', name: '简单', need: 0, mult: 1.00, pace: 1.18, windowPace: 1.50, goal: 0.85, gear: 'normal', depth: 0, desc: '节奏最缓、目标最宽，先把这一门的手感练稳。' },
+  { key: 'normal', name: '普通', need: 400, mult: 1.30, pace: 1.00, windowPace: 1.21, goal: 1.00, gear: 'normal', depth: 1, desc: '标准节奏与目标，小成之后才开。' },
+  { key: 'hard', name: '困难', need: 1000, mult: 1.70, pace: 0.88, windowPace: 1.00, goal: 1.12, gear: 'hard', depth: 2, desc: '节奏收紧、目标抬高，失误的余地更小。' },
+  { key: 'expert', name: '极难', need: 2500, mult: 2.10, pace: 0.78, windowPace: 0.83, goal: 1.22, gear: 'hard', depth: 3, desc: '几乎没有容错，一乱就掉档。' },
+  { key: 'desperate', name: '绝境', need: 6000, mult: 2.60, pace: 0.70, windowPace: 0.64, goal: 1.32, gear: 'hard', depth: 4, desc: '给练到极处的人：最快节奏、最高目标、最高倍率。' },
 ];
 
 const DIFF_MAP = {};
@@ -228,7 +228,7 @@ const FIELD_LABELS = {
   shuffleMs: '水流变阵', flipMs: '翻牌停留', window: '判定窗', speed: '气机收敛',
   chainGoal: '连生目标', maxRound: '口诀轮数', segments: '步法段数', beats: '息数',
   scramble: '打乱步数', mines: '禁制数', pairs: '符对数', decoys: '影子数',
-  startLen: '起始字数', baseLen: '每步长度',
+  startLen: '起始字数', baseLen: '每步长度', steps: '最少步数',
 };
 
 function capFor(key, src) {
@@ -263,6 +263,11 @@ function buildParams(method, diffKey) {
     const k = GOAL_KEYS[i];
     if (typeof out[k] === 'number') out[k] = Math.max(1, Math.min(capFor(k, out), Math.round(out[k] * d.goal)));
   }
+  // depth 是「第几档」（0–4），不做任何缩放，直接透传。
+  // gear 只有 normal / hard 两值，玩法拿它分不出困难与绝境，容易一档一个样。
+  out.depth = d.depth;
+  // steps 是「这盘最少几步」这类按档递增的量：params 里写的是简单档的值，每档 +1。
+  if (typeof out.steps === 'number') out.steps += d.depth;
   if (typeof out[SPEED_KEY] === 'number') out[SPEED_KEY] = Math.round(out[SPEED_KEY] / d.pace * 10000) / 10000;
   return out;
 }
@@ -278,7 +283,7 @@ function diffDetail(method, diffKey) {
   const base = buildParams(method, 'easy');
   const now = buildParams(method, diffKey);
   const changes = [];
-  const ordered = PACE_KEYS.concat(WINDOW_KEYS, GOAL_KEYS, [SPEED_KEY]);
+  const ordered = PACE_KEYS.concat(WINDOW_KEYS, GOAL_KEYS, ['steps', SPEED_KEY]);
   for (let i = 0; i < ordered.length && changes.length < 3; i += 1) {
     const k = ordered[i];
     if (typeof now[k] !== 'number' || typeof base[k] !== 'number') continue;

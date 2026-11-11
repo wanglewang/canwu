@@ -5,24 +5,32 @@
 // 三处压力，让它不只是背题：
 //   1. 复述有息数：本轮时限 = 题长 × 每字息数 + 起手半息，题越长给得越多，但永远不够宽裕；
 //   2. 点错不致命，罚一息半——乱试会把时间试完，时间见底才折一盏心神；
-//   3. 抢记：闪烁时可长按盘面抢先开口，跳过剩余闪烁、本轮分 ×1.5 —— 赌的是你记住了多少。
+//   3. 抢记：闪烁时可长按盘面抢先开口，跳过还没闪的部分。倍率看你还敢少看几个字——
+//      越早抢越高（最多 ×1.9），一个字都没闪时不许抢，免得误按长按直接送命。
+//
+// 两条路，自己选：
+//   稳 —— 一轮不失误，连对每多一轮 +15% 分（封顶 +45%），失误清零；
+//   赌 —— 长按抢记，跳过剩下没闪的字，分再乘 1.2–1.9，赌你记住的够不够。
 //
 // 熟练度阶段解锁的新法（见 data/practice.js 的 STAGE_RULES）：
 //   大成「逆诵」：第 3 轮起，奇轮要从末字往前点；
 //   圆满「叠印」：第 5 轮起，口诀里会出现重复的格子（同一格要连点两下）。
 //
-// 分：每轮 10 × 题长 ×（抢记 1.5）。S 210 / A 110 / B 45。
+// 分：每轮 10 × 题长 × 连对加成 × 抢记倍率。S 300 / A 150 / B 60。
 
 const C = require('./common.js');
 
 const TICK = 100;          // 计时粒度
 const WRONG_COST = 1500;   // 点错罚一息半
-const RUSH_MULT = 1.5;     // 抢记的分数倍率
+const RUSH_MAX = 1.9;      // 抢记倍率上限：一个字都没闪就抢（不允许）时的理论上限
+const RUSH_MIN = 1.2;      // 快要闪完才抢，只剩这点加成
+const STREAK_STEP = 0.15;  // 连对每多一轮 +15%
+const STREAK_CAP = 0.45;   // 连对加成封顶 +45%
 const REVERSE_AT = 3;      // 逆诵：第 3 轮起，奇轮倒着点
 const REPEAT_AT = 5;       // 叠印：第 5 轮起允许重复格子
-const S_LIMIT = 210;
-const A_LIMIT = 110;
-const B_LIMIT = 45;
+// 评级按「理论满分的百分比」给，不写死分数。
+// 高难档轮数多、满分自然高，写死分数会让绝境比简单更容易拿 S。
+const GRADE_RATIO = { S: 0.78, A: 0.50, B: 0.26 };
 
 function create(ctx) {
   const p = ctx.params || {};
@@ -32,7 +40,7 @@ function create(ctx) {
   const grid = p.grid || 9;
   const startLen = p.startLen || 2;
   const maxRound = p.maxRound || 7;
-  const perNote = Math.max(360, p.msPerNote || 1100);
+  const perNote = Math.max(360, p.msPerNote || 480);
   const flashMs = Math.max(240, (p.flashMs || 560) + (perks.easy ? 80 : 0));
   const gapMs = p.gapMs || 260;
   const glyph = theme.glyph || '诀';
@@ -50,7 +58,9 @@ function create(ctx) {
   let score = 0;
   let streak = 0;
   let reversed = false;
+  let flashed = 0;   // 这一轮已经闪完几个字（抢记时用来算倍率）
   let rushed = false;
+  let rushMul = 1;
   let timeLeft = 0;
   let accepting = false;
   let done = false;
@@ -66,10 +76,34 @@ function create(ctx) {
 
   function roundLen(r) { return Math.min(grid, startLen + r - 1); }
 
+  // 理论满分：一轮不错、连对一路攒满时的总分。实际门槛按它的百分比取。
+  const fullScore = (function () {
+    let sum = 0;
+    for (let r = 1; r <= maxRound; r += 1) {
+      const mul = 1 + Math.min(STREAK_CAP, STREAK_STEP * Math.max(0, r - 2));
+      sum += 10 * roundLen(r) * mul;
+    }
+    return Math.round(sum);
+  })();
+  const sLimit = Math.round(fullScore * GRADE_RATIO.S);
+  const aLimit = Math.round(fullScore * GRADE_RATIO.A);
+  const bLimit = Math.round(fullScore * GRADE_RATIO.B);
+
   function roundMs(len) { return 600 + len * perNote; }
 
+  // 连对加成：稳的人靠这个吃饭。第一轮 1.0，每多连一轮 +15%，封顶 +45%。
+  function streakMul() {
+    return 1 + Math.min(STREAK_CAP, STREAK_STEP * Math.max(0, streak - 1));
+  }
+
+  // 抢记倍率：少看几个字就多几分。一个都没看不算（见 longpress）。
+  function rushMulOf(seen, len) {
+    const raw = 1 + (RUSH_MAX - 1) * (1 - seen / Math.max(1, len));
+    return Math.max(RUSH_MIN, Math.min(RUSH_MAX, raw));
+  }
+
   function gradeNow() {
-    return C.gradeBy(score, S_LIMIT, A_LIMIT, B_LIMIT);
+    return C.gradeBy(score, sLimit, aLimit, bLimit);
   }
 
   function syncHud() {
@@ -78,9 +112,11 @@ function create(ctx) {
     vm.progress = C.pct(round - 1, maxRound);
     vm.progressText = (round - 1) + ' / ' + maxRound + ' 轮';
     vm.gradeNow = gradeNow();
-    vm.comboText = streak >= 2 ? '连对 ×' + streak : '';
+    vm.comboText = streak >= 2
+      ? '连对 ×' + streak + ' · 分 ×' + (streakMul()).toFixed(2)
+      : '';
     vm.hearts = { value: lives, max: maxLives };
-    const remainScore = (S_LIMIT - score);
+    const remainScore = (sLimit - score);
     vm.goal = remainScore > 0 ? '再 ' + remainScore + ' 分可入 S' : '已入圆满 · 稳住这一局';
   }
 
@@ -111,6 +147,7 @@ function create(ctx) {
   function flashStep(i) {
     if (done || vm.phase !== 'flashing') return;
     C.clearCells(vm.cells);
+    flashed = i;
     if (i >= sequence.length) { beginInput(); return; }
     const idx = sequence[i];
     vm.cells[idx].cls = 'cell cell--lit';
@@ -142,7 +179,9 @@ function create(ctx) {
     }
     sequence = picked;
     inputIndex = 0;
+    flashed = 0;
     rushed = false;
+    rushMul = 1;
     accepting = false;
     vm.phase = 'flashing';
     vm.status = '第 ' + round + ' 轮 · 记住口诀次第';
@@ -150,7 +189,7 @@ function create(ctx) {
     vm.meter = { label: '口诀次第', value: 0, max: len };
     C.clearCells(vm.cells);
     syncHud();
-    vm.goal = '长按盘面可抢先开口';
+    vm.goal = '长按可抢记 · 少看一字多一成';
     render();
     flashTimer = bag.after(function () { flashTimer = null; flashStep(0); }, 520);
   }
@@ -237,10 +276,11 @@ function create(ctx) {
   function completeRound() {
     accepting = false;
     stopTick();
-    const gain = Math.round(10 * sequence.length * (rushed ? RUSH_MULT : 1));
+    const gain = Math.round(10 * sequence.length * streakMul() * (rushed ? rushMul : 1));
     score += gain;
     streak += 1;
-    C.flash(vm, (rushed ? '抢记成功' : theme.hit || '口诀无误') + ' +' + gain, 'gold');
+    const tag = rushed ? '抢记 ×' + rushMul.toFixed(1) : theme.hit || '口诀无误';
+    C.flash(vm, tag + ' +' + gain, 'gold');
     syncHud();
     render();
     if (round >= maxRound) {
@@ -269,13 +309,21 @@ function create(ctx) {
     onWrong(index);
   }
 
-  // 抢记：闪烁时长按盘面，跳过还没闪完的部分，直接开口。分 ×1.5，风险自负。
+  // 抢记：闪烁时长按盘面，跳过还没闪完的部分，直接开口。
+  // 倍率看少看了几个字——越早抢越高，但没看到的字就得靠自己。
   function longpress() {
     if (done || vm.phase !== 'flashing') return;
+    // 一个字都还没闪：这不是抢记，是自杀。多半是手按住了屏幕，直接忽略。
+    if (flashed <= 0) {
+      C.flash(vm, '还没起头 · 先看清头一字', 'bad');
+      render();
+      return;
+    }
     stopFlash();
     rushed = true;
-    vm.banner = '抢记 · 本轮分 ×1.5';
-    C.flash(vm, '抢先开口 · 分 ×1.5', 'gold');
+    rushMul = rushMulOf(flashed, sequence.length);
+    vm.banner = '抢记 ×' + rushMul.toFixed(1) + ' · 已闪 ' + flashed + ' / ' + sequence.length;
+    C.flash(vm, '抢先开口 · 分 ×' + rushMul.toFixed(1), 'gold');
     beginInput();
   }
 

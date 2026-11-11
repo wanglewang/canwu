@@ -71,10 +71,10 @@ function advance(ms) {
 }
 
 // ---------------------------------------------------------------- 驱动
-function makeCtx(method, perks) {
+function makeCtx(method, perks, params) {
   const st = { vm: null, finished: null, flash: [], roundKey: '', plan: null, planAt: 0, at: 0, pressed: false, seen: {}, sawReverse: false };
   const c = index.createGame(method.game, {
-    params: method.params,
+    params: params || method.params,
     difficulty: 'normal',
     perks: perks || {},
     tip: method.tip,
@@ -133,6 +133,31 @@ function solve(board, size) {
     if (all) return clicks;
   }
   return [];
+}
+
+// 阵灯：在「点得动的格子」里穷举，求这一盘最少几步（死门格不能点，但会被邻格翻转）。
+function minStepsOf(vm) {
+  const n = vm.cells.length;
+  const board = [];
+  const allowed = [];
+  for (let i = 0; i < n; i += 1) {
+    const cls = vm.cells[i].cls;
+    board.push(cls.indexOf('lit') >= 0);
+    if (cls.indexOf('cell--dead') < 0) allowed.push(i);
+  }
+  let best = 99;
+  const total = 1 << allowed.length;
+  for (let mask = 0; mask < total; mask += 1) {
+    let k = 0;
+    for (let i = 0; i < allowed.length; i += 1) if (mask & (1 << i)) k += 1;
+    if (k >= best) continue;
+    const b = board.slice();
+    for (let i = 0; i < allowed.length; i += 1) if (mask & (1 << i)) toggle(b, vm.cols, allowed[i]);
+    let all = true;
+    for (let i = 0; i < n; i += 1) if (!b[i]) { all = false; break; }
+    if (all) best = k;
+  }
+  return best;
 }
 
 function actionFor(game) {
@@ -551,16 +576,39 @@ check('记序复现：复述有息数，息尽折一盏心神', function () {
   } finally { restoreClock(); }
 });
 
-check('记序复现：长按抢记跳过剩余闪烁', function () {
+check('记序复现：长按抢记跳过剩余闪烁，倍率看少看几个字', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('recite'));
     ctx.c.start();
     let t = 0;
     while (t < 14000 && ctx.st.vm.phase !== 'flashing') { advance(60); t += 60; }
+
+    // 一个字都还没闪：长按不算抢记，只是手按住了屏幕，不该把人送进复述。
+    ctx.c.longpress(0);
+    assert.strictEqual(ctx.st.vm.phase, 'flashing', '还没起头就长按，居然跳进了复述');
+    assert.ok(ctx.st.vm.fx.text.indexOf('还没起头') >= 0, '未起头长按没有提示');
+
+    // 等闪出两个字再抢（起手 520 + 一轮闪烁 ≈ 1340），这时倍率应当是这一档的较高值。
+    advance(1600);
     ctx.c.longpress(0);
     assert.strictEqual(ctx.st.vm.phase, 'input', '抢记之后没有直接进入复述');
-    assert.ok(ctx.st.vm.banner.indexOf('抢记') >= 0, '抢记没有给出倍率提示');
+    assert.ok(ctx.st.vm.banner.indexOf('抢记 ×') >= 0, '抢记没有给出倍率：' + ctx.st.vm.banner);
+    assert.ok(ctx.st.vm.banner.indexOf('已闪') >= 0, '抢记没有显示已闪几个字：' + ctx.st.vm.banner);
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('记序复现：连对给分加成，全程无失误远超基线', function () {
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('recite'));
+    ctx.c.start();
+    drive(ctx, 'memory', 60000, 60);
+    assert.ok(ctx.st.finished, '一整局没跑完');
+    // 无加成的基线是 10 × (2+3+4+5+6+7+8) = 350；连对加成满格应当到 460 上下。
+    assert.ok(ctx.st.finished.score > 420,
+      '连对加成没生效，满分只有 ' + ctx.st.finished.score);
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
@@ -572,6 +620,79 @@ check('记序复现：大成解锁逆诵', function () {
     ctx.c.start();
     drive(ctx, 'memory', 60000, 60);
     assert.ok(ctx.st.sawReverse, '大成之后没有出现逆诵轮');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('阵灯推演：难度档只改「这盘最少几步」，盘子始终 3×3', function () {
+  installClock();
+  try {
+    const m = data.getMethod('arrayEye');
+    const got = [];
+    for (let i = 0; i < data.DIFFICULTIES.length; i += 1) {
+      const p = data.buildParams(m, data.DIFFICULTIES[i].key);
+      const ctx = makeCtx(m, {}, p);
+      ctx.c.start();
+      assert.strictEqual(ctx.st.vm.cells.length, 9, '盘面尺寸被难度改变了');
+      const best = minStepsOf(ctx.st.vm);
+      assert.strictEqual(best, p.steps,
+        data.DIFFICULTIES[i].name + ' 这盘最少 ' + best + ' 步，参数写的是 ' + p.steps);
+      got.push(best);
+      ctx.c.destroy();
+    }
+    assert.deepStrictEqual(got, [2, 3, 4, 5, 6], '五档的最少步数没有逐档递增：' + got.join('/'));
+  } finally { restoreClock(); }
+});
+
+check('阵灯推演：连续几盘都解得开，且解完立刻换盘', function () {
+  installClock();
+  try {
+    const m = data.getMethod('arrayEye');
+    const params = data.buildParams(m, 'desperate');
+    const ctx = makeCtx(m, {}, params);
+    ctx.c.start();
+    let solved = 0;
+    for (let round = 0; round < 3; round += 1) {
+      const vm = ctx.st.vm;
+      let best = null;
+      const board = [];
+      const allowed = [];
+      for (let i = 0; i < vm.cells.length; i += 1) {
+        board.push(vm.cells[i].cls.indexOf('lit') >= 0);
+        allowed.push(i);
+      }
+      const total = 1 << allowed.length;
+      for (let mask = 0; mask < total && best === null; mask += 1) {
+        const b = board.slice();
+        let k = 0;
+        for (let i = 0; i < allowed.length; i += 1) if (mask & (1 << i)) { k += 1; toggle(b, vm.cols, allowed[i]); }
+        let all = true;
+        for (let i = 0; i < b.length; i += 1) if (!b[i]) { all = false; break; }
+        if (all) { best = { mask: mask, k: k }; }
+      }
+      assert.ok(best !== null, '第 ' + (round + 1) + ' 盘无解');
+      for (let i = 0; i < allowed.length; i += 1) {
+        if (best.mask & (1 << i)) ctx.c.tap(allowed[i]);
+      }
+      solved += 1;
+      assert.ok(ctx.st.vm.scoreText.indexOf('已解 ' + solved) >= 0, '解开一盘没有计数');
+      advance(300);
+    }
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('阵灯推演：阵眼感应花三秒', function () {
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('arrayEye'));
+    ctx.c.start();
+    advance(500);
+    const before = ctx.st.vm.timeText;
+    ctx.c.hint();
+    advance(200);
+    assert.ok(ctx.st.vm.status.indexOf('三秒') >= 0, '提示没有说明代价：' + ctx.st.vm.status);
+    assert.notStrictEqual(ctx.st.vm.timeText, before, '提示没有扣时间');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });

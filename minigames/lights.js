@@ -2,21 +2,40 @@
 
 // 阵灯推演（参悟阵眼 / 阵法入门专属）：点一格翻转它和上下左右，让整盘阵灯同时亮起。
 //
-// 原来是「解一道题、步数越少越好」——时间无限、撤销免费，等于允许慢慢穷举，没有压力。
-// 现在改成「限时连解」：
-//   1. 一整局固定时辰，解亮一盘立刻起下一盘，看这一局能解几盘；
-//   2. 步数不再评级，但「阵眼感应」（提示）要花 4 秒，贪提示就少解一盘；
-//   3. 大成的「死门」：盘上有一格点不得，点到整盘复位并罚 3 秒；
-//      圆满再加一格。死门生成时保证不落在最优解上，所以每盘都解得开。
+// 一局是「限时连解」：固定时辰，解亮一盘立刻起下一盘，看这一局能解几盘。
 //
-// 评级按解开的盘数：3×3 是 5 / 3 / 1 盘，4×4 放宽到 3 / 2 / 1 盘。
+// 难度不在盘面大小，在「这一盘最少要几步」——3×3 上最优步数恰好等于需要点几个不同的格子
+// （满秩，点集不会互相抵消），所以生成时点 k 个互不相同的格，这盘就一定要 k 步。
+// 五档是 2 / 3 / 4 / 5 / 6 步，每档只多一步，但多一步就得多推一层。
+//
+// 三处压力：
+//   1. 一局就是这么多时辰，解一盘立刻换下一盘，想得久就解得少；
+//   2. 阵眼感应（提示）花三秒，只照出一格，贪提示就少解一盘；
+//   3. 大成的「死门」：盘上有一格点不得，点到整盘复位并罚三秒；圆满再加一格。
+//      死门先定，再只用「点得动的格子」生成，所以每盘都解得开。
+//
+// 评级按解开的盘数，档位越高、每盘越慢，达标盘数相应递减。
 
 const C = require('./common.js');
 
 const TICK = 100;
-const HINT_COST = 4000;   // 阵眼感应：花 4 秒
-const DEAD_COST = 3000;   // 触死门：罚 3 秒
-const RESET_PAUSE = 320;  // 解完一盘到下一盘之间的顿挫
+const HINT_COST = 3000;   // 阵眼感应：花三秒
+const DEAD_COST = 3000;   // 触死门：罚三秒
+const RESET_PAUSE = 160;  // 解完一盘到下一盘之间的顿挫（要短，别把节奏切断）
+const BASE_STEPS = 2;     // 参数里没写 steps 时的简单档步数
+
+// 达标盘数：[S, A, B]，下标是 depth（0 简单 … 4 绝境）。
+// 步数越多每盘越慢，所以档位越高要求的盘数越少。
+// 按假时钟标定：机器人（读盘 0.4s / 每步 0.4s）能解 12 / 11 / 10 / 10 / 9 盘，
+// 真人节奏（读盘 2.5s / 每步 0.9s）能解 11 / 8 / 7 / 6 / 5 盘。
+// S 取真人的七五折——练到位才拿得到；B 兜住新手第一局。
+const TARGETS = [
+  [9, 6, 3],
+  [7, 4, 2],
+  [6, 4, 2],
+  [5, 3, 2],
+  [4, 3, 2],
+];
 
 function toggle(board, size, index) {
   const r = Math.floor(index / size);
@@ -38,15 +57,14 @@ function allLit(board) {
 }
 
 // 只允许点在 allowed 里的格子时，求一条解（死门不能点，所以不能用逐行下压那套）。
-// 允许的格子最多 14 个，2^14 次穷举在提示那几下完全够用。
+// 3×3 最多 2^9 次，只在提示时调用。
 function solveAllowed(board, size, allowed) {
-  const idx = allowed.slice();
-  const total = 1 << idx.length;
+  const total = 1 << allowed.length;
   for (let mask = 0; mask < total; mask += 1) {
     const b = board.slice();
     const clicks = [];
-    for (let i = 0; i < idx.length; i += 1) {
-      if (mask & (1 << i)) { clicks.push(idx[i]); toggle(b, size, idx[i]); }
+    for (let i = 0; i < allowed.length; i += 1) {
+      if (mask & (1 << i)) { clicks.push(allowed[i]); toggle(b, size, allowed[i]); }
     }
     if (allLit(b)) return clicks;
   }
@@ -58,17 +76,14 @@ function create(ctx) {
   const perks = ctx.perks || {};
   const stageIdx = typeof perks.tier === 'number' ? perks.tier : 0;
   const theme = ctx.theme || {};
-  const size = Math.min(5, (p.size || 3) + (ctx.difficulty === 'hard' ? 1 : 0));
-  const scramble = (p.scramble || 5) + (ctx.difficulty === 'hard' ? 2 : 0);
+  const depth = typeof p.depth === 'number' ? p.depth : 0;
+  const size = Math.min(5, p.size || 3);
   const n = size * size;
+  const steps = Math.min(n - 1, p.steps || (BASE_STEPS + depth));
   const deadCount = stageIdx >= 4 ? 2 : stageIdx >= 3 ? 1 : 0;
-  const args = {
-    S: size <= 3 ? 5 : 3,
-    A: size <= 3 ? 3 : 2,
-    B: size <= 3 ? 1 : 1,
-  };
+  const target = TARGETS[Math.min(TARGETS.length - 1, depth)];
 
-  const duration = Math.round((p.duration || 40) * 1000) + (perks.easy ? 8000 : 0);
+  const duration = Math.round((p.duration || 36) * 1000) + (perks.easy ? 8000 : 0);
 
   const vm = C.makeVm(size, n, '让所有阵灯同时亮起', ctx.tip || '点一格会翻转它和上下左右');
   vm.extras.showHint = true;
@@ -90,21 +105,21 @@ function create(ctx) {
   function render() { ctx.render(vm); }
 
   function gradeOf() {
-    if (solved >= args.S) return 'S';
-    if (solved >= args.A) return 'A';
-    if (solved >= args.B) return 'B';
+    if (solved >= target[0]) return 'S';
+    if (solved >= target[1]) return 'A';
+    if (solved >= target[2]) return 'B';
     return 'C';
   }
 
   function syncTime() {
     vm.timeText = '余 ' + (timeLeft / 1000).toFixed(1) + ' 秒 · 第 ' + (solved + 1) + ' 盘';
-    vm.goal = timeLeft > 0 ? '解亮 ' + n + ' 盏 · 本局已解 ' + solved + ' 盘' : '时辰已尽';
+    vm.goal = timeLeft > 0 ? '解亮 ' + n + ' 盏 · 本盘最少 ' + steps + ' 步' : '时辰已尽';
   }
 
   function syncHud() {
     vm.scoreText = '已解 ' + solved + ' 盘';
-    vm.progress = C.pct(solved, args.S);
-    vm.progressText = '已解 ' + solved + ' 盘 · 达标 ' + args.S + ' 盘';
+    vm.progress = C.pct(solved, target[0]);
+    vm.progressText = '已解 ' + solved + ' 盘 · 达标 ' + target[0] + ' 盘';
     vm.gradeNow = gradeOf();
     vm.hint = deadCount > 0
       ? '阵眼感应剩 ' + hintsLeft + ' 次 · 死门 ' + deadCount + ' 处'
@@ -126,20 +141,27 @@ function create(ctx) {
     }
   }
 
+  // 死门先定，再从「点得动的格子」里点 k 个互不相同的格把全亮的阵打乱。
+  // 3×3 上点集互不抵消，所以这一盘的最优解就正好是 k 步——难度因此可控。
+  // 3×3 之外的点集可能互相抵消，这里用一次穷举核一下，不达标就重来。
   function newBoard() {
-    // 死门先定，再用「点得动的格子」把全亮的阵打乱——
-    // 这样反着走一遍就是解，任何时候都不会出现无解的盘。
     const all = [];
     for (let i = 0; i < n; i += 1) all.push(i);
     C.shuffle(all);
     dead = all.slice(0, deadCount);
     const allowed = all.slice(deadCount);
-    let guard = 0;
-    do {
+    const k = Math.min(steps, allowed.length);
+
+    for (let tries = 0; tries < 40; tries += 1) {
       for (let i = 0; i < n; i += 1) board[i] = true;
-      for (let i = 0; i < scramble; i += 1) toggle(board, size, allowed[C.randInt(allowed.length)]);
-      guard += 1;
-    } while (allLit(board) && guard < 20);
+      const pool = allowed.slice();
+      C.shuffle(pool);
+      for (let i = 0; i < k; i += 1) toggle(board, size, pool[i]);
+      if (allLit(board)) continue;
+      if (size === 3) break;
+      const best = solveAllowed(board, size, allowed);
+      if (best && best.length === k) break;
+    }
     startBoard = board.slice();
     moves = 0;
   }
@@ -196,6 +218,7 @@ function create(ctx) {
 
   function onDead(index) {
     board = startBoard.slice();
+    moves = 0;
     timeLeft = Math.max(0, timeLeft - DEAD_COST);
     C.flash(vm, '触了死门 · 阵盘复位，罚三秒', 'bad');
     vm.status = '死门反噬，这一盘从头再来';
@@ -216,12 +239,12 @@ function create(ctx) {
     if (allLit(board)) {
       solved += 1;
       paused = true;
-      vm.status = '这一盘解开了 · 用时 ' + moves + ' 步';
+      vm.status = '解开了 · ' + moves + ' 步';
       vm.banner = '解 ' + solved + ' 盘';
       paint();
       syncHud();
       render();
-      if (solved >= args.S + 6) { finishOnce('解亮 ' + solved + ' 盘，阵法已成'); return; }
+      if (solved >= target[0] + 6) { finishOnce('解亮 ' + solved + ' 盘，阵法已成'); return; }
       bag.after(function () {
         if (done) return;
         nextBoard();
@@ -253,7 +276,7 @@ function create(ctx) {
     const prevLabel = vm.cells[k].label;
     vm.cells[k].cls = 'cell cell--hint';
     vm.cells[k].label = theme.glyph || '明';
-    vm.status = '阵眼感应：这一格该点 · 花去四秒';
+    vm.status = '阵眼感应：这一格该点 · 花去三秒';
     syncHud();
     render();
     bag.after(function () {
