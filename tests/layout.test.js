@@ -157,7 +157,24 @@ check('玩法说明接进准备页，术语速记常驻局内', function () {
   assert.ok(/class="pr-hint__terms"[\s\S]*?guide\.inline/.test(s), '局内没有常驻术语速记');
   assert.ok(/guides\.guideOf\(gameId\)/.test(js), '页面没有按玩法取说明');
   assert.ok(/onToggleGuide: function/.test(js), '缺少展开/收起方法');
-  assert.ok(/edgeGlyph = '金锋'/.test(read('minigames/click.js')), '金锋符号又缩回单字，容易和「锋」混淆');
+  const click = read('minigames/click.js');
+  assert.ok(/金锋 · /.test(click), '金锋又缩回单字，容易和寻常剑路混淆');
+  assert.ok(/顺着光划过去/.test(read('data/guides.js')), '基础剑法说明还停留在「点格子」');
+});
+
+check('顺光划斩：透明触摸层 + 坐标插值还原划动轨迹', function () {
+  const s = read('pages/practice/practice.wxml');
+  const js = read('pages/practice/practice.js');
+  const css = read('pages/practice/practice.wxss');
+  const common = read('minigames/common.js');
+  assert.ok(/class="swipe-layer"/.test(s) && /catchtouchmove="onBoardTouchMove"/.test(s), '盘面没有独立的划动触摸层');
+  assert.ok(/bindtouchstart="onBoardTouchStart"/.test(s) && /bindtouchend="onBoardTouchEnd"/.test(s), '触摸层缺起手或抬手事件');
+  assert.ok(/measureBoard/.test(js) && /boundingClientRect/.test(js), '没有预先量格子矩形');
+  assert.ok(/Math\.sqrt\(dx \* dx \+ dy \* dy\) \/ 10/.test(js), '相邻 move 之间没插值，划快了会漏桩');
+  assert.ok(/controller\.swipe\(path\)/.test(js), '页面没有把轨迹交给玩法层');
+  assert.ok(/showSwipe/.test(common) && /swipe: noop/.test(common), '统一协议里没有 swipe 与 showSwipe');
+  assert.ok(/\.grid__slash-beam/.test(css) && /slashSweep/.test(css), '斩中缺少按招式角度扫过的白光');
+  assert.ok(/\.cell--path\b/.test(css) && /\.cell--pathon/.test(css), '剑路缺光痕与光头两种状态');
 });
 
 check('音效保持柔和不叠加（刺耳问题不退回去）', function () {

@@ -374,11 +374,13 @@
 
 /* ---------- 通用格子 ---------- */
 .grid {
+    position: relative;
     display: flex;
     flex-wrap: wrap;
     margin-top: 24rpx;
     padding: 10rpx;
     border-radius: 18rpx;
+    overflow: hidden;
 }
 
 .cell {
@@ -418,6 +420,88 @@
 .cell--hot { box-shadow: inset 0 0 0 6rpx rgba(255, 243, 205, 0.55); }
 .cell--dead { background: #e6ddd0; color: #9b8f7f; box-shadow: inset 0 0 0 4rpx #b4453c; }
 .cell--dead-lit { background: #efe6d8; }
+
+/* ---------- 循光劈刺：剑路（划） ---------- */
+.trail-hint {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: 20rpx;
+}
+
+.trail-hint__name {
+    font-size: 32rpx;
+    font-weight: 700;
+    letter-spacing: 2rpx;
+}
+
+/* 剑路：已掠过的桩留一道浅光痕，光头最亮；金色是金锋长招。 */
+.cell--path {
+    background: rgba(74, 107, 134, 0.26);
+    color: var(--ink, #254253);
+    box-shadow: inset 0 0 0 3rpx rgba(74, 107, 134, 0.35);
+}
+
+.cell--pathgold {
+    background: rgba(184, 137, 59, 0.3);
+    color: #8a6524;
+    box-shadow: inset 0 0 0 3rpx rgba(184, 137, 59, 0.45);
+}
+
+.cell--pathon {
+    background: var(--acc, #4a6b86);
+    color: #fffdf7;
+    box-shadow: 0 0 20rpx rgba(74, 107, 134, 0.55);
+    transform: scale(1.04);
+}
+
+.cell--pathgold.cell--pathon {
+    background: #b8893b;
+    box-shadow: 0 0 22rpx rgba(184, 137, 59, 0.65);
+}
+
+.cell--cut {
+    background: #fffdf7;
+    color: var(--acc, #4a6b86);
+    animation: hitPop 0.18s ease-out;
+}
+
+/* 斩中时按剑招角度扫过盘面的一道白光：外层定位旋转，内层做扫光动画 */
+.grid__slash {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 150%;
+    height: 14rpx;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.grid__slash-beam {
+    width: 100%;
+    height: 100%;
+    border-radius: 8rpx;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85) 22%, #fff 50%, rgba(255, 255, 255, 0.85) 78%, transparent);
+    box-shadow: 0 0 20rpx rgba(255, 255, 255, 0.85);
+    transform-origin: center;
+    animation: slashSweep 0.24s ease-out forwards;
+}
+
+@keyframes slashSweep {
+    0% { transform: scaleX(0); opacity: 0; }
+    22% { opacity: 1; }
+    100% { transform: scaleX(1); opacity: 0; }
+}
+
+/* 透明触摸层：只在划剑玩法的局内出现，其它玩法的滚动与点按完全不受影响 */
+.swipe-layer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 3;
+}
 
 /* ---------- 循光劈刺：剑光寿命线 / 金锋 / 劈中 ---------- */
 .cell__life {
@@ -844,6 +928,12 @@
     .diff-chip--on .diff-chip__name, .diff-chip--on .diff-chip__mult { color: #fffdf7; }
     .cell { border-color: #1e2723; }
     .cell--off, .cell--hidden { background: #2b3832; color: #9aa79f; }
+    .trail-hint__name { color: #e8eee9; }
+    .cell--path { background: rgba(122, 166, 196, 0.24); color: #cfe0ea; box-shadow: inset 0 0 0 3rpx rgba(122, 166, 196, 0.35); }
+    .cell--pathgold { background: rgba(184, 137, 59, 0.3); color: #e8d3a6; box-shadow: inset 0 0 0 3rpx rgba(184, 137, 59, 0.45); }
+    .cell--pathon { background: #4a6b86; color: #fffdf7; }
+    .cell--pathgold.cell--pathon { background: #b8893b; color: #fffdf7; }
+    .cell--cut { background: #e8eee9; color: #26342d; }
     .cell--open { background: #26342d; color: #e8eee9; }
     .cell--flag, .cell--sensed { background: #3a3a2c; color: #d8c79a; }
     .grid, .hud__track, .meter__track, .charge__track, .ring-area { background: #26342d; }

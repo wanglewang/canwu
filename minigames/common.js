@@ -3,8 +3,10 @@
 // 小游戏公共工具。统一接口：create(ctx) -> controller
 // ctx = { params, difficulty, perks, tip, twist, theme, render(vm), finish(result) }
 // result = { grade: 'S'|'A'|'B'|'C'|'F', score, summary }
-// controller = { start, tap, longpress, undo, hint, press, release, abandon, destroy }
-// vm = { cols, cells, phase, status, hint, timeText, scoreText, charge, ring, extras, HUD 字段 }
+// controller = { start, tap, longpress, swipe, undo, hint, press, release, abandon, destroy }
+//   swipe(path) 是「手指划过的格子序列」，由页面用 touch 坐标命中并插值补全后送入；
+//   只有需要划的玩法（目前是循光劈刺）实现它，其余走默认的 noop。
+// vm = { cols, cells, phase, status, hint, timeText, scoreText, charge, ring, trail, slash, extras, HUD 字段 }
 // HUD 字段：progress / progressText / combo / comboText / goal / gradeNow / banner / fx / hearts / meter
 // stage = 'board' | 'lane' | 'ring' | 'charge' | 'orbit' | 'scroll'，由页面决定盘面形态。
 // lane / orbit / scroll 是对应舞台的附加渲染数据，board/ring/charge 用不到时为 null。
@@ -127,6 +129,8 @@ function makeVm(cols, cellCount, status, hint) {
     scoreText: '',
     charge: null,
     ring: null,
+    trail: null,      // 需要划的玩法：当前剑路 { path, name, angle, gold, on }
+    slash: null,      // 斩中时扫过盘面的白光 { key, angle }
     progress: 0,
     progressText: '',
     combo: 0,
@@ -148,6 +152,7 @@ function makeVm(cols, cellCount, status, hint) {
       showMeter: false,
       showProgress: true,
       showCombo: false,
+      showSwipe: false,
     },
   };
 }
@@ -158,6 +163,7 @@ function fillController(obj) {
   const base = {
     tap: noop,
     longpress: noop,
+    swipe: noop,
     undo: noop,
     hint: noop,
     press: noop,

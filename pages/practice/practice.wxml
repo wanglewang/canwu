@@ -161,11 +161,21 @@
         <text class="tiny">{{vm.lane.rule}} · 正采第 {{vm.lane.activeRow + 1}} / {{vm.lane.rows}} 层</text>
       </view>
 
+      <view wx:if="{{vm.trail && started}}" class="trail-hint">
+        <text class="trail-hint__name">{{vm.trail.name}}</text>
+        <text class="tiny">顺光划过 {{trailLen}} 桩 · 反着划也算</text>
+      </view>
+
       <view wx:if="{{(vm.stage === 'board' || vm.stage === 'lane') && vm.extras.showGrid}}" class="grid grid--c{{vm.cols}} {{vm.stage === 'lane' ? 'grid--lane' : ''}}" style="background:{{theme.bg}}">
+        <view wx:for="{{slashList}}" wx:key="key" class="grid__slash" style="transform:translate(-50%,-50%) rotate({{item.angle}}deg)">
+          <view class="grid__slash-beam"></view>
+        </view>
         <view wx:for="{{vm.cells}}" wx:key="key" class="{{item.cls}} cell--t{{item.tone}}" style="border-color:{{theme.frame}}" data-index="{{index}}" bindtap="onCellTap" bindlongpress="onCellLongPress">
           <view wx:if="{{item.life}}" class="cell__life" style="animation-duration:{{item.life}}ms;animation-delay:{{item.lifeDelay}}ms"></view>
           <text>{{item.label}}</text>
         </view>
+        <!-- 划剑玩法的透明触摸层：盖住静态格子，用手势坐标还原一条连续轨迹 -->
+        <view wx:if="{{vm.extras.showSwipe && started}}" class="swipe-layer" bindtouchstart="onBoardTouchStart" catchtouchmove="onBoardTouchMove" bindtouchend="onBoardTouchEnd" bindtouchcancel="onBoardTouchEnd"></view>
       </view>
 
       <view wx:if="{{vm.stage === 'orbit' && vm.orbit}}" class="orbit">

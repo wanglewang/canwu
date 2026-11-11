@@ -65,6 +65,8 @@ Page({
     barMode: '',
     guide: null,
     guideOpen: true,
+    slashList: [],
+    trailLen: 0,
   },
 
   onLoad: function (query) {
@@ -73,6 +75,10 @@ Page({
     this.countdownTimers = [];
     this.needsRebuild = false;
     this.lastFxKey = 0;
+    this.cellRects = [];
+    this.swipePath = null;
+    this.lastTouchX = 0;
+    this.lastTouchY = 0;
     this.theme = themes.themeOf('forge', 'click');
     this.twist = '';
     this.mode = query && query.mode === 'breakthrough' ? 'breakthrough' : 'practice';
@@ -278,6 +284,8 @@ Page({
           gradeNowColor: worldData.GRADE_COLOR[vm.gradeNow] || '#8a8f83',
           heartList: heartsToFlags(vm.hearts),
           meterPercent: vm.meter && vm.meter.max ? Math.round(vm.meter.value / vm.meter.max * 100) : 0,
+          slashList: vm.slash ? [vm.slash] : [],
+          trailLen: vm.trail ? vm.trail.path.length : 0,
         });
         // 浮字是玩法里唯一的「判定结果」信号，音效跟着它走，不用每个玩法各写一遍。
         if (vm.fx && vm.fx.key !== self.lastFxKey) {
@@ -332,6 +340,8 @@ Page({
           sfx.play('go');
           if (self.controller) self.controller.start();
           self.syncBar();
+          // 盘面刚从「准备态」切到「局内态」，等一帧再量格子矩形给划剑用。
+          setTimeout(function () { if (self.pageAlive) self.measureBoard(); }, 60);
         } else {
           self.setData({ countdown: n });
           sfx.play('tick');
@@ -350,7 +360,11 @@ Page({
     sfx.play('go');
     this.setData({ started: true });
     this.syncBar();
+    const self = this;
+    setTimeout(function () { if (self.pageAlive) self.measureBoard(); }, 60);
   },
+
+  onResize: function () { this.measureBoard(); },
 
   onToggleGuide: function () {
     this.setData({ guideOpen: !this.data.guideOpen });
@@ -374,6 +388,8 @@ Page({
 
   onCellTap: function (event) {
     if (!this.controller) return;
+    // 划剑玩法由透明触摸层接管，静态格子的 tap 一律不判，避免划完抬手又补一次点击。
+    if (this.data.vm && this.data.vm.extras.showSwipe) return;
     const before = this.lastFxKey;
     this.controller.tap(Number(event.currentTarget.dataset.index || 0));
     // 玩法没给浮字（点空、翻已开的格子）就补一声轻响，让每次触碰都有回应。
@@ -382,8 +398,97 @@ Page({
 
   onCellLongPress: function (event) {
     if (!this.controller) return;
+    if (this.data.vm && this.data.vm.extras.showSwipe) return;
     const before = this.lastFxKey;
     this.controller.longpress(Number(event.currentTarget.dataset.index));
+    if (this.lastFxKey === before) sfx.play('tap');
+  },
+
+  // ---------- 划剑输入 ----------
+  // 小程序的 touchmove 目标固定在起手元素上，给每个格子单独绑 move 是收不到跨格轨迹的。
+  // 所以盘面上盖一层透明触摸层：开局量一次所有格子的视口矩形，再把相邻两次 move 之间的
+  // 线段按 10px 步长插值，补出手指快速掠过时的中间格——不然划快了会漏桩，白白判成劈空。
+  measureBoard: function () {
+    if (typeof wx === 'undefined' || !wx.createSelectorQuery) return;
+    const self = this;
+    wx.createSelectorQuery().in(this).selectAll('.grid .cell').boundingClientRect(function (rects) {
+      const list = rects || [];
+      self.cellRects = [];
+      for (let i = 0; i < list.length; i += 1) {
+        const r = list[i];
+        self.cellRects.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+      }
+    }).exec();
+  },
+
+  boardReady: function () {
+    return !!(this.data.started && !this.data.showResult && this.controller);
+  },
+
+  hitCell: function (x, y) {
+    const rs = this.cellRects || [];
+    for (let i = 0; i < rs.length; i += 1) {
+      if (x >= rs[i].left && x <= rs[i].right && y >= rs[i].top && y <= rs[i].bottom) return i;
+    }
+    return -1;
+  },
+
+  pushCell: function (i) {
+    if (i < 0 || !this.swipePath) return;
+    const path = this.swipePath;
+    if (path.length && path[path.length - 1] === i) return;
+    path.push(i);
+  },
+
+  extendSwipe: function (x, y) {
+    const x0 = this.lastTouchX;
+    const y0 = this.lastTouchY;
+    const dx = x - x0;
+    const dy = y - y0;
+    const n = Math.max(1, Math.ceil(Math.sqrt(dx * dx + dy * dy) / 10));
+    for (let k = 1; k <= n; k += 1) {
+      this.pushCell(this.hitCell(x0 + dx * k / n, y0 + dy * k / n));
+    }
+    this.lastTouchX = x;
+    this.lastTouchY = y;
+  },
+
+  touchPoint: function (event) {
+    const list = (event.touches && event.touches.length) ? event.touches : event.changedTouches;
+    const t = list && list[0];
+    if (!t) return null;
+    // boundingClientRect 是视口坐标，优先用同坐标系的 clientX/clientY。
+    const x = typeof t.clientX === 'number' ? t.clientX : t.pageX;
+    const y = typeof t.clientY === 'number' ? t.clientY : t.pageY;
+    return (typeof x === 'number' && typeof y === 'number') ? { x: x, y: y } : null;
+  },
+
+  onBoardTouchStart: function (event) {
+    if (!this.boardReady() || !this.data.vm || !this.data.vm.extras.showSwipe) return;
+    const pt = this.touchPoint(event);
+    if (!pt) return;
+    if (!this.cellRects || !this.cellRects.length) this.measureBoard();
+    this.swipePath = [];
+    this.lastTouchX = pt.x;
+    this.lastTouchY = pt.y;
+    this.pushCell(this.hitCell(pt.x, pt.y));
+  },
+
+  onBoardTouchMove: function (event) {
+    if (!this.boardReady() || !this.swipePath) return;
+    const pt = this.touchPoint(event);
+    if (!pt) return;
+    this.extendSwipe(pt.x, pt.y);
+  },
+
+  onBoardTouchEnd: function () {
+    if (!this.swipePath || !this.swipePath.length) { this.swipePath = null; return; }
+    const path = this.swipePath;
+    this.swipePath = null;
+    if (!this.boardReady()) return;
+    const before = this.lastFxKey;
+    this.controller.swipe(path);
+    // 轻点一下（路径不足两桩）玩法不判也不罚，这里补一声轻响当作「这一剑没递出去」。
     if (this.lastFxKey === before) sfx.play('tap');
   },
 

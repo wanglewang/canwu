@@ -164,9 +164,8 @@ function minStepsOf(vm) {
 function actionFor(game) {
   if (game === 'click') {
     return function (vm, c) {
-      for (let i = 0; i < vm.cells.length; i += 1) {
-        if (vm.cells[i].cls.indexOf('cell--lit') >= 0) { c.tap(i); return; }
-      }
+      // 这一门现在是「划」：沿 vm.trail 给出的剑路把整条轨迹送进去，点格子已经不判了。
+      if (vm.trail && vm.trail.path) c.swipe(vm.trail.path.slice());
     };
   }
   if (game === 'hunt') {
@@ -393,16 +392,21 @@ check('辨伪择真：4×3 盘面同时出现真招与虚影', function () {
   } finally { restoreClock(); }
 });
 
-check('循光劈刺：剑光带寿命，线的尽头没劈到就算漏', function () {
+check('顺光划斩：剑路亮完才起寿命线，没划到就算漏', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('forge'));
     ctx.c.start();
-    const lit = ctx.st.vm.cells.filter(function (c) { return c.cls.indexOf('cell--lit') >= 0; });
-    assert.strictEqual(lit.length, 1, '同一时刻只该有一道剑光');
-    assert.ok(lit[0].life > 0, '剑光没有寿命，玩家看不出还剩多久');
+    const trail = ctx.st.vm.trail;
+    assert.ok(trail && trail.path.length >= 2, '开局没有连成剑路');
+    assert.strictEqual(ctx.st.vm.cells.filter(function (c) { return c.cls.indexOf('cell--path') >= 0; }).length,
+      trail.path.length, '亮起的桩数与剑路长度不符');
+    const last = trail.path[trail.path.length - 1];
+    assert.strictEqual(ctx.st.vm.cells[last].life, 0, '光还没走到收势桩就开始倒计时了');
+    advance(126);                       // 光走到收势桩
+    assert.ok(ctx.st.vm.cells[last].life > 0, '收势桩没有寿命线，玩家看不出还剩多久');
     const before = ctx.st.vm.scoreText;
-    advance(900);                       // 站着一动不动，等它自己灭
+    advance(720);                       // 站着不动，等它自己灭
     assert.strictEqual(ctx.st.vm.scoreText, before, '漏剑不该加分');
     assert.strictEqual(ctx.st.vm.comboText, '', '漏剑之后剑势该断');
     assert.ok(ctx.st.vm.status.indexOf('慢') >= 0, '漏剑没有给出提示');
@@ -410,52 +414,44 @@ check('循光劈刺：剑光带寿命，线的尽头没劈到就算漏', functio
   } finally { restoreClock(); }
 });
 
-check('循光劈刺：劈空罚一息，与剑诀·断岳同规矩', function () {
+check('顺光划斩：划偏罚一息，与剑诀·断岳同规矩', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('forge'));
     ctx.c.start();
-    let wrong = -1;
-    for (let i = 0; i < ctx.st.vm.cells.length; i += 1) {
-      if (ctx.st.vm.cells[i].cls.indexOf('cell--lit') < 0) { wrong = i; break; }
-    }
-    assert.ok(wrong >= 0);
-    ctx.c.tap(wrong);
-    assert.strictEqual(ctx.st.vm.progressText, '14 息', '劈空没有扣掉一息');
-    assert.ok(ctx.st.vm.status.indexOf('空') >= 0);
+    const path = ctx.st.vm.trail.path.slice();
+    const others = [];
+    for (let i = 0; i < ctx.st.vm.cells.length; i += 1) if (path.indexOf(i) < 0) others.push(i);
+    ctx.c.swipe(others.slice(0, 3));
+    assert.strictEqual(ctx.st.vm.progressText, '14 息', '划偏没有扣掉一息');
+    assert.ok(/劈空/.test(ctx.st.vm.fx.text), '划偏没有失手反馈');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
 
-check('循光劈刺：连击 5 记起算剑势，第 5 道剑光换成金锋', function () {
+check('顺光划斩：连击 5 记起算剑势，第 5 道换成金锋长招', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('forge'));
     ctx.c.start();
-    function pick(cls) {
-      for (let i = 0; i < ctx.st.vm.cells.length; i += 1) {
-        if (ctx.st.vm.cells[i].cls.indexOf(cls) >= 0) return i;
-      }
-      return -1;
-    }
+    let normalLen = 0;
     for (let n = 0; n < 4; n += 1) {
-      const i = pick('cell--lit');
-      assert.ok(i >= 0, '第 ' + (n + 1) + ' 道剑光没有亮起');
-      ctx.c.tap(i);
-      advance(120);
+      const t = ctx.st.vm.trail;
+      assert.ok(t && !t.gold, '第 ' + (n + 1) + ' 道剑路没有亮起');
+      normalLen = t.path.length;
+      ctx.c.swipe(t.path.slice());
+      advance(160);
     }
-    assert.strictEqual(ctx.st.vm.scoreText, '得分 40');
+    assert.strictEqual(ctx.st.vm.scoreText, '得分 64', '四道两桩剑路的分数不对');
     assert.ok(ctx.st.vm.meter && ctx.st.vm.meter.label.indexOf('剑势') >= 0, '没有剑势条');
 
-    // 第五道换成金锋：只有它亮着，寿命比寻常剑光短
-    const edge = pick('cell--edge');
-    assert.ok(edge >= 0, '第 5 道剑光没有换成金锋');
-    assert.strictEqual(pick('cell--lit'), -1, '金锋该取代寻常剑光，而不是同时亮两格');
-    assert.ok(ctx.st.vm.cells[edge].life > 0 && ctx.st.vm.cells[edge].life < 700, '金锋寿命没有缩短');
-
-    ctx.c.tap(edge);
-    // 连到第 5 记，剑势 ×1.5，金锋 20 分算 30 分
-    assert.strictEqual(ctx.st.vm.scoreText, '得分 70');
+    const gold = ctx.st.vm.trail;
+    assert.ok(gold && gold.gold, '第 5 道没有换成金锋');
+    assert.ok(gold.path.length > normalLen, '金锋没有比寻常剑路更长');
+    assert.ok(ctx.st.vm.cells.some(function (x) { return x.cls.indexOf('cell--pathgold') >= 0; }), '盘面没有金色剑路');
+    ctx.c.swipe(gold.path.slice());
+    // 第 5 记剑势 ×1.5，金锋三桩 20 分 × 金锋 ×2 × 剑势 ×1.5 = 60
+    assert.strictEqual(ctx.st.vm.scoreText, '得分 124');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
@@ -796,9 +792,83 @@ check('11 套玩法都有「怎么玩」说明，盘面符号讲得清', functio
     }
   }
   const click = guides.guideOf('click');
-  assert.ok(click.terms.some(function (t) { return /锋（蓝格）/.test(t.name); }), '基础剑法没解释「锋」');
+  assert.ok(click.terms.some(function (t) { return /剑路/.test(t.name); }), '基础剑法没解释「剑路」');
   assert.ok(click.terms.some(function (t) { return /金锋/.test(t.name); }), '基础剑法没解释「金锋」');
+  assert.ok(/划/.test(click.inline), '局内速记没说这一门是划的');
   assert.ok(/金锋/.test(click.inline), '局内速记没写金锋');
+});
+
+// ---------------------------------------------------------------- 顺光划斩专项
+check('顺光划斩：轻点不判，得划过整条剑路，反着划也算', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    const ctx = makeCtx(m, {}, Object.assign({}, m.params, { depth: 0, duration: 12, life: 700 }));
+    ctx.c.start();
+    const path = ctx.st.vm.trail.path.slice();
+    assert.ok(path.length >= 2, '剑路至少两桩');
+    assert.ok(ctx.st.vm.extras.showSwipe, '没有打开划剑输入');
+    ctx.c.tap(path[0]);
+    assert.ok(ctx.st.vm.trail, '轻点一下不该把剑路判掉');
+    ctx.c.swipe([path[0]]);
+    assert.ok(ctx.st.vm.trail, '只划一桩也不该算一剑');
+    ctx.c.swipe(path.slice().reverse());
+    assert.ok(!ctx.st.vm.trail, '反着划竟然没斩中');
+    assert.ok(Number((ctx.st.vm.scoreText.match(/\d+/) || [0])[0]) > 0, '斩中没有得分');
+    advance(20);
+    assert.ok(ctx.st.vm.slash && typeof ctx.st.vm.slash.angle === 'number', '斩中没有扫过盘面的白光');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('顺光划斩：划偏罚一息、断剑势，金锋漏了不断势', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    const ctx = makeCtx(m, {}, Object.assign({}, m.params, { depth: 0, duration: 12, life: 700 }));
+    ctx.c.start();
+    const path = ctx.st.vm.trail.path.slice();
+    const others = [];
+    for (let i = 0; i < 9; i += 1) if (path.indexOf(i) < 0) others.push(i);
+    const before = ctx.st.vm.timeText;
+    ctx.c.swipe(others.slice(0, 3));
+    assert.notStrictEqual(ctx.st.vm.timeText, before, '划偏没有罚一息');
+    assert.ok(/劈空/.test(ctx.st.vm.fx.text), '划偏没有给出失手反馈');
+    assert.strictEqual(ctx.st.vm.combo, 0, '划偏没有断剑势');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('顺光划斩：档位越高剑路越长，金锋是更长的金桩长招', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    const maxLens = [];
+    let sawGold = false;
+    for (let d = 0; d <= 4; d += 1) {
+      const ctx = makeCtx(m, {}, Object.assign({}, m.params, { depth: d, duration: 30, life: 700 }));
+      ctx.c.start();
+      let longest = 0;
+      for (let k = 0; k < 30; k += 1) {
+        if (ctx.st.vm.trail) {
+          const t = ctx.st.vm.trail;
+          longest = Math.max(longest, t.path.length);
+          if (t.gold) sawGold = true;
+          ctx.c.swipe(t.path.slice());
+        }
+        advance(200);
+      }
+      maxLens.push(longest);
+      ctx.c.destroy();
+    }
+    assert.ok(sawGold, '整局都没出现金锋');
+    assert.ok(maxLens[0] <= 3, '简单档不该出现 4 桩长招：' + maxLens[0]);
+    assert.ok(maxLens[4] >= 4, '绝境档应该有 4 桩长招：' + maxLens[4]);
+    assert.ok(maxLens[0] < maxLens[4], '五档剑路长度没有拉开');
+    for (let i = 1; i < maxLens.length; i += 1) {
+      assert.ok(maxLens[i] >= maxLens[i - 1], '剑路长度随档位倒退了：' + maxLens.join(','));
+    }
+  } finally { restoreClock(); }
 });
 
 console.log('\n小游戏层断言全部通过（' + passed + ' 项）');
