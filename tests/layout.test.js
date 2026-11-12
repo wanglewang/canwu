@@ -160,7 +160,7 @@ check('玩法说明接进准备页，术语速记常驻局内', function () {
   assert.ok(/onToggleGuide: function/.test(js), '缺少展开/收起方法');
   const click = read('minigames/click.js');
   assert.ok(/金锋 · /.test(click), '金锋又缩回单字，容易和寻常剑路混淆');
-  assert.ok(/顺着光划过去/.test(read('data/guides.js')), '基础剑法说明还停留在「点格子」');
+  assert.ok(/顺着每桩箭头划过去/.test(read('data/guides.js')), '基础剑法说明还停留在「点格子」');
 });
 
 check('顺光划斩：透明触摸层 + 坐标插值还原划动轨迹', function () {
@@ -292,6 +292,28 @@ check('舞台动画只动 transform / opacity，不超循环预算', function ()
   }
   const v = require('../data/visual.js');
   assert.ok((css.match(/infinite/g) || []).length <= v.MOTION.loops, '常驻循环动画超过 3 路');
+});
+
+check('剑路用形状指方向：箭头节点、纯 CSS 图形、盘面无汉字', function () {
+  const wxml = read('pages/practice/practice.wxml');
+  const css = read('pages/practice/practice.wxss');
+  const click = read('minigames/click.js');
+  assert.ok(/class="cell__arrow"/.test(wxml), '盘面没有箭头节点');
+  assert.ok(/rotate\(\{\{item\.arrow\}\}deg\)/.test(wxml), '箭头没有按格子方向旋转');
+  assert.ok(/class="cell__end"/.test(wxml), '收势桩没有靶心节点');
+  assert.ok(/\.cell__arrow-head/.test(css) && /\.cell__arrow-shaft/.test(css), '箭头不是纯 CSS 画的，不能靠文字字形');
+  assert.ok(/function dirAngle/.test(click), '玩法层没有算相邻桩方向');
+  assert.ok(!/theme\.glyph \|\| '锋'/.test(click), '剑路还在写「锋」字');
+  assert.ok(!/回锋/.test(click), '还留着「回锋」这种反向招式名');
+  assert.ok(!/containsSeq\(path, form\.slice\(\)\.reverse\(\)\)/.test(click), '判定还允许反着划');
+});
+
+check('局内提示明确禁止反向，不再写「反着划也算」', function () {
+  const wxml = read('pages/practice/practice.wxml');
+  const guides = read('data/guides.js');
+  assert.ok(!/反着划也算/.test(wxml), 'HUD 还在说反着划也行');
+  assert.ok(/反向算劈空/.test(wxml), 'HUD 没写清方向约束');
+  assert.ok(/箭头/.test(guides) && /不能反/.test(guides), '玩法说明没讲箭头与禁反向');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

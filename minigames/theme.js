@@ -7,7 +7,8 @@
 const THEMES = {
   forge: {
     key: 'forge', name: '剑光', accent: '#4a6b86', soft: '#dee8f1', ink: '#254253',
-    bg: '#e6edf3', frame: '#f8fbfd', glyph: '锋', motif: '剑',
+    // 顺光划斩的剑路用 CSS 箭头指方向，盘面不放字形；glyph 只为保持主题字段齐备。
+    bg: '#e6edf3', frame: '#f8fbfd', glyph: '剑', motif: '剑',
     hit: '一剑中的', miss: '劈空了', banner: '剑光乍起', praise: '剑随意走',
   },
   snatch: {

@@ -466,6 +466,66 @@
     animation: hitPop 0.18s ease-out;
 }
 
+/* 剑路方向：纯 CSS 三角 + 短杆，0° 朝上，inline transform 按相邻桩方向旋转。
+   不用汉字、不用 unicode 字形，颜色继承格子 currentColor，浅色 / 深色舞台都清楚。 */
+.cell__arrow {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 56rpx;
+    height: 56rpx;
+    pointer-events: none;
+}
+
+.cell__arrow-head {
+    position: absolute;
+    left: 50%;
+    top: 2rpx;
+    width: 0;
+    height: 0;
+    margin-left: -13rpx;
+    border-left: 13rpx solid transparent;
+    border-right: 13rpx solid transparent;
+    border-bottom: 20rpx solid currentColor;
+}
+
+.cell__arrow-shaft {
+    position: absolute;
+    left: 50%;
+    top: 20rpx;
+    width: 6rpx;
+    height: 30rpx;
+    margin-left: -3rpx;
+    border-radius: 3rpx;
+    background: currentColor;
+}
+
+/* 收势桩：双环靶心，一眼看出「划到这里为止」 */
+.cell__end {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    box-sizing: border-box;
+    width: 34rpx;
+    height: 34rpx;
+    border: 5rpx solid currentColor;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.cell__end::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 10rpx;
+    height: 10rpx;
+    border-radius: 50%;
+    background: currentColor;
+    transform: translate(-50%, -50%);
+}
+
 /* 斩中时按剑招角度扫过盘面的一道白光：外层定位旋转，内层做扫光动画 */
 .grid__slash {
     position: absolute;

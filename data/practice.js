@@ -20,8 +20,8 @@
 const PRACTICE_METHODS = [
   {
     id: 'forge', name: '循光劈刺', game: 'click', theme: 'forge', twist: 'forge',
-    desc: '剑光沿剑桩连成一道剑路，顺着光划过去斩落它。劈空一记，少一息。',
-    tip: '顺着剑光划过去，点亮不算',
+    desc: '剑光沿剑桩连成一道剑路，每桩箭头指向下一桩，顺箭头划过去斩落它。反向或劈空一记，少一息。',
+    tip: '顺着箭头划过去，点亮不算',
     base: 32,
     params: { duration: 15, life: 700, grid: 9, cols: 3 },
   },

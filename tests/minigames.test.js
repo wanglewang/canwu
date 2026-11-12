@@ -799,7 +799,7 @@ check('11 套玩法都有「怎么玩」说明，盘面符号讲得清', functio
 });
 
 // ---------------------------------------------------------------- 顺光划斩专项
-check('顺光划斩：轻点不判，得划过整条剑路，反着划也算', function () {
+check('顺光划斩：轻点不判，得顺着箭头正向划过整条剑路', function () {
   installClock();
   try {
     const m = data.getMethod('forge');
@@ -812,12 +812,62 @@ check('顺光划斩：轻点不判，得划过整条剑路，反着划也算', f
     assert.ok(ctx.st.vm.trail, '轻点一下不该把剑路判掉');
     ctx.c.swipe([path[0]]);
     assert.ok(ctx.st.vm.trail, '只划一桩也不该算一剑');
-    ctx.c.swipe(path.slice().reverse());
-    assert.ok(!ctx.st.vm.trail, '反着划竟然没斩中');
+    ctx.c.swipe(path.slice());
+    assert.ok(!ctx.st.vm.trail, '正向划过竟然没斩中');
     assert.ok(Number((ctx.st.vm.scoreText.match(/\d+/) || [0])[0]) > 0, '斩中没有得分');
     advance(20);
     assert.ok(ctx.st.vm.slash && typeof ctx.st.vm.slash.angle === 'number', '斩中没有扫过盘面的白光');
     ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('顺光划斩：反向判劈空，扣一息且不得分', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    const ctx = makeCtx(m, {}, Object.assign({}, m.params, { depth: 0, duration: 12, life: 700 }));
+    ctx.c.start();
+    const path = ctx.st.vm.trail.path.slice();
+    const before = ctx.st.vm.progressText;
+    ctx.c.swipe(path.slice().reverse());
+    assert.ok(!ctx.st.vm.trail, '反向没有把这一招判掉');
+    assert.notStrictEqual(ctx.st.vm.progressText, before, '反向没扣息');
+    assert.strictEqual(ctx.st.vm.scoreText, '得分 0', '反向竟然得分');
+    assert.ok(/劈空/.test(ctx.st.vm.fx.text), '反向没有给出劈空浮字');
+    assert.strictEqual(ctx.st.vm.comboText, '', '反向没有断剑势');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('顺光划斩：剑路每桩箭头指向下一桩，收势是靶心，盘面不放汉字', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    for (let t = 0; t < 15; t += 1) {
+      const ctx = makeCtx(m, {}, Object.assign({}, m.params, { depth: t % 5, duration: 12, life: 700 }));
+      ctx.c.start();
+      const path = ctx.st.vm.trail.path.slice();
+      for (let i = 0; i < path.length; i += 1) {
+        const cell = ctx.st.vm.cells[path[i]];
+        assert.strictEqual(cell.label, '', '剑路桩上还留着汉字：' + cell.label);
+        if (i === path.length - 1) {
+          assert.strictEqual(cell.end, true, '收势桩没有靶心');
+          assert.strictEqual(cell.arrow, -1, '收势桩不该有方向箭头');
+          continue;
+        }
+        const dr = Math.floor(path[i + 1] / 3) - Math.floor(path[i] / 3);
+        const dc = (path[i + 1] % 3) - (path[i] % 3);
+        const want = (Math.round(Math.atan2(dc, -dr) * 180 / Math.PI) + 360) % 360;
+        assert.strictEqual(cell.arrow, want, '箭头角度与下一桩方向不符：' + path.join(','));
+        assert.strictEqual(cell.end, false, '中途桩不该是靶心');
+      }
+      ctx.c.swipe(path.slice());
+      for (let i = 0; i < path.length; i += 1) {
+        assert.strictEqual(ctx.st.vm.cells[path[i]].arrow, -1, '斩中后箭头没清掉');
+        assert.strictEqual(ctx.st.vm.cells[path[i]].end, false, '斩中后靶心没清掉');
+      }
+      ctx.c.destroy();
+    }
   } finally { restoreClock(); }
 });
 

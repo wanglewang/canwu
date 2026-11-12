@@ -5,8 +5,10 @@
 // result = { grade: 'S'|'A'|'B'|'C'|'F', score, summary }
 // controller = { start, tap, longpress, swipe, undo, hint, press, release, abandon, destroy }
 //   swipe(path) 是「手指划过的格子序列」，由页面用 touch 坐标命中并插值补全后送入；
-//   只有需要划的玩法（目前是循光劈刺）实现它，其余走默认的 noop。
+//   只有需要划的玩法（目前是顺光划斩）实现它，其余走默认的 noop。
 // vm = { cols, cells, phase, status, hint, timeText, scoreText, charge, ring, trail, slash, extras, HUD 字段 }
+// cells[i] = { key, label, cls, tone, life, lifeDelay, arrow, end }；
+//   arrow 是 0–359 的方向角（指向下一格），-1 为不画箭头；end 表示这一格是剑路收势（画靶心）。
 // HUD 字段：progress / progressText / combo / comboText / goal / gradeNow / banner / fx / hearts / meter
 // stage = 'board' | 'lane' | 'ring' | 'charge' | 'orbit' | 'scroll'，由页面决定盘面形态。
 // lane / orbit / scroll 是对应舞台的附加渲染数据，board/ring/charge 用不到时为 null。
@@ -23,9 +25,11 @@ function shuffle(arr) {
   return arr;
 }
 
+// arrow / end 是「剑路指向」的可选字段：-1 / false 表示这一格不画方向图形。
+// 在 vm 协议里给默认值，格子结构才不会因为某套玩法挂过箭头而变得不一致。
 function makeCells(n) {
   const a = [];
-  for (let i = 0; i < n; i += 1) a.push({ key: i, label: '', cls: 'cell', tone: 0 });
+  for (let i = 0; i < n; i += 1) a.push({ key: i, label: '', cls: 'cell', tone: 0, arrow: -1, end: false });
   return a;
 }
 
@@ -34,6 +38,8 @@ function clearCells(cells) {
     cells[i].label = '';
     cells[i].cls = 'cell';
     cells[i].tone = 0;
+    cells[i].arrow = -1;
+    cells[i].end = false;
   }
 }
 

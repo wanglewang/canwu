@@ -1,7 +1,7 @@
 'use strict';
 
 // 循光劈刺（基础剑法，旧称「追光点击」）：剑光不再孤立亮在一格，而是一道「剑路」——
-// 沿 3×3 剑桩依次掠过 2–4 格，玩家用手指顺着光划过去，才能把它斩落。
+// 沿 3×3 剑桩依次掠过 2–4 格，每桩用箭头指出下一桩，玩家顺箭头划过去才能把它斩落。
 //
 // 为什么是划不是点：点方块是「打地鼠」，手指不移动、没有方向、没有轨迹，做得再花也只是换皮。
 // 改成剑路之后，一次输入有了起手、走势、收势，还能一刀连过数桩，动作感来自操作本身而不是特效。
@@ -98,7 +98,8 @@ function formOf(len, bent) {
   const straight = STRAIGHTS.filter(function (s) { return s.length === len; });
   if (!bent && straight.length) {
     const pick = straight[C.randInt(straight.length)].slice();
-    if (Math.random() < 0.5) pick.reverse();      // 同一招可以正着来，也可以回锋
+    // 同一条线允许两个走向，增加方向变化；但生成时定了向，箭头与判定都只认这一个方向。
+    if (Math.random() < 0.5) pick.reverse();
     return pick;
   }
   return wanderPath(len);
@@ -132,11 +133,20 @@ function nameOf(path, angle) {
   if (isBent(path)) return '游龙';
   if (angle === 0) return '横劈';
   if (angle === 90) return '竖劈';
-  if (path.length > 2) return '斜撩';
-  return '回锋';
+  return '斜撩';
 }
 
-// 划过的路径里是否把这一招按顺序走完了。允许反着划（回锋），也允许刀锋多走过几桩。
+// 相邻两桩的方向角：0° 指上，顺时针递增（45° 一档，八个方向正好覆盖 8 邻格）。
+// 盘面上每根桩都放一个按这个角度旋转的箭头，指下一桩；收势桩放靶心。
+// 不用汉字也不是 unicode 字形，纯 CSS 三角 + 短杆，深色舞台上也读得清。
+function dirAngle(from, to) {
+  const dr = Math.floor(to / 3) - Math.floor(from / 3);
+  const dc = (to % 3) - (from % 3);
+  return (Math.round(Math.atan2(dc, -dr) * 180 / Math.PI) + 360) % 360;
+}
+
+// 划过的路径里是否把这一招按顺序走完了。
+// 只认「起手 → 收势」这一个方向：剑路上每根桩都有箭头指路，反着划就是违招，判劈空。
 function containsSeq(hay, needle) {
   for (let s = 0; s + needle.length <= hay.length; s += 1) {
     let ok = true;
@@ -150,7 +160,7 @@ function containsSeq(hay, needle) {
 
 function matched(path, form) {
   if (!path || !path.length || !form) return false;
-  return containsSeq(path, form) || containsSeq(path, form.slice().reverse());
+  return containsSeq(path, form);
 }
 
 // 抚摸层 10px 插值会在格子边界抖出 [0,1,0,1,2] 这样的序列。
@@ -178,7 +188,6 @@ function create(ctx) {
   const stepMs = Math.max(72, 126 - depth * 11);   // 光掠过一桩的时间，档位越高越快
   const baseLen = 2 + Math.floor(depth / 2);       // 2 / 2 / 3 / 3 / 4
   const wanderChance = 0.18 + depth * 0.12;        // 折线招随档位变多
-  const glyph = theme.glyph || '锋';
 
   // 门槛按「每秒得分」定，并随档位抬：剑路变长后单招分更高，固定门槛会人人 S、
   // 高难度反而更容易满分。用假时钟标定过：约 220ms / 400ms / 650ms 一剑的
@@ -187,7 +196,7 @@ function create(ctx) {
   const aLimit = Math.ceil(duration * (68 + depth * 8));
   const bLimit = Math.ceil(duration * (22 + depth * 3));
 
-  const vm = C.makeVm(cols, grid, '凝神，等剑路亮起…', ctx.tip || '顺着剑光划过去，点亮不算');
+  const vm = C.makeVm(cols, grid, '凝神，等剑路亮起…', ctx.tip || '顺着箭头划过去，点亮不算');
   vm.timeText = C.mmss(duration);
   vm.scoreText = '得分 0';
   vm.trail = null;      // { path, name, angle, gold, on }：当前剑路与光头位置
@@ -216,13 +225,17 @@ function create(ctx) {
 
   function render() { ctx.render(vm); }
 
-  function paint(index, cls, label, lifeMs, delay) {
+  // arrow：-1 不画箭头，0–359 是「指向下一桩」的角度；end 表示收势桩（画靶心）。
+  // 剑路上不放任何汉字：方向全靠形状表达，玩家不用先读字再想往哪划。
+  function paint(index, cls, label, lifeMs, delay, arrow, end) {
     const cell = vm.cells[index];
     if (!cell) return;
     cell.cls = cls;
     cell.label = label;
     cell.life = lifeMs || 0;
     cell.lifeDelay = delay || 0;
+    cell.arrow = typeof arrow === 'number' && arrow >= 0 ? arrow : -1;
+    cell.end = !!end;
   }
 
   function clearForm() {
@@ -279,7 +292,8 @@ function create(ctx) {
       const on = i === n;
       const isLast = i === form.length - 1;
       paint(form[i], 'cell ' + (formGold ? 'cell--pathgold' : 'cell--path') + (on ? ' cell--pathon' : ''),
-        i === 0 ? glyph : '', isLast && atEnd ? lifeMs() : 0, 0);
+        '', isLast && atEnd ? lifeMs() : 0, 0,
+        isLast ? -1 : dirAngle(form[i], form[i + 1]), isLast);
     }
     if (vm.trail) { vm.trail.on = n; render(); }
     if (!atEnd) stepTimer = bag.after(function () { lightStep(n + 1); }, stepMs);
@@ -311,7 +325,7 @@ function create(ctx) {
       gold: formGold,
       on: 0,
     };
-    vm.status = formGold ? '金锋游龙，一刀斩尽' : '剑路已起，顺光划过去';
+    vm.status = formGold ? '金锋游龙，一刀斩尽' : '剑路已起，顺箭头划过去';
     lightStep(0);
     render();
   }
@@ -411,7 +425,7 @@ function create(ctx) {
     if (started) return;
     started = true;
     vm.phase = 'playing';
-    vm.status = '剑路已起，顺光划过去';
+    vm.status = '剑路已起，顺箭头划过去';
     vm.banner = theme.banner || '';
     syncHud();
     spawn();
