@@ -5,7 +5,7 @@
 // result = { grade: 'S'|'A'|'B'|'C'|'F', score, summary }
 // controller = { start, tap, longpress, swipe, undo, hint, press, release, abandon, destroy }
 //   swipe(path) 是「手指划过的格子序列」，由页面用 touch 坐标命中并插值补全后送入；
-//   只有需要划的玩法（目前是顺光划斩）实现它，其余走默认的 noop。
+//   只有需要划的玩法（目前是顺光引剑）实现它，其余走默认的 noop。
 // vm = { cols, cells, phase, status, hint, timeText, scoreText, charge, ring, trail, slash, extras, HUD 字段 }
 // cells[i] = { key, label, cls, tone, life, lifeDelay, arrow, end }；
 //   arrow 是 0–359 的方向角（指向下一格），-1 为不画箭头；end 表示这一格是剑路收势（画靶心）。
@@ -88,7 +88,7 @@ function TimerBag() {
       timeouts.push(id);
       return id;
     },
-    // 单独撤掉一个 after：光点换位、提前劈中时要把旧的寿命计时掐掉。
+    // 单独撤掉一个 after：光点换位、提前刺中时要把旧的寿命计时掐掉。
     off: function (id) {
       if (id === null || id === undefined) return;
       clearTimeout(id);
@@ -136,7 +136,7 @@ function makeVm(cols, cellCount, status, hint) {
     charge: null,
     ring: null,
     trail: null,      // 需要划的玩法：当前剑路 { path, name, angle, gold, on }
-    slash: null,      // 斩中时扫过盘面的白光 { key, angle }
+    slash: null,      // 刺中时掠过盘面的白光 { key, angle }
     progress: 0,
     progressText: '',
     combo: 0,

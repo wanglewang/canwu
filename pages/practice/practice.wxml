@@ -230,7 +230,7 @@
 
       <view wx:if="{{vm.trail && started}}" class="trail-hint">
         <text class="trail-hint__name">{{vm.trail.name}}</text>
-        <text class="tiny">顺箭头划过 {{trailLen}} 桩 · 反向算劈空</text>
+        <text class="tiny">顺箭头引剑 {{trailLen}} 桩 · 反向算刺偏</text>
       </view>
 
       <view wx:if="{{(vm.stage === 'board' || vm.stage === 'lane') && vm.extras.showGrid}}" class="grid grid--c{{vm.cols}} {{vm.stage === 'lane' ? 'grid--lane' : ''}}" style="background:{{sceneOn ? stage.well : theme.bg}}">

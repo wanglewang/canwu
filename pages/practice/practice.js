@@ -521,7 +521,7 @@ Page({
   // ---------- 划剑输入 ----------
   // 小程序的 touchmove 目标固定在起手元素上，给每个格子单独绑 move 是收不到跨格轨迹的。
   // 所以盘面上盖一层透明触摸层：开局量一次所有格子的视口矩形，再把相邻两次 move 之间的
-  // 线段按 10px 步长插值，补出手指快速掠过时的中间格——不然划快了会漏桩，白白判成劈空。
+  // 线段按 10px 步长插值，补出手指快速掠过时的中间格——不然划快了会漏桩，白白判成刺偏。
   measureBoard: function () {
     if (typeof wx === 'undefined' || !wx.createSelectorQuery) return;
     const self = this;

@@ -108,7 +108,7 @@ for (const mode of ['light', 'dark']) {
 }
 
 // 7. 关键文件存在
-for (const f of ['package.json', 'package-lock.json', 'README.md', 'project.config.json', 'utils/cloud.js', 'utils/cloud-save.js', 'utils/cloud-social.js', 'utils/store.js', 'utils/game.js', 'utils/sfx.js', 'data/visual.js', 'styles/scene.wxss']) {
+for (const f of ['package.json', 'package-lock.json', 'README.md', 'project.config.json', 'utils/cloud.js', 'utils/cloud-save.js', 'utils/cloud-social.js', 'utils/store.js', 'utils/game.js', 'utils/sfx.js', 'data/visual.js', 'data/weapons.js', 'styles/scene.wxss']) {
   if (!fs.existsSync(path.join(ROOT, f))) errors.push('关键文件缺失: ' + f);
   else checked += 1;
 }

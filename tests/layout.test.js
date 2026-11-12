@@ -159,11 +159,12 @@ check('玩法说明接进准备页，术语速记常驻局内', function () {
   assert.ok(/guides\.guideOf\(gameId\)/.test(js), '页面没有按玩法取说明');
   assert.ok(/onToggleGuide: function/.test(js), '缺少展开/收起方法');
   const click = read('minigames/click.js');
-  assert.ok(/金锋 · /.test(click), '金锋又缩回单字，容易和寻常剑路混淆');
-  assert.ok(/顺着每桩箭头划过去/.test(read('data/guides.js')), '基础剑法说明还停留在「点格子」');
+  assert.ok(/edgeName: '金锋'/.test(read('data/weapons.js')), '剑法的金色长招没叫金锋');
+  assert.ok(/profile\.edgeName/.test(click), '金色长招名没走兵器轴，容易串回刀法');
+  assert.ok(/顺着每桩箭头把剑引到靶心/.test(read('data/guides.js')), '基础剑法说明还停留在「点格子」');
 });
 
-check('顺光划斩：透明触摸层 + 坐标插值还原划动轨迹', function () {
+check('顺光引剑：透明触摸层 + 坐标插值还原划动轨迹', function () {
   const s = read('pages/practice/practice.wxml');
   const js = read('pages/practice/practice.js');
   const css = read('pages/practice/practice.wxss');
@@ -174,7 +175,7 @@ check('顺光划斩：透明触摸层 + 坐标插值还原划动轨迹', functio
   assert.ok(/Math\.sqrt\(dx \* dx \+ dy \* dy\) \/ 10/.test(js), '相邻 move 之间没插值，划快了会漏桩');
   assert.ok(/controller\.swipe\(path\)/.test(js), '页面没有把轨迹交给玩法层');
   assert.ok(/showSwipe/.test(common) && /swipe: noop/.test(common), '统一协议里没有 swipe 与 showSwipe');
-  assert.ok(/\.grid__slash-beam/.test(css) && /slashSweep/.test(css), '斩中缺少按招式角度扫过的白光');
+  assert.ok(/\.grid__slash-beam/.test(css) && /slashSweep/.test(css), '刺中缺少按招式角度掠过的白光');
   assert.ok(/\.cell--path\b/.test(css) && /\.cell--pathon/.test(css), '剑路缺光痕与光头两种状态');
 });
 
@@ -312,8 +313,19 @@ check('局内提示明确禁止反向，不再写「反着划也算」', functio
   const wxml = read('pages/practice/practice.wxml');
   const guides = read('data/guides.js');
   assert.ok(!/反着划也算/.test(wxml), 'HUD 还在说反着划也行');
-  assert.ok(/反向算劈空/.test(wxml), 'HUD 没写清方向约束');
+  assert.ok(/反向算刺偏/.test(wxml), 'HUD 没写清方向约束');
   assert.ok(/箭头/.test(guides) && /不能反/.test(guides), '玩法说明没讲箭头与禁反向');
+});
+
+check('兵器语言收在 data/weapons.js，玩法模块不硬编码招式名与称谓', function () {
+  const click = read('minigames/click.js');
+  const w = read('data/weapons.js');
+  assert.ok(/require\('\.\.\/data\/weapons\.js'\)/.test(click), 'click 引擎没接兵器轴');
+  assert.ok(/W\.weaponOf\(p\.weapon\)/.test(click), '兵器没从 params 读');
+  assert.ok(/profile\.names/.test(click) && /words\./.test(click), '招式名与文案没走 profile');
+  assert.ok(!/'平削'|'直刺'|'横劈'|'立劈'|'一剑中的'|'一刀斩中'/.test(click), '玩法模块里又硬编码了兵器称谓');
+  assert.ok(/PROFILES = \{[\s\S]*sword:[\s\S]*dao:/.test(w), '兵器表没有剑 / 刀两套 profile');
+  assert.ok(/weapon: 'sword'/.test(read('data/practice.js')), '剑法功法没标兵器');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

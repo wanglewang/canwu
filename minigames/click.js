@@ -1,18 +1,23 @@
 'use strict';
 
-// 循光劈刺（基础剑法，旧称「追光点击」）：剑光不再孤立亮在一格，而是一道「剑路」——
-// 沿 3×3 剑桩依次掠过 2–4 格，每桩用箭头指出下一桩，玩家顺箭头划过去才能把它斩落。
+// 顺光引剑（基础剑法）：剑光不再孤立亮在一格，而是一道「剑路」——
+// 沿 3×3 剑桩依次掠过 2–4 格，每桩用箭头指出下一桩，玩家顺箭头把剑引过去才算刺中。
 //
 // 为什么是划不是点：点方块是「打地鼠」，手指不移动、没有方向、没有轨迹，做得再花也只是换皮。
-// 改成剑路之后，一次输入有了起手、走势、收势，还能一刀连过数桩，动作感来自操作本身而不是特效。
-// 这里刻意不引 canvas：光靠格子按序点亮 + 一道 CSS 白光扫过就能表达「一剑掠过」，
+// 改成剑路之后，一次输入有了起手、走势、收势，动作感来自操作本身而不是特效。
+// 这里刻意不引 canvas：光靠格子按序点亮 + 一道 CSS 白光扫过就能表达「一道剑光掠过」，
 // 页面用 touch 坐标命中预量好的格子矩形，既没有高频 setData，也不破坏统一的 vm.cells 协议。
 //
-// 保留下来的深度：剑光有寿命（漏了断剑势）、劈空罚一息、5/10/20 连击 ×1.5/×2/×3；
+// 兵器轴：轨迹长度、折线概率、光速、判定容差、后摇、招式名、称谓全部读 data/weapons.js。
+// 同一套 swipe(path) 引擎，剑走短直线点线、点到靶心即收；刀走长折线扫掠、容许多带几桩。
+// 加刀法只填数据，不改本文件。
+//
+// 保留下来的深度：剑光有寿命（漏了断剑势）、刺偏罚一息、5/10/20 连击 ×1.5 / ×2 / ×3；
 // 每第五道是「金锋」——更长的金色剑路，分翻倍、寿命更短，漏了却不断剑势。
-// 五档难度第一次落在「招式长度 / 光掠过的速度」上，不再只是把寿命拧小。
+// 五档难度落在「招式长度 / 光掠过的速度」上，不再只是把寿命拧小。
 
 const C = require('./common.js');
+const W = require('../data/weapons.js');
 
 const TIERS = [
   { at: 20, mult: 3, text: '×3' },
@@ -36,16 +41,15 @@ function nextTier(combo) {
   return out;
 }
 
-const EDGE_EVERY = 5;      // 每第五道是金锋
+const EDGE_EVERY = 5;      // 每第五道是金锋（刀法为「重斩」）
 const EDGE_LIFE = 0.8;     // 金锋寿命八折
 const EDGE_MULT = 2;       // 金锋得分翻倍
-const GAP = 130;           // 斩中之后的后摇，留一口换气
 
-// 一条剑招值多少分：越长越值钱，鼓励追着长招划而不是等短招。
+// 一道招值多少分：越长越值钱，鼓励追着长招划而不是等短招。
 function pointOf(len) { return 8 + 4 * len; }
 
 // 3×3 上所有「直」的剑路（整行 / 整列 / 对角线的连续片段），按长度分组。
-// 直线招最好读也最好划，占多数；折线招（游龙）留给长招和后期档位。
+// 直线招最好读也最好划，占多数；折线招留给长招和后期档位。
 function straightForms() {
   const lines = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8],
@@ -78,7 +82,7 @@ function neighbors(i) {
   return out;
 }
 
-// 折线剑路：随机起手，每步走到没走过的邻格；走不通就换一次起手重试。
+// 折线路：随机起手，每步走到没走过的邻格；走不通就换一次起手重试。
 function wanderPath(len) {
   for (let attempt = 0; attempt < 24; attempt += 1) {
     const path = [C.randInt(9)];
@@ -105,7 +109,7 @@ function formOf(len, bent) {
   return wanderPath(len);
 }
 
-// 相邻两步方向变过没有：变过就是折线「游龙」，没变过按首末连线命名。
+// 相邻两步方向变过没有：变过就是折线，没变过按首末连线命名。
 function isBent(path) {
   if (path.length < 3) return false;
   const dr0 = Math.floor(path[1] / 3) - Math.floor(path[0] / 3);
@@ -118,7 +122,7 @@ function isBent(path) {
   return false;
 }
 
-// 白光扫过的角度：用首末两桩的连线，横劈平掠、竖劈直落、斜撩取 ±45°。
+// 白光扫过的角度：用首末两桩的连线，横向平掠、纵向直落、斜向取 ±45°。
 function angleOf(path) {
   const a = path[0];
   const b = path[path.length - 1];
@@ -129,11 +133,13 @@ function angleOf(path) {
   return dr * dc > 0 ? 45 : -45;
 }
 
-function nameOf(path, angle) {
-  if (isBent(path)) return '游龙';
-  if (angle === 0) return '横劈';
-  if (angle === 90) return '竖劈';
-  return '斜撩';
+// 招式是称谓，不是方向指示：往哪划一律看盘面箭头。名字按兵器取，
+// 剑是平削 / 直刺 / 斜挑 / 绕指，刀是横劈 / 立劈 / 斜斩 / 游龙。
+function nameOf(path, angle, profile) {
+  if (isBent(path)) return profile.names.bent;
+  if (angle === 0) return profile.names.flat;
+  if (angle === 90) return profile.names.vertical;
+  return profile.names.diagonal;
 }
 
 // 相邻两桩的方向角：0° 指上，顺时针递增（45° 一档，八个方向正好覆盖 8 邻格）。
@@ -146,7 +152,7 @@ function dirAngle(from, to) {
 }
 
 // 划过的路径里是否把这一招按顺序走完了。
-// 只认「起手 → 收势」这一个方向：剑路上每根桩都有箭头指路，反着划就是违招，判劈空。
+// 只认「起手 → 收势」这一个方向：剑路上每根桩都有箭头指路，反着划就是违招。
 function containsSeq(hay, needle) {
   for (let s = 0; s + needle.length <= hay.length; s += 1) {
     let ok = true;
@@ -179,28 +185,31 @@ function compress(path) {
 function create(ctx) {
   const p = ctx.params || {};
   const perks = ctx.perks || {};
-  const theme = ctx.theme || {};
+  // 兵器是第五根轴：同一套引擎，剑走短直线点线，刀走长折线扫掠。
+  const profile = W.weaponOf(p.weapon);
+  const words = profile.words;
   const duration = Math.max(8, (p.duration || 15) + (perks.easy ? 3 : 0));
   const grid = p.grid || 9;
   const cols = Math.max(1, p.cols || 3);
   const life = Math.max(260, (p.life || 700) + (perks.easy ? 90 : 0));
   const depth = Math.max(0, Math.min(4, p.depth || 0));
-  const stepMs = Math.max(72, 126 - depth * 11);   // 光掠过一桩的时间，档位越高越快
-  const baseLen = 2 + Math.floor(depth / 2);       // 2 / 2 / 3 / 3 / 4
-  const wanderChance = 0.18 + depth * 0.12;        // 折线招随档位变多
+  const stepMs = Math.max(72, profile.stepMs - depth * profile.stepDecay);
+  const baseLen = Math.min(profile.maxLen, profile.baseLen + Math.floor(depth / 2));
+  const wanderChance = Math.min(0.9, profile.bentBase + depth * profile.bentStep);
 
-  // 门槛按「每秒得分」定，并随档位抬：剑路变长后单招分更高，固定门槛会人人 S、
-  // 高难度反而更容易满分。用假时钟标定过：约 220ms / 400ms / 650ms 一剑的
+  // 门槛按「每秒得分」定，并随档位抬：路变长后单招分更高，固定门槛会人人 S、
+  // 高难度反而更容易满分。刀法长招更多，用 gradeScale 再同步抬一档。
+  // 用假时钟标定过：约 220ms / 400ms / 650ms 一剑的
   // 完美玩家分别落在 S / A / B，失误多了才掉到 C。
-  const sLimit = Math.ceil(duration * (155 + depth * 20));
-  const aLimit = Math.ceil(duration * (68 + depth * 8));
-  const bLimit = Math.ceil(duration * (22 + depth * 3));
+  const sLimit = Math.ceil(duration * (155 + depth * 20) * profile.gradeScale);
+  const aLimit = Math.ceil(duration * (68 + depth * 8) * profile.gradeScale);
+  const bLimit = Math.ceil(duration * (22 + depth * 3) * profile.gradeScale);
 
-  const vm = C.makeVm(cols, grid, '凝神，等剑路亮起…', ctx.tip || '顺着箭头划过去，点亮不算');
+  const vm = C.makeVm(cols, grid, words.ready, ctx.tip || words.tip);
   vm.timeText = C.mmss(duration);
   vm.scoreText = '得分 0';
-  vm.trail = null;      // { path, name, angle, gold, on }：当前剑路与光头位置
-  vm.slash = null;      // { key, angle }：斩中时扫过盘面的一道白光
+  vm.trail = null;      // { path, name, angle, gold, on }：当前路与光头位置
+  vm.slash = null;      // { key, angle }：刺中时掠过盘面的一道白光
   vm.extras.showCombo = true;
   vm.extras.showMeter = true;
   vm.extras.showSwipe = true;
@@ -216,7 +225,7 @@ function create(ctx) {
   let form = null;
   let formGold = false;
   let formLen = 0;
-  let busy = false;           // 换气空档，划了不算空劈
+  let busy = false;           // 换气空档，划了不算失手
   let stepTimer = null;
   let lifeTimer = null;
   let slashSeq = 0;
@@ -226,7 +235,7 @@ function create(ctx) {
   function render() { ctx.render(vm); }
 
   // arrow：-1 不画箭头，0–359 是「指向下一桩」的角度；end 表示收势桩（画靶心）。
-  // 剑路上不放任何汉字：方向全靠形状表达，玩家不用先读字再想往哪划。
+  // 盘面上不放任何汉字：方向全靠形状表达，玩家不用先读字再想往哪划。
   function paint(index, cls, label, lifeMs, delay, arrow, end) {
     const cell = vm.cells[index];
     if (!cell) return;
@@ -255,8 +264,8 @@ function create(ctx) {
     vm.gradeNow = C.gradeBy(score, sLimit, aLimit, bLimit);
     vm.goal = C.goalFor(vm.gradeNow, Math.max(0, sLimit - score), '分');
     vm.meter = nx
-      ? { label: '剑势 ' + t.text, value: combo - t.at, max: nx.at - t.at }
-      : { label: '剑势 ' + t.text, value: 1, max: 1 };
+      ? { label: words.meter + ' ' + t.text, value: combo - t.at, max: nx.at - t.at }
+      : { label: words.meter + ' ' + t.text, value: 1, max: 1 };
   }
 
   function finish() {
@@ -266,13 +275,13 @@ function create(ctx) {
     vm.phase = 'done';
     vm.status = '参悟已毕';
     const grade = C.gradeBy(score, sLimit, aLimit, bLimit);
-    vm.banner = grade === 'S' ? (theme.praise || '剑随意走') : '';
+    vm.banner = grade === 'S' ? words.praise : '';
     vm.gradeNow = grade;
     render();
     ctx.finish({
       grade: grade,
       score: score,
-      summary: '斩中 ' + hits + ' · 连击 ' + maxCombo + (missed > 0 ? ' · 漏 ' + missed : ''),
+      summary: words.summary + ' ' + hits + ' · 连击 ' + maxCombo + (missed > 0 ? ' · 漏 ' + missed : ''),
     });
   }
 
@@ -313,19 +322,19 @@ function create(ctx) {
     spawns += 1;
     formGold = spawns % EDGE_EVERY === 0;
     formLen = Math.min(4, baseLen + (formGold ? 1 : 0));
-    // 4 桩在 3×3 上画不出直线，必然是折线；其余按档位概率掺入游龙。
+    // 4 桩在 3×3 上画不出直线，必然是折线；其余按档位概率掺入折线招。
     const bent = formLen >= 4 || Math.random() < wanderChance;
     form = formOf(formLen, bent);
     formLen = form.length;
     const angle = angleOf(form);
     vm.trail = {
       path: form.slice(),
-      name: (formGold ? '金锋 · ' : '') + nameOf(form, angle),
+      name: (formGold ? profile.edgeName + ' · ' : '') + nameOf(form, angle, profile),
       angle: angle,
       gold: formGold,
       on: 0,
     };
-    vm.status = formGold ? '金锋游龙，一刀斩尽' : '剑路已起，顺箭头划过去';
+    vm.status = formGold ? words.statusGold : words.status;
     lightStep(0);
     render();
   }
@@ -340,9 +349,9 @@ function create(ctx) {
     vm.trail = null;
     busy = true;
     missed += 1;
-    if (!wasGold) combo = 0;         // 金锋没接住只是白过一手，不断剑势
-    C.flash(vm, wasGold ? '金锋溜走' : '漏了一剑', 'bad');
-    vm.status = wasGold ? '金锋没接住，稳住' : '慢了一线，剑势散了';
+    if (!wasGold) combo = 0;         // 金色长招没接住只是白过一手，不断势
+    C.flash(vm, wasGold ? words.missGoldFlash : words.missFlash, 'bad');
+    vm.status = wasGold ? words.missGold : words.miss;
     syncHud();
     render();
     bag.after(spawn, 170);
@@ -366,8 +375,8 @@ function create(ctx) {
     score += gain;
     slashSeq += 1;
     vm.slash = null;
-    C.flash(vm, (wasGold ? '金锋入手' : (theme.hit || '一剑中的')) + ' +' + gain, wasGold ? 'gold' : 'good');
-    vm.status = combo >= 10 ? '剑势正盛，别断' : '好，跟住下一道';
+    C.flash(vm, (wasGold ? words.hitGold : words.hit) + ' +' + gain, wasGold ? 'gold' : 'good');
+    vm.status = combo >= 10 ? words.streak : words.next;
     syncHud();
     render();
     // 下一帧再挂白光，让 wx:key 换节点把扫光动画重播一次。
@@ -381,7 +390,7 @@ function create(ctx) {
       }
       render();
     }, 190);
-    bag.after(spawn, GAP);
+    bag.after(spawn, profile.gap);
   }
 
   function whiff() {
@@ -395,8 +404,8 @@ function create(ctx) {
     combo = 0;
     missed += 1;
     left = Math.max(0, left - 1);
-    C.flash(vm, (theme.miss || '劈空了') + ' · 少一息', 'bad');
-    vm.status = '划偏了，剑势散了';
+    C.flash(vm, words.missWord + ' · 少一息', 'bad');
+    vm.status = words.whiff;
     syncHud();
     render();
     bag.after(function () {
@@ -412,11 +421,11 @@ function create(ctx) {
   // 划：页面把手指经过的格子序列（已做坐标插值补全）送进来。
   function swipe(path) {
     if (done || vm.phase !== 'playing' || busy || !form) return;
-    if (!path || path.length < 2) return;   // 轻点一下不算一剑，也不算劈空
+    if (!path || path.length < 2) return;   // 轻点一下不算一招，也不算失手
     const trail = compress(path);
     if (trail.length < 2) return;
-    // 一剑就是一道轨迹：最多允许多划过一桩，绕一大圈乱划不能白嫖命中。
-    if (trail.length > form.length + 1) { whiff(); return; }
+    // 一招就是一道轨迹：剑最多带一桩（抗抖），刀可带两桩（刀势），绕圈不能白嫖。
+    if (trail.length > form.length + profile.slack) { whiff(); return; }
     if (matched(trail, form)) { strike(); return; }
     whiff();
   }
@@ -425,8 +434,8 @@ function create(ctx) {
     if (started) return;
     started = true;
     vm.phase = 'playing';
-    vm.status = '剑路已起，顺箭头划过去';
-    vm.banner = theme.banner || '';
+    vm.status = words.status;
+    vm.banner = words.banner;
     syncHud();
     spawn();
     bag.every(function () {
@@ -455,4 +464,4 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'click', name: '顺光划斩', create: create };
+module.exports = { id: 'click', name: '顺光引剑', create: create };

@@ -8,6 +8,7 @@ const themes = require('../minigames/theme.js');
 const data = require('../data/practice.js');
 const skills = require('../data/skills.js');
 const guides = require('../data/guides.js');
+const weapons = require('../data/weapons.js');
 
 let passed = 0;
 function check(name, fn) {
@@ -392,7 +393,7 @@ check('辨伪择真：4×3 盘面同时出现真招与虚影', function () {
   } finally { restoreClock(); }
 });
 
-check('顺光划斩：剑路亮完才起寿命线，没划到就算漏', function () {
+check('顺光引剑：剑路亮完才起寿命线，没划到就算漏', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('forge'));
@@ -414,7 +415,7 @@ check('顺光划斩：剑路亮完才起寿命线，没划到就算漏', functio
   } finally { restoreClock(); }
 });
 
-check('顺光划斩：划偏罚一息，与剑诀·断岳同规矩', function () {
+check('顺光引剑：划偏罚一息，与剑诀·断岳同规矩', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('forge'));
@@ -424,12 +425,12 @@ check('顺光划斩：划偏罚一息，与剑诀·断岳同规矩', function ()
     for (let i = 0; i < ctx.st.vm.cells.length; i += 1) if (path.indexOf(i) < 0) others.push(i);
     ctx.c.swipe(others.slice(0, 3));
     assert.strictEqual(ctx.st.vm.progressText, '14 息', '划偏没有扣掉一息');
-    assert.ok(/劈空/.test(ctx.st.vm.fx.text), '划偏没有失手反馈');
+    assert.ok(/刺偏/.test(ctx.st.vm.fx.text), '划偏没有失手反馈');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
 
-check('顺光划斩：连击 5 记起算剑势，第 5 道换成金锋长招', function () {
+check('顺光引剑：连击 5 记起算剑势，第 5 道换成金锋长招', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('forge'));
@@ -794,12 +795,12 @@ check('11 套玩法都有「怎么玩」说明，盘面符号讲得清', functio
   const click = guides.guideOf('click');
   assert.ok(click.terms.some(function (t) { return /剑路/.test(t.name); }), '基础剑法没解释「剑路」');
   assert.ok(click.terms.some(function (t) { return /金锋/.test(t.name); }), '基础剑法没解释「金锋」');
-  assert.ok(/划/.test(click.inline), '局内速记没说这一门是划的');
+  assert.ok(/引剑/.test(click.inline), '局内速记没说这一门是引剑的');
   assert.ok(/金锋/.test(click.inline), '局内速记没写金锋');
 });
 
-// ---------------------------------------------------------------- 顺光划斩专项
-check('顺光划斩：轻点不判，得顺着箭头正向划过整条剑路', function () {
+// ---------------------------------------------------------------- 顺光引剑专项
+check('顺光引剑：轻点不判，得顺着箭头正向划过整条剑路', function () {
   installClock();
   try {
     const m = data.getMethod('forge');
@@ -813,15 +814,15 @@ check('顺光划斩：轻点不判，得顺着箭头正向划过整条剑路', f
     ctx.c.swipe([path[0]]);
     assert.ok(ctx.st.vm.trail, '只划一桩也不该算一剑');
     ctx.c.swipe(path.slice());
-    assert.ok(!ctx.st.vm.trail, '正向划过竟然没斩中');
-    assert.ok(Number((ctx.st.vm.scoreText.match(/\d+/) || [0])[0]) > 0, '斩中没有得分');
+    assert.ok(!ctx.st.vm.trail, '正向划过竟然没刺中');
+    assert.ok(Number((ctx.st.vm.scoreText.match(/\d+/) || [0])[0]) > 0, '刺中没有得分');
     advance(20);
-    assert.ok(ctx.st.vm.slash && typeof ctx.st.vm.slash.angle === 'number', '斩中没有扫过盘面的白光');
+    assert.ok(ctx.st.vm.slash && typeof ctx.st.vm.slash.angle === 'number', '刺中没有扫过盘面的白光');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
 
-check('顺光划斩：反向判劈空，扣一息且不得分', function () {
+check('顺光引剑：反向判刺偏，扣一息且不得分', function () {
   installClock();
   try {
     const m = data.getMethod('forge');
@@ -833,13 +834,13 @@ check('顺光划斩：反向判劈空，扣一息且不得分', function () {
     assert.ok(!ctx.st.vm.trail, '反向没有把这一招判掉');
     assert.notStrictEqual(ctx.st.vm.progressText, before, '反向没扣息');
     assert.strictEqual(ctx.st.vm.scoreText, '得分 0', '反向竟然得分');
-    assert.ok(/劈空/.test(ctx.st.vm.fx.text), '反向没有给出劈空浮字');
+    assert.ok(/刺偏/.test(ctx.st.vm.fx.text), '反向没有给出刺偏浮字');
     assert.strictEqual(ctx.st.vm.comboText, '', '反向没有断剑势');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
 
-check('顺光划斩：剑路每桩箭头指向下一桩，收势是靶心，盘面不放汉字', function () {
+check('顺光引剑：剑路每桩箭头指向下一桩，收势是靶心，盘面不放汉字', function () {
   installClock();
   try {
     const m = data.getMethod('forge');
@@ -863,15 +864,15 @@ check('顺光划斩：剑路每桩箭头指向下一桩，收势是靶心，盘�
       }
       ctx.c.swipe(path.slice());
       for (let i = 0; i < path.length; i += 1) {
-        assert.strictEqual(ctx.st.vm.cells[path[i]].arrow, -1, '斩中后箭头没清掉');
-        assert.strictEqual(ctx.st.vm.cells[path[i]].end, false, '斩中后靶心没清掉');
+        assert.strictEqual(ctx.st.vm.cells[path[i]].arrow, -1, '刺中后箭头没清掉');
+        assert.strictEqual(ctx.st.vm.cells[path[i]].end, false, '刺中后靶心没清掉');
       }
       ctx.c.destroy();
     }
   } finally { restoreClock(); }
 });
 
-check('顺光划斩：划偏罚一息、断剑势，金锋漏了不断势', function () {
+check('顺光引剑：划偏罚一息、断剑势，金锋漏了不断势', function () {
   installClock();
   try {
     const m = data.getMethod('forge');
@@ -883,13 +884,13 @@ check('顺光划斩：划偏罚一息、断剑势，金锋漏了不断势', func
     const before = ctx.st.vm.timeText;
     ctx.c.swipe(others.slice(0, 3));
     assert.notStrictEqual(ctx.st.vm.timeText, before, '划偏没有罚一息');
-    assert.ok(/劈空/.test(ctx.st.vm.fx.text), '划偏没有给出失手反馈');
+    assert.ok(/刺偏/.test(ctx.st.vm.fx.text), '划偏没有给出失手反馈');
     assert.strictEqual(ctx.st.vm.combo, 0, '划偏没有断剑势');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
 
-check('顺光划斩：档位越高剑路越长，金锋是更长的金桩长招', function () {
+check('顺光引剑：档位越高剑路越长，金锋是更长的金桩长招', function () {
   installClock();
   try {
     const m = data.getMethod('forge');
@@ -919,6 +920,104 @@ check('顺光划斩：档位越高剑路越长，金锋是更长的金桩长招'
       assert.ok(maxLens[i] >= maxLens[i - 1], '剑路长度随档位倒退了：' + maxLens.join(','));
     }
   } finally { restoreClock(); }
+});
+
+// ---------------------------------------------------------------- 兵器轴
+check('兵器轴：剑与刀在轨迹、判定、节奏、称谓上都可区分', function () {
+  const sw = weapons.PROFILES.sword;
+  const dao = weapons.PROFILES.dao;
+  assert.ok(dao.baseLen > sw.baseLen && dao.maxLen > sw.maxLen, '刀法招式没有更长');
+  assert.ok(dao.bentBase > sw.bentBase, '刀法折线招没有更多');
+  assert.ok(dao.slack > sw.slack, '刀法没有更宽的带桩容差');
+  assert.ok(dao.gap > sw.gap, '刀法后摇没有更沉');
+  assert.ok(dao.gradeScale > sw.gradeScale, '刀法长招分数更高却没同步抬评级门槛');
+  assert.ok(JSON.stringify(dao.names) !== JSON.stringify(sw.names), '两种兵器招式名没分开');
+  assert.ok(sw.stepMs < dao.stepMs, '剑光没有比刀势更快');
+});
+
+check('两门剑法都标 sword，buildParams 原样透传兵器字段', function () {
+  const m = data.getMethod('forge');
+  assert.strictEqual(m.params.weapon, 'sword', '基础剑法没标兵器');
+  assert.strictEqual(data.getMethod('snatch').params.weapon, 'sword', '剑诀·断岳没标兵器');
+  for (const k of ['easy', 'normal', 'hard', 'expert', 'desperate']) {
+    assert.strictEqual(data.buildParams(m, k).weapon, 'sword', k + ' 档把兵器字段弄丢了');
+  }
+});
+
+check('同一套 click 引擎传 dao 就长出刀法：路更长、招式名与浮字全换', function () {
+  installClock();
+  try {
+    function sample(weapon) {
+      const m = data.getMethod('forge');
+      const params = Object.assign({}, data.buildParams(m, 'easy'), { weapon: weapon, duration: 12, life: 700 });
+      const ctx = makeCtx(m, {}, params);
+      ctx.c.start();
+      let total = 0;
+      let n = 0;
+      let bladeName = false;
+      const flashes = [];
+      for (let k = 0; k < 30; k += 1) {
+        const t = ctx.st.vm.trail;
+        if (t) {
+          total += t.path.length;
+          n += 1;
+          if (/劈|斩|游龙/.test(t.name)) bladeName = true;
+          ctx.c.swipe(t.path.slice());
+          // 只记命中类浮字，别把随后「漏了一剑」这类失手浮字当成命中样本。
+          if (ctx.st.vm.fx && ctx.st.vm.fx.text && ctx.st.vm.fx.tone !== 'bad') flashes.push(ctx.st.vm.fx.text);
+        }
+        advance(200);
+      }
+      const out = {
+        avg: n ? total / n : 0,
+        bladeName: bladeName,
+        flashes: flashes,
+        meter: ctx.st.vm.meter ? ctx.st.vm.meter.label : '',
+      };
+      ctx.c.destroy();
+      return out;
+    }
+    const sw = sample('sword');
+    const dao = sample('dao');
+    assert.ok(n_ok(sw.avg) && n_ok(dao.avg), '采样没跑出剑路');
+    assert.ok(dao.avg > sw.avg + 0.4, '刀法招式没有明显更长：剑 ' + sw.avg + ' / 刀 ' + dao.avg);
+    assert.ok(/剑势/.test(sw.meter) && /刀势/.test(dao.meter), '剑势 / 刀势槽没跟着兵器换');
+    assert.ok(!sw.bladeName, '剑法招式名里混进了刀字');
+    assert.ok(dao.bladeName, '刀法招式名没换成刀的称谓');
+    assert.ok(sw.flashes.some(function (x) { return /剑/.test(x); }), '剑法没有「一剑中的」这类命中浮字');
+    assert.ok(dao.flashes.some(function (x) { return /斩|刀/.test(x); }), '刀法没有刀味命中浮字');
+    assert.ok(sw.flashes.every(function (x) { return !/劈|斩|砍|刀锋|一刀/.test(x); }), '剑法命中浮字串进了刀字');
+  } finally { restoreClock(); }
+});
+
+function n_ok(v) { return typeof v === 'number' && v > 0; }
+
+check('剑法可见文案零刀字：招式、浮字、说明、命名全都对得上', function () {
+  const bad = weapons.forbiddenOf('sword');
+  function clean(label, text) {
+    for (let i = 0; i < bad.length; i += 1) {
+      assert.ok(text.indexOf(bad[i]) < 0, label + ' 混进刀味词「' + bad[i] + '」：' + text);
+    }
+  }
+  const sw = weapons.PROFILES.sword;
+  for (const k of Object.keys(sw.names)) clean('剑招名', sw.names[k]);
+  for (const k of Object.keys(sw.words)) clean('剑法浮字 ' + k, sw.words[k]);
+  clean('金色长招', sw.edgeName);
+  const g = guides.guideOf('click');
+  clean('玩法目标', g.goal);
+  for (let i = 0; i < g.steps.length; i += 1) clean('玩法步骤', g.steps[i]);
+  clean('局内速记', g.inline);
+  clean('诀窍', g.tip);
+  for (let i = 0; i < g.terms.length; i += 1) clean('术语名', g.terms[i].name);
+  const m = data.getMethod('forge');
+  clean('参悟方式', m.name);
+  clean('准备页描述', m.desc);
+  clean('准备页提示', m.tip);
+  clean('玩法名', m.gameName);
+  for (const id of ['forge', 'snatch']) {
+    clean(id + ' 命中浮字', themes.THEMES[id].hit);
+    clean(id + ' 失手浮字', themes.THEMES[id].miss);
+  }
 });
 
 console.log('\n小游戏层断言全部通过（' + passed + ' 项）');

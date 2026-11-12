@@ -1,8 +1,8 @@
 'use strict';
 
 // 辨伪择真（辨锋截击 / 剑诀·断岳专属）：每轮同时亮起数道剑光，只有一道是真招，其余是虚影。
-// 与「顺光划斩」的区别：那边是追一道流动的剑路划过去，这里是多目标里辨真伪，劈错要倒扣分数与时间。
-// 盘面 4×3、有虚影、连截提速，规则和观感都与循光劈刺不同。
+// 与「顺光引剑」的区别：那边是顺着一道流动的剑路把剑引到靶心，这里是多目标里辨真伪，截错要倒扣分数与时间。
+// 盘面 4×3、有虚影、连截提速，规则和观感都与循光刺桩不同。
 
 const C = require('./common.js');
 
@@ -133,8 +133,8 @@ function create(ctx) {
     fast = false;
     vm.cells[index].cls = 'cell cell--bad';
     vm.cells[index].label = '';
-    vm.status = theme.miss || '劈中虚影';
-    C.flash(vm, '劈错 -1 · 少一息', 'bad');
+    vm.status = theme.miss || '误截虚影';
+    C.flash(vm, '截错 -1 · 少一息', 'bad');
     syncHud();
     const i = index;
     bag.after(function () {

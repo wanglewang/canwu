@@ -7,14 +7,16 @@
 const THEMES = {
   forge: {
     key: 'forge', name: '剑光', accent: '#4a6b86', soft: '#dee8f1', ink: '#254253',
-    // 顺光划斩的剑路用 CSS 箭头指方向，盘面不放字形；glyph 只为保持主题字段齐备。
+    // 顺光引剑的剑路用 CSS 箭头指方向，盘面不放字形；glyph 只为保持主题字段齐备。
+    // hit / miss / banner / praise 保留字段完整性，但 click 引擎的浮字统一由
+    // data/weapons.js 按兵器给，避免刀法沿用剑法主题时说出「一剑中的」。
     bg: '#e6edf3', frame: '#f8fbfd', glyph: '剑', motif: '剑',
-    hit: '一剑中的', miss: '劈空了', banner: '剑光乍起', praise: '剑随意走',
+    hit: '一剑中的', miss: '刺偏了', banner: '剑光乍起', praise: '剑随意走',
   },
   snatch: {
     key: 'snatch', name: '剑影', accent: '#39465c', soft: '#dfe4ec', ink: '#1d2632',
     bg: '#e7eaf0', frame: '#f8f9fc', glyph: '剑', motif: '截',
-    hit: '截住真招', miss: '劈中虚影', banner: '剑光乱眼', praise: '后发先至',
+    hit: '截住真招', miss: '误截虚影', banner: '剑光乱眼', praise: '后发先至',
   },
   recite: {
     key: 'recite', name: '静心', accent: '#3d8c74', soft: '#dff0e7', ink: '#225a4a',
@@ -86,7 +88,7 @@ const TWIST_INFO = {
   },
   snatch: {
     name: '真招虚影',
-    desc: '数道剑光只有一道真招，劈错扣分。连截四记出手更快。',
+    desc: '数道剑光只有一道真招，截错扣分。连截四记出手更快。',
   },
   recite: {
     name: '可抢记',
