@@ -746,6 +746,204 @@ check('触雷不再一击出局，只扣一盏心神并显形', function () {
   } finally { restoreClock(); }
 });
 
+// ---------------------------------------------------------------- 照影符：经典扫雷深耕
+// 只读 vm.cells 的推理器，与 mines.js「无猜」判定同用最基础的单格规则。
+// 它看不到 mineSet，推得完就说明这一盘真的不用猜，而不是玩法层自己说了算。
+function mineNeighbors(i, cols, rows) {
+  const r = Math.floor(i / cols);
+  const c = i % cols;
+  const out = [];
+  for (let dr = -1; dr <= 1; dr += 1) {
+    for (let dc = -1; dc <= 1; dc += 1) {
+      if (dr === 0 && dc === 0) continue;
+      const nr = r + dr;
+      const nc = c + dc;
+      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) out.push(nr * cols + nc);
+    }
+  }
+  return out;
+}
+
+function solveMines(ctx, cols) {
+  const cells = ctx.st.vm.cells;
+  const rows = cells.length / cols;
+  const isOpen = function (j) { return cells[j].cls.indexOf('cell--open') >= 0; };
+  const isMarked = function (j) {
+    return cells[j].cls.indexOf('cell--flag') >= 0 || cells[j].cls.indexOf('cell--mine') >= 0;
+  };
+  const isHidden = function (j) { return cells[j].cls.indexOf('cell--hidden') >= 0; };
+  for (let pass = 0; pass < 200 && !ctx.st.finished; pass += 1) {
+    let acted = false;
+    for (let i = 0; i < cells.length && !ctx.st.finished; i += 1) {
+      if (!isOpen(i) || !cells[i].label) continue;
+      const num = Number(cells[i].label);
+      const list = mineNeighbors(i, cols, rows);
+      const unknown = list.filter(isHidden);
+      const marked = list.filter(isMarked).length;
+      if (unknown.length === 0) continue;
+      const rest = num - marked;
+      if (rest === 0) { ctx.c.tap(unknown[0]); acted = true; break; }
+      if (rest === unknown.length) {
+        for (let k = 0; k < unknown.length; k += 1) ctx.c.longpress(unknown[k]);
+        acted = true;
+        break;
+      }
+    }
+    if (!acted) return false;
+  }
+  return !!ctx.st.finished;
+}
+
+check('照影符：开局不先布雷，首点九宫格全开且盘面无汉字', function () {
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('tanlei'));
+    ctx.c.start();
+    assert.strictEqual(ctx.st.vm.cells.length, 36);
+    assert.strictEqual(ctx.st.vm.cells.filter(function (c) { return c.cls.indexOf('cell--hidden') >= 0; }).length,
+      36, '玩家还没点，禁制就已经布好了');
+    const mid = 14;
+    const zone = [mid - 7, mid - 6, mid - 5, mid - 1, mid, mid + 1, mid + 5, mid + 6, mid + 7];
+    ctx.c.tap(mid);
+    for (let k = 0; k < zone.length; k += 1) {
+      assert.ok(ctx.st.vm.cells[zone[k]].cls.indexOf('cell--open') >= 0,
+        '首点九宫格第 ' + zone[k] + ' 格没展开，开局会被数字堵死');
+    }
+    for (let i = 0; i < ctx.st.vm.cells.length; i += 1) {
+      assert.ok(/^$|^[0-8]$|^✕$|^⚑$/.test(ctx.st.vm.cells[i].label),
+        '盘面混进汉字：' + ctx.st.vm.cells[i].label);
+    }
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('照影符：无猜布局能纯靠数字零失误翻完全盘', function () {
+  installClock();
+  try {
+    let guessed = 0;
+    for (let round = 0; round < 8; round += 1) {
+      const ctx = makeCtx(data.getMethod('tanlei'));
+      ctx.c.start();
+      ctx.c.tap(14);
+      const ok = ctx.st.vm.extras.noGuess;
+      assert.strictEqual(/不必猜/.test(ctx.st.vm.status), ok, 'status 与无猜标志不一致');
+      if (ok) {
+        assert.ok(solveMines(ctx, 6), '第 ' + (round + 1) + ' 盘标了「无猜」，纯推理却推不完');
+        assert.ok(ctx.st.finished && /探明秘境/.test(ctx.st.finished.summary), '推理走完却没结算成功');
+        assert.strictEqual(ctx.st.vm.hearts.value, 3, '零失误推理不该折心神');
+      } else guessed += 1;
+      ctx.c.destroy();
+    }
+    assert.ok(guessed <= 1, '8 盘里有 ' + guessed + ' 盘仍需猜，无猜布局的重试次数不够');
+  } finally { restoreClock(); }
+});
+
+check('照影符：旗数对上点数字格可连开，旗插错照样踩禁制', function () {
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('tanlei'));
+    ctx.c.start();
+    ctx.c.tap(14);
+    const cells = ctx.st.vm.cells;
+    const isHidden = function (j) { return cells[j].cls.indexOf('cell--hidden') >= 0; };
+    const isOpen = function (j) { return cells[j].cls.indexOf('cell--open') >= 0; };
+    // 旗数不合：只点数字格，不该翻开任何东西。
+    let numCell = -1;
+    for (let i = 0; i < cells.length && numCell < 0; i += 1) {
+      if (isOpen(i) && cells[i].label && mineNeighbors(i, 6, 6).some(isHidden)) numCell = i;
+    }
+    assert.ok(numCell >= 0, '首点展开后找不到带数字且有未探邻格的格子');
+    const openCount = function () {
+      return cells.filter(function (c) { return c.cls.indexOf('cell--open') >= 0; }).length;
+    };
+    const beforeOpen = openCount();
+    ctx.c.tap(numCell);
+    assert.ok(/旗数未合/.test(ctx.st.vm.status), '没插旗就点数字格，应该提示旗数未合');
+    assert.strictEqual(openCount(), beforeOpen, '旗数不合竟然连开了');
+
+    // 插够旗数再点：要么连开安全格，要么旗插错踩到禁制，两者都说明 chord 真的生效了。
+    let target = -1;
+    let toFlag = [];
+    for (let i = 0; i < cells.length && target < 0; i += 1) {
+      if (!isOpen(i) || !cells[i].label) continue;
+      const num = Number(cells[i].label);
+      const unknown = mineNeighbors(i, 6, 6).filter(isHidden);
+      const marked = mineNeighbors(i, 6, 6).filter(function (j) {
+        return cells[j].cls.indexOf('cell--flag') >= 0 || cells[j].cls.indexOf('cell--mine') >= 0;
+      }).length;
+      if (num >= 1 && marked === 0 && unknown.length > num) { target = i; toFlag = unknown.slice(0, num); }
+    }
+    assert.ok(target >= 0, '构造不出旗数对上的连开局面');
+    for (let k = 0; k < toFlag.length; k += 1) ctx.c.longpress(toFlag[k]);
+    const beforeHearts = ctx.st.vm.hearts.value;
+    ctx.c.tap(target);
+    const changed = openCount() > beforeOpen || ctx.st.vm.hearts.value < beforeHearts;
+    assert.ok(changed, '旗数对上后点数字格，既没连开也没判误触');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('照影符：结算分数越大越好，玩得快不会反而输给磨洋工', function () {
+  installClock();
+  try {
+    function abandonScore(seconds) {
+      const ctx = makeCtx(data.getMethod('tanlei'));
+      ctx.c.start();
+      if (seconds) advance(seconds * 1000);
+      ctx.c.abandon();
+      const score = ctx.st.finished.score;
+      ctx.c.destroy();
+      return score;
+    }
+    const fast = abandonScore(0);
+    const slow = abandonScore(30);
+    assert.ok(fast > slow, '耗时更久反而分更高：' + fast + ' / ' + slow);
+  } finally { restoreClock(); }
+});
+
+check('照影符：五档禁制数与心神数真的分开，不再叠一次 hard +3', function () {
+  installClock();
+  try {
+    const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+    const mines = [];
+    const hearts = [];
+    for (let i = 0; i < keys.length; i += 1) {
+      const params = data.buildParams(data.getMethod('tanlei'), keys[i]);
+      const ctx = makeCtx(data.getMethod('tanlei'), {}, params);
+      ctx.c.start();
+      mines.push(params.mines);
+      hearts.push(ctx.st.vm.hearts.max);
+      ctx.c.destroy();
+    }
+    assert.deepStrictEqual(hearts, [3, 3, 3, 2, 2], '心神数没随档收紧');
+    assert.ok(mines[0] < mines[4], '绝境档的禁制数没比简单档多');
+    for (let i = 1; i < mines.length; i += 1) {
+      assert.ok(mines[i] >= mines[i - 1], '禁制数随档回退了：' + mines.join('/'));
+    }
+  } finally { restoreClock(); }
+});
+
+check('照影符：大成照见 3 处、大圆满 5 处，已照见的禁制点了不再扣心神', function () {
+  installClock();
+  try {
+    for (const pair of [[3, 3], [5, 5]]) {
+      const ctx = makeCtx(data.getMethod('tanlei'), { tier: pair[0], easy: pair[0] >= 3 });
+      ctx.c.start();
+      ctx.c.tap(14);
+      const seen = [];
+      for (let i = 0; i < ctx.st.vm.cells.length; i += 1) {
+        if (ctx.st.vm.cells[i].cls.indexOf('cell--mine') >= 0) seen.push(i);
+      }
+      assert.strictEqual(seen.length, pair[1], '阶段 ' + pair[0] + ' 照见数不对');
+      assert.strictEqual(ctx.st.vm.cells[seen[0]].label, '✕', '照见的禁制没用符号标出');
+      const before = ctx.st.vm.hearts.value;
+      ctx.c.tap(seen[0]);
+      assert.strictEqual(ctx.st.vm.hearts.value, before, '点已经照见的禁制不该再折心神');
+      ctx.c.destroy();
+    }
+  } finally { restoreClock(); }
+});
+
 // ---------------------------------------------------------------- 断言：每套玩法整局可跑完
 for (const method of data.PRACTICE_METHODS) {
   check('整局可跑完：' + method.id + ' · ' + method.gameName, function () {

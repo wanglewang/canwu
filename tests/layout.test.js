@@ -333,4 +333,32 @@ check('兵器语言收在 data/weapons.js，玩法模块不硬编码招式名与
   assert.ok(/weapon: 'sword'/.test(read('data/practice.js')), '剑诀·断岳没标兵器');
 });
 
+check('战力来源在洞府页与修行指南都讲清楚了', function () {
+  const wxml = read('pages/index/index.wxml');
+  const js = read('pages/index/index.js');
+  const guide = read('pages/guide/guide.js');
+  assert.ok(/powerOpen/.test(wxml) && /onTogglePower/.test(js), '洞府页战力明细不能展开');
+  assert.ok(/ov\.powerBase/.test(wxml) && /ov\.powerRealmBonus/.test(wxml) && /ov\.powerEffectBonus/.test(wxml),
+    '洞府页没写出属性基础 / 境界 / 特效三项');
+  assert.ok(/powerLines/.test(js) && /体魄 ×1\.0/.test(js), '明细没讲属性权重');
+  assert.ok(/已学/.test(js) && /突破境界/.test(js) && /大成/.test(js), '明细没讲多学功法、突破与特效');
+  assert.ok(/title: '二 · 战力从哪来'/.test(guide), '修行指南没有战力专节');
+  assert.ok(/战力 = 属性加权/.test(guide) && /轮着练/.test(guide), '指南没讲公式与轮换练');
+  assert.ok(/title: '十 · 离线收益的时间'/.test(guide), '插了新专节，后面章节编号没顺延');
+});
+
+check('照影符按经典扫雷深耕：无猜、首点空白、连开、分数方向', function () {
+  const m = read('minigames/mines.js');
+  const g = read('data/guides.js');
+  const p = read('data/practice.js');
+  assert.ok(/function solvable/.test(m) && /LAYOUT_TRIES/.test(m), '布禁制没验「不用猜」');
+  assert.ok(/firstZone/.test(m), '首点及其八邻没有免禁制');
+  assert.ok(/function chord/.test(m), '插旗后没有连开');
+  assert.ok(/scoreOf\(\)/.test(m) && !/score: elapsed/.test(m), '结算分仍是耗时，破纪录方向是反的');
+  assert.ok(!/hard \? 3/.test(m), '还在 ctx.difficulty 上叠 +3，三档会挤成一盘');
+  assert.ok(/MINE_GLYPH = '✕'/.test(m) && /FLAG_GLYPH = '⚑'/.test(m), '盘面还在写汉字');
+  assert.ok(/不必猜/.test(g) && /连开/.test(g) && /⚑/.test(g), '玩法说明没讲无猜与连开');
+  assert.ok(/tanlei: \[/.test(p) && /圆照/.test(p), '阶段新法没登记照影符');
+});
+
 console.log('\n布局断言全部通过：' + passed + ' 项');

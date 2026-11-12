@@ -51,7 +51,7 @@ const THEMES = {
   tanlei: {
     key: 'tanlei', name: '禁纹', accent: '#a2553f', soft: '#f4e2da', ink: '#6d3527',
     bg: '#efe1d8', frame: '#fff7f1', glyph: '禁', motif: '照',
-    hit: '石格无事', miss: '触了禁制', banner: '禁制显形', praise: '步步不惊',
+    hit: '石格无事', miss: '触了禁制', banner: '照影起符', praise: '步步不惊',
   },
   seal: {
     key: 'seal', name: '卦象', accent: '#5d5b8a', soft: '#e5e4f0', ink: '#3a3860',

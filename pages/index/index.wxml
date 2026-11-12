@@ -33,8 +33,20 @@
         </view>
       </view>
       <view class="hero-power mt16">
-        <text class="tiny hero-label">战 力</text>
+        <view class="power-head" bindtap="onTogglePower">
+          <text class="tiny hero-label">战 力</text>
+          <text class="tiny power-link">{{powerOpen ? '收起 ∧' : '战力从哪来 ›'}}</text>
+        </view>
         <text class="big-number hero-num">{{ov.power}}</text>
+        <text class="tiny hero-label power-formula">{{ov.powerBase}} × (1 + 境界 {{ov.powerRealmBonus}}% + 功法 {{ov.powerEffectBonus}}%)</text>
+      </view>
+      <view wx:if="{{powerOpen}}" class="power-detail mt16">
+        <text class="tiny power-detail__title">战力 = 属性加权 × (1 + 境界加成 + 功法特效)</text>
+        <view class="power-detail__line" wx:for="{{powerLines}}" wx:key="*this">
+          <text class="tiny power-detail__dot">·</text>
+          <text class="tiny grow power-detail__text">{{item}}</text>
+        </view>
+        <text class="tiny power-detail__more" bindtap="onGoGuide">完整算法见「修行指南 · 战力从哪来」›</text>
       </view>
       <view class="divider hero-divider"></view>
       <view class="stat-grid">

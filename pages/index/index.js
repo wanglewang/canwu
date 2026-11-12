@@ -21,6 +21,8 @@ Page({
     worldOpen: false,
     showOffline: false,
     offline: null,
+    powerOpen: false,
+    powerLines: [],
   },
 
   onLoad: function () {
@@ -75,6 +77,16 @@ Page({
     const dailyPercent = Math.min(100, Math.round(ov.daily.count / ov.daily.target * 100));
     const bt = ov.breakthrough;
     const breakPercent = bt.maxed || bt.need <= 0 ? 100 : Math.min(100, Math.round(bt.power / bt.need * 100));
+    // 战力明细：数字全部取自 engine.getOverview，系数与 data/world.js、data/practice.js 对齐。
+    // 写在页面而不写死在 WXML，是为了改系数时只改这一处就能同步文案。
+    const powerLines = [
+      '属性基础 ' + ov.powerBase + ' = 体魄 ×1.0 + 灵力 ×1.2 + 悟性 ×0.8 + 身法 ×1.0；再乘境界 +' + ov.powerRealmBonus + '% 与功法特效 +' + ov.powerEffectBonus + '%。',
+      '每门功法给的属性 = 功法加成 × 熟练度段位 × 品阶系数。练深一门：入门 ×1 → 小成 ×1.8 → 大成 ×2.8 → 圆满 ×4 → 大圆满 ×5。',
+      '多学一门最见效：当前已学 ' + ov.unlockedCount + ' / ' + ov.skillTotal + ' 门。藏经阁能买就买，论道首胜与秘境也会掉功法。',
+      '突破境界给全体属性加成：筑基 +6% / 金丹 +14% / 元婴 +24%，对应战力门槛 75 / 170 / 300。',
+      '大成（熟练度 1000）起功法特效才生效，目前三条共 +21%；品阶越高属性系数越大，且不受境界衰减影响。',
+      '换着门练更快：连着参同一门收益递减，换一门有加成。战力只影响论道与突破门槛，不参与参悟收益。',
+    ];
     const sync = store.getSyncStatus();
     let syncLabel = '';
     let syncTone = 'ok';
@@ -95,6 +107,7 @@ Page({
       syncTone: syncTone,
       dailyPercent: dailyPercent,
       breakPercent: breakPercent,
+      powerLines: powerLines,
       quickSkills: quick.slice(0, 3).map(function (s) {
         return {
           id: s.id, name: s.name, methodName: s.methodName,
@@ -146,6 +159,10 @@ Page({
 
   onToggleWorld: function () {
     this.setData({ worldOpen: !this.data.worldOpen });
+  },
+
+  onTogglePower: function () {
+    this.setData({ powerOpen: !this.data.powerOpen });
   },
 
   onGoSkills: function () { wx.switchTab({ url: '/pages/skills/skills' }); },
