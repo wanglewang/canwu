@@ -1,8 +1,9 @@
 'use strict';
 
 // 参悟方式 = 一门功法 + 一套专属玩法 + 该门独有的规则花样(twist) + 表现主题(theme)。
-// 10 门功法对应 10 套互不复用内核的小游戏；同是剑法、同是阵法，也不会点进去是同一个盘面。
-// game 取值见 minigames/index.js：click / hunt / memory / bridge / tempo / sword / lights / wuxing / mines / seal。
+// 13 门功法对应 13 套互不复用内核的小游戏；同是剑法、同是阵法，也不会点进去是同一个盘面。
+// game 取值见 minigames/index.js：
+//   click / hunt / memory / bridge / tempo / sword / lights / wuxing / mines / seal / link / blocks / match。
 // forge 是刀法（weapon: 'dao'），剑诀·断岳仍标 sword，但 hunt 引擎暂不读兵器轴。
 // 兵器是功法属性，不是某个玩法的私有参数。charge 仅用于境界突破，不挂功法。
 //
@@ -91,6 +92,29 @@ const PRACTICE_METHODS = [
     base: 56,
     params: { pairs: 6, cols: 4, flipMs: 850, timeLimit: 70 },
   },
+  // 下面三门是「一看就懂」的经典玩法，都挂黄阶：规则不绕，前期就买得起。
+  // 品阶只管收益与可修境界，难度仍由熟练度档位拧数值（flashMs / dropMs / depth）。
+  {
+    id: 'linkpair', name: '牵灵引线', game: 'link', theme: 'linkpair', twist: 'linkpair',
+    desc: '同纹灵石两两相契，牵一条不过两折的灵线把这一对收回来。',
+    tip: '点两枚同纹，转折不超过两次',
+    base: 34,
+    params: { duration: 55, cols: 6, rows: 4, kinds: 6, flashMs: 900 },
+  },
+  {
+    id: 'stackstone', name: '垒石筑基', game: 'blocks', theme: 'stackstone', twist: 'stackstone',
+    desc: '灵石按息坠落，挪石转石把一层垒满，整层化去才算筑稳一分根基。',
+    tip: '方向键挪石转石，垒满一层即消',
+    base: 36,
+    params: { duration: 70, cols: 6, rows: 8, dropMs: 620 },
+  },
+  {
+    id: 'harvest', name: '换苗引秀', game: 'match', theme: 'harvest', twist: 'harvest',
+    desc: '灵畦里换两株相邻灵苗，凑齐三株同色便收；落苗补位还能再连一层。',
+    tip: '点相邻两株换位，连成三株即收',
+    base: 34,
+    params: { duration: 60, cols: 6, rows: 6, kinds: 5, flashMs: 760 },
+  },
 ];
 
 // 玩法中文名：只写盘面上的动作，不写题材。与 minigames/ 各模块导出的 name 一一对应，
@@ -106,6 +130,9 @@ const GAME_LABELS = {
   wuxing: '五行相生',
   mines: '数格辨禁',
   seal: '成对翻牌',
+  link: '灵纹连线',
+  blocks: '落石垒基',
+  match: '三秀同收',
 };
 
 // 游戏族：同类功法共用一套手感内核，族内按品阶递进出变体。
@@ -118,6 +145,9 @@ const FAMILIES = {
   丹道: { core: '循纹递推', note: '看纹路递推，只有一门', kind: 'skill' },
   符箓: { core: '数格辨禁', note: '看数字推禁制，只有一门', kind: 'skill' },
   身法: { core: '步法连环', note: '照卷轴踏位，只有一门', kind: 'skill' },
+  御灵: { core: '灵纹连线', note: '牵两枚同纹灵石，找一条不超过两折的通路', kind: 'skill' },
+  土术: { core: '落石垒基', note: '挪石转石垒满一层，是唯一持续下落的盘面', kind: 'skill' },
+  灵植: { core: '三秀同收', note: '换相邻两株凑三连，落苗还能再连锁', kind: 'skill' },
 };
 
 const METHOD_MAP = {};
@@ -218,7 +248,7 @@ function difficultyList(prof, current) {
 
 // ---------------------------------------------------------------- 参数缩放
 // 时间 / 判定窗类：pace 越小越难。window 是 0~1 的小数，保留三位。
-const PACE_KEYS = ['interval', 'flashMs', 'gapMs', 'windowMs', 'shuffleMs', 'flipMs', 'window', 'msPerNote'];
+const PACE_KEYS = ['interval', 'flashMs', 'gapMs', 'windowMs', 'shuffleMs', 'flipMs', 'dropMs', 'window', 'msPerNote'];
 // 判定窗口类：只影响「亮着的那一下有多久来得及」，收紧得比 pace 陡 ——
 // 窗口每短一成，容错掉的不是一成。多个玩法共用同一个字段名也互不影响。
 const WINDOW_KEYS = ['life'];
@@ -228,8 +258,8 @@ const GOAL_KEYS = ['chainGoal', 'maxRound', 'segments', 'beats', 'scramble', 'mi
 const SPEED_KEY = 'speed';
 
 const FIELD_LABELS = {
-  interval: '灵光间隔', life: '刀光停留', flashMs: '闪烁时长', gapMs: '闪烁间隔', windowMs: '相生之窗', msPerNote: '每字息数',
-  shuffleMs: '水流变阵', flipMs: '翻牌停留', window: '判定窗', speed: '气机收敛',
+  interval: '灵光间隔', life: '刀光停留', flashMs: '亮起时长', gapMs: '闪烁间隔', windowMs: '相生之窗', msPerNote: '每字息数',
+  shuffleMs: '水流变阵', flipMs: '翻牌停留', dropMs: '落石间隔', window: '判定窗', speed: '气机收敛',
   chainGoal: '连生目标', maxRound: '口诀轮数', segments: '步法段数', beats: '息数',
   scramble: '打乱步数', mines: '禁制数', pairs: '符对数', decoys: '影子数',
   startLen: '起始字数', baseLen: '每步长度', steps: '最少步数',
@@ -277,7 +307,7 @@ function buildParams(method, diffKey) {
 }
 
 function fmtField(key, value) {
-  const ms = key === 'interval' || key === 'life' || key === 'flashMs' || key === 'gapMs' || key === 'windowMs' || key === 'shuffleMs' || key === 'flipMs' || key === 'msPerNote';
+  const ms = key === 'interval' || key === 'life' || key === 'flashMs' || key === 'gapMs' || key === 'windowMs' || key === 'shuffleMs' || key === 'flipMs' || key === 'dropMs' || key === 'msPerNote';
   return value + (ms ? 'ms' : '');
 }
 
@@ -335,6 +365,20 @@ const STAGE_RULES = {
   tanlei: [
     { at: 3, name: '照影', desc: '大成起开局照见 3 处禁制并直接标出，不必靠误触换线索' },
     { at: 5, name: '圆照', desc: '大圆满起开局照见 5 处禁制' },
+  ],
+  // 三套经典玩法是黄阶里的入门功课，阶段新法只给「看得更清 / 手更稳」的便利，
+  // 不往经典规则里塞新花样——看一眼就会玩，才配叫简单。
+  linkpair: [
+    { at: 3, name: '照纹', desc: '大成起「照纹」提示不再扣息' },
+    { at: 5, name: '自移', desc: '大圆满起死局重排不再扣息' },
+  ],
+  stackstone: [
+    { at: 3, name: '稳基', desc: '大成起落石间隔放宽一拍，留出转石的时间' },
+    { at: 5, name: '层叠', desc: '大圆满起每化一层的得分再高一成' },
+  ],
+  harvest: [
+    { at: 3, name: '照畦', desc: '大成起「照畦」提示不再扣息' },
+    { at: 5, name: '连收', desc: '大圆满起连锁加成提高，死局重排不扣息' },
   ],
 };
 

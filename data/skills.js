@@ -44,7 +44,7 @@ const SKILLS = [
     flavor: '师兄说这口诀没用，他练了三年还在炼气。',
     bonus: { wu: 4 },
     effect: { type: 'practice', value: 0.08, text: '静心：参悟熟练度 +8%' },
-    source: { kind: 'shop', cost: { qi: 40, stone: 20 } },
+    source: { kind: 'shop', cost: { qi: 100, stone: 30 } },
   },
   {
     id: 'yunbu', name: '身法·踏云步', type: '身法', kind: 'skill', tier: 'xuan', method: 'combo',
@@ -52,7 +52,7 @@ const SKILLS = [
     flavor: '练成之前，先摔了三十次。',
     bonus: { shen: 4 },
     effect: { type: 'power', value: 0.05, text: '踏云：对战战力 +5%' },
-    source: { kind: 'shop', cost: { qi: 90, stone: 35 } },
+    source: { kind: 'shop', cost: { qi: 130, stone: 45 } },
   },
   {
     // id 沿用旧名（引雷符），存档与纪录都按 id 索引，改名不动 id。
@@ -63,7 +63,7 @@ const SKILLS = [
     flavor: '照影符不伤人，只照出你不想看见的东西。',
     bonus: { ling: 4, wu: 1 },
     effect: { type: 'practice', value: 0.10, text: '照影：参悟熟练度 +10%' },
-    source: { kind: 'shop', cost: { qi: 160, stone: 50 } },
+    source: { kind: 'shop', cost: { qi: 90, stone: 30 } },
   },
   {
     // 五行相生偏反应、比阵灯推演轻，降到玄阶与燃灯诀排成「玄 → 地」两级。
@@ -98,6 +98,32 @@ const SKILLS = [
     bonus: { wu: 5, ling: 3 },
     effect: { type: 'practice', value: 0.12, text: '太虚：参悟熟练度 +12%' },
     source: { kind: 'battle', opponentId: 'xuanzhen' },
+  },
+  // 三套「看一眼就会玩」的经典玩法统一挂黄阶：品阶按功课难度定，不按新奇程度定。
+  // 各占一个新类型，谱系里也不会和既有功法同阶撞车。
+  {
+    id: 'lingqi', name: '灵契·并蒂引', type: '御灵', kind: 'skill', tier: 'huang', method: 'linkpair',
+    desc: '两枚同纹灵石本是一对，牵一条不过两折的灵线，把它们收回契中。',
+    flavor: '师父说这叫并蒂，你觉得这叫连连看。',
+    bonus: { ling: 3, shen: 2 },
+    effect: { type: 'practice', value: 0.08, text: '并蒂：参悟熟练度 +8%' },
+    source: { kind: 'shop', cost: { qi: 50, stone: 15 } },
+  },
+  {
+    id: 'leiyue', name: '土术·垒岳诀', type: '土术', kind: 'skill', tier: 'huang', method: 'stackstone',
+    desc: '灵石按息坠落，垒满一层化去一层，根基就是这么一寸寸垫起来的。',
+    flavor: '练之前以为要搬山，练之后发现自己只是在码石头。',
+    bonus: { ti: 4, ling: 1 },
+    effect: { type: 'power', value: 0.05, text: '垒岳：对战战力 +5%' },
+    source: { kind: 'shop', cost: { qi: 65, stone: 20 } },
+  },
+  {
+    id: 'sanxiu', name: '灵植·三秀诀', type: '灵植', kind: 'skill', tier: 'huang', method: 'harvest',
+    desc: '灵畦换苗，三株同色连成一线便可收，落苗补位还能再连一层。',
+    flavor: '一畦三秀，收完又长，长得比你收得还快。',
+    bonus: { wu: 3, ti: 2 },
+    effect: { type: 'offline', value: 0.12, text: '三秀：离线灵气 +12%' },
+    source: { kind: 'shop', cost: { qi: 55, stone: 18 } },
   },
 ];
 

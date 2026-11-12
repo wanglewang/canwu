@@ -1,6 +1,6 @@
 'use strict';
 
-// 小游戏层常驻断言：用假时钟把每一局真的跑完，验证 10 套玩法各自独立、机制互不复用、HUD 齐全。
+// 小游戏层常驻断言：用假时钟把每一局真的跑完，验证 13 套玩法各自独立、机制互不复用、HUD 齐全。
 // 零依赖，直接 node tests/minigames.test.js 即可跑。
 const assert = require('assert');
 const index = require('../minigames/index.js');
@@ -251,6 +251,26 @@ function actionFor(game) {
       if (vm.ring && Math.abs(vm.ring.scale - vm.ring.judge) <= vm.ring.window) c.tap(0);
     };
   }
+  if (game === 'link') {
+    return function (vm, c, st) {
+      st.tick = (st.tick || 0) + 1;
+      if (st.tick % 4 !== 0 || !vm.link) return;
+      const pair = index.MODULES.link.findPair(vm.link.board, vm.link.cols, vm.link.rows);
+      if (pair) { c.tap(pair[0]); c.tap(pair[1]); }
+    };
+  }
+  if (game === 'match') {
+    return function (vm, c, st) {
+      st.tick = (st.tick || 0) + 1;
+      if (st.tick % 6 !== 0 || !vm.match) return;
+      const move = index.MODULES.match.findMove(vm.match.board, vm.match.cols, vm.match.rows);
+      if (move) { c.tap(move[0]); c.tap(move[1]); }
+    };
+  }
+  if (game === 'blocks') {
+    // 灵石自己会落、堆到顶就收功；方向键的手感由下面的专项断言单独验。
+    return function () {};
+  }
   return function (vm, c, st) {
     if (!st.pressed) { c.press(); st.pressed = true; return; }
     const v = vm.charge.value;
@@ -279,21 +299,25 @@ const LIMITS = {
   wuxing: [26000, 60],
   mines: [20000, 80],
   seal: [75000, 60],
+  link: [70000, 60],
+  blocks: [80000, 80],
+  match: [70000, 60],
   charge: [20000, 55],
 };
 
-// ---------------------------------------------------------------- 断言：十门十套
-check('10 套常规玩法 + 突破专用玩法全部注册', function () {
+// ---------------------------------------------------------------- 断言：十三门十三套
+check('13 套常规玩法 + 突破专用玩法全部注册', function () {
   assert.deepStrictEqual(Object.keys(index.MODULES).sort(), [
-    'bridge', 'charge', 'click', 'hunt', 'lights', 'memory', 'mines', 'seal', 'sword', 'tempo', 'wuxing',
+    'blocks', 'bridge', 'charge', 'click', 'hunt', 'lights', 'link', 'match',
+    'memory', 'mines', 'seal', 'sword', 'tempo', 'wuxing',
   ]);
-  assert.strictEqual(index.PRACTICE_GAMES.length, 10);
+  assert.strictEqual(index.PRACTICE_GAMES.length, 13);
 });
 
-check('10 门功法对应 10 套互不重复的玩法', function () {
+check('13 门功法对应 13 套互不重复的玩法', function () {
   const games = data.PRACTICE_METHODS.map(function (m) { return m.game; });
-  assert.strictEqual(games.length, 10);
-  assert.strictEqual(new Set(games).size, 10, '仍有功法共用同一套玩法内核');
+  assert.strictEqual(games.length, 13);
+  assert.strictEqual(new Set(games).size, 13, '仍有功法共用同一套玩法内核');
   for (const g of games) assert.ok(index.MODULES[g], g + ' 未注册');
 });
 
@@ -344,7 +368,7 @@ check('参悟方式、玩法名、本门玄机三层互不撞词', function () {
   }
 });
 
-check('10 套玩法覆盖 5 种以上不同舞台形态', function () {
+check('13 套玩法覆盖 5 种以上不同舞台形态', function () {
   const stages = {};
   for (const m of data.PRACTICE_METHODS) {
     const ctx = makeCtx(m);
@@ -352,7 +376,7 @@ check('10 套玩法覆盖 5 种以上不同舞台形态', function () {
     ctx.c.destroy();
   }
   assert.ok(Object.keys(stages).length >= 5, '舞台形态不足：' + JSON.stringify(stages));
-  assert.strictEqual(stages.board, 6);
+  assert.strictEqual(stages.board, 9);
   assert.strictEqual(stages.lane, 1);
   assert.strictEqual(stages.ring, 1);
   assert.strictEqual(stages.orbit, 1);
@@ -361,10 +385,10 @@ check('10 套玩法覆盖 5 种以上不同舞台形态', function () {
 
 check('每门功法的独有机制互不重复', function () {
   const twists = new Set(data.PRACTICE_METHODS.map(function (m) { return m.twist; }));
-  assert.strictEqual(twists.size, 10);
+  assert.strictEqual(twists.size, 13);
 });
 
-check('10 门功法各有完整主题字段', function () {
+check('13 门功法各有完整主题字段', function () {
   const keys = ['accent', 'soft', 'ink', 'bg', 'frame', 'glyph', 'motif', 'hit', 'miss', 'banner', 'praise'];
   for (const m of data.PRACTICE_METHODS) {
     const t = themes.themeOf(m.id, m.game);
@@ -980,7 +1004,7 @@ check('突破瓶颈的蓄力停区也能跑完', function () {
   } finally { restoreClock(); }
 });
 
-check('11 套玩法都有「怎么玩」说明，盘面符号讲得清', function () {
+check('14 套玩法都有「怎么玩」说明，盘面符号讲得清', function () {
   for (const id of Object.keys(index.MODULES)) {
     const g = guides.guideOf(id);
     assert.ok(g, id + ' 缺玩法说明');
@@ -1056,10 +1080,9 @@ check('顺光扫斩：刀路每桩箭头指向下一桩，收势是靶心，盘�
           assert.strictEqual(cell.arrow, -1, '收势桩不该有方向箭头');
           continue;
         }
-        const dr = Math.floor(path[i + 1] / 3) - Math.floor(path[i] / 3);
-        const dc = (path[i + 1] % 3) - (path[i] % 3);
-        const want = (Math.round(Math.atan2(dc, -dr) * 180 / Math.PI) + 360) % 360;
-        assert.strictEqual(cell.arrow, want, '箭头角度与下一桩方向不符：' + path.join(','));
+        // 期望角度同样按宽高比算：格子高瘦时斜向不是 45°，照箭头划才不会偏。
+        const want = index.MODULES.click.dirAngle(path[i], path[i + 1], 3, index.MODULES.click.DEFAULT_ASPECT);
+        assert.strictEqual(cell.arrow, want, '箭头角度与下一桩中心连线不符：' + path.join(','));
         assert.strictEqual(cell.end, false, '中途桩不该是靶心');
       }
       ctx.c.swipe(path.slice());
@@ -1069,6 +1092,29 @@ check('顺光扫斩：刀路每桩箭头指向下一桩，收势是靶心，盘�
       }
       ctx.c.destroy();
     }
+  } finally { restoreClock(); }
+});
+
+check('斜向箭头按实测宽高比校正，页面回注比例会重画当前刀路', function () {
+  const click = index.MODULES.click;
+  // 正方形格子退回原来的八方向 45° 一档；3 列宽格（203/156≈1.30）右下只该是 127°。
+  assert.strictEqual(click.dirAngle(0, 4, 3, 1), 135, '正方形盘面的斜向箭头算错了');
+  assert.strictEqual(click.dirAngle(0, 4, 3, 1.30), 128, '宽格盘的右下箭头没按宽高比校正');
+  assert.strictEqual(click.dirAngle(0, 2, 3, 1.30), 90, '正下方不该被校正偏');
+  assert.strictEqual(click.angleOf([0, 4], 3, 1), 45, '正方形盘面白光应是 45°');
+  assert.strictEqual(click.angleOf([0, 4], 3, 1.30), 38, '宽格盘白光没跟着校正');
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    const ctx = makeCtx(m, {}, Object.assign({}, m.params, { depth: 0, duration: 12, life: 700 }));
+    ctx.c.start();
+    const path = ctx.st.vm.trail.path.slice();
+    ctx.c.setAspect(1);
+    for (let i = 0; i < path.length - 1; i += 1) {
+      assert.strictEqual(ctx.st.vm.cells[path[i]].arrow, click.dirAngle(path[i], path[i + 1], 3, 1),
+        '回注实测比例后当前刀路的箭头没重画');
+    }
+    ctx.c.destroy();
   } finally { restoreClock(); }
 });
 

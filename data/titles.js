@@ -12,7 +12,7 @@ const TITLES = [
   { id: 't07', name: '筑基修士', desc: '突破至筑基', metric: 'realmIndex', target: 1 },
   { id: 't08', name: '金丹修士', desc: '突破至金丹', metric: 'realmIndex', target: 2 },
   { id: 't09', name: '博闻强识', desc: '习得 5 门功法', metric: 'unlockedCount', target: 5 },
-  { id: 't10', name: '万法归一', desc: '习得全部 10 门功法', metric: 'unlockedCount', target: 10 },
+  { id: 't10', name: '万法归一', desc: '习得全部 13 门功法', metric: 'unlockedCount', target: 13 },
   { id: 't11', name: '触类旁通', desc: '触发 10 次触类旁通', metric: 'comboCount', target: 10 },
   { id: 't12', name: '日日精进', desc: '完成 1 次每日参悟', metric: 'dailyClaimed', target: 1 },
   { id: 't13', name: '一击圆满', desc: '取得 10 次 S 档', metric: 'gradeS', target: 10 },

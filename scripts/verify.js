@@ -116,8 +116,10 @@ for (const f of ['package.json', 'package-lock.json', 'README.md', 'project.conf
 // 8. 功法品阶与难度档约定：品阶管收益（天地玄黄），难度档跟熟练度（五档）
 const skillMod = require('../data/skills.js');
 const practiceMod = require('../data/practice.js');
-if (skillMod.SKILLS.length !== 10 || practiceMod.TIERS.length !== 4 || practiceMod.DIFFICULTIES.length !== 5) {
-  errors.push('功法数、品阶数或难度档数不符合约定');
+// 功法数不写死：一门功法必须正好对应一套参悟方式，加内容时两处一起加。
+if (skillMod.SKILLS.length !== practiceMod.PRACTICE_METHODS.length
+  || practiceMod.TIERS.length !== 4 || practiceMod.DIFFICULTIES.length !== 5) {
+  errors.push('功法数与参悟方式数不等，或品阶数 / 难度档数不符合约定');
 } else checked += 1;
 const tierSeen = {};
 for (const s of skillMod.SKILLS) {

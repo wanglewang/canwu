@@ -204,15 +204,28 @@ function isBent(path, cols) {
   return false;
 }
 
-// 白光扫过的角度：用首末两桩的连线，横向平掠、纵向直落、斜向取 ±45°。
-function angleOf(path, cols) {
+// 格子不是正方形：3 列时宽约 203rpx、高 156rpx（宽 / 高 ≈ 1.30），4 列时约 1.19。
+// 按行列等距算出来的斜向 45°，与两桩中心的实际连线差了 8° 上下，照箭头划就会偏。
+// aspect = 格宽 / 格高；页面开局量到真实矩形后由 setAspect 注入，Node 测试用设计值兜底。
+const DEFAULT_ASPECT = 1.30;
+
+function aspectOf(v) {
+  const n = Number(v);
+  return isFinite(n) && n >= 0.5 && n <= 2.5 ? n : DEFAULT_ASPECT;
+}
+
+// 白光扫过的角度：用首末两桩的连线，横向平掠、纵向直落，斜向按实际宽高比取 ±arctan(高/宽方向)。
+// 白光是一条无向线段，所以 dr*dc 同号取 +a、异号取 -a，两者旋转后是同一条线。
+function angleOf(path, cols, aspect) {
   const a = path[0];
   const b = path[path.length - 1];
   const dr = Math.floor(b / cols) - Math.floor(a / cols);
   const dc = (b % cols) - (a % cols);
   if (!dr) return 0;
   if (!dc) return 90;
-  return dr * dc > 0 ? 45 : -45;
+  const k = aspectOf(aspect);
+  const deg = Math.round(Math.atan2(Math.abs(dr), Math.abs(dc) * k) * 180 / Math.PI);
+  return dr * dc > 0 ? deg : -deg;
 }
 
 // 招式是称谓，不是方向指示：往哪划一律看盘面箭头。名字按兵器取，
@@ -224,12 +237,14 @@ function nameOf(path, angle, cols, profile) {
   return profile.names.diagonal;
 }
 
-// 相邻两桩的方向角：0° 指上，顺时针递增（45° 一档，八邻格正好覆盖八个方向）。
+// 相邻两桩的方向角：0° 指上，顺时针递增。
+// 位移是 (dc × 格宽, dr × 格高)，所以横向分量要乘 aspect；正方形格子时退化为八方向 45° 一档。
 // 盘面上每根桩都放一个按这个角度旋转的箭头，指下一桩；收势桩放靶心。
-function dirAngle(from, to, cols) {
+function dirAngle(from, to, cols, aspect) {
   const dr = Math.floor(to / cols) - Math.floor(from / cols);
   const dc = (to % cols) - (from % cols);
-  return (Math.round(Math.atan2(dc, -dr) * 180 / Math.PI) + 360) % 360;
+  const k = aspectOf(aspect);
+  return (Math.round(Math.atan2(dc * k, -dr) * 180 / Math.PI) + 360) % 360;
 }
 
 // 划过的路径里是否把这一招按顺序走完了。
@@ -318,6 +333,8 @@ function create(ctx) {
   const life = Math.max(240, (p.life || 700) + (perks.easy ? 90 : 0));
   const depth = Math.max(0, Math.min(4, p.depth || 0));
   const stage = typeof perks.tier === 'number' ? perks.tier : 0;
+  // 宽高比先取设计值，页面量到真实格子矩形后会用 setAspect 覆盖并重画箭头。
+  let aspect = aspectOf(ctx.aspect || p.aspect);
 
   // 数值旋钮：全部挂 depth。后摇是刀法唯一能压到「高手也变紧」的速度项，
   // 因为能读图的人会抢在光走完之前划掉，光速与寿命只卡新手。
@@ -412,11 +429,34 @@ function create(ctx) {
       const last = i === fake.length - 1;
       paint(fake[i], {
         cls: 'cell cell--pathfake',
-        arrow: last ? -1 : dirAngle(fake[i], fake[i + 1], cols),
+        arrow: last ? -1 : dirAngle(fake[i], fake[i + 1], cols, aspect),
         end: last,
         endLive: false,
       });
     }
+  }
+
+  // 页面量到真实格子矩形后调一次：把当前这一招（含虚招）的箭头按实测比例重画，
+  // 不重开一招、不动判定，只让「照箭头划」和「两桩中心连线」对得上。
+  function repaintArrows() {
+    if (!form) return;
+    for (let i = 0; i < form.length - 1; i += 1) {
+      vm.cells[form[i]].arrow = dirAngle(form[i], form[i + 1], cols, aspect);
+    }
+    if (fake) {
+      for (let i = 0; i < fake.length - 1; i += 1) {
+        vm.cells[fake[i]].arrow = dirAngle(fake[i], fake[i + 1], cols, aspect);
+      }
+    }
+    render();
+  }
+
+  function setAspect(value) {
+    const next = aspectOf(value);
+    if (Math.abs(next - aspect) < 0.005) return;
+    aspect = next;
+    if (vm.trail) vm.trail.angle = angleOf(form, cols, aspect);
+    repaintArrows();
   }
 
   function ruleText() {
@@ -476,7 +516,7 @@ function create(ctx) {
       paint(form[i], {
         cls: 'cell ' + (formGold ? 'cell--pathgold' : 'cell--path') + (on ? ' cell--pathon' : ''),
         life: isLast && atEnd ? lifeMs() : 0,
-        arrow: isLast ? -1 : dirAngle(form[i], form[i + 1], cols),
+        arrow: isLast ? -1 : dirAngle(form[i], form[i + 1], cols, aspect),
         end: isLast,
         endLive: isLast && !!fake,
       });
@@ -521,7 +561,7 @@ function create(ctx) {
     formLen = form.length;
     fake = doubleOn ? fakeOf(form, sh) : null;
     bans = banOn ? pickBans(banCount) : [];
-    const angle = angleOf(form, cols);
+    const angle = angleOf(form, cols, aspect);
     vm.trail = {
       path: form.slice(),
       name: (formGold ? profile.edgeName + ' · ' : '') + (fake ? '双锋 · ' : '') + nameOf(form, angle, cols, profile),
@@ -586,7 +626,7 @@ function create(ctx) {
     render();
     // 下一帧再挂白光，让 wx:key 换节点把扫光动画重播一次。
     bag.after(function () {
-      vm.slash = { key: slashSeq, angle: angleOf(path, cols) };
+      vm.slash = { key: slashSeq, angle: angleOf(path, cols, aspect) };
       render();
     }, 16);
     bag.after(function () {
@@ -705,6 +745,7 @@ function create(ctx) {
   return C.fillController({
     start: start,
     swipe: swipe,
+    setAspect: setAspect,
     abandon: function () {
       if (done) return;
       done = true;
@@ -718,4 +759,8 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'click', name: '顺光扫斩', create: create };
+module.exports = {
+  id: 'click', name: '顺光扫斩', create: create,
+  // 纯函数导出给断言用：角度是否与两桩中心连线一致，不靠肉眼校对。
+  dirAngle: dirAngle, angleOf: angleOf, DEFAULT_ASPECT: DEFAULT_ASPECT,
+};

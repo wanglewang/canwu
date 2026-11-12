@@ -345,7 +345,7 @@ check('战力来源在洞府页与修行指南都讲清楚了', function () {
   assert.ok(/已学/.test(js) && /突破境界/.test(js) && /大成/.test(js), '明细没讲多学功法、突破与特效');
   assert.ok(/title: '二 · 战力从哪来'/.test(guide), '修行指南没有战力专节');
   assert.ok(/战力 = 属性加权/.test(guide) && /轮着练/.test(guide), '指南没讲公式与轮换练');
-  assert.ok(/title: '十 · 离线收益的时间'/.test(guide), '插了新专节，后面章节编号没顺延');
+  assert.ok(/title: '十一 · 离线收益的时间'/.test(guide), '插了新专节，后面章节编号没顺延');
 });
 
 check('照影符按经典扫雷深耕：无猜、首点空白、连开、分数方向', function () {
@@ -400,6 +400,42 @@ check('斜向擦角：页面接了输入工具，玩法层摘掉擦角桩再判�
   assert.ok(/trimCorners\(compress\(path\), form, cols, guarded\)/.test(click), '擦角桩没在判定前摘掉');
   assert.ok(/guarded\.indexOf/.test(click), '禁桩 / 虚影不能被当擦角抹掉');
   assert.ok(/斜斩的角/.test(g) && /斜斩擦角不算/.test(g), '玩法说明没讲清斜斩擦角');
+});
+
+check('三套经典玩法落地：注册、黄阶定位、盘面与方向键都接进页面', function () {
+  const skills = read('data/skills.js');
+  const practice = read('data/practice.js');
+  const index = read('minigames/index.js');
+  const wxml = read('pages/practice/practice.wxml');
+  const js = read('pages/practice/practice.js');
+  const guides = read('data/guides.js');
+  for (const id of ['lingqi', 'leiyue', 'sanxiu']) {
+    const re = new RegExp("id: '" + id + "'[^\\n]*tier: 'huang'");
+    assert.ok(re.test(skills), id + ' 没挂黄阶');
+  }
+  assert.ok(/link: require\('\.\/link\.js'\)/.test(index) && /blocks: require\('\.\/blocks\.js'\)/.test(index)
+    && /match: require\('\.\/match\.js'\)/.test(index), '三套新玩法没进注册表');
+  assert.ok(/link: '灵纹连线'/.test(practice) && /blocks: '落石垒基'/.test(practice)
+    && /match: '三秀同收'/.test(practice), '玩法名没登记');
+  assert.ok(/onPad/.test(js) && /data-dir/.test(wxml) && /controller\.move\(dir\)/.test(js), '落石玩法没有方向键');
+  assert.ok(/showPad/.test(wxml) && /grid--compact/.test(wxml), '盘面没接矮格与按键台');
+  assert.ok(/\blink: \{/.test(guides) && /\bblocks: \{/.test(guides) && /\bmatch: \{/.test(guides), '新玩法没有「怎么玩」说明');
+});
+
+check('三连 S 直接晋级：准备页有进度、结算页有回执、指南有专节', function () {
+  const js = read('pages/practice/practice.js');
+  const wxml = read('pages/practice/practice.wxml');
+  const css = read('pages/practice/practice.wxss');
+  const guide = read('pages/guide/guide.js');
+  const engine = read('utils/game.js');
+  assert.ok(/S_STREAK_GOAL = 3/.test(engine) && /sStreakGoal/.test(engine), '内核没有连 S 计数');
+  assert.ok(/streakDots/.test(js) && /streakText/.test(js), '准备页没算连 S 进度');
+  assert.ok(/class="streak-card/.test(wxml) && /streak-dot--on/.test(wxml), '准备页没画连 S 圆点');
+  assert.ok(/\.streak-card/.test(css) && /prefers-color-scheme: dark[\s\S]*\.streak-card/.test(css), '连 S 卡片没有暗色适配');
+  assert.ok(/r\.totalGain/.test(js) && /其中直接晋级/.test(js) && /三连圆满 · 晋/.test(js), '结算页没把直接补的那笔讲清');
+  assert.ok(/连 S 进度/.test(js) && /sStreakGoal/.test(js), '结算页没写还差几局');
+  assert.ok(/title: '六 · 三连 S 直接晋级'/.test(guide) && /连续完成 3 局 S/.test(guide), '指南没有三连 S 专节');
+  assert.ok(/title: '十一 · 离线收益的时间'/.test(guide), '新增专节后章节编号没顺延');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

@@ -2,7 +2,7 @@
   <view class="pg__head">
     <text class="eyebrow">藏 经 阁</text>
     <text class="h1 serif">功法</text>
-    <text class="muted mt8">十门功法，六族玩法，品阶定收益。</text>
+    <text class="muted mt8">十三门功法，十族玩法，品阶定收益。</text>
   </view>
 
   <view wx:if="{{ov}}" class="card card--ink">

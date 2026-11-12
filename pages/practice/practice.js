@@ -50,6 +50,9 @@ Page({
     chainItems: [],
     chainLabel: '',
     bestText: '',
+    // 三连 S 直接晋级：准备页常驻「还差几局」，不占按钮也不打断计时。
+    streakText: '',
+    streakDots: [],
     theme: themes.themeOf('forge', 'click'),
     twistName: '常规功课',
     twistDesc: '',
@@ -186,6 +189,8 @@ Page({
         chainItems: [],
         chainLabel: '',
         bestText: '',
+        streakText: '',
+        streakDots: [],
         theme: this.theme,
         twistName: '长按蓄力',
         twistDesc: '按住蓄力，松手停在朱线区间。越贴近正中，评级越高。',
@@ -218,6 +223,15 @@ Page({
     });
     const best = state.records ? state.records[skill.id] : null;
     const bestText = best ? '本门最佳 ' + best.score + ' 分 · ' + best.grade + ' 档' : '';
+
+    // 连 S 每门各算各的：非 S 断连，中途收功不计数。满 3 局直接补到下一阶段门槛。
+    const streakGoal = engine.S_STREAK_GOAL || 3;
+    const streakNow = Math.min(streakGoal - 1, Math.floor(Number(state.sStreak && state.sStreak[skill.id]) || 0));
+    const streakDots = [];
+    for (let i = 0; i < streakGoal; i += 1) streakDots.push({ id: i, on: i < streakNow });
+    const streakText = streakNow > 0
+      ? '已连 ' + streakNow + ' 局 S · 再 ' + (streakGoal - streakNow) + ' 局直接晋一段'
+      : '连续 ' + streakGoal + ' 局 S 直接晋一段';
 
     const realms = worldData.getWorld(state.worldId).realms;
     const realmNow = state.realmIndex + 1;
@@ -264,6 +278,8 @@ Page({
       chainItems: chainItems,
       chainLabel: skill.type + ' 一脉',
       bestText: bestText,
+      streakText: streakText,
+      streakDots: streakDots,
       theme: theme,
       twistName: twist.name,
       twistDesc: twist.desc,
@@ -537,6 +553,12 @@ Page({
         const r = list[i];
         self.cellRects.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
       }
+      // 格子不是正方形（3 列约 203×156rpx），斜向箭头按 45° 画会比两桩中心连线偏 8°。
+      // 把实测宽高比回注给玩法层，箭头与掠过的白光都按真实连线校正。
+      const first = self.cellRects[0];
+      const w = first ? first.right - first.left : 0;
+      const h = first ? first.bottom - first.top : 0;
+      if (w > 0 && h > 0 && self.controller) self.controller.setAspect(w / h);
     }).exec();
   },
 
@@ -618,6 +640,15 @@ Page({
     this.controller.swipe(path, { hold: hold });
     // 轻点一下（路径不足两桩）玩法不判也不罚，这里补一声轻响当作「这一刀没递出去」。
     if (this.lastFxKey === before) sfx.play('tap');
+  },
+
+  // 方向键只给 vm.extras.showPad 的玩法（落石垒基）：统一走 controller.move(dir)。
+  onPad: function (event) {
+    if (!this.controller || !this.data.started || this.data.showResult) return;
+    const dir = event.currentTarget.dataset.dir;
+    if (!dir) return;
+    this.controller.move(dir);
+    sfx.play('tap');
   },
 
   onUndo: function () {
@@ -703,15 +734,28 @@ Page({
         + ' · ' + grade + ' ×' + r.gradeFactor.toFixed(2)
         + (r.decayed ? ' · 衰减 ×0.3' : '');
       const lines = [
-        { k: '熟练度', v: '+' + r.gain },
+        // 三连晋级那一笔也算熟练度入账，演出数字得跟实际增长对得上。
+        { k: '熟练度', v: '+' + r.totalGain },
         { k: '灵气', v: '+' + r.qi },
         { k: '局内得分', v: String(res.score || 0) },
       ];
+      if (r.promotionGain > 0) lines.splice(1, 0, { k: '其中直接晋级', v: '+' + r.promotionGain });
       if (r.stone > 0) lines.push({ k: '灵石', v: '+' + r.stone });
       lines.push({ k: '倍率构成', v: multText });
       lines.push({ k: '挂机加速', v: '×' + r.buffMultiplier.toFixed(1) + ' · 30 分钟' });
       lines.push({ k: '当前熟练度', v: String(r.profAfter) });
       const notes = [];
+      if (r.promotion && !r.promotion.maxed) {
+        notes.push(r.promotion.added > 0
+          ? '三连 S 圆满：熟练度直接补到「' + r.promotion.toName + '」门槛（+' + r.promotion.added + '），下一轮重新数。'
+          : '三连 S 圆满：这一局的收益已自行跨过「' + r.promotion.toName + '」门槛，无需再补；计数清零重数。');
+      } else if (r.promotion && r.promotion.maxed) {
+        notes.push('三连 S 圆满，但本门已至大圆满，不再补熟练度。');
+      } else if (grade === 'S') {
+        notes.push('连 S 进度 ' + r.sStreak + ' / ' + r.sStreakGoal + '：再连续 ' + (r.sStreakGoal - r.sStreak) + ' 局 S 可直接晋一段；非 S 会断连。');
+      } else {
+        notes.push('连 S 进度 ' + r.sStreak + ' / ' + r.sStreakGoal + '（这一档断了连，下一局重新数）。');
+      }
       if (r.tierUp) notes.push('【' + r.skillName + '】升段至「' + r.tierName + '」，属性加成提高。');
       if (r.cross) notes.push('触类旁通：换了门功法，熟练度 ×1.15。');
       if (r.restless > 0) notes.push('心浮气躁：同一门连练 ' + r.restless + ' 次，收益递减。');
@@ -730,7 +774,9 @@ Page({
         grade: grade,
         gradeColor: color,
         gradeTitle: gradeTitle,
-        headline: r.tierUp ? '升段 · ' + r.tierName : '参悟完成',
+        headline: r.promotion && !r.promotion.maxed
+          ? '三连圆满 · 晋 ' + r.promotion.toName
+          : r.tierUp ? '升段 · ' + r.tierName : '参悟完成',
         subline: r.methodName + ' · ' + res.summary,
         summary: res.summary,
         lines: lines,

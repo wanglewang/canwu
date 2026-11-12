@@ -13,7 +13,10 @@ const achievementData = require('../data/achievements.js');
 const STORAGE_KEY = 'canwu_save_v1';
 const SAVE_PREFIX = 'CANWU1:';
 const BATTLE_PREFIX = 'CW1-';
-const SAVE_VERSION = 4;
+const SAVE_VERSION = 5;
+// 三连 S 直接晋级：同一门功法连续完成 3 局 S，就把熟练度直接补到下一个段位门槛。
+// 每门各算各的；非 S 断连，中途收功（F）不算完成、不增不减。
+const S_STREAK_GOAL = 3;
 
 function readStorage(key) {
   try {
@@ -76,6 +79,8 @@ function createNewState() {
     },
     // 每门功法的局内最佳：{ score, grade, at }，用于「破纪录」反馈与功法页展示。
     records: {},
+    // 每门功法连续拿到 S 的次数：满 3 次直接晋一段，随后清零重数。
+    sStreak: {},
     daily: { date: todayKey(Date.now()), count: 0, claimed: false },
     equippedTitle: '',
     titles: [],
@@ -107,6 +112,10 @@ function migrateState(raw) {
     // v3 -> v4：品阶改「天地玄黄」，难度改由熟练度解锁（不再存在存档里的「苦修」开关）。
     // 存档字段未变，只统一版本号；纪录与熟练度原样保留。
     next = Object.assign({}, next, { version: 4 });
+  }
+  if (v < 5) {
+    // v4 -> v5：引入每门功法的连续 S 计数。老档从 0 开始，不补记历史。
+    next = Object.assign({}, next, { version: 5, sStreak: {} });
   }
   return next;
 }
@@ -167,6 +176,14 @@ function normalizeState(input) {
         grade: typeof r.grade === 'string' ? r.grade.slice(0, 2) : 'C',
         at: num(r.at, 0),
       };
+    }
+  }
+  if (raw.sStreak && typeof raw.sStreak === 'object') {
+    const sids = Object.keys(raw.sStreak);
+    for (let i = 0; i < sids.length; i += 1) {
+      const id = sids[i];
+      if (!skillData.SKILL_MAP[id]) continue;
+      base.sStreak[id] = Math.min(S_STREAK_GOAL - 1, Math.floor(num(raw.sStreak[id], 0)));
     }
   }
   if (Array.isArray(raw.titles)) base.titles = raw.titles.filter(function (x) { return typeof x === 'string'; });
@@ -468,7 +485,43 @@ function applyPractice(state, skillId, grade, options) {
   state.lastPractice = { skillId: skillId, at: Date.now() };
   state.repeatCount = repeatCount;
   if (cross) state.stats.comboCount += 1;
+
+  // 三连 S 直接晋级：连续完成的 3 局都拿到 S，就把熟练度直接补到下一阶段门槛。
+  // 「直接晋级」= 升一个熟练度段位（未入门→入门→小成→大成→圆满→大圆满），
+  // 不是加一句文案里的奖励；已至大圆满则不再补。中途收功（F）不算完成，连 S 不增不减。
+  if (!state.sStreak) state.sStreak = {};
+  const streakBefore = Math.min(S_STREAK_GOAL - 1, Math.floor(num(state.sStreak[skillId], 0)));
+  let streakNow = streakBefore;
+  if (grade !== 'F') streakNow = grade === 'S' ? streakBefore + 1 : 0;
+
   rec.prof += gain;
+  let promotion = null;
+  if (streakNow >= S_STREAK_GOAL) {
+    // 以「本局开场时的段位」为基准晋一段：若这局正常收益已经跨过门槛，就只补差额，
+    // 不会因为一次 S 恰好升段又白送下一段。
+    const nextTier = worldData.TIERS[beforeTier + 1];
+    if (nextTier) {
+      const added = Math.max(0, nextTier.threshold - rec.prof);
+      rec.prof += added;
+      promotion = {
+        added: added,
+        fromName: worldData.TIERS[beforeTier].name,
+        toName: nextTier.name,
+        threshold: nextTier.threshold,
+        maxed: false,
+      };
+    } else {
+      promotion = {
+        added: 0,
+        fromName: worldData.TIERS[beforeTier].name,
+        toName: '',
+        threshold: rec.prof,
+        maxed: true,
+      };
+    }
+    streakNow = 0;   // 领过晋级就重新数，避免每局都白送一段
+  }
+  state.sStreak[skillId] = streakNow;
 
   const qi = Math.round(8 + factor * 10);
   const stone = grade === 'S' ? 3 : grade === 'A' ? 2 : grade === 'B' ? 1 : 0;
@@ -490,7 +543,11 @@ function applyPractice(state, skillId, grade, options) {
   const afterTier = tierIndex(rec.prof);
   if (afterTier > beforeTier) {
     state.stats.tierUps += (afterTier - beforeTier);
-    addLog(state, skill.name + ' 参悟至「' + worldData.TIERS[afterTier].name + '」', 'tier');
+    addLog(state, promotion && !promotion.maxed
+      ? skill.name + ' 三连圆满，直接晋至「' + worldData.TIERS[afterTier].name + '」'
+      : skill.name + ' 参悟至「' + worldData.TIERS[afterTier].name + '」', 'tier');
+  } else if (promotion && promotion.maxed) {
+    addLog(state, skill.name + ' 三连圆满，本门已至大圆满', 'tier');
   } else {
     addLog(state, '参悟 ' + skill.name + '，熟练度 +' + gain + '（' + grade + ' 档）', 'practice');
   }
@@ -531,6 +588,12 @@ function applyPractice(state, skillId, grade, options) {
     qi: qi,
     stone: stone,
     profBefore: profBefore,
+    // gain 是本局正常收益；若触发三连晋级，profAfter 还会含直接补到门槛的那一段。
+    promotionGain: promotion ? promotion.added : 0,
+    totalGain: gain + (promotion ? promotion.added : 0),
+    sStreak: streakNow,
+    sStreakGoal: S_STREAK_GOAL,
+    promotion: promotion,
     profAfter: rec.prof,
     tierBefore: beforeTier,
     tierAfter: afterTier,
@@ -999,6 +1062,9 @@ function getSkillList(state) {
       diffMult: diffNow.mult,
       diffText: '最高可选「' + diffNow.name + '」×' + diffNow.mult.toFixed(1),
       bestText: best ? best.score + ' 分 · ' + best.grade + ' 档' : '',
+      // 三连 S 进度：功法页与准备页都能直接显示「还差几局 S 直接晋一段」。
+      sStreak: Math.min(S_STREAK_GOAL - 1, Math.floor(num(state.sStreak && state.sStreak[s.id], 0))),
+      sStreakGoal: S_STREAK_GOAL,
       tierIndex: info.index,
       profTierName: info.name,
       profTierColor: info.color,
@@ -1192,6 +1258,7 @@ module.exports = {
   STORAGE_KEY: STORAGE_KEY,
   SAVE_PREFIX: SAVE_PREFIX,
   SAVE_VERSION: SAVE_VERSION,
+  S_STREAK_GOAL: S_STREAK_GOAL,
   createNewState: createNewState,
   normalizeState: normalizeState,
   migrateState: migrateState,

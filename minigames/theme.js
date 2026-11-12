@@ -2,7 +2,7 @@
 
 // 参悟主题：每门功法一套配色、符号与文案。只影响表现层，不参与数值计算。
 // practice 页把 accent / soft / ink / bg / frame 写成根容器的 CSS 变量，wxss 用 var() 取用。
-// 10 门功法各自有独立的玩法内核，主题只是同一门功法的视觉外衣。
+// 13 门功法各自有独立的玩法内核，主题只是同一门功法的视觉外衣。
 
 const THEMES = {
   forge: {
@@ -58,6 +58,21 @@ const THEMES = {
     bg: '#e9e8f3', frame: '#f8f7ff', glyph: '窍', motif: '观',
     hit: '气窍相合', miss: '观岔了', banner: '灵光一线', praise: '洞若观火',
   },
+  linkpair: {
+    key: 'linkpair', name: '契纹', accent: '#3b7f8c', soft: '#dceef0', ink: '#20515c',
+    bg: '#e4f0f2', frame: '#f7fcfd', glyph: '契', motif: '引',
+    hit: '灵契相合', miss: '纹不合', banner: '并蒂引', praise: '一纹不隔',
+  },
+  stackstone: {
+    key: 'stackstone', name: '垒石', accent: '#8a6a3c', soft: '#efe4cf', ink: '#5b4526',
+    bg: '#f0e8d8', frame: '#fdf8ec', glyph: '石', motif: '垒',
+    hit: '化去一层', miss: '堆到了顶', banner: '垒岳起基', praise: '层层皆化',
+  },
+  harvest: {
+    key: 'harvest', name: '灵畦', accent: '#4e8b5b', soft: '#dfeedf', ink: '#2c5b38',
+    bg: '#e6f1e5', frame: '#f7fcf6', glyph: '苗', motif: '秀',
+    hit: '三秀同收', miss: '换不出三连', banner: '灵畦初开', praise: '一畦三秀',
+  },
   breakthrough: {
     key: 'breakthrough', name: '冲关', accent: '#b4453c', soft: '#f7e4d5', ink: '#7a3129',
     bg: '#f0e1d2', frame: '#fff7ec', glyph: '关', motif: '冲',
@@ -76,11 +91,14 @@ const FALLBACK = {
   wuxing: 'wuxing',
   mines: 'tanlei',
   seal: 'seal',
+  link: 'linkpair',
+  blocks: 'stackstone',
+  match: 'harvest',
   charge: 'breakthrough',
 };
 
 // 每门功法「本门玄机」：这一套玩法自己的规则与花样，展示在开局准备页。
-// 10 条彼此不同，且对应 10 套互不复用的玩法内核。
+// 13 条彼此不同，且对应 13 套互不复用的玩法内核。
 const TWIST_INFO = {
   forge: {
     name: '刀势渐盛',
@@ -121,6 +139,18 @@ const TWIST_INFO = {
   seal: {
     name: '入定照见',
     desc: '翻开两处气窍配成一对。另有两道灵光替你照见一对。',
+  },
+  linkpair: {
+    name: '两折可连',
+    desc: '同纹两枚之间最多转两次弯，盘外一圈也能绕；收干净才算圆满。',
+  },
+  stackstone: {
+    name: '满层即化',
+    desc: '灵石按息下落，用四个方向键挪、转、速降；垒满一层化去一层，堆到顶就收功。',
+  },
+  harvest: {
+    name: '落苗连锁',
+    desc: '换相邻两株凑三连，收完上头落下来补新苗，再凑成一线就是连锁，分越滚越高。',
   },
 };
 

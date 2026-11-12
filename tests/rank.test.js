@@ -67,8 +67,8 @@ check('评级倍率按设计文档压低，S 不再一家独大', function () {
   assert.ok(world.GRADE_FACTOR.S < practice.DIFFICULTIES[4].mult, 'S 倍率不该盖过最高难度档');
 });
 
-check('数据层：十门功法、天地玄黄四阶都有人、分类合法', function () {
-  assert.strictEqual(skills.SKILLS.length, 10);
+check('数据层：十三门功法、天地玄黄四阶都有人、分类合法', function () {
+  assert.strictEqual(skills.SKILLS.length, 13);
   const tiers = {};
   for (const s of skills.SKILLS) {
     assert.ok(practice.TIERS.some(function (t) { return t.key === s.tier; }), s.name + ' 品阶非法');
@@ -270,7 +270,7 @@ check('节奏不越过触屏安全下限', function () {
 check('getSkillList 输出品阶、可修境界与难度档', function () {
   const s = freshState('', 0, 0);
   const list = game.getSkillList(s);
-  assert.strictEqual(list.length, 10);
+  assert.strictEqual(list.length, 13);
   for (const item of list) {
     assert.ok(item.tierName && item.tierLabel && item.tierColor);
     assert.ok(item.starsText.length === 4);
@@ -310,14 +310,35 @@ check('纪录只记最高分，低分不覆盖', function () {
   assert.strictEqual(s.records.jian.score, 30);
 });
 
-check('v3 存档升到 v4，熟练度与纪录原样保留', function () {
+check('v3 存档升到 v5，熟练度与纪录原样保留', function () {
   const old = freshState('jian', 812, 0);
   old.version = 3;
   old.records = { jian: { score: 42, grade: 'A', at: 1 } };
   const n = game.normalizeState(old);
-  assert.strictEqual(n.version, 4);
+  assert.strictEqual(n.version, 5);
   assert.strictEqual(n.skills.jian.prof, 812);
   assert.strictEqual(n.records.jian.score, 42);
+});
+
+check('三套经典玩法都挂黄阶，价格也按品阶阶梯走', function () {
+  for (const id of ['lingqi', 'leiyue', 'sanxiu']) {
+    assert.strictEqual(skills.getSkill(id).tier, 'huang', id + ' 不是黄阶');
+  }
+  const shop = skills.SKILLS.filter(function (x) { return x.source.kind === 'shop'; });
+  const huang = shop.filter(function (x) { return x.tier === 'huang'; });
+  const xuan = shop.filter(function (x) { return x.tier === 'xuan'; });
+  assert.ok(huang.length >= 4 && xuan.length >= 2);
+  for (const h of huang) {
+    for (const x of xuan) {
+      assert.ok(h.source.cost.qi <= x.source.cost.qi, h.name + ' 卖得比玄阶 ' + x.name + ' 还贵');
+      assert.ok(h.source.cost.stone <= x.source.cost.stone, h.name + ' 灵石比玄阶还贵');
+    }
+  }
+});
+
+check('三连 S 目标常量与段位门槛对齐', function () {
+  assert.strictEqual(game.S_STREAK_GOAL, 3);
+  assert.strictEqual(game.createNewState().version, 5);
 });
 
 console.log('品阶与难度断言全部通过：' + passed + ' 项');

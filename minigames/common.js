@@ -3,12 +3,15 @@
 // 小游戏公共工具。统一接口：create(ctx) -> controller
 // ctx = { params, difficulty, perks, tip, twist, theme, render(vm), finish(result) }
 // result = { grade: 'S'|'A'|'B'|'C'|'F', score, summary }
-// controller = { start, tap, longpress, swipe, undo, hint, press, release, abandon, destroy }
-//   swipe(path) 是「手指划过的格子序列」，由页面用 touch 坐标命中并插值补全后送入；
-//   只有需要划的玩法（目前是顺光扫斩）实现它，其余走默认的 noop。
-// vm = { cols, cells, phase, status, hint, timeText, scoreText, charge, ring, trail, slash, extras, HUD 字段 }
+// controller = { start, tap, longpress, swipe, move, setAspect, undo, hint, press, release, abandon, destroy }
+//   swipe(path, meta) 是「手指划过的格子序列 + 收势停留」，由页面用 touch 坐标命中并插值补全后送入；
+//     只有需要划的玩法（目前是顺光扫斩）实现它，其余走默认的 noop。
+//   move(dir) 是方向键，只有带 vm.extras.showPad 的玩法（俄罗斯方块）实现。
+//   setAspect(w/h) 是页面量到真实格子矩形后回注的宽高比，给箭头 / 白光校正角度用。
+// vm = { cols, cells, phase, status, hint, timeText, scoreText, charge, ring, trail, slash, pad, extras, HUD 字段 }
 // cells[i] = { key, label, cls, tone, life, lifeDelay, arrow, end }；
 //   arrow 是 0–359 的方向角（指向下一格），-1 为不画箭头；end 表示这一格是刀路收势（画靶心）。
+// pad = { keys: [...] } 是盘面下方的方向键；compact 让格子压矮，给行数多的盘面留屏。
 // HUD 字段：progress / progressText / combo / comboText / goal / gradeNow / banner / fx / hearts / meter
 // stage = 'board' | 'lane' | 'ring' | 'charge' | 'orbit' | 'scroll'，由页面决定盘面形态。
 // lane / orbit / scroll 是对应舞台的附加渲染数据，board/ring/charge 用不到时为 null。
@@ -139,6 +142,7 @@ function makeVm(cols, cellCount, status, hint) {
     ring: null,
     trail: null,      // 需要划的玩法：当前刀路 { path, name, angle, gold, on }
     slash: null,      // 刺中时掠过盘面的白光 { key, angle }
+    pad: null,        // 需要方向键的玩法：{ keys: [{ id, dir, glyph }] }
     progress: 0,
     progressText: '',
     combo: 0,
@@ -161,6 +165,8 @@ function makeVm(cols, cellCount, status, hint) {
       showProgress: true,
       showCombo: false,
       showSwipe: false,
+      showPad: false,
+      compact: false,
     },
   };
 }
@@ -172,6 +178,8 @@ function fillController(obj) {
     tap: noop,
     longpress: noop,
     swipe: noop,
+    move: noop,
+    setAspect: noop,
     undo: noop,
     hint: noop,
     press: noop,

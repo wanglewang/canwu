@@ -119,6 +119,16 @@
 
     <text wx:if="{{bestText}}" class="tiny mt12">{{bestText}}</text>
 
+    <view wx:if="{{streakDots.length}}" class="streak-card mt12">
+      <view class="row--between">
+        <text class="section__title">连 S 晋级</text>
+        <text class="tiny">{{streakText}}</text>
+      </view>
+      <view class="streak-dots mt8">
+        <view wx:for="{{streakDots}}" wx:key="id" class="streak-dot {{item.on ? 'streak-dot--on' : ''}}"></view>
+      </view>
+    </view>
+
     <block wx:if="{{showDifficulty}}">
       <view class="divider"></view>
       <view class="row--between">
@@ -233,7 +243,7 @@
         <text class="tiny">顺箭头扫斩 {{trailLen}} 桩 · {{vm.trail.rule || '反向算劈空'}}</text>
       </view>
 
-      <view wx:if="{{(vm.stage === 'board' || vm.stage === 'lane') && vm.extras.showGrid}}" class="grid grid--c{{vm.cols}} {{vm.stage === 'lane' ? 'grid--lane' : ''}}" style="background:{{sceneOn ? stage.well : theme.bg}}">
+      <view wx:if="{{(vm.stage === 'board' || vm.stage === 'lane') && vm.extras.showGrid}}" class="grid grid--c{{vm.cols}} {{vm.stage === 'lane' ? 'grid--lane' : ''}} {{vm.extras.compact ? 'grid--compact' : ''}}" style="background:{{sceneOn ? stage.well : theme.bg}}">
         <view wx:for="{{slashList}}" wx:key="key" class="grid__slash" style="transform:translate(-50%,-50%) rotate({{item.angle}}deg)">
           <view class="grid__slash-beam"></view>
         </view>
@@ -249,6 +259,11 @@
         </view>
         <!-- 划刀玩法的透明触摸层：盖住静态格子，用手势坐标还原一条连续轨迹 -->
         <view wx:if="{{vm.extras.showSwipe && started}}" class="swipe-layer" bindtouchstart="onBoardTouchStart" catchtouchmove="onBoardTouchMove" bindtouchend="onBoardTouchEnd" bindtouchcancel="onBoardTouchEnd"></view>
+      </view>
+
+      <!-- 只有持续下落的玩法才挂方向键：挪石 / 转石 / 速降，其余玩法盘面下不留这一排。 -->
+      <view wx:if="{{vm.extras.showPad && vm.pad && started}}" class="pad">
+        <view wx:for="{{vm.pad.keys}}" wx:key="id" class="pad__key" data-dir="{{item.dir}}" bindtap="onPad"><text>{{item.glyph}}</text></view>
       </view>
 
       <view wx:if="{{vm.stage === 'orbit' && vm.orbit}}" class="orbit">

@@ -11,31 +11,33 @@ function check(name, fn) {
   console.log('OK  ' + name);
 }
 
-check('新档版本为 4 且带头像与纪录字段', function () {
+check('新档版本为 5，带头像、纪录与连 S 计数', function () {
   const s = game.createNewState();
-  assert.strictEqual(s.version, 4);
+  assert.strictEqual(s.version, 5);
   assert.strictEqual(s.avatar, '');
   assert.deepStrictEqual(s.records, {});
+  assert.deepStrictEqual(s.sStreak, {});
+  assert.strictEqual(game.S_STREAK_GOAL, 3);
 });
 
-check('v1 存档可迁移到 v4', function () {
+check('v1 存档可迁移到 v5', function () {
   const old = game.createNewState();
   delete old.avatar;
   delete old.records;
   old.version = 1;
   const n = game.normalizeState(old);
-  assert.strictEqual(n.version, 4);
+  assert.strictEqual(n.version, 5);
   assert.strictEqual(n.avatar, '');
   assert.deepStrictEqual(n.records, {});
   assert.ok(n.skills && Object.keys(n.skills).length > 0);
 });
 
-check('v2 存档迁移后补出空纪录表', function () {
+check('v2 存档迁移后补出空纪录表与连 S 计数', function () {
   const old = game.createNewState();
   delete old.records;
   old.version = 2;
   const n = game.normalizeState(old);
-  assert.strictEqual(n.version, 4);
+  assert.strictEqual(n.version, 5);
   assert.deepStrictEqual(n.records, {});
 });
 
@@ -43,7 +45,7 @@ check('无 version 的老存档也能兜底', function () {
   const old = game.createNewState();
   delete old.version;
   const n = game.normalizeState(old);
-  assert.strictEqual(n.version, 4);
+  assert.strictEqual(n.version, 5);
 });
 
 check('存档码导出导入往返一致', function () {
@@ -56,7 +58,7 @@ check('存档码导出导入往返一致', function () {
   assert.strictEqual(r.state.roleName, '青云散人');
   assert.strictEqual(r.state.portrait, 3);
   assert.strictEqual(r.state.resources.qi, 321);
-  assert.strictEqual(r.state.version, 4);
+  assert.strictEqual(r.state.version, 5);
 });
 
 check('非法存档码被拒绝', function () {
@@ -148,6 +150,100 @@ check('真实玩家镜像对战返回完整结果', function () {
   assert.strictEqual(r.challengeName, '榜单道友');
   assert.strictEqual(r.enemyPower, 120);
   assert.ok(s.stats.wins >= wins);
+});
+
+check('v4 存档升到 v5：熟练度与纪录原样保留，连 S 从 0 重数', function () {
+  const old = game.createNewState();
+  old.version = 4;
+  old.skills.jian.prof = 812;
+  old.records = { jian: { score: 42, grade: 'A', at: 1 } };
+  delete old.sStreak;
+  const n = game.normalizeState(old);
+  assert.strictEqual(n.version, 5);
+  assert.strictEqual(n.skills.jian.prof, 812);
+  assert.strictEqual(n.records.jian.score, 42);
+  assert.deepStrictEqual(n.sStreak, {});
+});
+
+check('连 S 计数随存档码往返，伪造的超额计数被截到目标-1', function () {
+  const s = game.createNewState();
+  s.sStreak = { jian: 2, tuna: 99 };
+  const r = game.importSaveCode(game.exportSaveCode(s));
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.state.sStreak.jian, 2);
+  assert.strictEqual(r.state.sStreak.tuna, game.S_STREAK_GOAL - 1);
+});
+
+check('同一门连续三局 S：直接补到下一个段位门槛', function () {
+  const s = game.createNewState();
+  s.skills.jian.prof = 400;                   // 小成，离大成还差 600，正常三局根本补不满
+  const goal = 1000;                          // world.TIERS[3].threshold
+  const r1 = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 10 });
+  const r2 = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 10 });
+  assert.strictEqual(r1.promotion, null);
+  assert.strictEqual(r2.promotion, null);
+  assert.strictEqual(r1.sStreak, 1);
+  assert.strictEqual(r2.sStreak, 2);
+  const r3 = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 10 });
+  assert.ok(r3.promotion && !r3.promotion.maxed, '第三局 S 没有触发直接晋级');
+  assert.ok(r3.promotion.added > 0, '晋级没有补熟练度');
+  assert.strictEqual(r3.profAfter, goal);
+  assert.strictEqual(r3.tierAfter, 3);
+  assert.strictEqual(r3.totalGain, r3.gain + r3.promotionGain);
+  assert.strictEqual(r3.sStreak, 0, '领过晋级后没有重新数');
+  assert.strictEqual(s.sStreak.jian, 0);
+});
+
+check('非 S 断连，中途收功（F）不增不减', function () {
+  const s = game.createNewState();
+  game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  const a = game.applyPractice(s, 'jian', 'A', { difficulty: 'easy', score: 0 });
+  assert.strictEqual(a.sStreak, 0, 'A 档没有断掉连 S');
+  const f = game.applyPractice(s, 'jian', 'F', { difficulty: 'easy', score: 0 });
+  assert.strictEqual(f.sStreak, 0, 'F 不该算完成，也不该把计数清成负数');
+  assert.strictEqual(f.promotion, null);
+  const one = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  assert.strictEqual(one.sStreak, 1, '断连后要重新数');
+});
+
+check('连 S 按功法各算各的，换一门不会蹭到别人的进度', function () {
+  const s = game.createNewState();
+  game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  const r = game.applyPractice(s, 'tuna', 'S', { difficulty: 'easy', score: 0 });
+  assert.strictEqual(s.sStreak.jian, 2);
+  assert.strictEqual(r.sStreak, 1);
+  assert.strictEqual(r.promotion, null, '跨功法凑三局不该直接晋级');
+});
+
+check('已至大圆满时三连 S 不再补熟练度，也不会越界', function () {
+  const s = game.createNewState();
+  s.skills.jian.prof = 6000;
+  game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  const r = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  assert.ok(r.promotion && r.promotion.maxed, '大圆满没有如实回报');
+  assert.strictEqual(r.promotionGain, 0);
+  assert.strictEqual(r.tierAfter, 5);
+});
+
+check('三连 S 时正常收益已跨段：只补到门槛，不白送两段', function () {
+  const s = game.createNewState();
+  game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  const r = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  assert.ok(r.promotion && !r.promotion.maxed, '第三局仍该给出三连圆满回执');
+  assert.strictEqual(r.promotion.added, 0, '已过门槛就不该再补一笔');
+  assert.ok(r.profAfter < 400, '不该顺手把玩家送到下下段');
+  assert.strictEqual(r.profAfter, r.profBefore + r.totalGain, '入账与实际增长对不上');
+});
+check('getSkillList 输出每门功法的连 S 进度', function () {
+  const s = game.createNewState();
+  s.sStreak.jian = 2;
+  const item = game.getSkillList(s).find(function (x) { return x.id === 'jian'; });
+  assert.strictEqual(item.sStreak, 2);
+  assert.strictEqual(item.sStreakGoal, 3);
 });
 
 console.log('\ngame.test: ' + passed + ' assertions passed');
