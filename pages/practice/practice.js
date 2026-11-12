@@ -11,6 +11,7 @@ const guides = require('../../data/guides.js');
 const visual = require('../../data/visual.js');
 const sfx = require('../../utils/sfx.js');
 const swipeInput = require('../../utils/swipe.js');
+const copy = require('../../data/copy.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -58,6 +59,7 @@ Page({
     twistDesc: '',
     stageRules: [],
     hintLabel: '提示',
+    copy: copy.UI,
     vm: null,
     chargeWidth: 0,
     gradeNowColor: '#8a8f83',
@@ -818,6 +820,8 @@ Page({
     }
     this.onBack();
   },
+
+  onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
 
   onBack: function () {
     const pages = getCurrentPages();

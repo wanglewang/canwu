@@ -3,6 +3,7 @@
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const worldData = require('../../data/world.js');
+const copy = require('../../data/copy.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -20,6 +21,8 @@ Page({
     showDetail: false,
     detail: null,
     canAfford: false,
+    copy: copy.UI,
+    chainOpen: false,
   },
 
   onLoad: function () {
@@ -47,7 +50,7 @@ Page({
     const locked = [];
     for (let i = 0; i < list.length; i += 1) {
       const s = list[i];
-      s.costText = s.cost ? '灵气 ' + s.cost.qi + ' · 灵石 ' + s.cost.stone : '';
+      s.costText = s.cost ? copy.formatCost(s.cost.qi, s.cost.stone) : '';
       s.affordable = !!s.cost && state.resources.qi >= s.cost.qi && state.resources.stone >= s.cost.stone;
       if (s.unlocked) unlocked.push(s);
       else if (s.canBuy) shop.push(s);
@@ -60,9 +63,9 @@ Page({
     }
     const cards = [];
     const groups = [
-      { title: '已习功法', sub: unlocked.length + ' 门 · 点开可参悟', items: unlocked, dim: false },
-      { title: '藏经阁', sub: '用挂机与对战攒下的资源换功法', items: shop, dim: true },
-      { title: '尚未得见', sub: '首胜掉落或机缘可得', items: locked, dim: true },
+      { title: '已习功法', sub: unlocked.length + ' 门 · 点开可开始参悟', items: unlocked, dim: false },
+      { title: '可兑换', sub: '用挂机与对战攒下的资源换功法', items: shop, dim: true },
+      { title: '尚未获得', sub: '论道首胜掉落，或等机缘', items: locked, dim: true },
     ];
     for (let g = 0; g < groups.length; g += 1) {
       if (groups[g].items.length === 0) continue;
@@ -132,6 +135,12 @@ Page({
     this.setData({ showDetail: false, detail: null });
     wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
   },
+
+  onToggleChain: function () {
+    this.setData({ chainOpen: !this.data.chainOpen });
+  },
+
+  onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
 
   onPracticeFromList: function (event) {
     const id = event.currentTarget.dataset.id;

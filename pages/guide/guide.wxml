@@ -1,18 +1,29 @@
 <view class="pg">
   <view class="pg__head">
     <view class="pg__head-top">
-      <text class="eyebrow">修 行 指 南</text>
+      <text class="eyebrow">{{copy.pages.guide.eyebrow}}</text>
     </view>
-    <text class="h1 serif">玩法与数值</text>
-    <text class="muted mt8">不看也能玩，看完少走弯路。</text>
+    <text class="h1 serif">{{copy.pages.guide.title}}</text>
+    <text class="muted mt8">{{copy.pages.guide.desc}}</text>
   </view>
 
-  <view class="section" wx:for="{{sections}}" wx:key="title">
-    <view class="section__head">
-      <text class="section__title">{{item.title}}</text>
-      <text class="section__sub">{{item.sub}}</text>
+  <view class="card guide-toc">
+    <view class="row--between">
+      <text class="eyebrow">{{copy.sections.guideToc}}</text>
+      <text class="text-link text-link--muted" bindtap="onToggleAll">{{showAll ? copy.actions.oneSection : copy.actions.expandAll}}</text>
     </view>
-    <view class="card">
+    <view class="row--wrap mt12">
+      <text wx:for="{{sections}}" wx:key="title" class="toc-chip {{item.open ? 'toc-chip--on' : ''}}" data-index="{{index}}" bindtap="onJump">{{item.short}}</text>
+    </view>
+  </view>
+
+  <view class="section" wx:for="{{sections}}" wx:key="title" id="{{item.id}}">
+    <view class="section__head pressable" hover-class="pressable--on" data-index="{{index}}" bindtap="onToggleSection">
+      <text class="section__title">{{item.title}}</text>
+      <text class="section__sub">{{item.open || showAll ? copy.actions.collapse : copy.actions.expand}}</text>
+    </view>
+    <text class="tiny mt8">{{item.sub}}</text>
+    <view class="card mt12" wx:if="{{item.open || showAll}}">
       <view class="guide-line" wx:for="{{item.lines}}" wx:for-item="line" wx:key="*this">
         <text class="guide-dot">·</text>
         <text class="body grow">{{line}}</text>
@@ -20,6 +31,6 @@
     </view>
   </view>
 
-  <button class="btn btn--primary btn--block mt24" bindtap="onBack">回去修炼</button>
-  <view class="pg__foot">参 悟 · 等是保底，练才是加速</view>
+  <button class="btn btn--primary btn--block mt24" bindtap="onBack">{{copy.actions.back}}</button>
+  <view class="pg__foot">{{copy.footGuide}}</view>
 </view>

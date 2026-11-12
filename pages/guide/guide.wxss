@@ -1,4 +1,26 @@
-/* 修行指南：长文本列表，行高与分隔符都用全局令牌，暗色下不再出现浅色横线。 */
+/* 修行指南：目录 + 手风琴 + 长文本列表，行高与分隔符都用全局令牌。 */
+.guide-toc {
+    display: block;
+}
+
+.toc-chip {
+    display: inline-block;
+    margin: 0 var(--sp-2) var(--sp-2) 0;
+    padding: var(--sp-2) var(--sp-3);
+    border: 2rpx solid var(--c-border);
+    border-radius: var(--r-pill);
+    background: var(--c-surface-2);
+    color: var(--c-text-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-tight);
+    min-height: var(--touch-xs);
+}
+
+.toc-chip--on {
+    border-color: var(--c-primary);
+    background: var(--c-primary-soft);
+    color: var(--c-primary-text);
+}
 .guide-line {
     display: flex;
     flex-direction: row;

@@ -1,6 +1,7 @@
 {
   "navigationBarTitleText": "道牒",
   "usingComponents": {
-    "portrait": "../../components/portrait/portrait"
+    "portrait": "../../components/portrait/portrait",
+    "term": "../../components/term/term"
   }
 }

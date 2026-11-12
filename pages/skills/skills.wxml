@@ -1,10 +1,10 @@
 <view class="pg">
   <view class="pg__head">
     <view class="pg__head-top">
-      <text class="eyebrow">藏 经 阁</text>
+      <text class="eyebrow">{{copy.pages.skills.eyebrow}}</text>
     </view>
-    <text class="h1 serif">功法</text>
-    <text class="muted mt8">十三门功法，十族玩法，品阶定收益。</text>
+    <text class="h1 serif">{{copy.pages.skills.title}}</text>
+    <text class="muted mt8">{{copy.pages.skills.desc}}</text>
   </view>
 
   <view wx:if="{{ov}}" class="card card--ink">
@@ -15,26 +15,34 @@
     <view class="row--wrap mt16">
       <text class="tag tag--dark" wx:for="{{legend}}" wx:key="key">{{item.name}} {{item.threshold}}</text>
     </view>
+    <view class="row mt16">
+      <term tone="ink" term-key="rank" />
+      <term tone="ink" term-key="cangjingge" />
+    </view>
+    <text class="tiny pr-tiny mt8">{{copy.hints.skillCard}}</text>
   </view>
   <view wx:else class="state">
     <text class="state__glyph">◇</text>
-    <text class="state__desc">正在翻检藏经阁…</text>
+    <text class="state__desc">{{copy.loading}}</text>
   </view>
 
   <view class="card chain-card">
     <view class="row--between">
-      <text class="section__title">功法谱系</text>
-      <text class="tag tag--grey">黄 → 天</text>
+      <text class="section__title">{{copy.sections.family}}</text>
+      <text class="text-link text-link--muted" bindtap="onToggleChain">{{chainOpen ? copy.actions.collapse : copy.actions.expand}}</text>
     </view>
-    <view wx:for="{{families}}" wx:key="type" class="chain-row mt12">
-      <view class="row--between">
-        <text class="chain-row__label">{{item.label}}</text>
-        <text class="tiny">{{item.kindLabel}}</text>
+    <text wx:if="{{!chainOpen}}" class="tiny mt8">{{copy.hints.chain}}</text>
+    <block wx:if="{{chainOpen}}">
+      <view wx:for="{{families}}" wx:key="type" class="chain-row mt12">
+        <view class="row--between">
+          <text class="chain-row__label">{{item.label}}</text>
+          <text class="tiny">{{item.kindLabel}}</text>
+        </view>
+        <view class="row--wrap mt8">
+          <text wx:for="{{item.slots}}" wx:for-item="node" wx:key="id" class="chain-node {{node.empty ? 'chain-node--empty' : ''}} {{node.unlocked ? 'chain-node--got' : ''}}">{{node.tierName}} · {{node.name}}</text>
+        </view>
       </view>
-      <view class="row--wrap mt8">
-        <text wx:for="{{item.slots}}" wx:for-item="node" wx:key="id" class="chain-node {{node.empty ? 'chain-node--empty' : ''}} {{node.unlocked ? 'chain-node--got' : ''}}">{{node.tierName}} · {{node.name}}</text>
-      </view>
-    </view>
+    </block>
   </view>
 
   <block wx:for="{{cards}}" wx:key="id">
@@ -131,12 +139,12 @@
       </view>
 
       <view class="modal__actions">
-        <button class="btn btn--plain" bindtap="closeDetail">关闭</button>
-        <button wx:if="{{detail.unlocked}}" class="btn btn--primary" bindtap="onPractice">去参悟</button>
+        <button class="btn btn--plain" bindtap="closeDetail">{{copy.actions.close}}</button>
+        <button wx:if="{{detail.unlocked}}" class="btn btn--primary" bindtap="onPractice">{{copy.actions.practice}}</button>
         <button wx:elif="{{detail.canBuy}}" class="btn btn--gold" disabled="{{!canAfford || !detail.realmOk}}" bindtap="onBuy">{{detail.realmOk ? '兑换' : '境界不足'}}</button>
       </view>
     </view>
   </view>
 
-  <view class="pg__foot">参 悟 · 等是保底，练才是加速</view>
+  <view class="pg__foot"><text class="text-link text-link--muted" bindtap="onGoGuide">{{copy.footHint}}</text></view>
 </view>

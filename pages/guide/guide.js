@@ -3,6 +3,7 @@
 // 修行指南：所有数值与 data/、utils/game.js 保持一致，改规则时也要同步这里。
 const store = require('../../utils/store.js');
 const share = require('../../utils/share.js');
+const copy = require('../../data/copy.js');
 
 const SECTIONS = [
     {
@@ -123,8 +124,62 @@ const SECTIONS = [
     },
 ];
 
+// 名词速查直接由 data/copy.js 的术语表生成：页面上「?」弹层与这里读的是同一份解释。
+function glossarySection(no) {
+    const order = [];
+    const byGroup = {};
+    for (const t of copy.TERMS) {
+        if (!byGroup[t.group]) { byGroup[t.group] = []; order.push(t.group); }
+        byGroup[t.group].push(t.name + '：' + t.desc);
+    }
+    const lines = [copy.UI.hints.glossary];
+    for (const g of order) {
+        lines.push('【' + g + '】');
+        for (const l of byGroup[g]) lines.push(l);
+    }
+    return {
+        title: no + ' · ' + copy.UI.sections.glossary,
+        sub: '黑话第一次出现时，页面上也有「?」可以点',
+        lines: lines,
+    };
+}
+SECTIONS.push(glossarySection('十二'));
+
 Page({
-    data: { sections: SECTIONS },
+    data: {
+        sections: SECTIONS.map(function (s, i) {
+            return Object.assign({}, s, {
+                id: 'sec-' + i,
+                short: s.title.split(' · ')[1] || s.title,
+                open: i === 0,
+            });
+        }),
+        showAll: false,
+        copy: copy.UI,
+    },
+
+    // 十几节长文不该一屏铺到底：目录直达 + 单节展开 + 一键全展开。
+    onToggleSection: function (event) {
+        const i = Number(event.currentTarget.dataset.index);
+        const patch = {};
+        patch['sections[' + i + '].open'] = !this.data.sections[i].open;
+        this.setData(patch);
+    },
+
+    onJump: function (event) {
+        const target = Number(event.currentTarget.dataset.index);
+        const patch = { showAll: false };
+        for (let i = 0; i < this.data.sections.length; i += 1) {
+            patch['sections[' + i + '].open'] = i === target;
+        }
+        this.setData(patch, function () {
+            wx.pageScrollTo({ selector: '#sec-' + target, duration: 240, fail: function () {} });
+        });
+    },
+
+    onToggleAll: function () {
+        this.setData({ showAll: !this.data.showAll });
+    },
 
     onBack: function () {
         wx.navigateBack({

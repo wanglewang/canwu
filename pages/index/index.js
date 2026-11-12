@@ -4,6 +4,7 @@ const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const worldData = require('../../data/world.js');
 const share = require('../../utils/share.js');
+const copy = require('../../data/copy.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -23,6 +24,8 @@ Page({
     offline: null,
     powerOpen: false,
     powerLines: [],
+    copy: copy.UI,
+    moreOpen: false,
   },
 
   onLoad: function () {
@@ -106,6 +109,7 @@ Page({
       syncLabel: syncLabel,
       syncTone: syncTone,
       dailyPercent: dailyPercent,
+      dailyText: copy.formatProgress(ov.daily.count, ov.daily.target) + ' 次',
       breakPercent: breakPercent,
       powerLines: powerLines,
       quickSkills: quick.slice(0, 3).map(function (s) {
@@ -135,7 +139,7 @@ Page({
 
   onClaimDaily: function () {
     const r = store.commitCritical(function (s) { return engine.claimDaily(s); });
-    toast(r.ok ? '份例已领：灵气 +' + r.qi + '，灵石 +' + r.stone : r.msg);
+    toast(r.ok ? '份例已领：' + copy.formatGain(r.qi, r.stone) : r.msg);
     this.refresh();
   },
 
@@ -159,6 +163,11 @@ Page({
 
   onToggleWorld: function () {
     this.setData({ worldOpen: !this.data.worldOpen });
+  },
+
+  // 日志与后续世界是低频信息，默认收起，别占首屏。
+  onToggleMore: function () {
+    this.setData({ moreOpen: !this.data.moreOpen });
   },
 
   onTogglePower: function () {

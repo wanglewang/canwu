@@ -1,10 +1,10 @@
 <view class="pg">
   <view class="pg__head">
     <view class="pg__head-top">
-      <text class="eyebrow">论 道 台</text>
+      <text class="eyebrow">{{copy.pages.battle.eyebrow}}</text>
     </view>
-    <text class="h1 serif">论道</text>
-    <text class="muted mt8">与青云界高手过招，或凭战力码会一会朋友。</text>
+    <text class="h1 serif">{{copy.pages.battle.title}}</text>
+    <text class="muted mt8">{{copy.pages.battle.desc}}</text>
   </view>
 
   <view wx:if="{{ov}}" class="card card--ink">
@@ -19,7 +19,7 @@
   </view>
   <view wx:else class="state">
     <text class="state__glyph">◇</text>
-    <text class="state__desc">正在整理论道台…</text>
+    <text class="state__desc">{{copy.loading}}</text>
   </view>
 
   <view class="section">
@@ -46,7 +46,7 @@
 
   <view class="section">
     <view class="section__head">
-      <text class="section__title">秘境探索</text>
+      <view class="row"><text class="section__title">秘境探索</text><term term-key="mijing" /></view>
       <text class="section__sub">资源多，不掉功法</text>
     </view>
     <view class="card card--tight fight-card" wx:for="{{secrets}}" wx:key="id">
@@ -69,7 +69,7 @@
     </view>
     <view class="state state--inline" wx:if="{{boardError}}">
       <text class="state__desc">{{boardError}}</text>
-      <button class="btn btn--plain btn--small state__action" bindtap="onRefreshBoard">重新加载</button>
+      <button class="btn btn--plain btn--small state__action" bindtap="onRefreshBoard">{{copy.actions.refresh}}</button>
     </view>
     <block wx:else>
       <view class="card card--tight board-row" wx:for="{{board}}" wx:key="uid">
@@ -84,7 +84,7 @@
         <text class="tiny mt8">{{item.realmName}} · 道相 {{item.portrait}}</text>
       </view>
       <view wx:if="{{board.length === 0}}" class="card card--tight">
-        <text class="tiny">榜单还空着，进去打一场就会留下战绩。</text>
+        <text class="tiny">{{copy.emptyBoard}}</text>
       </view>
       <view class="card" wx:if="{{rival}}">
         <text class="h3">与你最接近的道友</text>
@@ -100,21 +100,24 @@
 
   <view class="section">
     <view class="section__head">
-      <text class="section__title">战力码 · 异步对战</text>
-      <text class="section__sub">复制即约战</text>
+      <view class="row"><text class="section__title">{{copy.sections.battleCode}}</text><term term-key="code" /></view>
+      <text class="section__sub text-link" bindtap="onToggleCode">{{codeOpen ? copy.actions.collapse : copy.actions.expand}}</text>
     </view>
-    <view class="card">
-      <text class="h3">我的战力码</text>
-      <view class="code-box mt12">{{myCode}}</view>
-      <button class="btn btn--primary btn--small btn--block mt12" bindtap="onCopyCode">复制我的战力码</button>
-      <view class="divider"></view>
-      <text class="h3">挑战朋友的镜像</text>
-      <input class="code-input mt12" value="{{inputCode}}" bindinput="onInputCode" placeholder="粘贴 CW1- 开头的战力码" placeholder-class="code-ph" />
-      <view class="btn-row">
-        <button class="btn btn--plain btn--small" bindtap="onPasteCode">从剪贴板读取</button>
-        <button class="btn btn--gold btn--small" bindtap="onMirrorFight">打镜像</button>
+    <text wx:if="{{!codeOpen}}" class="tiny">{{copy.hints.battleCode}}</text>
+    <block wx:if="{{codeOpen}}">
+      <view class="card">
+        <text class="h3">我的战力码</text>
+        <view class="code-box mt12">{{myCode}}</view>
+        <button class="btn btn--primary btn--small btn--block mt12" bindtap="onCopyCode">复制我的战力码</button>
+        <view class="divider"></view>
+        <view class="row"><text class="h3">挑战朋友的镜像</text><term term-key="mirror" /></view>
+        <input class="code-input mt12" value="{{inputCode}}" bindinput="onInputCode" placeholder="粘贴 CW1- 开头的战力码" placeholder-class="code-ph" />
+        <view class="btn-row">
+          <button class="btn btn--plain btn--small" bindtap="onPasteCode">从剪贴板读取</button>
+          <button class="btn btn--gold btn--small" bindtap="onMirrorFight">打镜像</button>
+        </view>
       </view>
-    </view>
+    </block>
   </view>
 
   <view class="mask" wx:if="{{showResult && result}}" bindtap="closeResult">
@@ -157,10 +160,10 @@
       </view>
 
       <view class="modal__actions">
-        <button class="btn btn--primary btn--block" bindtap="closeResult">收下</button>
+        <button class="btn btn--primary btn--block" bindtap="closeResult">{{copy.actions.confirm}}</button>
       </view>
     </view>
   </view>
 
-  <view class="pg__foot">参 悟 · 等是保底，练才是加速</view>
+  <view class="pg__foot"><text class="text-link text-link--muted" bindtap="onGoGuide">{{copy.footHint}}</text></view>
 </view>

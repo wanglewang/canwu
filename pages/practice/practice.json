@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "参悟",
-  "usingComponents": {}
+  "usingComponents": {
+    "term": "../../components/term/term"
+  }
 }

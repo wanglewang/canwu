@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "功法",
-  "usingComponents": {}
+  "usingComponents": {
+    "term": "../../components/term/term"
+  }
 }

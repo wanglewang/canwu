@@ -1,10 +1,10 @@
 <view class="pg">
   <view class="pg__head">
     <view class="pg__head-top">
-      <text class="eyebrow">修 行 记</text>
+      <text class="eyebrow">{{copy.pages.profile.eyebrow}}</text>
     </view>
-    <text class="h1 serif">道牒</text>
-    <text class="muted mt8">练到哪一步了，一张卡片说得清。</text>
+    <text class="h1 serif">{{copy.pages.profile.title}}</text>
+    <text class="muted mt8">{{copy.pages.profile.desc}}</text>
   </view>
 
   <block wx:if="{{ov}}">
@@ -38,11 +38,11 @@
           <text class="idcard__skill-name">{{item.name}}</text>
           <text class="idcard__skill-tier" style="color:{{item.color}}">{{item.tierName}} · {{item.prof}}</text>
         </view>
-        <view wx:if="{{topSkills.length === 0}}" class="idcard__empty">尚未习得功法</view>
+        <view wx:if="{{topSkills.length === 0}}" class="idcard__empty">{{copy.emptySkills}}</view>
         <view class="idcard__rule mt24"></view>
         <text class="idcard__stats">{{statsLine}}</text>
         <text class="idcard__code">战力码 {{myCode}}</text>
-        <text class="idcard__slogan">等是保底，练才是加速。</text>
+        <text class="idcard__slogan">{{copy.brand.slogan}}</text>
       </view>
     </view>
 
@@ -101,6 +101,29 @@
 
     <view class="section">
       <view class="section__head">
+        <text class="section__title">{{copy.sections.settings}}</text>
+        <text class="section__sub">{{copy.hints.settings}}</text>
+      </view>
+      <view class="card">
+        <view class="row--between">
+          <view class="sfx-text grow">
+            <text class="h3">局内音效</text>
+            <text class="tiny mt8">轻 / 中 / 关三档，点一下切换</text>
+          </view>
+          <button class="btn btn--ghost btn--compact" bindtap="onToggleSfx">音效 · {{sfxLabel}}</button>
+        </view>
+        <view class="divider"></view>
+        <view class="row--wrap">
+          <term term-key="daohao" />
+          <term term-key="code" />
+          <term term-key="sStreak" />
+        </view>
+        <button class="btn btn--ghost btn--block mt12" bindtap="onGoGuide">修行指南 ›</button>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section__head">
         <text class="section__title">账号 · 存档</text>
         <text class="section__sub">跟随账号 · 云端保存</text>
       </view>
@@ -112,7 +135,7 @@
           <button class="btn btn--ghost" bindtap="openImport">导入存档</button>
         </view>
         <view class="divider"></view>
-        <text class="tiny">以下操作不可撤销，动手前建议先导出存档</text>
+        <text class="tiny">以下操作不可撤销，动手前建议先导出存档码</text>
         <view class="btn-row btn-row--tight">
           <button class="btn btn--warn btn--compact" bindtap="onReset">重置存档</button>
           <button class="btn btn--warn btn--compact" bindtap="onSignOut">退出登录</button>
@@ -122,7 +145,7 @@
 
     <view class="section">
       <view class="section__head">
-        <text class="section__title">世界</text>
+        <view class="row"><text class="section__title">{{copy.sections.worlds}}</text><term term-key="worlds" /></view>
         <text class="section__sub text-link" bindtap="onToggleWorld">{{worldOpen ? '收起' : '此界之外 · 展开 ›'}}</text>
       </view>
       <block wx:if="{{worldOpen}}">
@@ -137,24 +160,10 @@
       </block>
     </view>
 
-    <view class="section">
-      <view class="section__head"><text class="section__title">关于参悟</text></view>
-      <view class="card">
-        <text class="body">青云界灵气渐薄，外门弟子人人都在等一次顿悟。你不等，你去练。</text>
-        <view class="row--between mt16">
-          <view class="sfx-text grow">
-            <text class="h3">局内音效</text>
-            <text class="tiny mt8">轻 / 中 / 关三档，点一下选</text>
-          </view>
-          <button class="btn btn--ghost btn--compact" bindtap="onToggleSfx">音效 · {{sfxLabel}}</button>
-        </view>
-        <button class="btn btn--ghost btn--block mt12" bindtap="onGoGuide">修行指南 ›</button>
-      </view>
-    </view>
   </block>
   <view wx:else class="state">
     <text class="state__glyph">◇</text>
-    <text class="state__desc">正在展开道牒…</text>
+    <text class="state__desc">{{copy.loading}}</text>
   </view>
 
   <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
@@ -175,7 +184,7 @@
       </view>
       <button wx:if="{{draftAvatarTemp}}" class="btn btn--plain btn--small btn--block mt12" bindtap="onClearAvatar">换回道相</button>
       <view class="modal__actions">
-        <button class="btn btn--plain" bindtap="closeRoleEditor">取消</button>
+        <button class="btn btn--plain" bindtap="closeRoleEditor">{{copy.actions.cancel}}</button>
         <button class="btn btn--primary" bindtap="onSaveRole">定下</button>
       </view>
     </view>
@@ -187,7 +196,7 @@
       <text class="modal__sub">已复制到剪贴板，请妥善保存</text>
       <view class="code-box mt16">{{saveCode}}</view>
       <view class="modal__actions">
-        <button class="btn btn--primary btn--block" bindtap="closeSaveCode">好</button>
+        <button class="btn btn--primary btn--block" bindtap="closeSaveCode">{{copy.actions.confirm}}</button>
       </view>
     </view>
   </view>
@@ -199,11 +208,11 @@
       <input class="code-input mt16" value="{{importCode}}" bindinput="onImportInput" placeholder="CANWU1:..." placeholder-class="code-ph" />
       <button class="btn btn--plain btn--small btn--block mt12" bindtap="onPasteImport">从剪贴板读取</button>
       <view class="modal__actions">
-        <button class="btn btn--plain" bindtap="closeImport">取消</button>
+        <button class="btn btn--plain" bindtap="closeImport">{{copy.actions.cancel}}</button>
         <button class="btn btn--primary" bindtap="onImportSave">导入</button>
       </view>
     </view>
   </view>
 
-  <view class="pg__foot">参 悟 · 等是保底，练才是加速</view>
+  <view class="pg__foot"><text class="text-link text-link--muted" bindtap="onGoGuide">{{copy.footHint}}</text></view>
 </view>

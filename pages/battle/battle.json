@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "论道",
-  "usingComponents": {}
+  "usingComponents": {
+    "term": "../../components/term/term"
+  }
 }

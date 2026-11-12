@@ -69,14 +69,17 @@ for (const page of appJson.pages) {
 }
 
 // 4. 组件四件套
-const components = [];
+const components = new Set();
 for (const page of appJson.pages) {
   const cfgPath = path.join(ROOT, page + '.json');
   const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
   const using = cfg.usingComponents || {};
   for (const key of Object.keys(using)) {
     const p = using[key];
-    if (p.indexOf('/') === 0) components.push(path.join(ROOT, p.slice(1)));
+    // 绝对路径从项目根算，相对路径从页面所在目录算；两种写法都要验四件套。
+    components.add(p.indexOf('/') === 0
+      ? path.join(ROOT, p.slice(1))
+      : path.resolve(path.dirname(cfgPath), p));
   }
 }
 for (const c of components) {
@@ -239,6 +242,55 @@ for (const f of styleFiles) {
 }
 if (undefinedVars.length) errors.push('样式引用了未定义的 CSS 变量：' + undefinedVars.slice(0, 5).join(', '));
 else checked += 1;
+
+// 10. 文案与页面组织：真源唯一、术语可查、区块标题说人话
+const copy = require(path.join(ROOT, 'data/copy.js'));
+const wxmlFiles = files.filter(function (f) { return f.endsWith('.wxml'); });
+const allWxml = wxmlFiles.map(function (f) { return fs.readFileSync(f, 'utf8'); }).join('\n');
+
+const termKeys = new Set();
+for (const t of copy.TERMS) {
+  if (!t.key || !t.name || !t.desc || !t.group || termKeys.has(t.key) || t.desc.length < 10) {
+    errors.push('术语词典条目不合法或重复：' + JSON.stringify(t));
+  } else checked += 1;
+  termKeys.add(t.key);
+}
+if (copy.TERMS.length < 15) errors.push('术语词典覆盖不足');
+else checked += 1;
+
+for (const m of allWxml.matchAll(/<term[^>]*term-key="([^"]+)"/g)) {
+  if (!termKeys.has(m[1])) errors.push('页面引用了不存在的术语：' + m[1]);
+  else checked += 1;
+}
+
+// 跨页复用文案若再抄回 WXML，同一句话就会出现两种版本。
+const sharedCopy = [
+  copy.UI.footHint, copy.UI.loading, copy.UI.errorTitle, copy.UI.errorDesc,
+  copy.UI.emptyLog, copy.UI.emptyBoard, copy.UI.emptySkills,
+  copy.UI.sections.today, copy.UI.sections.more, copy.UI.sections.nearTier,
+  copy.UI.sections.settings, copy.UI.sections.battleCode,
+];
+for (const text of sharedCopy) {
+  if (allWxml.indexOf('>' + text + '<') >= 0) errors.push('WXML 又硬编码了共享文案：' + text);
+  else checked += 1;
+}
+
+// 旧口径黑名单：含糊标题、拟人 loading、每页重复的品牌口号。
+const staleCopy = ['就差一点', '正在推演气机', '正在翻检藏经阁', '正在整理论道台',
+  '正在展开道牒', '参 悟 · 等是保底，练才是加速'];
+for (const text of staleCopy) {
+  if (allWxml.indexOf(text) >= 0) errors.push('旧文案口径又回来了：' + text);
+  else checked += 1;
+}
+
+// 用了 <term> 的页面必须在 json 里注册组件，否则真机上整块文字消失。
+for (const page of appJson.pages) {
+  const wxml = fs.readFileSync(path.join(ROOT, page + '.wxml'), 'utf8');
+  if (wxml.indexOf('<term') < 0) continue;
+  const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, page + '.json'), 'utf8'));
+  if (!cfg.usingComponents || !cfg.usingComponents.term) errors.push(page + '.json 没注册术语组件');
+  else checked += 1;
+}
 
 if (errors.length > 0) {
   console.error('静态校验失败（' + errors.length + ' 项）:');

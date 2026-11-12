@@ -7,6 +7,7 @@ const { cloud } = require('../../utils/cloud.js');
 const social = require('../../utils/cloud-social.js');
 const share = require('../../utils/share.js');
 const sfx = require('../../utils/sfx.js');
+const copy = require('../../data/copy.js');
 
 const SFX_LABEL = { low: '轻', mid: '中', off: '关' };
 
@@ -62,6 +63,7 @@ Page({
     draftPortrait: 0,
     draftAvatarTemp: '',
     sfxLabel: '轻',
+    copy: copy.UI,
   },
 
   onLoad: function () {
@@ -246,7 +248,7 @@ Page({
       this.data.statsLine,
       '代表功法：' + this.data.topSkills.map(function (s) { return s.name + '（' + s.tierName + '）'; }).join('、'),
       '战力码 ' + this.data.myCode,
-      '等是保底，练才是加速。',
+      copy.BRAND.slogan,
     ];
     wx.setClipboardData({
       data: lines.join('\n'),
@@ -338,7 +340,7 @@ Page({
         ctx.fillStyle = '#9fb3a7';
         ctx.font = '20px sans-serif';
         ctx.fillText('战力码 ' + myCode, 76, 770);
-        ctx.fillText('等是保底，练才是加速。', 76, 816);
+        ctx.fillText(copy.BRAND.slogan, 76, 816);
 
         wx.canvasToTempFilePath({
           canvas: canvas,

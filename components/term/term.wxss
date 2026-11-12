@@ -1,0 +1,33 @@
+/* 术语入口：虚线下划线 + 小圆问号，颜色与尺寸全部取自设计令牌。 */
+.term {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    min-height: var(--touch-xs);
+    padding: 0 var(--sp-1);
+}
+
+.term__text {
+    font-size: var(--fs-caption);
+    color: var(--c-text-2);
+    border-bottom: 2rpx dashed var(--c-border-strong);
+    line-height: var(--lh-tight);
+}
+
+.term--ink .term__text {
+    color: var(--c-on-ink-2);
+    border-bottom-color: var(--c-ink-divider);
+}
+
+.term--ink .term__mark { background: var(--c-gold-bright); color: var(--c-ink-track); }
+
+.term__mark {
+    width: 26rpx;
+    height: 26rpx;
+    border-radius: 50%;
+    font-size: var(--fs-note);
+    line-height: 26rpx;
+    text-align: center;
+    color: var(--c-on-ink);
+    background: var(--c-primary);
+}

@@ -448,22 +448,28 @@ check('三连 S 直接晋级：准备页有进度、结算页有回执、指南�
 });
 
 check('页面骨架统一：常规页面都用 .pg + 标准页头 + 统一页脚', function () {
-  const foot = '参 悟 · 等是保底，练才是加速';
   for (const name of ['index', 'skills', 'battle', 'profile', 'guide']) {
     const wxml = read('pages/' + name + '/' + name + '.wxml');
     assert.ok(/^<view class="pg[ "]/m.test(wxml), name + ' 根节点不是 .pg');
     assert.ok(/class="pg__head"/.test(wxml) && /class="pg__head-top"/.test(wxml), name + ' 页头结构不统一');
     assert.ok(/class="eyebrow"/.test(wxml) && /class="h1 serif"/.test(wxml)
       && /class="muted mt8"/.test(wxml), name + ' 页头缺少眉标 / 标题 / 说明');
-    assert.ok(wxml.indexOf(foot) >= 0, name + ' 页脚文案不统一');
+    assert.ok(/\{\{copy\.pages\./.test(wxml), name + ' 页头文案没走真源');
   }
+  // 页脚不再重复品牌口号：tab 页与参悟页指向同一个帮助入口，指南页是例外。
+  for (const name of ['index', 'skills', 'battle', 'profile', 'practice']) {
+    const wxml = read('pages/' + name + '/' + name + '.wxml');
+    assert.ok(/\{\{copy\.footHint\}\}/.test(wxml), name + ' 页脚没走文案真源');
+    assert.ok(/class="pg__foot"[\s\S]{0,120}bindtap="onGoGuide"/.test(wxml), name + ' 页脚不是可点的帮助入口');
+  }
+  assert.ok(/\{\{copy\.footGuide\}\}/.test(read('pages/guide/guide.wxml')), '指南页页脚不该指向自己');
   assert.ok(/class="login-page"/.test(read('pages/login/login.wxml')), '登录页根节点不是品牌页容器');
   assert.ok(/class="pg \{\{barMode/.test(read('pages/practice/practice.wxml')), '参悟页丢了 .pg 根容器');
 });
 
 check('加载 / 空 / 错误状态统一用 .state 占位，不再白屏', function () {
   const index = read('pages/index/index.wxml');
-  assert.ok(/class="state"/.test(index) && /读取存档失败/.test(index), '洞府页状态占位不完整');
+  assert.ok(/class="state"/.test(index) && /\{\{copy\.errorTitle\}\}/.test(index), '洞府页状态占位不完整');
   for (const name of ['skills', 'battle', 'profile']) {
     assert.ok(/wx:else class="state"/.test(read('pages/' + name + '/' + name + '.wxml')),
       name + ' 数据未就绪时没有状态占位');
@@ -525,6 +531,87 @@ check('设计令牌覆盖色彩 / 字号 / 间距 / 圆角 / 层级 / 触控 / �
   }
   assert.ok(/@media \(prefers-color-scheme: dark\)/.test(t), '没有暗色令牌段');
   assert.ok(/@import\s+"\.\/styles\/tokens\.wxss"/.test(read('app.wxss')), 'app.wxss 没引入令牌表');
+});
+
+check('文案真源：跨页复用文案只在 data/copy.js 写一次', function () {
+  const copy = require('../data/copy.js');
+  const all = WXML.map(read).join('\n');
+  const shared = [
+    copy.UI.footHint, copy.UI.loading, copy.UI.errorTitle, copy.UI.errorDesc,
+    copy.UI.emptyLog, copy.UI.emptyBoard, copy.UI.emptySkills,
+    copy.UI.sections.today, copy.UI.sections.more, copy.UI.sections.nearTier,
+    copy.UI.sections.settings, copy.UI.sections.battleCode,
+  ];
+  for (const text of shared) {
+    assert.ok(all.indexOf('>' + text + '<') < 0, '页面又硬编码了共享文案：' + text);
+  }
+  for (const name of ['index', 'skills', 'battle', 'profile', 'guide', 'practice']) {
+    const js = read('pages/' + name + '/' + name + '.js');
+    assert.ok(/require\('\.\.\/\.\.\/data\/copy\.js'\)/.test(js), name + ' 没有引用文案真源');
+    assert.ok(/copy: copy\.UI/.test(js), name + ' 没有把文案挂进 data');
+  }
+  assert.ok(copy.UI.actions.start === '开始参悟' && copy.UI.actions.practice === '去参悟',
+    '同一动作的按钮说法又被改散了');
+  for (const bad of ['正在推演气机', '正在翻检藏经阁', '正在整理论道台', '正在展开道牒',
+    '就差一点', '参 悟 · 等是保底，练才是加速']) {
+    assert.ok(all.indexOf(bad) < 0, '旧文案口径又回来了：' + bad);
+  }
+});
+
+check('术语解释：组件、词典与指南速查读同一份数据', function () {
+  const copy = require('../data/copy.js');
+  const keys = new Set();
+  for (const t of copy.TERMS) {
+    assert.ok(t.key && t.name && t.desc && t.group, '术语字段不全：' + JSON.stringify(t));
+    assert.ok(!keys.has(t.key), '术语 key 重复：' + t.key);
+    assert.ok(t.desc.length >= 10, t.name + ' 的解释太短');
+    keys.add(t.key);
+  }
+  assert.ok(copy.TERMS.length >= 15, '术语词典覆盖不足');
+  assert.strictEqual(copy.termOf('fene').name, '份例', 'termOf 查不到术语');
+  assert.strictEqual(copy.termOf('not-exist'), null, 'termOf 对未知 key 应返回 null');
+  let used = 0;
+  for (const rel of WXML) {
+    for (const m of read(rel).matchAll(/<term[^>]*term-key="([^"]+)"/g)) {
+      assert.ok(keys.has(m[1]), rel + ' 引用了不存在的术语：' + m[1]);
+      used += 1;
+    }
+  }
+  assert.ok(used >= 10, '术语解释入口覆盖不足：' + used + ' 处');
+  for (const name of ['index', 'skills', 'battle', 'profile', 'guide', 'practice']) {
+    const cfg = JSON.parse(read('pages/' + name + '/' + name + '.json'));
+    assert.ok(cfg.usingComponents && cfg.usingComponents.term === '../../components/term/term',
+      name + ' 没注册术语组件');
+  }
+  for (const ext of ['.js', '.json', '.wxml', '.wxss']) {
+    assert.ok(fs.existsSync(path.join(ROOT, 'components/term/term' + ext)), '术语组件缺 ' + ext);
+  }
+  const guide = read('pages/guide/guide.js');
+  assert.ok(/glossarySection\('十二'\)/.test(guide) && /copy\.TERMS/.test(guide),
+    '指南名词速查不是由术语词典生成的');
+});
+
+check('信息架构：主次分明，低频内容默认折叠，设置独立成区', function () {
+  const index = read('pages/index/index.wxml');
+  assert.ok(/onToggleMore/.test(index) && /\{\{moreOpen\}\}/.test(index), '洞府没把日志 / 诸界收进折叠');
+  assert.ok(index.indexOf('近况') < 0 && index.indexOf('就差一点') < 0, '洞府仍有含糊区块标题');
+  assert.strictEqual((index.match(/bindtap="onQuickPractice"/g) || []).length, 1,
+    '洞府主行动入口重复：吸底按钮之外不该再放一个「就练这门」');
+  const skills = read('pages/skills/skills.wxml');
+  assert.ok(/onToggleChain/.test(skills) && /\{\{chainOpen\}\}/.test(skills), '功法谱系没折叠');
+  const battle = read('pages/battle/battle.wxml');
+  assert.ok(/onToggleCode/.test(battle) && /\{\{codeOpen\}\}/.test(battle), '战力码没折叠');
+  const profile = read('pages/profile/profile.wxml');
+  assert.ok(/\{\{copy\.sections\.settings\}\}/.test(profile) && /onToggleSfx/.test(profile), '设置没独立成区');
+  assert.ok(profile.indexOf('关于参悟') < 0, '音效与指南仍埋在「关于参悟」里');
+  const guide = read('pages/guide/guide.wxml');
+  assert.ok(/guide-toc/.test(guide) && /onJump/.test(guide) && /onToggleAll/.test(guide), '指南缺目录或全部展开');
+  assert.ok(/item\.open \|\| showAll/.test(guide), '指南章节不能折叠');
+  assert.ok(/id="\{\{item\.id\}\}"/.test(guide) && /pageScrollTo/.test(read('pages/guide/guide.js')),
+    '目录点了只展开不滚动，不算直达');
+  assert.ok(/copy\.formatCost/.test(read('pages/skills/skills.js'))
+    && /copy\.formatGain/.test(read('pages/index/index.js'))
+    && /copy\.formatProgress/.test(read('pages/index/index.js')), '文案真源的格式化函数没接进页面');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

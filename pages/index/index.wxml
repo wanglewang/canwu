@@ -1,26 +1,26 @@
 <view class="pg pg--with-bar">
   <view class="pg__head">
     <view class="pg__head-top">
-      <text class="eyebrow">洞 府</text>
+      <text class="eyebrow">{{copy.pages.index.eyebrow}}</text>
       <text class="pg__head-action text-link" bindtap="onGoGuide">修行指南 ›</text>
     </view>
-    <text class="h1 serif">参悟</text>
-    <text class="muted mt8">等是保底，练才是加速。</text>
+    <text class="h1 serif">{{copy.pages.index.title}}</text>
+    <text class="muted mt8">{{copy.pages.index.desc}}</text>
   </view>
 
   <view wx:if="{{syncTone !== 'ok'}}" class="alert-bar alert-bar--{{syncTone}} pressable" hover-class="pressable--on" bindtap="onRetrySync">
     <text class="alert-bar__text">{{syncLabel}}</text>
-    <text class="alert-bar__action">重试 ›</text>
+    <text class="alert-bar__action">{{copy.actions.retry}} ›</text>
   </view>
 
   <view wx:if="{{viewState === 'loading'}}" class="state">
     <text class="state__glyph">◇</text>
-    <text class="state__desc">正在推演气机…</text>
+    <text class="state__desc">{{copy.loading}}</text>
   </view>
   <view wx:elif="{{viewState === 'error'}}" class="state">
-    <text class="state__title">读取存档失败</text>
-    <text class="state__desc">可以再试一次，或到「道牒」导入存档码。</text>
-    <button class="btn btn--primary state__action" bindtap="refresh">重试</button>
+    <text class="state__title">{{copy.errorTitle}}</text>
+    <text class="state__desc">{{copy.errorDesc}}</text>
+    <button class="btn btn--primary state__action" bindtap="refresh">{{copy.actions.retry}}</button>
   </view>
 
   <block wx:if="{{viewState === 'ready' && ov}}">
@@ -39,7 +39,7 @@
       <view class="hero-power mt16">
         <view class="power-head pressable" hover-class="pressable--on" bindtap="onTogglePower">
           <text class="tiny hero-label">战 力</text>
-          <text class="tiny power-link">{{powerOpen ? '收起 ∧' : '战力从哪来 ›'}}</text>
+          <text class="tiny power-link">{{powerOpen ? '收起 ∧' : '怎么提升战力 ›'}}</text>
         </view>
         <text class="big-number hero-num">{{ov.power}}</text>
         <text class="tiny hero-label power-formula">{{ov.powerBase}} × (1 + 境界 {{ov.powerRealmBonus}}% + 功法 {{ov.powerEffectBonus}}%)</text>
@@ -78,13 +78,13 @@
         <view class="bar__fill" style="width:{{rec.percent}}%;background:{{rec.profTierColor}}"></view>
       </view>
       <text class="body mt12 hero-label">{{rec.next}}</text>
-      <button class="btn btn--gold btn--block mt16" bindtap="onQuickPractice">{{rec.id ? '就练这门' : '去功法页看看'}}</button>
+      <text class="tiny hero-label mt8">{{copy.hints.quickPractice}}</text>
     </view>
 
     <view class="card">
       <view class="section__head">
-        <text class="section__title">今日参悟</text>
-        <text class="section__sub">{{ov.daily.count}} / {{ov.daily.target}} 次</text>
+        <view class="row"><text class="section__title">{{copy.sections.today}}</text><term term-key="fene" /></view>
+        <text class="section__sub">{{dailyText}}</text>
       </view>
       <view class="bar">
         <view class="bar__fill" style="width:{{dailyPercent}}%"></view>
@@ -96,7 +96,7 @@
 
     <view class="card">
       <view class="section__head">
-        <text class="section__title">境界 · {{ov.realmName}}</text>
+        <view class="row"><text class="section__title">{{copy.sections.realm}} · {{ov.realmName}}</text><term term-key="breakthrough" /></view>
         <text class="section__sub">{{ov.realmIndex + 1}} / {{ov.realmCount}}</text>
       </view>
       <block wx:if="{{!ov.breakthrough.maxed}}">
@@ -111,7 +111,7 @@
 
     <view class="section">
       <view class="section__head">
-        <text class="section__title">就差一点</text>
+        <text class="section__title">{{copy.sections.nearTier}}</text>
         <text class="section__sub text-link" bindtap="onGoSkills">全部功法 ›</text>
       </view>
       <view class="card card--tight" wx:for="{{quickSkills}}" wx:key="id">
@@ -134,33 +134,38 @@
 
     <view class="section">
       <view class="section__head">
-        <text class="section__title">近况</text>
-        <text class="section__sub text-link" bindtap="onGoProfile">道牒 ›</text>
+        <text class="section__title">{{copy.sections.more}}</text>
+        <text class="section__sub text-link" bindtap="onToggleMore">{{moreOpen ? copy.actions.collapse : copy.actions.expand}}</text>
       </view>
-      <view class="card" wx:if="{{ov.log.length > 0}}">
-        <view class="log-line" wx:for="{{ov.log}}" wx:key="at">
-          <text class="tiny">· {{item.text}}</text>
+      <text wx:if="{{!moreOpen}}" class="tiny">{{copy.hints.more}}</text>
+      <block wx:if="{{moreOpen}}">
+        <view class="section__head mt16">
+          <view class="row"><text class="section__title">{{copy.sections.log}}</text><term term-key="daodie" /></view>
+          <text class="section__sub text-link" bindtap="onGoProfile">道牒 ›</text>
         </view>
-      </view>
-      <view wx:else class="card"><text class="muted">还没有动静，先去参悟一局吧。</text></view>
-    </view>
-
-    <view class="section">
-      <view class="section__head">
-        <text class="section__title">世界</text>
-        <text class="section__sub text-link" bindtap="onToggleWorld">{{worldOpen ? '收起' : '此界之外 · 展开 ›'}}</text>
-      </view>
-      <block wx:if="{{worldOpen}}">
-        <view class="card card--tight world-row" wx:for="{{worlds}}" wx:key="id">
-          <view class="grow">
-            <view class="row">
-              <text class="h3">{{item.label}} · {{item.name}}</text>
-              <text wx:if="{{item.enabled}}" class="tag tag--jade">进行中</text>
-              <text wx:else class="tag tag--grey">敬请期待</text>
-            </view>
-            <text class="tiny mt8">{{item.intro}}</text>
+        <view class="card" wx:if="{{ov.log.length > 0}}">
+          <view class="log-line" wx:for="{{ov.log}}" wx:key="at">
+            <text class="tiny">· {{item.text}}</text>
           </view>
         </view>
+        <view wx:else class="card"><text class="muted">{{copy.emptyLog}}</text></view>
+
+        <view class="section__head mt16">
+          <view class="row"><text class="section__title">{{copy.sections.worlds}}</text><term term-key="worlds" /></view>
+          <text class="section__sub text-link" bindtap="onToggleWorld">{{worldOpen ? copy.actions.collapse : copy.actions.expand}}</text>
+        </view>
+        <block wx:if="{{worldOpen}}">
+          <view class="card card--tight world-row" wx:for="{{worlds}}" wx:key="id">
+            <view class="grow">
+              <view class="row">
+                <text class="h3">{{item.label}} · {{item.name}}</text>
+                <text wx:if="{{item.enabled}}" class="tag tag--jade">进行中</text>
+                <text wx:else class="tag tag--grey">敬请期待</text>
+              </view>
+              <text class="tiny mt8">{{item.intro}}</text>
+            </view>
+          </view>
+        </block>
       </block>
     </view>
   </block>
@@ -171,7 +176,7 @@
 
   <view class="mask" wx:if="{{showOffline && offline}}">
     <view class="modal">
-      <text class="eyebrow">闭 关 收 获</text>
+      <view class="row"><text class="eyebrow">闭 关 收 获</text><term term-key="offline" /></view>
       <text class="modal__title serif mt12">你不在的时候，也没闲着</text>
       <text class="modal__sub">离线 {{offline.duration}} · 最多累计 8 小时</text>
       <view class="modal__body">
@@ -187,10 +192,10 @@
       <text wx:if="{{offline.capped}}" class="tiny mt12">超过 8 小时的部分不累计，回来练一局更快。</text>
       <text wx:if="{{offline.buffMinutes > 0}}" class="tiny mt8">其中 {{offline.buffMinutes}} 分钟带着挂机加成。</text>
       <view class="modal__actions">
-        <button class="btn btn--primary btn--block" bindtap="closeOffline">收下，去练一局</button>
+        <button class="btn btn--primary btn--block" bindtap="closeOffline">{{copy.actions.confirm}}</button>
       </view>
     </view>
   </view>
 
-  <view class="pg__foot">参 悟 · 等是保底，练才是加速</view>
+  <view class="pg__foot"><text class="text-link text-link--muted" bindtap="onGoGuide">{{copy.footHint}}</text></view>
 </view>

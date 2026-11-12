@@ -4,6 +4,7 @@ const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const social = require('../../utils/cloud-social.js');
 const share = require('../../utils/share.js');
+const copy = require('../../data/copy.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -44,6 +45,8 @@ Page({
     boardError: '',
     boardLoading: false,
     rival: null,
+    copy: copy.UI,
+    codeOpen: false,
   },
 
   onLoad: function () {
@@ -92,6 +95,13 @@ Page({
   },
 
   onRefreshBoard: function () { this.refreshBoard(true); },
+
+  // 战力码是低频操作，收起来让首屏先解决「打谁」。
+  onToggleCode: function () {
+    this.setData({ codeOpen: !this.data.codeOpen });
+  },
+
+  onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
 
   onFight: function (event) {
     const id = event.currentTarget.dataset.id;

@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "修行指南",
-  "usingComponents": {}
+  "usingComponents": {
+    "term": "../../components/term/term"
+  }
 }

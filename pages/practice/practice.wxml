@@ -62,7 +62,7 @@
         <text class="section__title">怎么玩</text>
         <text class="tag tag--grey">{{gameName}}</text>
       </view>
-      <text class="text-link text-link--muted guide__toggle">{{guideOpen ? '收起' : '展开 ›'}}</text>
+      <text class="text-link text-link--muted guide__toggle">{{guideOpen ? copy.actions.collapse : copy.actions.expand}}</text>
     </view>
     <text class="body mt8 guide__goal">{{guide.goal}}</text>
     <block wx:if="{{guideOpen}}">
@@ -94,7 +94,7 @@
     <text class="body mt8">{{twistDesc}}</text>
 
     <view wx:if="{{stageRules.length}}" class="mt16">
-      <text class="section__title">本门新法</text>
+      <view class="row"><text class="section__title">本门新法</text><term term-key="stageRule" /></view>
       <view wx:for="{{stageRules}}" wx:key="name" class="stage-rule">
         <text class="tag {{item.on ? 'tag--jade' : 'tag--grey'}}">{{item.on ? '已得' : item.atName}}</text>
         <text class="tiny grow stage-rule__text">{{item.name}} · {{item.desc}}</text>
@@ -302,8 +302,8 @@
   </view>
 
   <view wx:if="{{barMode === 'start'}}" class="sticky-bar">
-    <text class="text-link text-link--muted" bindtap="onBack">先不练了</text>
-    <button class="btn btn--primary" bindtap="onStart">开始参悟</button>
+    <text class="text-link text-link--muted" bindtap="onBack">{{copy.actions.leave}}</text>
+    <button class="btn btn--primary" bindtap="onStart">{{copy.actions.start}}</button>
   </view>
 
   <view wx:if="{{barMode === 'tools'}}" class="sticky-bar sticky-bar--tools">
@@ -386,5 +386,5 @@
     </view>
   </view>
 
-  <view class="pg__foot">参 悟 · 等是保底，练才是加速</view>
+  <view class="pg__foot"><text class="text-link text-link--muted" bindtap="onGoGuide">{{copy.footHint}}</text></view>
 </view>

@@ -5,7 +5,7 @@
     </view>
 
     <button class="btn-wechat" bindtap="onWechatLogin" disabled="{{busy}}" loading="{{busy}}">微信一键登录</button>
-    <text class="login-hint">无需密码，用当前微信身份开始</text>
+    <text class="login-hint">不设密码，用微信身份直接开始</text>
 
     <view class="login-alt" bindtap="toggleEmail">
         <text class="login-alt-text">{{showEmail ? '收起邮箱登录' : '使用邮箱验证码登录'}}</text>
@@ -15,7 +15,7 @@
     </view>
 
     <view class="login-note">
-        <text>已有本机进度？登录后到「道牒」页导出存档码，再导入即可。</text>
+        <text>已有本机进度？先在「道牒」导出存档码，登录后再导入，进度就接上了。</text>
     </view>
     <text class="login-error" wx:if="{{reason}}">{{reason}}</text>
     <text class="login-error" wx:if="{{error}}">{{error}}</text>
