@@ -173,10 +173,14 @@ check('顺光扫斩：透明触摸层 + 坐标插值还原划动轨迹', functio
   assert.ok(/bindtouchstart="onBoardTouchStart"/.test(s) && /bindtouchend="onBoardTouchEnd"/.test(s), '触摸层缺起手或抬手事件');
   assert.ok(/measureBoard/.test(js) && /boundingClientRect/.test(js), '没有预先量格子矩形');
   assert.ok(/Math\.sqrt\(dx \* dx \+ dy \* dy\) \/ 10/.test(js), '相邻 move 之间没插值，划快了会漏桩');
-  assert.ok(/controller\.swipe\(path\)/.test(js), '页面没有把轨迹交给玩法层');
+  assert.ok(/controller\.swipe\(path, \{ hold: hold \}\)/.test(js), '页面没有把轨迹与收势停留交给玩法层');
+  assert.ok(/lastStepAt/.test(js), '页面没有记录最后一次换格的时刻，收势判不出来');
   assert.ok(/showSwipe/.test(common) && /swipe: noop/.test(common), '统一协议里没有 swipe 与 showSwipe');
   assert.ok(/\.grid__slash-beam/.test(css) && /slashSweep/.test(css), '斩中缺少按招式角度掠过的白光');
   assert.ok(/\.cell--path\b/.test(css) && /\.cell--pathon/.test(css), '刀路缺光痕与光头两种状态');
+  assert.ok(/\.cell--pathfake/.test(css), '双锋的虚招没有单独的暗色刀路');
+  assert.ok(/\.cell--ban/.test(css), '禁桩没有盘面标记');
+  assert.ok(/endBreath/.test(css) && /\.cell__end--live/.test(css), '双锋的真招靶心没有呼吸');
 });
 
 check('音效保持柔和不叠加（刺耳问题不退回去）', function () {
@@ -301,7 +305,7 @@ check('刀路用形状指方向：箭头节点、纯 CSS 图形、盘面无汉�
   const click = read('minigames/click.js');
   assert.ok(/class="cell__arrow"/.test(wxml), '盘面没有箭头节点');
   assert.ok(/rotate\(\{\{item\.arrow\}\}deg\)/.test(wxml), '箭头没有按格子方向旋转');
-  assert.ok(/class="cell__end"/.test(wxml), '收势桩没有靶心节点');
+  assert.ok(/class="cell__end/.test(wxml), '收势桩没有靶心节点');
   assert.ok(/\.cell__arrow-head/.test(css) && /\.cell__arrow-shaft/.test(css), '箭头不是纯 CSS 画的，不能靠文字字形');
   assert.ok(/function dirAngle/.test(click), '玩法层没有算相邻桩方向');
   assert.ok(!/theme\.glyph \|\| '锋'/.test(click), '刀路还在写「锋」字');

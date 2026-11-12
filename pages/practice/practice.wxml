@@ -230,7 +230,7 @@
 
       <view wx:if="{{vm.trail && started}}" class="trail-hint">
         <text class="trail-hint__name">{{vm.trail.name}}</text>
-        <text class="tiny">顺箭头扫斩 {{trailLen}} 桩 · 反向算劈空</text>
+        <text class="tiny">顺箭头扫斩 {{trailLen}} 桩 · {{vm.trail.rule || '反向算劈空'}}</text>
       </view>
 
       <view wx:if="{{(vm.stage === 'board' || vm.stage === 'lane') && vm.extras.showGrid}}" class="grid grid--c{{vm.cols}} {{vm.stage === 'lane' ? 'grid--lane' : ''}}" style="background:{{sceneOn ? stage.well : theme.bg}}">
@@ -244,7 +244,7 @@
             <view class="cell__arrow-head"></view>
             <view class="cell__arrow-shaft"></view>
           </view>
-          <view wx:if="{{item.end}}" class="cell__end"></view>
+          <view wx:if="{{item.end}}" class="cell__end {{item.endLive ? 'cell__end--live' : ''}}"></view>
           <text>{{item.label}}</text>
         </view>
         <!-- 划刀玩法的透明触摸层：盖住静态格子，用手势坐标还原一条连续轨迹 -->

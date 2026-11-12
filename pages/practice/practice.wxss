@@ -460,6 +460,38 @@
     box-shadow: 0 0 22rpx rgba(184, 137, 59, 0.65);
 }
 
+/* 双锋的虚招：同样有箭头与靶心，但整条路压暗一档。
+   真假不靠猜——真招的靶心在呼吸（见 .cell__end--live），虚招是静止的。 */
+.cell--pathfake {
+    background: rgba(74, 107, 134, 0.1);
+    color: rgba(74, 107, 134, 0.42);
+    box-shadow: inset 0 0 0 3rpx rgba(74, 107, 134, 0.16);
+}
+
+/* 禁桩：红叉一目了然，划过即断势。叉用 currentColor，深色舞台跟着走。 */
+.cell--ban {
+    background: rgba(180, 69, 60, 0.1);
+    color: rgba(180, 69, 60, 0.72);
+    box-shadow: inset 0 0 0 3rpx rgba(180, 69, 60, 0.3);
+}
+
+.cell--ban::before,
+.cell--ban::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 54rpx;
+    height: 6rpx;
+    margin-left: -27rpx;
+    margin-top: -3rpx;
+    border-radius: 3rpx;
+    background: currentColor;
+}
+
+.cell--ban::before { transform: rotate(45deg); }
+.cell--ban::after { transform: rotate(-45deg); }
+
 .cell--cut {
     background: #fffdf7;
     color: var(--acc, #4a6b86);
@@ -524,6 +556,16 @@
     border-radius: 50%;
     background: currentColor;
     transform: translate(-50%, -50%);
+}
+
+/* 双锋：真招靶心呼吸，虚招静止。只动 opacity 与 transform，守住动效预算。 */
+.cell__end--live {
+    animation: endBreath 1.1s ease-in-out infinite;
+}
+
+@keyframes endBreath {
+    0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(0.88); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.14); }
 }
 
 /* 斩中时按刀招角度扫过盘面的一道白光：外层定位旋转，内层做扫光动画 */
@@ -994,6 +1036,8 @@
     .cell--pathon { background: #4a6b86; color: #fffdf7; }
     .cell--pathgold.cell--pathon { background: #b8893b; color: #fffdf7; }
     .cell--cut { background: #e8eee9; color: #26342d; }
+    .cell--pathfake { background: rgba(122, 166, 196, 0.08); color: rgba(207, 224, 234, 0.46); box-shadow: inset 0 0 0 3rpx rgba(122, 166, 196, 0.14); }
+    .cell--ban { background: rgba(226, 75, 74, 0.14); color: rgba(240, 149, 149, 0.8); box-shadow: inset 0 0 0 3rpx rgba(226, 75, 74, 0.34); }
     .cell--open { background: #26342d; color: #e8eee9; }
     .cell--flag, .cell--sensed { background: #3a3a2c; color: #d8c79a; }
     .grid, .hud__track, .meter__track, .charge__track, .ring-area { background: #26342d; }

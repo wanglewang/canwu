@@ -924,6 +924,209 @@ check('顺光扫斩：档位越高刀路越长，重斩是更长的金桩长招'
   } finally { restoreClock(); }
 });
 
+// ---------------------------------------------------------------- 刀法难度：数值与阶段
+check('刀法四档：后摇更短、重斩更密、连击门槛更高、劈空更疼', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    function open(depth) {
+      const ctx = makeCtx(m, {}, Object.assign({}, m.params, { depth: depth, duration: 40, life: 700 }));
+      ctx.c.start();
+      return ctx;
+    }
+
+    // 后摇：斩中之后多少毫秒接下一招。简单档 190ms，绝境 142ms。
+    const slow = open(0);
+    slow.c.swipe(slow.st.vm.trail.path.slice());
+    advance(145);
+    assert.ok(!slow.st.vm.trail, '简单档的后摇不该短到 145ms');
+    advance(60);
+    assert.ok(slow.st.vm.trail, '简单档后摇过长，接不上下一招');
+    slow.c.destroy();
+
+    const fast = open(4);
+    fast.c.swipe(fast.st.vm.trail.path.slice());
+    advance(145);
+    assert.ok(fast.st.vm.trail, '绝境档后摇没收紧到 145ms 以内');
+    fast.c.destroy();
+
+    // 重斩密度：绝境档每 3 道一记，第 3 道就该是。
+    const dense = open(4);
+    for (let n = 1; n <= 2; n += 1) {
+      assert.ok(!dense.st.vm.trail.gold, '第 ' + n + ' 道还不该是重斩');
+      dense.c.swipe(dense.st.vm.trail.path.slice());
+      advance(160);
+    }
+    assert.ok(dense.st.vm.trail && dense.st.vm.trail.gold, '绝境档第 3 道没换成重斩');
+    dense.c.destroy();
+
+    // 劈空罚时：简单档一息，绝境两息。
+    function costOf(depth) {
+      const ctx = open(depth);
+      const before = parseInt(ctx.st.vm.progressText, 10);
+      ctx.c.swipe(ctx.st.vm.trail.path.slice().reverse());
+      const after = parseInt(ctx.st.vm.progressText, 10);
+      ctx.c.destroy();
+      return before - after;
+    }
+    assert.strictEqual(costOf(0), 1, '简单档劈空不只罚一息');
+    assert.strictEqual(costOf(4), 2, '绝境档劈空没有加重');
+  } finally { restoreClock(); }
+});
+
+check('刀法连击门槛随档抬：绝境档要连中 9 记才到 ×1.5', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    const ctx = makeCtx(m, {}, Object.assign({}, m.params, { depth: 4, duration: 60, life: 700 }));
+    ctx.c.start();
+    for (let n = 1; n <= 8; n += 1) {
+      assert.ok(ctx.st.vm.trail, '第 ' + n + ' 招没出来');
+      ctx.c.swipe(ctx.st.vm.trail.path.slice());
+      advance(150);
+    }
+    assert.strictEqual(ctx.st.vm.combo, 8);
+    assert.ok(/×1$/.test(ctx.st.vm.meter.label), '绝境档连中 8 记就给到倍率了：' + ctx.st.vm.meter.label);
+    ctx.c.swipe(ctx.st.vm.trail.path.slice());
+    advance(150);
+    assert.ok(/×1\.5/.test(ctx.st.vm.meter.label), '第 9 记没进 ×1.5：' + ctx.st.vm.meter.label);
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('连招：连中三记起接招更快，断了就恢复', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    const ctx = makeCtx(m, {}, Object.assign({}, m.params, { depth: 0, duration: 60, life: 700 }));
+    ctx.c.start();
+    ctx.c.swipe(ctx.st.vm.trail.path.slice());
+    advance(120);
+    assert.ok(!ctx.st.vm.trail, '第一招之后就开始连招了');
+    advance(90);
+    assert.ok(ctx.st.vm.trail, '单招之后接不上下一招');
+    for (let n = 0; n < 2; n += 1) {
+      ctx.c.swipe(ctx.st.vm.trail.path.slice());
+      advance(210);
+    }
+    assert.strictEqual(ctx.st.vm.combo, 3);
+    ctx.c.swipe(ctx.st.vm.trail.path.slice());
+    advance(120);
+    assert.ok(ctx.st.vm.trail, '连中三记后没有把接招间隔压短');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('收势：大成后到靶心不停住算收势未成，断势但不扣息', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    const ctx = makeCtx(m, { tier: 3 }, Object.assign({}, m.params, { depth: 0, duration: 30, life: 700 }));
+    ctx.c.start();
+    const before = parseInt(ctx.st.vm.progressText, 10);
+    assert.ok(ctx.st.vm.trail.hold, '大成后没开出收势');
+    assert.ok(/停一拍/.test(ctx.st.vm.trail.rule), '局内提示没写收势');
+    ctx.c.swipe(ctx.st.vm.trail.path.slice(), { hold: 0 });
+    const weak = Number((ctx.st.vm.scoreText.match(/\d+/) || [0])[0]);
+    assert.ok(weak > 0, '收势未成也该算斩中，只是半分');
+    assert.ok(/收势/.test(ctx.st.vm.fx.text), '收势未成没有反馈');
+    assert.strictEqual(ctx.st.vm.comboText, '', '收势未成没有断势');
+    assert.strictEqual(parseInt(ctx.st.vm.progressText, 10), before, '收势未成不该扣息');
+    advance(200);
+    ctx.c.swipe(ctx.st.vm.trail.path.slice(), { hold: 160 });
+    const full = Number((ctx.st.vm.scoreText.match(/\d+/) || [0])[0]) - weak;
+    assert.ok(full > weak, '收住之后的得分没有明显高于半分：' + full + ' vs ' + weak);
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('禁桩：圆满后红叉一定不在刀路上，划到即断势不罚息', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    const ctx = makeCtx(m, { tier: 4 }, Object.assign({}, m.params, { depth: 0, duration: 30, life: 700 }));
+    ctx.c.start();
+    const path = ctx.st.vm.trail.path.slice();
+    let ban = -1;
+    for (let i = 0; i < ctx.st.vm.cells.length; i += 1) {
+      if (ctx.st.vm.cells[i].cls.indexOf('cell--ban') >= 0) { ban = i; break; }
+    }
+    assert.ok(ban >= 0, '圆满后盘上没出现禁桩');
+    assert.strictEqual(path.indexOf(ban), -1, '禁桩压到刀路上了');
+    const before = parseInt(ctx.st.vm.progressText, 10);
+    ctx.c.swipe([path[0], ban]);
+    assert.ok(/禁桩/.test(ctx.st.vm.fx.text), '划到禁桩没有反馈');
+    assert.strictEqual(ctx.st.vm.scoreText, '得分 0');
+    assert.strictEqual(parseInt(ctx.st.vm.progressText, 10), before, '划到禁桩不该扣息');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('双锋：大圆满后两道刀路，只有靶心在呼吸的那道是真招', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    const ctx = makeCtx(m, { tier: 5 }, Object.assign({}, m.params, { depth: 0, duration: 30, life: 700 }));
+    ctx.c.start();
+    const t = ctx.st.vm.trail;
+    assert.ok(t.double && t.fake && t.fake.length >= 3, '大圆满没有同时亮两道刀路');
+    assert.strictEqual(t.fake.filter(function (i) { return t.path.indexOf(i) >= 0; }).length, 0, '真假两条路共用格子');
+    assert.ok(ctx.st.vm.cells.some(function (c) { return c.end && c.endLive; }), '真招靶心没有呼吸');
+    assert.ok(ctx.st.vm.cells.some(function (c) { return c.end && !c.endLive; }), '虚招靶心不该呼吸');
+    const before = parseInt(ctx.st.vm.progressText, 10);
+    ctx.c.swipe(t.fake.slice());
+    assert.ok(/虚影/.test(ctx.st.vm.fx.text), '划到虚影没有反馈');
+    assert.strictEqual(ctx.st.vm.scoreText, '得分 0');
+    assert.strictEqual(parseInt(ctx.st.vm.progressText, 10), before, '划到虚影不该扣息');
+    advance(200);
+    const real = ctx.st.vm.trail;
+    ctx.c.swipe(real.path.slice(), { hold: 160 });
+    assert.ok(Number((ctx.st.vm.scoreText.match(/\d+/) || [0])[0]) > 0, '划真招反而没斩中');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('刀法三重新法挂在大成 / 圆满 / 大圆满，准备页读得到', function () {
+  const rules = data.stageRulesOf('forge');
+  assert.strictEqual(rules.length, 3, '刀法阶段新法数量不对');
+  assert.deepStrictEqual(rules.map(function (r) { return r.at; }), [3, 4, 5]);
+  for (const r of rules) {
+    assert.ok(r.name && r.desc, '阶段新法缺名字或说明');
+    assert.ok(!/剑/.test(r.name + r.desc), '刀法新法里混进了剑字：' + r.name);
+  }
+});
+
+check('生成层按 grid / cols 走：4×4 盘面也能连续出合法刀路', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    const ctx = makeCtx(m, {}, Object.assign({}, m.params, { grid: 16, cols: 4, depth: 2, duration: 40, life: 700 }));
+    ctx.c.start();
+    assert.strictEqual(ctx.st.vm.cells.length, 16, '4×4 盘面格数不对');
+    assert.strictEqual(ctx.st.vm.cols, 4);
+    let saw = 0;
+    for (let n = 0; n < 60 && saw < 8; n += 1) {
+      const t = ctx.st.vm.trail;
+      if (!t) { advance(80); continue; }
+      saw += 1;
+      for (let i = 0; i < t.path.length; i += 1) {
+        const idx = t.path[i];
+        assert.ok(idx >= 0 && idx < 16, '4×4 刀路越界：' + idx);
+        assert.strictEqual(t.path.indexOf(idx), i, '4×4 刀路出现重复桩');
+        if (i) {
+          const dr = Math.abs(Math.floor(idx / 4) - Math.floor(t.path[i - 1] / 4));
+          const dc = Math.abs((idx % 4) - (t.path[i - 1] % 4));
+          assert.ok(dr <= 1 && dc <= 1 && dr + dc > 0, '4×4 刀路跳格了');
+        }
+      }
+      ctx.c.swipe(t.path.slice());
+      advance(200);
+    }
+    assert.ok(saw >= 8, '4×4 盘面没能连续出招，只出了 ' + saw + ' 招');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
 // ---------------------------------------------------------------- 兵器轴
 check('兵器轴：剑与刀在轨迹、判定、节奏、称谓上都可区分', function () {
   const sw = weapons.PROFILES.sword;

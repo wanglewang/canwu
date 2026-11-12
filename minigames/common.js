@@ -25,11 +25,12 @@ function shuffle(arr) {
   return arr;
 }
 
-// arrow / end 是「刀路指向」的可选字段：-1 / false 表示这一格不画方向图形。
+// arrow / end / endLive 是「刀路指向」的可选字段：-1 / false 表示这一格不画方向图形。
+// endLive 专给双锋用：两条路都有靶心，只有会呼吸的那个是真招。
 // 在 vm 协议里给默认值，格子结构才不会因为某套玩法挂过箭头而变得不一致。
 function makeCells(n) {
   const a = [];
-  for (let i = 0; i < n; i += 1) a.push({ key: i, label: '', cls: 'cell', tone: 0, arrow: -1, end: false });
+  for (let i = 0; i < n; i += 1) a.push({ key: i, label: '', cls: 'cell', tone: 0, arrow: -1, end: false, endLive: false });
   return a;
 }
 
@@ -40,6 +41,7 @@ function clearCells(cells) {
     cells[i].tone = 0;
     cells[i].arrow = -1;
     cells[i].end = false;
+    cells[i].endLive = false;
   }
 }
 

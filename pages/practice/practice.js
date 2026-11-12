@@ -97,6 +97,8 @@ Page({
     this.lastCombo = 0;
     this.cellRects = [];
     this.swipePath = null;
+    // 最后一次「进入新格」的时间：抬手时用它算在靶心停住多久，供收势判定。
+    this.lastStepAt = 0;
     this.lastTouchX = 0;
     this.lastTouchY = 0;
     this.theme = themes.themeOf('forge', 'click');
@@ -547,11 +549,15 @@ Page({
     return -1;
   },
 
+  // 只有真的进了新格才算「又走了一步」。手指停在靶心上轻微抖动时坐标一直在变，
+  // 但格子没变，停留时间要照常累计，不然收势永远判不过。
   pushCell: function (i) {
-    if (i < 0 || !this.swipePath) return;
+    if (i < 0 || !this.swipePath) return false;
     const path = this.swipePath;
-    if (path.length && path[path.length - 1] === i) return;
+    if (path.length && path[path.length - 1] === i) return false;
     path.push(i);
+    this.lastStepAt = Date.now();
+    return true;
   },
 
   extendSwipe: function (x, y) {
@@ -585,6 +591,7 @@ Page({
     this.swipePath = [];
     this.lastTouchX = pt.x;
     this.lastTouchY = pt.y;
+    this.lastStepAt = Date.now();
     this.pushCell(this.hitCell(pt.x, pt.y));
   },
 
@@ -601,7 +608,10 @@ Page({
     this.swipePath = null;
     if (!this.boardReady()) return;
     const before = this.lastFxKey;
-    this.controller.swipe(path);
+    // 抬手时刻减去最后一次换格的时刻，就是在最后那一桩停住的时长。
+    // 只在半途快速划过时它接近 0；到靶心压住不动再抬手就能过收势。
+    const hold = Math.max(0, Date.now() - (this.lastStepAt || Date.now()));
+    this.controller.swipe(path, { hold: hold });
     // 轻点一下（路径不足两桩）玩法不判也不罚，这里补一声轻响当作「这一刀没递出去」。
     if (this.lastFxKey === before) sfx.play('tap');
   },

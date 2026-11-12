@@ -57,6 +57,13 @@ const PROFILES = {
       summary: '刺中',
       praise: '剑随意走',
       banner: '剑光乍起',
+      // 阶段新法的提示与失手语：都不含刀味词。
+      holdHint: ' · 到靶心收住',
+      chain: '剑势不断，接着来',
+      ban: '触了禁制 · 剑势散',
+      fake: '虚影无锋 · 剑势散',
+      unhold: '收势未成 · 剑势散',
+      unholdHit: '收势未成 · 半分',
     },
   },
   dao: {
@@ -96,6 +103,13 @@ const PROFILES = {
       summary: '斩中',
       praise: '刀随意走',
       banner: '刀光乍起',
+      // 阶段新法的提示与失手语：收势、禁桩、双锋各一句。
+      holdHint: ' · 到靶心停一拍',
+      chain: '连招不断，接着扫',
+      ban: '斩到禁桩 · 刀势散',
+      fake: '斩了虚影 · 刀势散',
+      unhold: '收势未成 · 刀势散',
+      unholdHit: '收势未成 · 半分',
     },
   },
 };

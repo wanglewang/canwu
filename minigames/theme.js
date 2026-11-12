@@ -84,7 +84,7 @@ const FALLBACK = {
 const TWIST_INFO = {
   forge: {
     name: '刀势渐盛',
-    desc: '连击 5 / 10 / 20 记，一刀得分 ×1.5 / ×2 / ×3；一漏一空尽散。',
+    desc: '连击 5 / 10 / 20 记起给 ×1.5 / ×2 / ×3，档位越高门槛越高；一漏一空尽散。',
   },
   snatch: {
     name: '真招虚影',
