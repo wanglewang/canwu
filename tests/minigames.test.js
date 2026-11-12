@@ -1090,6 +1090,60 @@ check('顺光扫斩：划偏罚一息、断刀势，重斩漏了不断势', func
   } finally { restoreClock(); }
 });
 
+check('顺光扫斩：斜步擦到（或从角边那格拐过去）仍算同一刀', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    let covered = 0;
+    for (let round = 0; round < 60; round += 1) {
+      const ctx = makeCtx(m, {}, Object.assign({}, m.params, { depth: round % 3, duration: 20, life: 900 }));
+      ctx.c.start();
+      const form = ctx.st.vm.trail.path.slice();
+      const cols = ctx.st.vm.cols;
+      // 找一处斜步，把一个「共边邻」塞进两桩之间，模拟直划擦角 / 绕角走 L。
+      let carved = null;
+      for (let k = 1; k < form.length; k += 1) {
+        const a = form[k - 1];
+        const b = form[k];
+        const ar = Math.floor(a / cols);
+        const ac = a % cols;
+        const br = Math.floor(b / cols);
+        const bc = b % cols;
+        if (Math.abs(br - ar) !== 1 || Math.abs(bc - ac) !== 1) continue;
+        const cand = [ar * cols + bc, br * cols + ac];
+        let x = -1;
+        for (let t = 0; t < cand.length; t += 1) {
+          if (form.indexOf(cand[t]) < 0) { x = cand[t]; break; }
+        }
+        if (x < 0) continue;
+        carved = form.slice(0, k).concat([x], form.slice(k));
+        break;
+      }
+      if (carved) {
+        ctx.c.swipe(carved);
+        assert.ok(!ctx.st.vm.trail, '斜步擦角被判掉：' + carved.join(',') + ' / 刀路 ' + form.join(','));
+        assert.ok(Number((ctx.st.vm.scoreText.match(/\d+/) || [0])[0]) > 0, '斜步擦角没得分');
+        covered += 1;
+      }
+      ctx.c.destroy();
+    }
+    assert.ok(covered >= 5, '没测够带斜步的刀路：' + covered);
+  } finally { restoreClock(); }
+});
+
+check('顺光扫斩：放宽斜步后，绕盘面乱划一大圈仍判劈空', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    const ctx = makeCtx(m, {}, Object.assign({}, m.params, { depth: 0, duration: 12, life: 700 }));
+    ctx.c.start();
+    ctx.c.swipe([0, 1, 2, 5, 8, 7, 6, 3, 4]);
+    assert.ok(/劈空/.test(ctx.st.vm.fx.text), '绕一大圈没有判劈空');
+    assert.strictEqual(ctx.st.vm.scoreText, '得分 0', '绕一大圈竟然得分');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
 check('顺光扫斩：档位越高刀路越长，重斩是更长的金桩长招', function () {
   installClock();
   try {

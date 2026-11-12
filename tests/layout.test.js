@@ -172,7 +172,8 @@ check('顺光扫斩：透明触摸层 + 坐标插值还原划动轨迹', functio
   assert.ok(/class="swipe-layer"/.test(s) && /catchtouchmove="onBoardTouchMove"/.test(s), '盘面没有独立的划动触摸层');
   assert.ok(/bindtouchstart="onBoardTouchStart"/.test(s) && /bindtouchend="onBoardTouchEnd"/.test(s), '触摸层缺起手或抬手事件');
   assert.ok(/measureBoard/.test(js) && /boundingClientRect/.test(js), '没有预先量格子矩形');
-  assert.ok(/Math\.sqrt\(dx \* dx \+ dy \* dy\) \/ 10/.test(js), '相邻 move 之间没插值，划快了会漏桩');
+  assert.ok(/Math\.sqrt\(dx \* dx \+ dy \* dy\)/.test(read('utils/swipe.js')), '相邻 move 之间没插值，划快了会漏桩');
+  assert.ok(/swipeInput\.sampleLine/.test(js), '页面没有用插值结果补格');
   assert.ok(/controller\.swipe\(path, \{ hold: hold \}\)/.test(js), '页面没有把轨迹与收势停留交给玩法层');
   assert.ok(/lastStepAt/.test(js), '页面没有记录最后一次换格的时刻，收势判不出来');
   assert.ok(/showSwipe/.test(common) && /swipe: noop/.test(common), '统一协议里没有 swipe 与 showSwipe');
@@ -359,6 +360,46 @@ check('照影符按经典扫雷深耕：无猜、首点空白、连开、分数�
   assert.ok(/MINE_GLYPH = '✕'/.test(m) && /FLAG_GLYPH = '⚑'/.test(m), '盘面还在写汉字');
   assert.ok(/不必猜/.test(g) && /连开/.test(g) && /⚑/.test(g), '玩法说明没讲无猜与连开');
   assert.ok(/tanlei: \[/.test(p) && /圆照/.test(p), '阶段新法没登记照影符');
+});
+
+check('斜向擦角：插值只认中心内圈，抬手仍用整格命中补定', function () {
+  const swipeInput = require('../utils/swipe.js');
+  const rects = [];
+  const w = 100;
+  const h = 140;
+  for (let i = 0; i < 9; i += 1) {
+    const c = i % 3;
+    const r = Math.floor(i / 3);
+    rects.push({ left: c * w, top: r * h, right: (c + 1) * w, bottom: (r + 1) * h });
+  }
+  const center = function (i) {
+    return { x: (rects[i].left + rects[i].right) / 2, y: (rects[i].top + rects[i].bottom) / 2 };
+  };
+  // 0 → 4 是斜向一步：直线精确擦过 1 与 3 的公共顶点，两格都不该被当成走桩。
+  const diag = swipeInput.sampleLine(rects, center(0), center(4), 10);
+  assert.ok(diag.indexOf(1) < 0 && diag.indexOf(3) < 0, '斜划把擦角格补进了轨迹');
+  assert.ok(diag.indexOf(4) >= 0, '斜划连收势桩都没采到');
+  // 横向 0 → 2 仍要补出中间的 1，内圈不能把正常插值也挡掉。
+  const row = swipeInput.sampleLine(rects, center(0), center(2), 10);
+  assert.ok(row.indexOf(1) >= 0 && row.indexOf(2) >= 0, '横划漏了中间桩');
+  // 起手 / 抬手是静止点：按在桩边上也要认得出来。
+  assert.strictEqual(swipeInput.boxIndexOf(rects, 2, 2), 0, '整格命中丢了起手的边角');
+  assert.strictEqual(swipeInput.coreIndexOf(rects, 2, 2), -1, '内圈命中不该把桩边角算作走桩');
+  assert.ok(swipeInput.CORE_RATIO < 0.5, '内圈半径必须小于半格，否则挡不住擦角');
+});
+
+check('斜向擦角：页面接了输入工具，玩法层摘掉擦角桩再判，说明里讲清', function () {
+  const js = read('pages/practice/practice.js');
+  const click = read('minigames/click.js');
+  const g = read('data/guides.js');
+  assert.ok(/require\('\.\.\/\.\.\/utils\/swipe\.js'\)/.test(js), '页面没接划刀输入工具');
+  assert.ok(/swipeInput\.sampleLine/.test(js), '插值补格没走中心内圈命中');
+  assert.ok(/pushCell\(swipeInput\.boxIndexOf/.test(js), '抬手没用整格命中补定收势桩');
+  assert.ok(/if \(!quiet\) this\.lastStepAt/.test(js), '抬手补定会把收势停留时间清零');
+  assert.ok(/function cornerOf/.test(click) && /function trimCorners/.test(click), '玩法层没处理斜步擦角');
+  assert.ok(/trimCorners\(compress\(path\), form, cols, guarded\)/.test(click), '擦角桩没在判定前摘掉');
+  assert.ok(/guarded\.indexOf/.test(click), '禁桩 / 虚影不能被当擦角抹掉');
+  assert.ok(/斜斩的角/.test(g) && /斜斩擦角不算/.test(g), '玩法说明没讲清斜斩擦角');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

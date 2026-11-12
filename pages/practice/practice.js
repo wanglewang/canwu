@@ -10,6 +10,7 @@ const worldData = require('../../data/world.js');
 const guides = require('../../data/guides.js');
 const visual = require('../../data/visual.js');
 const sfx = require('../../utils/sfx.js');
+const swipeInput = require('../../utils/swipe.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -524,6 +525,8 @@ Page({
   // 小程序的 touchmove 目标固定在起手元素上，给每个格子单独绑 move 是收不到跨格轨迹的。
   // 所以盘面上盖一层透明触摸层：开局量一次所有格子的视口矩形，再把相邻两次 move 之间的
   // 线段按 10px 步长插值，补出手指快速掠过时的中间格——不然划快了会漏桩，白白判成劈空。
+  // 插值命中只认格子中心内圈（utils/swipe.js）：斜向两桩只共一个顶点，沿两桩中心直划
+  // 会擦到旁边那格的角，整格命中会把「擦角格」补进轨迹，斜斩就被误判成劈空。
   measureBoard: function () {
     if (typeof wx === 'undefined' || !wx.createSelectorQuery) return;
     const self = this;
@@ -541,34 +544,31 @@ Page({
     return !!(this.data.started && !this.data.showResult && this.controller);
   },
 
+  // 整格命中只给起手与抬手这两个静止点用：手指按在桩边上也能认出来。
   hitCell: function (x, y) {
-    const rs = this.cellRects || [];
-    for (let i = 0; i < rs.length; i += 1) {
-      if (x >= rs[i].left && x <= rs[i].right && y >= rs[i].top && y <= rs[i].bottom) return i;
-    }
-    return -1;
+    return swipeInput.boxIndexOf(this.cellRects || [], x, y);
   },
 
   // 只有真的进了新格才算「又走了一步」。手指停在靶心上轻微抖动时坐标一直在变，
   // 但格子没变，停留时间要照常累计，不然收势永远判不过。
-  pushCell: function (i) {
+  // quiet 给抬手补定用：那一桩其实早就进了，不能再把停留时间清零。
+  pushCell: function (i, quiet) {
     if (i < 0 || !this.swipePath) return false;
     const path = this.swipePath;
     if (path.length && path[path.length - 1] === i) return false;
     path.push(i);
-    this.lastStepAt = Date.now();
+    if (!quiet) this.lastStepAt = Date.now();
     return true;
   },
 
   extendSwipe: function (x, y) {
-    const x0 = this.lastTouchX;
-    const y0 = this.lastTouchY;
-    const dx = x - x0;
-    const dy = y - y0;
-    const n = Math.max(1, Math.ceil(Math.sqrt(dx * dx + dy * dy) / 10));
-    for (let k = 1; k <= n; k += 1) {
-      this.pushCell(this.hitCell(x0 + dx * k / n, y0 + dy * k / n));
-    }
+    const hits = swipeInput.sampleLine(
+      this.cellRects || [],
+      { x: this.lastTouchX, y: this.lastTouchY },
+      { x: x, y: y },
+      10
+    );
+    for (let i = 0; i < hits.length; i += 1) this.pushCell(hits[i]);
     this.lastTouchX = x;
     this.lastTouchY = y;
   },
@@ -602,8 +602,12 @@ Page({
     this.extendSwipe(pt.x, pt.y);
   },
 
-  onBoardTouchEnd: function () {
+  onBoardTouchEnd: function (event) {
     if (!this.swipePath || !this.swipePath.length) { this.swipePath = null; return; }
+    // 抬手是静止点，用整格命中补定最后一桩：手指停在靶心边缘也算收势。
+    // 不刷新 lastStepAt，否则补这一下会把「停了一拍」清成 0，收势永远过不了。
+    const pt = this.touchPoint(event);
+    if (pt) this.pushCell(swipeInput.boxIndexOf(this.cellRects || [], pt.x, pt.y), true);
     const path = this.swipePath;
     this.swipePath = null;
     if (!this.boardReady()) return;

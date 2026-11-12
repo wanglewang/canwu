@@ -262,6 +262,49 @@ function compress(path) {
   return out;
 }
 
+// 斜向相邻的两桩只共一个顶点（A=(r,c) 与 B=(r+1,c+1)）。从 A 中心直划到 B 中心，
+// 手指必然擦过另外两格（(r,c+1) / (r+1,c)）的角，稍偏一点就干脆绕进了其中一格。
+// 若把那一格也算「多走一桩」，斜斩在真机上几乎必被判成劈空、触禁桩或斩了虚影。
+// 于是把夹在斜步中间、且不在刀路上的「擦角桩」摘掉：直划与绕角算同一刀。
+// 页面输入层已经用中心内圈把擦角采样挡掉了，这里是真机手抖 / 主动绕角的第二道兜底。
+function cornerOf(a, b, x, cols) {
+  const ar = Math.floor(a / cols);
+  const ac = a % cols;
+  const br = Math.floor(b / cols);
+  const bc = b % cols;
+  const xr = Math.floor(x / cols);
+  const xc = x % cols;
+  if (Math.abs(br - ar) !== 1 || Math.abs(bc - ac) !== 1) return false;  // 只认斜向一步
+  return (xr === ar && xc === bc) || (xr === br && xc === ac);
+}
+
+// guarded 是禁桩 + 虚招：真把手指划进这些格子仍要照规则判，不能被当擦角抹掉。
+// 按 form 顺走一遍 trail，遇到斜步中夹的擦角桩就跳过它，其余桩原样留下。
+// 前缀 / 后缀多带的桩不摘（刀势容差仍由长度上限把关）；匹配不上就原样退回，
+// 让后面的「跳桩 / 绕一大圈」判定照旧生效。
+function trimCorners(trail, form, cols, guarded) {
+  for (let s = 0; s + form.length <= trail.length; s += 1) {
+    const clean = trail.slice(0, s);
+    let i = s;
+    let ok = true;
+    for (let k = 0; k < form.length; k += 1) {
+      if (i >= trail.length) { ok = false; break; }
+      if (trail[i] !== form[k] && k > 0
+        && cornerOf(form[k - 1], form[k], trail[i], cols)
+        && guarded.indexOf(trail[i]) < 0) {
+        i += 1;
+      }
+      if (i >= trail.length || trail[i] !== form[k]) { ok = false; break; }
+      clean.push(trail[i]);
+      i += 1;
+    }
+    if (!ok) continue;
+    for (let j = i; j < trail.length; j += 1) clean.push(trail[j]);
+    return clean;
+  }
+  return trail;
+}
+
 function create(ctx) {
   const p = ctx.params || {};
   const perks = ctx.perks || {};
@@ -611,7 +654,12 @@ function create(ctx) {
   function swipe(path, meta) {
     if (done || vm.phase !== 'playing' || busy || !form) return;
     if (!path || path.length < 2) return;   // 轻点一下不算一招，也不算失手
-    const trail = compress(path);
+    const guarded = bans.slice();
+    if (fake) {
+      for (let i = 0; i < fake.length; i += 1) guarded.push(fake[i]);
+    }
+    // 斜步里夹的擦角桩不算走桩，先摘掉再判；这样禁桩 / 虚影也不会被擦角误触。
+    const trail = trimCorners(compress(path), form, cols, guarded);
     if (trail.length < 2) return;
 
     // 禁桩与虚影先判：这两处划过去就已经错了，不必再看后面的序列。
