@@ -71,7 +71,8 @@ Page({
     result: null,
     barMode: '',
     guide: null,
-    guideOpen: true,
+    // 说明默认收起：准备页先看功法与熟练度，要看规则再点「展开」。
+    guideOpen: false,
     slashList: [],
     trailLen: 0,
     sceneOn: false,

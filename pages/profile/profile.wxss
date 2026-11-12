@@ -253,3 +253,120 @@
     display: flex;
     flex-direction: column;
 }
+
+/* ---------- 人物页改版：身份卡 + 属性格 + 突破清单，低频区块折叠 ---------- */
+.imm-idcard {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--card-pad);
+    border: 2rpx solid var(--c-imm-gold-dim);
+    border-radius: var(--r-lg);
+    background: linear-gradient(to bottom, var(--c-imm-panel-2), var(--c-imm-panel));
+    margin-top: var(--sp-4);
+}
+
+.imm-idcard__avatar {
+    width: 152rpx;
+    height: 152rpx;
+    flex: none;
+    border-radius: var(--r-pill);
+    border: 2rpx solid var(--c-imm-gold);
+}
+
+.imm-idcard__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.imm-idcard__name {
+    color: var(--c-imm-gold);
+    font-size: var(--fs-lead);
+    letter-spacing: 4rpx;
+}
+
+.imm-idcard__line {
+    color: var(--c-imm-text);
+    font-size: var(--fs-body-sm);
+    line-height: var(--lh-body);
+}
+
+.imm-idcard__edit {
+    color: var(--c-imm-cyan);
+    font-size: var(--fs-note);
+    margin-top: var(--sp-2);
+}
+
+.imm-check {
+    display: flex;
+    align-items: center;
+    margin-top: var(--sp-4);
+}
+
+.imm-check__mark {
+    width: var(--sp-10);
+    color: var(--c-imm-cyan);
+    font-size: var(--fs-h3);
+}
+
+.imm-check__text {
+    color: var(--c-imm-text);
+    font-size: var(--fs-body-sm);
+}
+
+.imm-btn--off { opacity: 0.55; }
+
+.fold-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-4) 0;
+    border-bottom: 1rpx solid var(--c-imm-line-soft);
+}
+
+.fold-row__name {
+    display: block;
+    color: var(--c-imm-text);
+    font-size: var(--fs-body-sm);
+}
+
+.fold-row__desc {
+    display: block;
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-note);
+    line-height: var(--lh-body);
+    margin-top: var(--sp-1);
+}
+
+.world-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--sp-4);
+}
+
+.world-row__name {
+    color: var(--c-imm-text);
+    font-size: var(--fs-body-sm);
+}
+
+.world-row__state {
+    color: var(--c-imm-gold);
+    font-size: var(--fs-note);
+}
+
+.pg--imm .sync-bar {
+    background: var(--c-imm-panel-2);
+    border: 1rpx solid var(--c-imm-gold-dim);
+    color: var(--c-imm-text);
+}
+
+.pg--imm .modal {
+    border: 1rpx solid var(--c-imm-gold-dim);
+}
+
+.pg--imm .role-editor__input {
+    background: var(--c-imm-panel-2);
+    color: var(--c-imm-text);
+}

@@ -1,0 +1,37 @@
+/* 说明页只定义自己的行内排版，折叠分节骨架在 styles/immortal.wxss 全局共用。 */
+.help-line {
+    display: flex;
+    align-items: flex-start;
+    margin-top: var(--sp-4);
+}
+
+.help-line__dot {
+    width: var(--sp-6);
+    color: var(--c-imm-gold);
+    font-size: var(--fs-body);
+}
+
+.help-line__text {
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-body-sm);
+    line-height: var(--lh-body);
+}
+
+.help-term {
+    display: flex;
+    align-items: flex-start;
+    margin-top: var(--sp-4);
+}
+
+.help-term__name {
+    width: 168rpx;
+    flex: none;
+    color: var(--c-imm-gold);
+    font-size: var(--fs-body-sm);
+}
+
+.help-term__desc {
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-body-sm);
+    line-height: var(--lh-body);
+}

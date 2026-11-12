@@ -1,0 +1,48 @@
+/* 修炼页：横向功法牌 + 修炼台 + 熟练度；默认不出现任何规则说明文字。 */
+.imm-tab--solo {
+    border-radius: var(--r-pill);
+    border-color: var(--c-imm-gold);
+}
+
+.imm-scroll {
+    width: 100%;
+    white-space: nowrap;
+    margin-top: var(--sp-6);
+}
+
+.imm-book {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 140rpx;
+    height: 220rpx;
+    margin-right: var(--sp-4);
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-md);
+    background: var(--c-imm-panel);
+    vertical-align: top;
+}
+
+.imm-book--on {
+    border-color: var(--c-imm-gold);
+    background: linear-gradient(to bottom, var(--c-imm-gold-soft), var(--c-imm-panel));
+    box-shadow: inset 0 0 var(--sp-6) var(--c-imm-gold-soft);
+}
+
+.imm-book__mark {
+    color: var(--c-imm-gold);
+    font-size: var(--fs-h2);
+    line-height: var(--lh-tight);
+}
+
+.imm-book__name {
+    color: var(--c-imm-text);
+    font-size: var(--fs-body-sm);
+    letter-spacing: 4rpx;
+    margin-top: var(--sp-4);
+}
+
+.imm-book--on .imm-book__name { color: var(--c-imm-gold); }
+
+.imm-stage .portrait { margin-top: var(--sp-8); }

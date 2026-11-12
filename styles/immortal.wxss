@@ -1,0 +1,498 @@
+/* ==========================================================================
+   仙箓皮肤 · Immortal Skin
+   --------------------------------------------------------------------------
+   四个主页面（主页 / 修炼 / 功法 / 人物）与说明、日志子页共用的视觉底座。
+   参考的是「深青底 + 金线描边 + 大数字 + 图标宫格」的国风修仙版式：
+     - 恒定深色，不随系统明暗翻转，所以令牌里两套值保持一致；
+     - 只引用 --c-imm-* / --sp-* 等设计令牌，不写裸色值 / 裸尺寸；
+     - .pg--imm 局部重定义一组 --c-*，让 .card / .btn / .tag 等旧基础层
+       自动适配深色，不必给每个组件再写一遍暗色分支。
+   ========================================================================== */
+
+.pg--imm {
+    --c-bg: var(--c-imm-bg);
+    --c-surface: var(--c-imm-panel);
+    --c-surface-2: var(--c-imm-panel-2);
+    --c-surface-3: var(--c-imm-tile);
+    --c-border: var(--c-imm-line);
+    --c-border-strong: var(--c-imm-gold-dim);
+    --c-divider: var(--c-imm-line-soft);
+    --c-text: var(--c-imm-text);
+    --c-text-2: var(--c-imm-text-2);
+    --c-text-3: var(--c-imm-text-2);
+    --c-placeholder: var(--c-imm-text-2);
+    --c-primary-text: var(--c-imm-cyan);
+    --c-primary-soft: var(--c-imm-panel-2);
+    --c-gold-text: var(--c-imm-gold);
+    --c-gold-soft: var(--c-imm-gold-soft);
+    --c-link: var(--c-imm-cyan);
+    --c-track: var(--c-imm-track);
+    --c-fill: var(--c-imm-cyan);
+    --c-neutral-soft: var(--c-imm-panel-2);
+    background: var(--c-imm-bg);
+    color: var(--c-imm-text);
+    min-height: 100vh;
+    padding-bottom: calc(var(--page-bottom) + var(--safe-bottom));
+}
+
+/* 顶部与底部各一圈极淡的云气，纯渐变，不用图片。 */
+.pg--imm::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 180rpx;
+    pointer-events: none;
+    background: linear-gradient(to bottom, var(--c-imm-gold-soft), var(--c-imm-bg));
+    opacity: 0.18;
+}
+
+/* ---------- 标题条：左返回 / 中金题 / 右说明 ---------- */
+.imm-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--touch);
+    margin-bottom: var(--sp-6);
+    position: relative;
+    z-index: var(--z-base);
+}
+
+.imm-head__back,
+.imm-head__action {
+    min-width: var(--touch);
+    min-height: var(--touch);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--c-imm-gold);
+    font-size: var(--fs-body);
+    border: 1rpx solid var(--c-imm-gold-dim);
+    border-radius: var(--r-pill);
+}
+
+.imm-head__back { font-size: var(--fs-lead); }
+
+.imm-head__slot { min-width: var(--touch); }
+
+.imm-head__title {
+    flex: 1;
+    text-align: center;
+    color: var(--c-imm-gold);
+    font-size: var(--fs-h2);
+    letter-spacing: 6rpx;
+    position: relative;
+}
+
+.imm-head__title::before,
+.imm-head__title::after {
+    content: "✦";
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--c-imm-gold-dim);
+    font-size: var(--fs-caption);
+}
+
+.imm-head__title::before { left: var(--sp-2); }
+.imm-head__title::after { right: var(--sp-2); }
+
+.imm-lead {
+    display: block;
+    text-align: center;
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-body-sm);
+    margin-bottom: var(--sp-6);
+}
+
+/* ---------- 金边面板：境界卡 / 属性 / 熟练度通用 ---------- */
+.imm-panel {
+    position: relative;
+    border: 2rpx solid var(--c-imm-gold-dim);
+    border-radius: var(--r-lg);
+    background: linear-gradient(to bottom, var(--c-imm-panel-2), var(--c-imm-panel));
+    padding: var(--card-pad);
+    margin-top: var(--sp-6);
+}
+
+/* 四角小金饰：纯 CSS，不占布局。 */
+.imm-panel::before,
+.imm-panel::after {
+    content: "";
+    position: absolute;
+    width: var(--sp-6);
+    height: var(--sp-6);
+    border: 2rpx solid var(--c-imm-gold);
+    pointer-events: none;
+}
+
+.imm-panel::before {
+    top: -2rpx;
+    left: -2rpx;
+    border-right: 0;
+    border-bottom: 0;
+    border-top-left-radius: var(--r-lg);
+}
+
+.imm-panel::after {
+    bottom: -2rpx;
+    right: -2rpx;
+    border-left: 0;
+    border-top: 0;
+    border-bottom-right-radius: var(--r-lg);
+}
+
+.imm-panel__label {
+    display: block;
+    text-align: center;
+    color: var(--c-imm-gold);
+    font-size: var(--fs-note);
+    letter-spacing: 8rpx;
+    margin-bottom: var(--sp-4);
+}
+
+.imm-realm {
+    display: block;
+    text-align: center;
+    color: var(--c-imm-text);
+    font-size: var(--fs-lead);
+    font-weight: 700;
+    letter-spacing: 4rpx;
+}
+
+.imm-bar {
+    height: var(--sp-3);
+    border-radius: var(--r-pill);
+    background: var(--c-imm-track);
+    overflow: hidden;
+    margin-top: var(--sp-5);
+}
+
+.imm-bar__fill {
+    height: 100%;
+    border-radius: var(--r-pill);
+    background: linear-gradient(to right, var(--c-imm-line), var(--c-imm-cyan));
+    transform-origin: left center;
+}
+
+.imm-percent {
+    display: block;
+    text-align: center;
+    color: var(--c-imm-cyan);
+    font-size: var(--fs-note);
+    margin-top: var(--sp-2);
+}
+
+.imm-stats {
+    display: flex;
+    margin-top: var(--sp-8);
+}
+
+.imm-stat {
+    flex: 1;
+    text-align: center;
+}
+
+.imm-stat + .imm-stat { border-left: 1rpx solid var(--c-imm-line-soft); }
+
+.imm-stat__label {
+    display: block;
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-note);
+    letter-spacing: 4rpx;
+}
+
+.imm-stat__value {
+    display: block;
+    color: var(--c-imm-text);
+    font-size: var(--fs-h2);
+    font-weight: 700;
+    margin-top: var(--sp-2);
+}
+
+.imm-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--touch-sm);
+    margin-top: var(--sp-6);
+    padding: 0 var(--sp-6);
+    border: 1rpx solid var(--c-imm-gold-dim);
+    border-radius: var(--r-pill);
+    background: var(--c-imm-panel);
+    color: var(--c-imm-text);
+    font-size: var(--fs-body-sm);
+}
+
+.imm-hint__pin { color: var(--c-imm-gold); margin-right: var(--sp-3); }
+
+/* ---------- 六宫格：主页唯一的导航区 ---------- */
+.imm-grid {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: var(--sp-6);
+}
+
+.imm-tile {
+    width: 33.3333%;
+    box-sizing: border-box;
+    padding: var(--sp-2);
+}
+
+.imm-tile__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 168rpx;
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-md);
+    background: linear-gradient(to bottom, var(--c-imm-tile), var(--c-imm-panel));
+}
+
+.imm-tile__glyph {
+    color: var(--c-imm-cyan);
+    font-size: var(--fs-h2);
+    line-height: var(--lh-tight);
+}
+
+.imm-tile__label {
+    color: var(--c-imm-text);
+    font-size: var(--fs-body-sm);
+    margin-top: var(--sp-3);
+    letter-spacing: 2rpx;
+}
+
+/* ---------- 两态切换：功法页「已习得 / 可解锁」 ---------- */
+.imm-tabs {
+    display: flex;
+    justify-content: center;
+    margin-top: var(--sp-4);
+}
+
+.imm-tab {
+    min-width: 200rpx;
+    min-height: var(--touch-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1rpx solid var(--c-imm-line);
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-body);
+    letter-spacing: 4rpx;
+}
+
+.imm-tab:first-child {
+    border-radius: var(--r-pill) 0 0 var(--r-pill);
+    border-right: 0;
+}
+
+.imm-tab:last-child { border-radius: 0 var(--r-pill) var(--r-pill) 0; }
+
+.imm-tab--on {
+    background: linear-gradient(to bottom, var(--c-imm-gold-soft), var(--c-imm-panel-2));
+    border-color: var(--c-imm-gold);
+    color: var(--c-imm-gold);
+    font-weight: 700;
+}
+
+/* ---------- 功法卡 / 属性格 / 修炼台 ---------- */
+.imm-card {
+    display: flex;
+    align-items: center;
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-md);
+    background: var(--c-imm-panel);
+    padding: var(--sp-5);
+    margin-top: var(--sp-4);
+}
+
+.imm-card--on {
+    border-color: var(--c-imm-gold);
+    background: linear-gradient(to bottom, var(--c-imm-gold-soft), var(--c-imm-panel));
+}
+
+.imm-card__glyph {
+    width: 88rpx;
+    height: 88rpx;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-sm);
+    color: var(--c-imm-cyan);
+    font-size: var(--fs-h2);
+}
+
+.imm-card__body { flex: 1; min-width: 0; padding: 0 var(--sp-4); }
+
+.imm-card__name {
+    display: block;
+    color: var(--c-imm-text);
+    font-size: var(--fs-h3);
+    font-weight: 600;
+}
+
+.imm-card__sub {
+    display: block;
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-note);
+    margin-top: var(--sp-2);
+}
+
+.imm-card__num {
+    color: var(--c-imm-gold);
+    font-size: var(--fs-h3);
+    font-weight: 700;
+}
+
+.imm-attrs {
+    display: flex;
+    flex-wrap: wrap;
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    margin-top: var(--sp-6);
+}
+
+.imm-attr {
+    width: 50%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-5) var(--sp-6);
+    border-bottom: 1rpx solid var(--c-imm-line-soft);
+    background: var(--c-imm-panel);
+}
+
+.imm-attr:nth-child(odd) { border-right: 1rpx solid var(--c-imm-line-soft); }
+.imm-attr__name { color: var(--c-imm-text-2); font-size: var(--fs-body-sm); }
+.imm-attr__value { color: var(--c-imm-text); font-size: var(--fs-h3); font-weight: 700; }
+
+.imm-stage {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 420rpx;
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-lg);
+    background: radial-gradient(circle at 50% 60%, var(--c-imm-panel-2), var(--c-imm-bg));
+    margin-top: var(--sp-6);
+    overflow: hidden;
+}
+
+.imm-stage__ring {
+    position: absolute;
+    width: 320rpx;
+    height: 320rpx;
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-pill);
+    opacity: 0.5;
+}
+
+.imm-stage__score {
+    position: relative;
+    color: var(--c-imm-gold);
+    font-size: var(--fs-h3);
+    letter-spacing: 4rpx;
+}
+
+.imm-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-body-sm);
+    padding: 0 var(--sp-2);
+    margin-top: var(--sp-5);
+}
+
+/* ---------- 主按钮：金色，替代散落的 btn--gold ---------- */
+.imm-btn {
+    min-height: var(--touch);
+    border: 2rpx solid var(--c-imm-gold);
+    border-radius: var(--r-pill);
+    background: linear-gradient(to bottom, var(--c-imm-gold-soft), var(--c-imm-panel-2));
+    color: var(--c-imm-gold);
+    font-size: var(--fs-h3);
+    font-weight: 700;
+    letter-spacing: 6rpx;
+}
+
+.imm-btn::after { border: 0; }
+
+.imm-btn--ghost {
+    min-height: var(--touch-sm);
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-pill);
+    background: var(--c-imm-panel);
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-body-sm);
+    letter-spacing: 2rpx;
+}
+
+.imm-btn-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    margin-top: var(--sp-8);
+}
+
+.imm-btn-row > .imm-btn { flex: 1; }
+
+.imm-empty {
+    display: block;
+    text-align: center;
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-body-sm);
+    padding: var(--sp-8) 0;
+}
+
+.pg--imm .pg__foot { text-align: center; margin-top: var(--sp-10); }
+.pg--imm .text-link--muted { color: var(--c-imm-text-2); }
+
+/* ---------- 说明 / 日志共用的折叠分节 ---------- */
+.help-sec {
+    margin-top: var(--sp-4);
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-md);
+    background: var(--c-imm-panel);
+    overflow: hidden;
+}
+
+.help-sec__head {
+    display: flex;
+    align-items: center;
+    min-height: var(--touch);
+    padding: 0 var(--card-pad);
+    color: var(--c-imm-text);
+}
+
+.help-sec__idx {
+    width: var(--sp-12);
+    color: var(--c-imm-gold);
+    font-size: var(--fs-body-sm);
+}
+
+.help-sec__title {
+    font-size: var(--fs-h3);
+    font-weight: 600;
+    letter-spacing: 2rpx;
+}
+
+.help-sec__arrow {
+    width: var(--sp-8);
+    text-align: right;
+    color: var(--c-imm-gold);
+    font-size: var(--fs-h3);
+}
+
+.help-sec__body {
+    padding: 0 var(--card-pad) var(--sp-6);
+    border-top: 1rpx solid var(--c-imm-line-soft);
+}

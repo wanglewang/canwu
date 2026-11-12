@@ -1,0 +1,35 @@
+/* 修行日志：低频信息独立成页，默认只有一列日志，诸界要展开才出现。 */
+.log-line {
+    display: flex;
+    align-items: flex-start;
+    margin-top: var(--sp-4);
+}
+
+.log-line__dot {
+    width: var(--sp-8);
+    color: var(--c-imm-gold);
+    font-size: var(--fs-caption);
+}
+
+.log-line__text {
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-body-sm);
+    line-height: var(--lh-body);
+}
+
+.world-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--sp-4);
+}
+
+.world-row__name {
+    color: var(--c-imm-text);
+    font-size: var(--fs-body-sm);
+}
+
+.world-row__state {
+    color: var(--c-imm-gold);
+    font-size: var(--fs-note);
+}

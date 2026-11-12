@@ -1,0 +1,41 @@
+<view class="pg pg--imm">
+  <view class="imm-head">
+    <text class="imm-head__back pressable" hover-class="pressable--on" bindtap="onBack">‹</text>
+    <text class="imm-head__title serif">说 明 · {{title}}</text>
+    <text class="imm-head__slot"></text>
+  </view>
+
+  <text class="imm-lead">{{lead}}</text>
+
+  <view class="help-sec" wx:for="{{sections}}" wx:key="key">
+    <view class="help-sec__head pressable" hover-class="pressable--on" data-key="{{item.key}}" bindtap="onToggle">
+      <text class="help-sec__idx">{{index + 1}}</text>
+      <text class="help-sec__title grow">{{item.title}}</text>
+      <text class="help-sec__arrow">{{item.open ? '−' : '+'}}</text>
+    </view>
+    <view wx:if="{{item.open}}" class="help-sec__body">
+      <view class="help-line" wx:for="{{item.lines}}" wx:for-item="line" wx:key="*this">
+        <text class="help-line__dot">·</text>
+        <text class="help-line__text grow">{{line}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="help-sec">
+    <view class="help-sec__head pressable" hover-class="pressable--on" bindtap="onToggleTerms">
+      <text class="help-sec__idx">◇</text>
+      <text class="help-sec__title grow">名词速查</text>
+      <text class="help-sec__arrow">{{termsOpen ? '−' : '+'}}</text>
+    </view>
+    <view wx:if="{{termsOpen}}" class="help-sec__body">
+      <view class="help-term" wx:for="{{terms}}" wx:key="key">
+        <text class="help-term__name">{{item.name}}</text>
+        <text class="help-term__desc grow">{{item.desc}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="pg__foot">
+    <text class="text-link text-link--muted" bindtap="onGoGuide">看完整修行指南 ›</text>
+  </view>
+</view>

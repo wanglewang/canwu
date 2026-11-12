@@ -1,3 +1,26 @@
+/* 准备页与四个主页面同色：深青底、金线卡片，文字全部走语义令牌。
+   局内 .pg--scene 由 styles/scene.wxss 的舞台层铺满，这里只统一通用控件。 */
+.pg {
+    --c-bg: var(--c-imm-bg);
+    --c-surface: var(--c-imm-panel);
+    --c-surface-2: var(--c-imm-panel-2);
+    --c-surface-3: var(--c-imm-tile);
+    --c-border: var(--c-imm-line);
+    --c-border-strong: var(--c-imm-gold-dim);
+    --c-divider: var(--c-imm-line-soft);
+    --c-text: var(--c-imm-text);
+    --c-text-2: var(--c-imm-text-2);
+    --c-text-3: var(--c-imm-text-2);
+    --c-primary-text: var(--c-imm-cyan);
+    --c-primary-soft: var(--c-imm-panel-2);
+    --c-gold-text: var(--c-imm-gold);
+    --c-gold-soft: var(--c-imm-gold-soft);
+    --c-link: var(--c-imm-cyan);
+    --c-track: var(--c-imm-track);
+    --c-neutral-soft: var(--c-imm-panel-2);
+    background: var(--c-imm-bg);
+}
+
 .pr-head {
     padding: 32rpx;
 }

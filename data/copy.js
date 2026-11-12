@@ -34,6 +34,7 @@ const TERMS = [
     { key: 'daohao', name: '道号与道相', group: '页面', desc: '自己起的称呼与挑的头像；不设头像就用默认道相。' },
     { key: 'cangjingge', name: '藏经阁', group: '页面', desc: '功法页里花灵气、灵石兑换功法的地方。' },
     { key: 'jiyuan', name: '机缘', group: '页面', desc: '论道首胜掉落一类的功法获取方式，不花资源。' },
+    { key: 'codex', name: '功法图鉴', group: '页面', desc: '功法页里点开任意一张卡片看到的详情：玩法规则、练成收益与习得路径。未习得也能看全，锁的只是开练。' },
     { key: 'worlds', name: '此界之外', group: '页面', desc: '尚未开放的后续世界；当前只有青云界可玩。' },
     { key: 'code', name: '战力码', group: '对战', desc: '以 CW1- 开头的一串码。复制给朋友，对方粘贴后就能和你的镜像过招。' },
     { key: 'mirror', name: '镜像', group: '对战', desc: '按战力码还原出的「另一个人」，不用同时在线也能打一场。' },
@@ -75,15 +76,25 @@ const UI = {
         oneSection: '只看一节',
         refresh: '重新加载',
         copy: '复制',
+        viewDetail: '看详情 ›',
+        goBattle: '去论道',
+        goHome: '去攒资源',
+        playThis: '就练这门',
+        expandTerms: '看盘面符号 ›',
+        collapseTerms: '收起盘面符号',
     },
 
-    // 页头：副标题说「这一页能干什么」，不重复口号。
+    // 页面标题：主页面只显示金线标题，不再有眉标与说明句。
+    // tabBar 文案与顺序由 data/navigation.js 管，这里只保留二级页可用的同名口径。
     pages: {
-        index: { eyebrow: '洞 府', title: '参悟', desc: '今天练什么、还差多少，一眼看清。' },
-        skills: { eyebrow: '藏 经 阁', title: '功法', desc: '十三门功法，十族玩法；点开卡片看详情、兑换或开练。' },
-        battle: { eyebrow: '论 道 台', title: '论道', desc: '找人过招，看看自己的战力排在哪。' },
-        profile: { eyebrow: '修 行 记', title: '道牒', desc: '练过的痕迹、称号与存档，都在这张卡片上。' },
-        guide: { eyebrow: '修 行 指 南', title: '玩法与数值', desc: '不看也能玩，看完少走弯路。' },
+        index: { title: '主页' },
+        cultivate: { title: '修炼' },
+        skills: { title: '功法' },
+        profile: { title: '人物' },
+        battle: { title: '论道' },
+        guide: { title: '玩法与数值' },
+        help: { title: '说明' },
+        log: { title: '修行日志' },
     },
 
     // 区块标题：用白话说清里面是什么，不用「就差一点 / 近况」这类含糊词。
@@ -99,11 +110,30 @@ const UI = {
         settings: '设置与关于',
         glossary: '名词速查',
         guideToc: '目 录',
+        codexPlay: '这一门练什么',
+        codexGain: '练成之后',
+        codexUnlock: '如何习得',
+        codexTerms: '盘面符号速查',
+        codexStage: '本门新法',
+    },
+
+    // 功法图鉴：未习得也能看全本功法。状态与按钮只说明「现在能不能做什么」，不写黑话。
+    states: {
+        learned: '已习得',
+        buyable: '藏经阁可换',
+        dropped: '论道首胜可得',
+        fortune: '机缘可得',
+        lockedRealm: '境界未到',
+        enough: '资源已足',
+        lacking: '资源不足',
+        cleared: '已战胜',
+        notCleared: '尚未战胜',
     },
 
     hints: {
         quickPractice: '推荐练这一门；底部按钮可直接开始。',
-        skillCard: '点开任意一张卡片，看详情、兑换或开始参悟。',
+        skillCard: '点开任意一张卡片看详情；未习得的也能看全玩法与习得路径。',
+        codex: '锁的是开练，不是查阅：玩法规则、练成收益与习得路径都写在这里，先看清再决定要不要解开。',
         chain: '按类型看功法分布在哪些品阶。',
         battleCode: '低频操作收在这里，首屏先挑对手。',
         settings: '音效、指南与账号相关设置集中在这里。',

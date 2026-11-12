@@ -1,10 +1,8 @@
-<view class="pg">
-  <view class="pg__head">
-    <view class="pg__head-top">
-      <text class="eyebrow">{{copy.pages.guide.eyebrow}}</text>
-    </view>
-    <text class="h1 serif">{{copy.pages.guide.title}}</text>
-    <text class="muted mt8">{{copy.pages.guide.desc}}</text>
+<view class="pg pg--imm">
+  <view class="imm-head">
+    <text class="imm-head__back pressable" hover-class="pressable--on" bindtap="onBack">‹</text>
+    <text class="imm-head__title serif">玩 法 与 数 值</text>
+    <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
   </view>
 
   <view class="card guide-toc">
@@ -31,6 +29,5 @@
     </view>
   </view>
 
-  <button class="btn btn--primary btn--block mt24" bindtap="onBack">{{copy.actions.back}}</button>
   <view class="pg__foot">{{copy.footGuide}}</view>
 </view>

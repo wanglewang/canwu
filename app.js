@@ -12,6 +12,10 @@ App({
     globalData: {
         appName: '参悟',
         offline: false,
+        // tab 页不能带 query：六宫格跳 tab 时先把「落地后展开哪一节」暂存一次。
+        pendingSection: '',
+        // 修炼页记住上次选的功法，切 tab 回来不弹回第一门。
+        lastSkillId: '',
     },
 
     onLaunch() {

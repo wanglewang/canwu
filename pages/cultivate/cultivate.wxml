@@ -1,0 +1,48 @@
+<view class="pg pg--imm">
+  <view class="imm-head">
+    <text class="imm-head__slot"></text>
+    <text class="imm-head__title serif">静 心 修 炼 室</text>
+    <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
+  </view>
+
+  <view wx:if="{{skills.length === 0}}" class="state">
+    <text class="state__glyph">◇</text>
+    <text class="state__desc">{{copy.emptySkills}}</text>
+    <button class="btn btn--primary state__action" bindtap="onGoSkills">去功法页看看</button>
+  </view>
+
+  <block wx:else>
+    <view class="imm-tabs"><text class="imm-tab imm-tab--on imm-tab--solo">功 法</text></view>
+
+    <scroll-view class="imm-scroll" scroll-x enable-flex>
+      <view class="imm-book {{item.on ? 'imm-book--on' : ''}} pressable" hover-class="pressable--on"
+            wx:for="{{skills}}" wx:key="id" data-id="{{item.id}}" bindtap="onSelect">
+        <text class="imm-book__mark">{{item.mark}}</text>
+        <text class="imm-book__name">{{item.shortName}}</text>
+      </view>
+    </scroll-view>
+
+    <view class="imm-stage">
+      <view class="imm-stage__ring"></view>
+      <text class="imm-stage__score">{{lastText}}</text>
+      <portrait variant="{{portrait}}" realm="{{realmIndex}}" size="normal" />
+    </view>
+
+    <view class="imm-panel">
+      <view class="imm-strip">
+        <text>当前 · {{current.name}}</text>
+        <text class="imm-card__num">{{current.prof}} / {{current.nextThreshold}}</text>
+      </view>
+      <view class="imm-bar"><view class="imm-bar__fill" style="width:{{current.percent}}%"></view></view>
+      <view class="imm-strip">
+        <text>{{current.profTierName}}</text>
+        <text>{{current.nextText}}</text>
+      </view>
+    </view>
+
+    <view class="imm-btn-row">
+      <button class="imm-btn" bindtap="onStart">开始修炼</button>
+      <button class="imm-btn--ghost" bindtap="onGoSkills">更换功法</button>
+    </view>
+  </block>
+</view>

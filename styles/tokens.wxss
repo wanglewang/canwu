@@ -70,11 +70,29 @@ page {
     --c-idcard:          #2f4a41;               /* 道牒卡纸：明暗都保持深绿金边 */
     --c-idcard-edge:     #b8893b;
 
+    /* ---------- 颜色：仙箓皮肤（四个主页面恒定深青金线，不随系统明暗翻转） ------ */
+    /* 单独一组令牌而不是散在页面 wxss：改配色只改这两段，页面一行都不用动。        */
+    --c-imm-bg:          #0b2322;
+    --c-imm-panel:       #123330;
+    --c-imm-panel-2:     #17403a;
+    --c-imm-tile:        #143b36;
+    --c-imm-line:        #4d7a68;
+    --c-imm-line-soft:   #2d594e;
+    --c-imm-gold:        #d8b775;
+    --c-imm-gold-dim:    #8a713f;
+    --c-imm-gold-soft:   #3a3020;
+    --c-imm-text:        #f2e7c9;
+    --c-imm-text-2:      #9cc3b5;
+    --c-imm-cyan:        #63e0c6;
+    --c-imm-track:       rgba(255, 253, 247, 0.14);
+
     /* ---------- 颜色：原生导航与 tabBar（与 theme.json 一一对应） ---------- */
-    --c-nav:             #f7f3e8;   /* @navBgColor */
-    --c-tab:             #fffdf7;   /* @tabBgColor */
-    --c-tab-text:        #8a8f83;   /* @tabColor */
-    --c-tab-active:      #2f6b5b;   /* @tabSelectedColor */
+    /* 四个主页面是恒定深青金线的仙箓皮肤，原生栏与 tabBar 必须同色，
+       否则浅色系统下会拼出一条米白横条；明暗两套都取同一组值。 */
+    --c-nav:             #0b2322;   /* @navBgColor */
+    --c-tab:             #0b2322;   /* @tabBgColor */
+    --c-tab-text:        #8aa89b;   /* @tabColor */
+    --c-tab-active:      #d8b775;   /* @tabSelectedColor */
 
     /* ---------- 字号阶梯（rpx，1sp ≈ 2rpx） ---------- */
     --fs-caption:        22rpx;     /* 角标 / 注脚，下限 */
@@ -194,10 +212,25 @@ page {
         --c-idcard:          #2f4a41;
         --c-idcard-edge:     #b8893b;
 
-        --c-nav:             #1c2421;
-        --c-tab:             #1c2421;
-        --c-tab-text:        #8d9a92;
-        --c-tab-active:      #7fc9ae;
+        /* 仙箓皮肤恒定深色：暗色模式下也保持同一套金线，不做二次翻转。 */
+        --c-imm-bg:          #0b2322;
+        --c-imm-panel:       #123330;
+        --c-imm-panel-2:     #17403a;
+        --c-imm-tile:        #143b36;
+        --c-imm-line:        #4d7a68;
+        --c-imm-line-soft:   #2d594e;
+        --c-imm-gold:        #d8b775;
+        --c-imm-gold-dim:    #8a713f;
+        --c-imm-gold-soft:   #3a3020;
+        --c-imm-text:        #f2e7c9;
+        --c-imm-text-2:      #9cc3b5;
+        --c-imm-cyan:        #63e0c6;
+        --c-imm-track:       rgba(255, 253, 247, 0.14);
+
+        --c-nav:             #0b2322;
+        --c-tab:             #0b2322;
+        --c-tab-text:        #8aa89b;
+        --c-tab-active:      #d8b775;
 
         --sh-card:           none;
         --sh-bar:            none;

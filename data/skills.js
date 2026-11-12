@@ -9,10 +9,61 @@ const practiceData = require('./practice.js');
 // tier：huang 黄 / xuan 玄 / di 地 / tian 天 —— 只决定收益倍率、属性加成与可修境界上限，不决定难度。
 // 难度由玩家在这门功法上的熟练度决定（见 data/practice.js 的 DIFFICULTIES）。
 
+// ---------------------------------------------------------------- 功法命名规范
+// 改版前十三门功法「有的带前缀、有的不带；前缀还各写各的」：基础刀法 / 吐纳诀 没前缀，
+// 剑诀·断岳 的前缀是「剑诀」而类别是「剑法」，灵契·并蒂引 的前缀是「灵契」而类别是「御灵」，
+// 剩下的又分 阵法 / 心法 / 身法 / 符箓 / 丹道 / 土术 / 灵植 七种，长度也从 2 到 4 字不等。
+// 规则定死成一条，新增功法照着填，scripts/verify.js 与 tests/layout.test.js 会逐门校验：
+//   name = 类别(type) + '·' + 三字正名
+//   · 前缀严格取 type，一字不差，不再自造「剑诀 / 灵契」这类类别词；
+//   · 全表只用间隔号「·」，且只出现一次；
+//   · 正名一律 3 字，末字用体裁字（诀 / 步 / 符 / 阵 / 方 / 引），按载体取，不按品阶取；
+//   · 正名不得与参悟方式名、玩法名重复（三层命名各管一件事）；
+//   · 不用「入门 / 基础 / 小」这类等级词，品阶由 tier 与卡片角标表达，不写进名字。
+// id 是存档主键，改名字一律不动 id。对白 / 行文里可用简称，正式名只认这里的 name。
+const NAME_RULE = {
+  sep: '·',
+  titleLength: 3,
+  suffixes: ['诀', '步', '符', '阵', '方', '引'],
+};
+
+// 返回全部不合规说明；空数组表示命名规范全表通过。供静态校验与页面自检复用。
+function validateNames() {
+  const issues = [];
+  const seen = {};
+  const suffixByType = {};
+  for (let i = 0; i < SKILLS.length; i += 1) {
+    const s = SKILLS[i];
+    const parts = s.name.split(NAME_RULE.sep);
+    if (parts.length !== 2) {
+      issues.push(s.id + '：必须用「类别' + NAME_RULE.sep + '正名」，且只出现一个分隔符');
+      continue;
+    }
+    if (parts[0] !== s.type) issues.push(s.id + '：前缀「' + parts[0] + '」与类别「' + s.type + '」不一致');
+    const title = parts[1];
+    if (title.length !== NAME_RULE.titleLength) issues.push(s.id + '：正名「' + title + '」不是 ' + NAME_RULE.titleLength + ' 字');
+    const suffix = title.slice(-1);
+    if (NAME_RULE.suffixes.indexOf(suffix) < 0) issues.push(s.id + '：正名末字「' + suffix + '」不是体裁字');
+    // 同族功法共用一个体裁字，否则列表里「诀 / 阵 / 方」随机跳，统一感就散了。
+    if (suffixByType[s.type] && suffixByType[s.type] !== suffix) {
+      issues.push(s.id + '：类别「' + s.type + '」的体裁字应是「' + suffixByType[s.type] + '」，不能混用');
+    }
+    suffixByType[s.type] = suffix;
+    if (/入门|基础|初级|小|大/.test(title)) issues.push(s.id + '：正名里带了等级词，品阶请交给 tier');
+    const method = practiceData.getMethod(s.method);
+    if (title === method.name || title === method.gameName) issues.push(s.id + '：正名与参悟方式名 / 玩法名重复');
+    if (title.indexOf(s.type) === 0) issues.push(s.id + '：正名不该重复类别词');
+    if (seen[s.name]) issues.push(s.id + '：功法名与 ' + seen[s.name] + ' 重复');
+    seen[s.name] = s.id;
+  }
+  return issues;
+}
+
 const SKILLS = [
   {
-    // id 沿用旧名（基础剑法），存档与纪录都按 id 索引，改成刀法不动 id。
-    id: 'jian', name: '基础刀法', type: '刀法', kind: 'skill', tier: 'huang', method: 'forge',
+    // id 沿用旧名（基础剑法），存档与纪录都按 id 索引，改名一律不动 id。
+    // 旧名「基础刀法」：无前缀且带等级词，按命名规范改为「刀法·开锋诀」（新刀开刃，入门第一课）。
+    id: 'jian', name: '刀法·开锋诀', type: '刀法', kind: 'skill', tier: 'huang', method: 'forge',
     desc: '外门人人会，练到极处的没几个。',
     flavor: '刀是死的，手腕是活的。',
     bonus: { shen: 3, ti: 1 },
@@ -31,7 +82,8 @@ const SKILLS = [
     source: { kind: 'start' },
   },
   {
-    id: 'tuna', name: '吐纳诀', type: '心法', kind: 'main', tier: 'huang', method: 'absorb',
+    // 旧名「吐纳诀」：缺类别前缀，补成「心法·吐纳诀」。
+    id: 'tuna', name: '心法·吐纳诀', type: '心法', kind: 'main', tier: 'huang', method: 'absorb',
     desc: '最不起眼的功课，也是最长久的功课。',
     flavor: '一日不练，自己知道。',
     bonus: { ling: 2, ti: 2 },
@@ -68,7 +120,8 @@ const SKILLS = [
   {
     // 五行相生偏反应、比阵灯推演轻，降到玄阶与燃灯诀排成「玄 → 地」两级。
     // 一族一个品阶只能放一门，否则谱系按阶取槽时后一门会被同阶盖掉。
-    id: 'wuxingzhen', name: '阵法·小五行阵', type: '阵法', kind: 'skill', tier: 'xuan', method: 'wuxing',
+    // 旧名「阵法·小五行阵」：带等级词「小」，按三字正名规范收成「五行诀」。
+    id: 'wuxingzhen', name: '阵法·五行诀', type: '阵法', kind: 'skill', tier: 'xuan', method: 'wuxing',
     desc: '五盏阵灯，牵一发而动全身。',
     flavor: '师父说这叫举一反三，你觉得这叫加班。',
     bonus: { ling: 3, wu: 3 },
@@ -76,7 +129,8 @@ const SKILLS = [
     source: { kind: 'battle', opponentId: 'liuhan' },
   },
   {
-    id: 'dan', name: '丹道·凝露丹方', type: '丹道', kind: 'skill', tier: 'di', method: 'stones',
+    // 旧名「丹道·凝露丹方」：正名四字，收成三字「凝露方」。
+    id: 'dan', name: '丹道·凝露方', type: '丹道', kind: 'skill', tier: 'di', method: 'stones',
     desc: '丹方错一味，整炉丹就成炭。',
     flavor: '背丹方比炼丹难，这话你只敢心里想想。',
     bonus: { ling: 3, ti: 2 },
@@ -84,7 +138,9 @@ const SKILLS = [
     source: { kind: 'battle', opponentId: 'puppet' },
   },
   {
-    id: 'duanyue', name: '剑诀·断岳', type: '剑法', kind: 'skill', tier: 'tian', method: 'snatch',
+    // 旧名「剑诀·断岳」：前缀「剑诀」与类别「剑法」不符，且正名只有两字。
+    // 改为「剑法·断岳诀」；兵器仍标 sword，剑法族仍只此一门。
+    id: 'duanyue', name: '剑法·断岳诀', type: '剑法', kind: 'skill', tier: 'tian', method: 'snatch',
     desc: '一剑既出，慢的人连剑光都看不见。',
     flavor: '手快的人练剑，是有道理的。',
     bonus: { shen: 4, ti: 2 },
@@ -102,7 +158,8 @@ const SKILLS = [
   // 三套「看一眼就会玩」的经典玩法统一挂黄阶：品阶按功课难度定，不按新奇程度定。
   // 各占一个新类型，谱系里也不会和既有功法同阶撞车。
   {
-    id: 'lingqi', name: '灵契·并蒂引', type: '御灵', kind: 'skill', tier: 'huang', method: 'linkpair',
+    // 旧名「灵契·并蒂引」：前缀「灵契」与类别「御灵」不符，统一成类别名。
+    id: 'lingqi', name: '御灵·并蒂引', type: '御灵', kind: 'skill', tier: 'huang', method: 'linkpair',
     desc: '两枚同纹灵石本是一对，牵一条不过两折的灵线，把它们收回契中。',
     flavor: '师父说这叫并蒂，你觉得这叫连连看。',
     bonus: { ling: 3, shen: 2 },
@@ -176,6 +233,8 @@ function chainOfType(type) {
 module.exports = {
   SKILLS: SKILLS,
   SKILL_MAP: SKILL_MAP,
+  NAME_RULE: NAME_RULE,
+  validateNames: validateNames,
   getSkill: getSkill,
   tierOfSkill: tierOfSkill,
   chainsOf: chainsOf,

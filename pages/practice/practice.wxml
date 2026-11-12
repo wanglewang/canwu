@@ -386,5 +386,4 @@
     </view>
   </view>
 
-  <view class="pg__foot"><text class="text-link text-link--muted" bindtap="onGoGuide">{{copy.footHint}}</text></view>
 </view>

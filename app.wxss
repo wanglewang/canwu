@@ -1,6 +1,7 @@
 /* 全局基础层：只定义「跨页面复用」的类，颜色 / 尺寸一律取自 styles/tokens.wxss。
    页面私有样式放各自 .wxss；玩法盘面主题放 styles/scene.wxss，不要往这里堆。 */
 @import "./styles/tokens.wxss";
+@import "./styles/immortal.wxss";
 @import "./styles/scene.wxss";
 
 page {

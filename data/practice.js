@@ -4,7 +4,7 @@
 // 13 门功法对应 13 套互不复用内核的小游戏；同是剑法、同是阵法，也不会点进去是同一个盘面。
 // game 取值见 minigames/index.js：
 //   click / hunt / memory / bridge / tempo / sword / lights / wuxing / mines / seal / link / blocks / match。
-// forge 是刀法（weapon: 'dao'），剑诀·断岳仍标 sword，但 hunt 引擎暂不读兵器轴。
+// forge 是刀法（weapon: 'dao'），剑法·断岳诀仍标 sword，但 hunt 引擎暂不读兵器轴。
 // 兵器是功法属性，不是某个玩法的私有参数。charge 仅用于境界突破，不挂功法。
 //
 // 命名分工：「参悟方式」写这一门功课具体在做什么（斩桩 / 采露 / 观窍），
@@ -139,7 +139,7 @@ const GAME_LABELS = {
 // 只有新增「族」或新增变体才需要写代码，加功法只填数据。
 const FAMILIES = {
   刀法: { core: '顺光成路', note: '顺着箭头把刀扫到靶心，招长而折，容许多带两桩', kind: 'skill' },
-  剑法: { core: '辨光取真', note: '先不做剑法，眼下只余剑诀·断岳一门，在数道剑光里截真招', kind: 'skill' },
+  剑法: { core: '辨光取真', note: '先不做剑法，眼下只余剑法·断岳诀一门，在数道剑光里截真招', kind: 'skill' },
   阵法: { core: '阵灯推演', note: '同族都在推阵灯，换的是推演方向与步数目标', kind: 'skill' },
   心法: { core: '记忆与节律', note: '三门主修各考一样：节拍、记性、配对', kind: 'main' },
   丹道: { core: '循纹递推', note: '看纹路递推，只有一门', kind: 'skill' },

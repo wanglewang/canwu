@@ -1,150 +1,131 @@
-<view class="pg">
-  <view class="pg__head">
-    <view class="pg__head-top">
-      <text class="eyebrow">{{copy.pages.skills.eyebrow}}</text>
-    </view>
-    <text class="h1 serif">{{copy.pages.skills.title}}</text>
-    <text class="muted mt8">{{copy.pages.skills.desc}}</text>
+<view class="pg pg--imm">
+  <view class="imm-head">
+    <text class="imm-head__slot"></text>
+    <text class="imm-head__title serif">功 法 图 谱</text>
+    <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
   </view>
 
-  <view wx:if="{{ov}}" class="card card--ink">
-    <view class="row--between">
-      <text class="tiny pr-tiny">已习 {{ov.unlockedCount}} / {{ov.skillTotal}} 门</text>
-      <text class="tiny pr-tiny">{{ov.resource}} {{ov.qi}} · {{ov.currency}} {{ov.stone}}</text>
-    </view>
-    <view class="row--wrap mt16">
-      <text class="tag tag--dark" wx:for="{{legend}}" wx:key="key">{{item.name}} {{item.threshold}}</text>
-    </view>
-    <view class="row mt16">
-      <term tone="ink" term-key="rank" />
-      <term tone="ink" term-key="cangjingge" />
-    </view>
-    <text class="tiny pr-tiny mt8">{{copy.hints.skillCard}}</text>
+  <view class="imm-tabs">
+    <view class="imm-tab {{tab === 'learned' ? 'imm-tab--on' : ''}} pressable" hover-class="pressable--on" data-tab="learned" bindtap="onTab">已习得 {{learnedCount}}</view>
+    <view class="imm-tab {{tab === 'locked' ? 'imm-tab--on' : ''}} pressable" hover-class="pressable--on" data-tab="locked" bindtap="onTab">可解锁 {{lockedCount}}</view>
   </view>
-  <view wx:else class="state">
+
+  <view wx:if="{{!ov}}" class="state">
     <text class="state__glyph">◇</text>
     <text class="state__desc">{{copy.loading}}</text>
   </view>
 
-  <view class="card chain-card">
-    <view class="row--between">
-      <text class="section__title">{{copy.sections.family}}</text>
-      <text class="text-link text-link--muted" bindtap="onToggleChain">{{chainOpen ? copy.actions.collapse : copy.actions.expand}}</text>
-    </view>
-    <text wx:if="{{!chainOpen}}" class="tiny mt8">{{copy.hints.chain}}</text>
-    <block wx:if="{{chainOpen}}">
-      <view wx:for="{{families}}" wx:key="type" class="chain-row mt12">
-        <view class="row--between">
-          <text class="chain-row__label">{{item.label}}</text>
-          <text class="tiny">{{item.kindLabel}}</text>
-        </view>
-        <view class="row--wrap mt8">
-          <text wx:for="{{item.slots}}" wx:for-item="node" wx:key="id" class="chain-node {{node.empty ? 'chain-node--empty' : ''}} {{node.unlocked ? 'chain-node--got' : ''}}">{{node.tierName}} · {{node.name}}</text>
-        </view>
-      </view>
-    </block>
+  <view wx:elif="{{cards.length === 0}}" class="imm-panel">
+    <text class="imm-empty">{{copy.emptySkills}}</text>
   </view>
 
-  <block wx:for="{{cards}}" wx:key="id">
-    <view wx:if="{{item.showHeader}}" class="section">
-      <view class="section__head">
-        <text class="section__title">{{item.groupTitle}}</text>
-        <text class="section__sub">{{item.groupSub}}</text>
-      </view>
+  <view wx:for="{{cards}}" wx:key="id" class="imm-card pressable" hover-class="pressable--on" data-id="{{item.id}}" bindtap="openDetail">
+    <view class="imm-card__glyph">{{item.mark}}</view>
+    <view class="imm-card__body">
+      <text class="imm-card__name">{{item.name}}</text>
+      <text class="imm-card__sub">{{item.stageText}}</text>
+      <view class="imm-mini-bar"><view class="imm-mini-bar__fill" style="width:{{item.percent}}%"></view></view>
+      <text class="imm-card__sub">{{item.bonusText}}</text>
     </view>
-    <view class="card card--tight skill-card {{item.dim ? 'skill-card--dim' : ''}} pressable" hover-class="pressable--on" data-id="{{item.id}}" bindtap="openDetail">
-      <view class="row--between">
-        <view class="row">
-          <text class="h3">{{item.name}}</text>
-          <text class="tag tag--grey skill-type">{{item.type}}</text>
-          <text class="tag skill-rank" style="background:{{item.tierColor}};color:#fffdf7">{{item.tierLabel}} {{item.starsText}}</text>
-        </view>
-        <text wx:if="{{item.unlocked}}" class="tag" style="color:{{item.profTierColor}}">{{item.profTierName}}</text>
-        <text wx:elif="{{item.canBuy}}" class="tag tag--gold">可兑换</text>
-        <text wx:else class="tag tag--grey">未得</text>
-      </view>
-      <text class="tiny mt8">{{item.desc}}</text>
-      <view class="row mt8">
-        <text class="tag tag--jade">{{item.gameName}}</text>
-        <text wx:if="{{item.bestText}}" class="tiny skill-best">最佳 {{item.bestText}}</text>
-      </view>
-      <view class="row mt8">
-        <text class="tiny">{{item.rewardText}}</text>
-        <text wx:if="{{item.decayed}}" class="tag tag--warn">衰减中</text>
-      </view>
-      <block wx:if="{{item.unlocked}}">
-        <view class="bar mt12">
-          <view class="bar__fill" style="width:{{item.percent}}%;background:{{item.profTierColor}}"></view>
-        </view>
-        <view class="row--between mt8">
-          <text class="tiny">{{item.prof}} 熟练度</text>
-          <text class="tiny">{{item.nextText}}</text>
-        </view>
-      </block>
-      <block wx:elif="{{item.canBuy}}">
-        <view class="row--between mt12">
-          <text class="tiny">{{item.costText}}</text>
-          <text class="tag {{item.affordable ? 'tag--jade' : 'tag--grey'}}">{{item.affordable ? '资源已足' : '资源不足'}}</text>
-        </view>
-        <text wx:if="{{!item.realmOk}}" class="tiny warn-line mt8">需「{{item.needRealmName}}」境界方能修习</text>
-      </block>
-      <text wx:else class="tiny mt12">{{item.sourceText}}</text>
+    <view class="imm-card__right">
+      <text class="imm-card__num">{{item.tierLabel}}</text>
+      <button class="imm-btn--ghost" data-id="{{item.id}}" catchtap="onCardAction">{{item.actionText}}</button>
     </view>
-  </block>
+  </view>
 
+  <!-- 图鉴：未习得也看全本，锁的只有开练。点开才出现，列表保持干净。 -->
   <view class="mask" wx:if="{{showDetail && detail}}" bindtap="closeDetail">
-    <view class="modal" catchtap="noop">
+    <view class="modal modal--codex" catchtap="noop">
       <view class="row--between">
         <text class="tag tag--grey">{{detail.type}}</text>
-        <text class="tag" style="background:{{detail.tierColor}};color:#fffdf7">{{detail.tierLabel}} {{detail.starsText}}</text>
+        <view class="row">
+          <text class="tag tag--grey codex__status">{{detail.stateText}}</text>
+          <text class="tag" style="background:{{detail.tierColor}};color:{{detail.tierTextColor}}">{{detail.tierLabel}} {{detail.starsText}}</text>
+        </view>
       </view>
       <text class="modal__title serif mt12">{{detail.name}}</text>
-      <text class="modal__sub">{{detail.gameName}}</text>
+      <text class="modal__sub">{{detail.methodName}} · {{detail.gameName}}</text>
 
-      <view class="rank-detail mt12">
-        <view class="row--between">
-          <text class="tag tag--gold">{{detail.tierLabel}} · {{detail.rewardText}}</text>
-          <text class="tiny">{{detail.maxRealmName}}以内不衰减</text>
-        </view>
-        <text wx:if="{{detail.decayed}}" class="warn-line mt8">{{detail.decayText}}</text>
-        <text wx:if="{{detail.bestText}}" class="tiny mt8">最佳 {{detail.bestText}}</text>
+      <view class="codex__intro mt12">
+        <text class="body">{{detail.desc}}</text>
+        <text class="quote mt8">{{detail.flavor}}</text>
       </view>
 
-      <view class="modal__body">
-        <text class="body">{{detail.desc}}</text>
-        <text class="quote mt12">{{detail.flavor}}</text>
-        <view class="divider"></view>
-        <view class="res-line">
-          <text class="muted">属性加成</text>
-          <text class="h3 jade">{{detail.bonusText}}</text>
+      <view class="codex__block">
+        <view class="row--between">
+          <text class="section__title">{{copy.sections.codexPlay}}</text>
+          <text class="text-link text-link--muted" bindtap="onToggleGuide">{{guideOpen ? copy.actions.collapse : copy.actions.expand}}</text>
         </view>
-        <view class="res-line">
-          <text class="muted">大成特效</text>
-          <text class="h3 {{detail.effectUnlocked ? 'gold' : 'muted'}}">{{detail.effectText}}</text>
-        </view>
-        <view class="res-line">
-          <text class="muted">获取方式</text>
-          <text class="tiny">{{detail.sourceText}}</text>
-        </view>
-        <block wx:if="{{detail.unlocked}}">
-          <view class="res-line">
-            <text class="muted">熟练度</text>
-            <text class="h3">{{detail.prof}} · {{detail.profTierName}}</text>
+        <text class="body mt8">{{detail.previewRule}}</text>
+        <text class="tiny codex__inline mt8">{{detail.previewInline}}</text>
+        <block wx:if="{{guideOpen && detail.guide}}">
+          <view class="codex__steps mt12">
+            <view class="codex__step" wx:for="{{detail.guide.steps}}" wx:for-item="line" wx:key="*this">
+              <text class="codex__dot">·</text><text class="tiny grow">{{line}}</text>
+            </view>
           </view>
-          <view class="bar mt12">
+          <text class="eyebrow mt12">{{copy.sections.codexTerms}}</text>
+          <view class="codex__terms mt8">
+            <view class="codex__term" wx:for="{{detail.guide.terms}}" wx:for-item="t" wx:key="name">
+              <text class="tag tag--jade">{{t.name}}</text>
+              <text class="tiny grow">{{t.desc}}</text>
+            </view>
+          </view>
+          <text class="tiny mt12">{{detail.guide.scoring}}</text>
+          <text class="tiny mt8">{{detail.guide.tip}}</text>
+        </block>
+      </view>
+
+      <view class="codex__block">
+        <text class="section__title">{{copy.sections.codexGain}}</text>
+        <view class="codex__gain mt8" wx:for="{{detail.gainLines}}" wx:for-item="line" wx:key="label">
+          <view class="row--between">
+            <text class="tiny">{{line.label}}</text>
+            <text class="h3 jade">{{line.value}}</text>
+          </view>
+          <text class="tiny codex__note">{{line.note}}</text>
+        </view>
+        <block wx:if="{{detail.stageRules.length > 0}}">
+          <text class="eyebrow mt12">{{copy.sections.codexStage}}</text>
+          <view class="codex__term mt8" wx:for="{{detail.stageRules}}" wx:for-item="r" wx:key="name">
+            <text class="tag tag--gold">{{r.atName}} · {{r.name}}</text>
+            <text class="tiny grow">{{r.desc}}</text>
+          </view>
+        </block>
+        <view wx:if="{{detail.decayed}}" class="codex__warn mt8">{{detail.decayText}}</view>
+      </view>
+
+      <view class="codex__block">
+        <block wx:if="{{!detail.unlocked}}">
+          <text class="section__title">{{copy.sections.codexUnlock}}</text>
+          <view class="row--between mt8">
+            <text class="tiny">{{detail.unlock.label}}</text>
+            <text class="tag tag--grey">{{detail.unlock.text}}</text>
+          </view>
+          <text wx:if="{{detail.unlock.hint}}" class="tiny codex__note mt8">{{detail.unlock.hint}}</text>
+          <view wx:if="{{detail.unlock.percent > 0}}" class="bar mt8">
+            <view class="bar__fill" style="width:{{detail.unlock.percent}}%"></view>
+          </view>
+          <text wx:if="{{!detail.realmOk}}" class="tiny warn-line mt8">需「{{detail.needRealmName}}」境界方能修习</text>
+        </block>
+        <block wx:else>
+          <text class="section__title">{{copy.sections.codexUnlock}}</text>
+          <view class="row--between mt8">
+            <text class="tiny">{{detail.prof}} 熟练度 · {{detail.profTierName}}</text>
+            <text class="tiny">{{detail.nextText}}</text>
+          </view>
+          <view class="bar mt8">
             <view class="bar__fill" style="width:{{detail.percent}}%;background:{{detail.profTierColor}}"></view>
           </view>
-          <text class="tiny mt8">{{detail.nextText}}</text>
+          <text class="tiny codex__note mt8">连 {{detail.sStreakGoal}} 局 S 直接晋一段 · 已连 {{detail.sStreak}} 局</text>
+          <text wx:if="{{detail.bestText}}" class="tiny mt8">最佳 {{detail.bestText}}</text>
         </block>
       </view>
 
       <view class="modal__actions">
         <button class="btn btn--plain" bindtap="closeDetail">{{copy.actions.close}}</button>
-        <button wx:if="{{detail.unlocked}}" class="btn btn--primary" bindtap="onPractice">{{copy.actions.practice}}</button>
-        <button wx:elif="{{detail.canBuy}}" class="btn btn--gold" disabled="{{!canAfford || !detail.realmOk}}" bindtap="onBuy">{{detail.realmOk ? '兑换' : '境界不足'}}</button>
+        <button class="btn {{detail.unlocked ? 'btn--primary' : 'btn--gold'}}" disabled="{{detail.primary.disabled}}" bindtap="onPrimary">{{detail.primary.text}}</button>
       </view>
     </view>
   </view>
-
-  <view class="pg__foot"><text class="text-link text-link--muted" bindtap="onGoGuide">{{copy.footHint}}</text></view>
 </view>

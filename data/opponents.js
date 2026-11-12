@@ -29,7 +29,7 @@ const OPPONENTS = [
     id: 'liuhan', kind: 'npc', name: '内门弟子·柳含烟', title: '内门问剑',
     power: 190, desc: '阵法课从没低于甲上，最烦有人说「阵法是死物」。',
     reward: { qi: 130, stone: 36 }, drop: 'wuxingzhen',
-    winLine: '柳含烟收了阵盘：「这卷小五行阵，借你抄。」',
+    winLine: '柳含烟收了阵盘：「这卷五行诀，借你抄。」',
     loseLine: '柳含烟把阵盘收好：「先把灯点明白再来。」',
   },
   {
@@ -43,7 +43,7 @@ const OPPONENTS = [
     id: 'xueshou', kind: 'npc', name: '魔修·血手', title: '界外来客',
     power: 370, desc: '出手极快，话极多，两样都让人不太舒服。',
     reward: { qi: 250, stone: 70 }, drop: 'duanyue',
-    winLine: '血手留下半截断剑：「剑诀送你，别学我。」',
+    winLine: '血手留下半截断剑：「这卷断岳诀送你，别学我。」',
     loseLine: '血手收了力：「今日不算，你还没练出手速。」',
   },
   {

@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "修炼",
+  "usingComponents": {
+    "portrait": "../../components/portrait/portrait"
+  }
+}

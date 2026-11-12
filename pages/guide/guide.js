@@ -187,6 +187,8 @@ Page({
         });
     },
 
+    onGoHelp: function () { wx.navigateTo({ url: '/pages/help/help?topic=guide' }); },
+
     onShareAppMessage: function () { return share.appMessage(store.get()); },
     onShareTimeline: function () { return share.timeline(store.get()); },
 });

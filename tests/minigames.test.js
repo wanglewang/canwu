@@ -331,7 +331,7 @@ check('同类功法（刀法/剑法/阵法/心法）也各用各的玩法', func
   for (const type of Object.keys(byType)) {
     assert.strictEqual(new Set(byType[type]).size, byType[type].length, type + ' 里有两门功法共用玩法');
   }
-  // 这一版先只做刀法，剑法暂留天阶的剑诀·断岳一门。
+  // 这一版先只做刀法，剑法暂留天阶的剑法·断岳诀一门。
   assert.strictEqual(new Set(byType['刀法']).size, 1);
   assert.strictEqual(new Set(byType['剑法']).size, 1);
   assert.strictEqual(new Set(byType['阵法']).size, 2);
@@ -441,7 +441,7 @@ check('顺光扫斩：刀路亮完才起寿命线，没划到就算漏', functio
   } finally { restoreClock(); }
 });
 
-check('顺光扫斩：划偏罚一息，与剑诀·断岳同规矩', function () {
+check('顺光扫斩：划偏罚一息，与剑法·断岳诀同规矩', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('forge'));
@@ -1017,8 +1017,8 @@ check('14 套玩法都有「怎么玩」说明，盘面符号讲得清', functio
     }
   }
   const click = guides.guideOf('click');
-  assert.ok(click.terms.some(function (t) { return /刀路/.test(t.name); }), '基础刀法没解释「刀路」');
-  assert.ok(click.terms.some(function (t) { return /重斩/.test(t.name); }), '基础刀法没解释「重斩」');
+  assert.ok(click.terms.some(function (t) { return /刀路/.test(t.name); }), '刀法·开锋诀没解释「刀路」');
+  assert.ok(click.terms.some(function (t) { return /重斩/.test(t.name); }), '刀法·开锋诀没解释「重斩」');
   assert.ok(/扫到靶心/.test(click.inline), '局内速记没说这一门是把刀扫到靶心');
   assert.ok(/重斩/.test(click.inline), '局内速记没写重斩');
 });
@@ -1492,10 +1492,10 @@ check('兵器轴：剑与刀在轨迹、判定、节奏、称谓上都可区分'
   assert.ok(sw.stepMs < dao.stepMs, '剑光没有比刀势更快');
 });
 
-check('刀法标 dao、剑诀·断岳仍标 sword，buildParams 原样透传兵器字段', function () {
+check('刀法标 dao、剑法·断岳诀仍标 sword，buildParams 原样透传兵器字段', function () {
   const m = data.getMethod('forge');
-  assert.strictEqual(m.params.weapon, 'dao', '基础刀法没标兵器');
-  assert.strictEqual(data.getMethod('snatch').params.weapon, 'sword', '剑诀·断岳没标兵器');
+  assert.strictEqual(m.params.weapon, 'dao', '刀法·开锋诀没标兵器');
+  assert.strictEqual(data.getMethod('snatch').params.weapon, 'sword', '剑法·断岳诀没标兵器');
   for (const k of ['easy', 'normal', 'hard', 'expert', 'desperate']) {
     assert.strictEqual(data.buildParams(m, k).weapon, 'dao', k + ' 档把兵器字段弄丢了');
   }

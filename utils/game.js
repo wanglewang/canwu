@@ -6,6 +6,7 @@
 const worldData = require('../data/world.js');
 const skillData = require('../data/skills.js');
 const practiceData = require('../data/practice.js');
+const guideData = require('../data/guides.js');
 const opponentData = require('../data/opponents.js');
 const titleData = require('../data/titles.js');
 const achievementData = require('../data/achievements.js');
@@ -926,6 +927,58 @@ function getAchievements(state) {
 
 // ---------------------------------------------------------------- 视图数据
 
+// 功法图鉴的「如何习得」：把获取方式写成可执行的一条路径，而不是一句黑话。
+// 列表卡片与详情弹窗共用这一份，避免两处各自拼文案。
+function unlockInfo(state, skill) {
+  const src = skill.source;
+  const w = worldData.getWorld(state.worldId);
+  const realmNow = state.realmIndex + 1;
+  const realmNameOfNo = function (no) {
+    return w.realms[Math.min(w.realms.length - 1, Math.max(0, no - 1))].name;
+  };
+  if (src.kind === 'start') {
+    return { kind: 'start', label: '入门即习得', text: '开局便带在身上', hint: '', action: '', actionText: '', percent: 100 };
+  }
+  if (src.kind === 'shop') {
+    const cost = src.cost;
+    const lack = [];
+    if (state.resources.qi < cost.qi) lack.push('灵气 ' + (cost.qi - state.resources.qi));
+    if (state.resources.stone < cost.stone) lack.push('灵石 ' + (cost.stone - state.resources.stone));
+    const tier = practiceData.tierOf(skill.tier);
+    const realmReady = realmNow >= tier.needRealm;
+    const qiPct = Math.min(1, state.resources.qi / cost.qi);
+    const stonePct = Math.min(1, state.resources.stone / cost.stone);
+    return {
+      kind: 'shop',
+      label: '藏经阁兑换',
+      text: '灵气 ' + cost.qi + ' · 灵石 ' + cost.stone,
+      hint: !realmReady
+        ? '需「' + realmNameOfNo(tier.needRealm) + '」境界方能修习'
+        : (lack.length ? '还差 ' + lack.join('、') : '资源已足，随时可换'),
+      action: !realmReady || lack.length ? 'home' : 'buy',
+      actionText: !realmReady || lack.length ? '去攒资源' : '兑换',
+      percent: Math.round(Math.min(qiPct, stonePct) * 100),
+      enough: lack.length === 0 && realmReady,
+    };
+  }
+  if (src.kind === 'battle') {
+    const c = opponentData.getChallenge(src.opponentId);
+    const cleared = state.defeated.indexOf(src.opponentId) >= 0;
+    const power = computePower(state);
+    return {
+      kind: 'battle',
+      label: '论道首胜掉落',
+      text: '首次战胜「' + (c ? c.name : '某位对手') + '」',
+      hint: cleared ? '已战胜，再打一场即可取回' : (c ? '对手战力 ' + c.power + ' · 你当前 ' + power : ''),
+      action: 'battle',
+      actionText: '去论道',
+      percent: c ? Math.min(100, Math.round(power / c.power * 100)) : 0,
+      cleared: cleared,
+    };
+  }
+  return { kind: 'chance', label: '机缘可得', text: '参悟时小概率拾得残卷', hint: '多练几局，缘分到了自然来', action: 'practice', actionText: '去参悟', percent: 0 };
+}
+
 function getOverview(state) {
   const w = worldData.getWorld(state.worldId);
   const pd = powerDetail(state);
@@ -1023,6 +1076,8 @@ function getSkillList(state) {
     const diffNow = practiceData.difficultyOf(practiceData.bestDifficulty(rec.prof));
     const realmOk = realmNow >= tier.needRealm && realmNow <= tier.maxRealm;
     const best = state.records ? state.records[s.id] : null;
+    const guide = guideData.guideOf(method.game);
+    const unlock = unlockInfo(state, s);
     list.push({
       id: s.id,
       name: s.name,
@@ -1034,7 +1089,14 @@ function getSkillList(state) {
       prof: rec.prof,
       methodName: method.name,
       methodTip: method.tip,
+      methodDesc: method.desc,
+      gameId: method.game,
       gameName: method.gameName,
+      // 图鉴：未习得也能看的一句话玩法、盘面速记与习得路径。
+      previewGoal: guide ? guide.goal : method.desc,
+      previewInline: guide ? guide.inline : '',
+      unlock: unlock,
+      sourceKind: s.source.kind,
       // 品阶（天地玄黄）：只管收益倍率、属性加成与可修上限。
       tierKey: tier.key,
       tierName: tier.name,
@@ -1082,6 +1144,49 @@ function getSkillList(state) {
     });
   }
   return list;
+}
+
+// 功法图鉴详情：未习得也返回完整内容，锁的只有「能不能开练」。
+// 规则、盘面符号、阶段新法、练成收益、习得路径一律可读 —— 看得见才有想解开的理由。
+// 页面不自己拼这些文案，避免功法页与准备页各写一份、越改越散。
+function getSkillDetail(state, id) {
+  const list = getSkillList(state);
+  let base = null;
+  for (let i = 0; i < list.length; i += 1) if (list[i].id === id) base = list[i];
+  if (!base) return null;
+  const s = skillData.getSkill(id);
+  const method = practiceData.getMethod(s.method);
+  const guide = guideData.guideOf(method.game);
+
+  const stageRules = practiceData.stageRulesOf(method.id).map(function (r) {
+    return { name: r.name, desc: r.desc, atName: worldData.TIERS[r.at].name };
+  });
+  let statusText = '';
+  if (base.unlocked) statusText = '已习得';
+  else if (base.unlock.kind === 'shop') statusText = '藏经阁可换';
+  else if (base.unlock.kind === 'battle') statusText = '论道首胜可得';
+  else statusText = base.unlock.label;
+
+  return Object.assign({}, base, {
+    statusText: statusText,
+    previewRule: guide ? guide.goal : method.desc,
+    guide: guide ? {
+      goal: guide.goal,
+      inline: guide.inline,
+      steps: guide.steps.slice(),
+      terms: guide.terms.map(function (t) { return { name: t.name, desc: t.desc }; }),
+      scoring: guide.scoring,
+      tip: guide.tip,
+    } : null,
+    stageRules: stageRules,
+    // 未习得时不把特效写灰了事，而是说清什么时候生效。
+    effectNote: base.effectUnlocked ? '已生效' : '习得并练至大成后生效',
+    gainLines: [
+      { label: '属性加成', value: base.bonusText, note: '习得即有，随熟练度与品阶增长' },
+      { label: '熟练度收益', value: base.rewardText, note: base.maxRealmName + '以内不衰减' },
+      { label: '大成特效', value: base.effectText, note: base.effectUnlocked ? '已生效' : '习得并练至大成后生效' },
+    ],
+  });
 }
 
 // 修炼建议：首页只回答一个问题——现在练哪门、为什么、下一步是什么。
@@ -1292,6 +1397,8 @@ module.exports = {
   importSaveCode: importSaveCode,
   getOverview: getOverview,
   getSkillList: getSkillList,
+  getSkillDetail: getSkillDetail,
+  unlockInfo: unlockInfo,
   getFamilies: getFamilies,
   recommend: recommend,
   starsOf: starsTextOf,

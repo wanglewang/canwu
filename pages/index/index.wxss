@@ -1,122 +1,64 @@
-/* 洞府页私有样式：只写布局，颜色一律取 tokens.wxss 的语义变量。 */
-.hero-card {
-    padding: var(--sp-8);
-}
-
-.hero-name {
-    font-size: var(--fs-lead);
-    font-weight: 700;
-    color: var(--c-on-ink);
-    margin-right: var(--sp-4);
-}
-
-.hero-label { color: var(--c-on-ink-2); }
-
-.hero-num { color: var(--c-on-ink); }
-
-.hero-power {
+/* 主页：身份两行 + 境界大卡 + 一行提示 + 六宫格。说明文字全部收进说明页。 */
+.imm-id {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    margin-bottom: var(--sp-2);
 }
 
-.power-head {
+.imm-id__line {
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-body-sm);
+    line-height: var(--lh-body);
+    letter-spacing: 2rpx;
+}
+
+.imm-stat__value--sm {
+    font-size: var(--fs-body);
+    font-weight: 600;
+    letter-spacing: 2rpx;
+}
+
+.imm-daily {
     display: flex;
-    flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    min-height: var(--sp-12);
-}
-
-.power-link { color: var(--c-gold-bright); }
-
-.power-formula {
-    margin-top: var(--sp-2);
-    opacity: 0.86;
-}
-
-.power-detail {
-    background: var(--c-ink-scrim);
-    border-radius: var(--r-sm);
-    padding: var(--sp-5) var(--sp-6);
-}
-
-.power-detail__title {
-    display: block;
-    color: var(--c-on-ink);
-    font-weight: 700;
-    margin-bottom: var(--sp-3);
-}
-
-.power-detail__line {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    margin-top: var(--sp-2);
-}
-
-.power-detail__dot {
-    color: var(--c-gold-bright);
-    margin-right: var(--sp-2);
-}
-
-.power-detail__text {
-    color: var(--c-on-ink-2);
-    line-height: var(--lh-body);
-}
-
-.power-detail__more {
-    display: block;
-    color: var(--c-gold-bright);
+    min-height: var(--touch-sm);
     margin-top: var(--sp-4);
+    padding: 0 var(--sp-6);
+    border: 1rpx solid var(--c-imm-gold);
+    border-radius: var(--r-pill);
+    background: linear-gradient(to bottom, var(--c-imm-gold-soft), var(--c-imm-panel));
 }
 
-.hero-divider { background: var(--c-ink-divider); }
-
-.log-line {
-    padding: var(--sp-2) 0;
-    border-bottom: 2rpx solid var(--c-divider);
+.imm-daily__text {
+    color: var(--c-imm-text);
+    font-size: var(--fs-body-sm);
 }
 
-.log-line:last-child { border-bottom: none; }
-
-.world-row .tag { margin-left: var(--sp-3); }
-
-/* 页头右上角的文字入口：热区由 .text-link 提供，这里只负责对齐。 */
-.guide-link { align-self: flex-start; }
-
-.alert-bar {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    box-sizing: border-box;
-    padding: var(--sp-4) var(--sp-6);
-    margin-bottom: var(--sp-5);
-    border-radius: var(--r-md);
-    border: 2rpx solid var(--c-border);
-    background: var(--c-surface);
+.imm-daily__go {
+    color: var(--c-imm-gold);
+    font-size: var(--fs-body-sm);
 }
 
-.alert-bar--warn {
-    border-color: var(--c-gold-bright);
-    background: var(--c-gold-soft);
+/* 吸底主按钮沿用全局 .sticky-bar，只把主色换成仙箓金线。 */
+.pg--imm .sticky-bar {
+    background: var(--c-imm-panel);
+    border-top: 1rpx solid var(--c-imm-gold-dim);
+    box-shadow: var(--sh-none);
 }
 
-.alert-bar--error {
-    border-color: var(--c-danger);
-    background: var(--c-danger-soft);
+.pg--imm .sticky-bar .btn--primary {
+    background: linear-gradient(to bottom, var(--c-imm-gold-soft), var(--c-imm-panel-2));
+    border: 2rpx solid var(--c-imm-gold);
+    border-radius: var(--r-pill);
+    color: var(--c-imm-gold);
+    font-size: var(--fs-h3);
+    letter-spacing: 4rpx;
 }
 
-.alert-bar__text {
-    flex: 1;
-    font-size: var(--fs-caption);
-    color: var(--c-text-2);
-    line-height: var(--lh-body);
-}
-
-.alert-bar--error .alert-bar__text { color: var(--c-danger-text); }
-
-.alert-bar__action {
-    font-size: var(--fs-caption);
-    color: var(--c-link);
-    margin-left: var(--sp-3);
+.pg--imm .alert-bar {
+    background: var(--c-imm-panel-2);
+    border: 1rpx solid var(--c-imm-gold-dim);
+    color: var(--c-imm-text);
 }

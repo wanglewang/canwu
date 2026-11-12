@@ -1,13 +1,11 @@
-<view class="pg pg--with-bar">
-  <view class="pg__head">
-    <view class="pg__head-top">
-      <text class="eyebrow">{{copy.pages.index.eyebrow}}</text>
-      <text class="pg__head-action text-link" bindtap="onGoGuide">修行指南 ›</text>
-    </view>
-    <text class="h1 serif">{{copy.pages.index.title}}</text>
-    <text class="muted mt8">{{copy.pages.index.desc}}</text>
+<view class="pg pg--imm pg--with-bar">
+  <view class="imm-head">
+    <text class="imm-head__slot"></text>
+    <text class="imm-head__title serif">无 上 修 炼 系 统</text>
+    <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
   </view>
 
+  <!-- 只在同步出问题时出现，正常状态不占任何文字。 -->
   <view wx:if="{{syncTone !== 'ok'}}" class="alert-bar alert-bar--{{syncTone}} pressable" hover-class="pressable--on" bindtap="onRetrySync">
     <text class="alert-bar__text">{{syncLabel}}</text>
     <text class="alert-bar__action">{{copy.actions.retry}} ›</text>
@@ -24,149 +22,45 @@
   </view>
 
   <block wx:if="{{viewState === 'ready' && ov}}">
-    <view class="card card--ink hero-card">
-      <view class="row--between">
-        <text class="tag tag--dark">{{ov.worldLabel}} · {{ov.worldName}}</text>
-        <text class="tag tag--dark">{{ov.equippedTitleName}}</text>
-      </view>
-      <view class="hero-id">
-        <portrait variant="{{ov.portrait}}" realm="{{ov.realmIndex}}" size="small" />
-        <view class="hero-id__text">
-          <text class="serif hero-name">{{ov.roleName}}</text>
-          <text class="tag tag--gold">{{ov.realmName}}</text>
-        </view>
-      </view>
-      <view class="hero-power mt16">
-        <view class="power-head pressable" hover-class="pressable--on" bindtap="onTogglePower">
-          <text class="tiny hero-label">战 力</text>
-          <text class="tiny power-link">{{powerOpen ? '收起 ∧' : '怎么提升战力 ›'}}</text>
-        </view>
-        <text class="big-number hero-num">{{ov.power}}</text>
-        <text class="tiny hero-label power-formula">{{ov.powerBase}} × (1 + 境界 {{ov.powerRealmBonus}}% + 功法 {{ov.powerEffectBonus}}%)</text>
-      </view>
-      <view wx:if="{{powerOpen}}" class="power-detail mt16">
-        <text class="tiny power-detail__title">战力 = 属性加权 × (1 + 境界加成 + 功法特效)</text>
-        <view class="power-detail__line" wx:for="{{powerLines}}" wx:key="*this">
-          <text class="tiny power-detail__dot">·</text>
-          <text class="tiny grow power-detail__text">{{item}}</text>
-        </view>
-        <text class="tiny power-detail__more" bindtap="onGoGuide">完整算法见「修行指南 · 战力从哪来」›</text>
-      </view>
-      <view class="divider hero-divider"></view>
-      <view class="stat-grid">
-        <view class="stat" wx:for="{{ov.attrs}}" wx:key="key">
-          <text class="stat__label hero-label">{{item.name}}</text>
-          <text class="stat__value hero-num">{{item.value}}</text>
-        </view>
-      </view>
-      <view class="divider hero-divider"></view>
-      <view class="row--between">
-        <text class="tiny hero-label">{{ov.resource}} {{ov.qi}}</text>
-        <text class="tiny hero-label">{{ov.currency}} {{ov.stone}}</text>
-        <text wx:if="{{ov.buff.active}}" class="tag tag--dark">挂机 ×{{ov.buff.multiplier}} · {{ov.buff.minutes}} 分</text>
-      </view>
+    <view class="imm-id">
+      <text class="imm-id__line">宿主 · {{ov.roleName}}</text>
+      <text class="imm-id__line">境界 · {{ov.realmName}}</text>
     </view>
 
-    <view wx:if="{{rec}}" class="card card--ink rec-card">
-      <view class="row--between">
-        <text class="section__title">今日之课</text>
-        <text class="tag tag--dark">{{rec.profTierName}}</text>
-      </view>
-      <text class="h2 serif mt12">{{rec.name}}</text>
-      <text class="tiny hero-label mt8">{{rec.methodName}} · {{rec.reason}}</text>
-      <view class="bar bar--dark mt12">
-        <view class="bar__fill" style="width:{{rec.percent}}%;background:{{rec.profTierColor}}"></view>
-      </view>
-      <text class="body mt12 hero-label">{{rec.next}}</text>
-      <text class="tiny hero-label mt8">{{copy.hints.quickPractice}}</text>
-    </view>
-
-    <view class="card">
-      <view class="section__head">
-        <view class="row"><text class="section__title">{{copy.sections.today}}</text><term term-key="fene" /></view>
-        <text class="section__sub">{{dailyText}}</text>
-      </view>
-      <view class="bar">
-        <view class="bar__fill" style="width:{{dailyPercent}}%"></view>
-      </view>
-      <button wx:if="{{!ov.daily.claimed && ov.daily.count >= ov.daily.target}}" class="btn btn--gold btn--block mt16" bindtap="onClaimDaily">领取份例 · 灵气 +{{ov.daily.qi}} / 灵石 +{{ov.daily.stone}}</button>
-      <text wx:elif="{{ov.daily.claimed}}" class="tag tag--jade mt16">今日份例已领</text>
-      <text wx:else class="tiny mt12">再参悟 {{ov.daily.target - ov.daily.count}} 次，可领今日份例。</text>
-    </view>
-
-    <view class="card">
-      <view class="section__head">
-        <view class="row"><text class="section__title">{{copy.sections.realm}} · {{ov.realmName}}</text><term term-key="breakthrough" /></view>
-        <text class="section__sub">{{ov.realmIndex + 1}} / {{ov.realmCount}}</text>
-      </view>
-      <block wx:if="{{!ov.breakthrough.maxed}}">
-        <text class="body">下一境「{{ov.breakthrough.nextName}}」需战力 {{ov.breakthrough.need}}，当前 {{ov.breakthrough.power}}。</text>
-        <view class="bar mt12">
-          <view class="bar__fill" style="width:{{breakPercent}}%;background:#b8893b"></view>
+    <view class="imm-panel">
+      <text class="imm-panel__label">当 前 境 界</text>
+      <text class="imm-realm serif">{{ov.realmName}}</text>
+      <view class="imm-bar"><view class="imm-bar__fill" style="width:{{breakPercent}}%"></view></view>
+      <text class="imm-percent">{{breakPercent}}%</text>
+      <view class="imm-stats">
+        <view class="imm-stat">
+          <text class="imm-stat__label">战 力</text>
+          <text class="imm-stat__value">{{ov.power}}</text>
         </view>
-        <button wx:if="{{ov.breakthrough.available}}" class="btn btn--gold btn--block mt16" bindtap="onBreakthrough">冲击 {{ov.breakthrough.nextName}}</button>
-      </block>
-      <text wx:else class="body">已至当前最高境界。青云界之外，还有别的世界。</text>
-    </view>
-
-    <view class="section">
-      <view class="section__head">
-        <text class="section__title">{{copy.sections.nearTier}}</text>
-        <text class="section__sub text-link" bindtap="onGoSkills">全部功法 ›</text>
-      </view>
-      <view class="card card--tight" wx:for="{{quickSkills}}" wx:key="id">
-        <view class="row--between">
-          <view>
-            <text class="h3">{{item.name}}</text>
-            <text class="tiny">{{item.methodName}}</text>
-          </view>
-          <text class="tag" style="color:{{item.tierColor}}">{{item.tierName}}</text>
-        </view>
-        <view class="bar mt12">
-          <view class="bar__fill" style="width:{{item.percent}}%;background:{{item.tierColor}}"></view>
-        </view>
-        <view class="row--between mt12">
-          <text class="tiny">{{item.nextText}}</text>
-          <button class="btn btn--ghost btn--small" data-id="{{item.id}}" bindtap="onPractice">去参悟</button>
+        <view class="imm-stat">
+          <text class="imm-stat__label">称 号</text>
+          <text class="imm-stat__value imm-stat__value--sm">{{ov.equippedTitleName}}</text>
         </view>
       </view>
     </view>
 
-    <view class="section">
-      <view class="section__head">
-        <text class="section__title">{{copy.sections.more}}</text>
-        <text class="section__sub text-link" bindtap="onToggleMore">{{moreOpen ? copy.actions.collapse : copy.actions.expand}}</text>
-      </view>
-      <text wx:if="{{!moreOpen}}" class="tiny">{{copy.hints.more}}</text>
-      <block wx:if="{{moreOpen}}">
-        <view class="section__head mt16">
-          <view class="row"><text class="section__title">{{copy.sections.log}}</text><term term-key="daodie" /></view>
-          <text class="section__sub text-link" bindtap="onGoProfile">道牒 ›</text>
-        </view>
-        <view class="card" wx:if="{{ov.log.length > 0}}">
-          <view class="log-line" wx:for="{{ov.log}}" wx:key="at">
-            <text class="tiny">· {{item.text}}</text>
-          </view>
-        </view>
-        <view wx:else class="card"><text class="muted">{{copy.emptyLog}}</text></view>
+    <view class="imm-hint">
+      <text class="imm-hint__pin">◈</text>
+      <text>{{hintText}}</text>
+    </view>
 
-        <view class="section__head mt16">
-          <view class="row"><text class="section__title">{{copy.sections.worlds}}</text><term term-key="worlds" /></view>
-          <text class="section__sub text-link" bindtap="onToggleWorld">{{worldOpen ? copy.actions.collapse : copy.actions.expand}}</text>
+    <view wx:if="{{dailyReady}}" class="imm-daily pressable" hover-class="pressable--on" bindtap="onClaimDaily">
+      <text class="imm-daily__text">今日份例可领 · {{dailyGain}}</text>
+      <text class="imm-daily__go">领取 ›</text>
+    </view>
+
+    <view class="imm-grid">
+      <view class="imm-tile" wx:for="{{tiles}}" wx:key="key">
+        <view class="imm-tile__inner pressable" hover-class="pressable--on" data-key="{{item.key}}" bindtap="onTile">
+          <text class="imm-tile__glyph">{{item.glyph}}</text>
+          <text class="imm-tile__label">{{item.label}}</text>
         </view>
-        <block wx:if="{{worldOpen}}">
-          <view class="card card--tight world-row" wx:for="{{worlds}}" wx:key="id">
-            <view class="grow">
-              <view class="row">
-                <text class="h3">{{item.label}} · {{item.name}}</text>
-                <text wx:if="{{item.enabled}}" class="tag tag--jade">进行中</text>
-                <text wx:else class="tag tag--grey">敬请期待</text>
-              </view>
-              <text class="tiny mt8">{{item.intro}}</text>
-            </view>
-          </view>
-        </block>
-      </block>
+      </view>
     </view>
   </block>
 
@@ -176,7 +70,7 @@
 
   <view class="mask" wx:if="{{showOffline && offline}}">
     <view class="modal">
-      <view class="row"><text class="eyebrow">闭 关 收 获</text><term term-key="offline" /></view>
+      <text class="eyebrow">闭 关 收 获</text>
       <text class="modal__title serif mt12">你不在的时候，也没闲着</text>
       <text class="modal__sub">离线 {{offline.duration}} · 最多累计 8 小时</text>
       <view class="modal__body">
@@ -189,13 +83,9 @@
           <text class="h3 jade">+{{offline.prof}}</text>
         </view>
       </view>
-      <text wx:if="{{offline.capped}}" class="tiny mt12">超过 8 小时的部分不累计，回来练一局更快。</text>
-      <text wx:if="{{offline.buffMinutes > 0}}" class="tiny mt8">其中 {{offline.buffMinutes}} 分钟带着挂机加成。</text>
       <view class="modal__actions">
         <button class="btn btn--primary btn--block" bindtap="closeOffline">{{copy.actions.confirm}}</button>
       </view>
     </view>
   </view>
-
-  <view class="pg__foot"><text class="text-link text-link--muted" bindtap="onGoGuide">{{copy.footHint}}</text></view>
 </view>

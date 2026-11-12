@@ -57,7 +57,7 @@ const FAMILY_OF = {
   breakthrough: 'alchemy',
 };
 
-// 样板阶段只给基础刀法开沉浸舞台。真机验过再逐个放开，避免一次改十套、方向错了全废。
+// 样板阶段只给刀法·开锋诀开沉浸舞台。真机验过再逐个放开，避免一次改十套、方向错了全废。
 const ENABLED = { forge: true };
 
 // 低端机红线：粒子与循环动画有上限，所有动画只动 transform / opacity。

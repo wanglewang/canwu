@@ -1,0 +1,32 @@
+<view class="pg pg--imm">
+  <view class="imm-head">
+    <text class="imm-head__back pressable" hover-class="pressable--on" bindtap="onBack">‹</text>
+    <text class="imm-head__title serif">修 行 日 志</text>
+    <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
+  </view>
+
+  <view wx:if="{{logs.length > 0}}" class="imm-panel">
+    <view class="imm-panel__label">近 期 动 静</view>
+    <view class="log-line" wx:for="{{logs}}" wx:key="at">
+      <text class="log-line__dot">◆</text>
+      <text class="log-line__text grow">{{item.text}}</text>
+    </view>
+  </view>
+  <view wx:else class="imm-panel">
+    <text class="imm-empty">{{copy.emptyLog}}</text>
+  </view>
+
+  <view class="help-sec">
+    <view class="help-sec__head pressable" hover-class="pressable--on" bindtap="onToggleWorld">
+      <text class="help-sec__idx">◇</text>
+      <text class="help-sec__title grow">诸 界</text>
+      <text class="help-sec__arrow">{{worldOpen ? '−' : '+'}}</text>
+    </view>
+    <view wx:if="{{worldOpen}}" class="help-sec__body">
+      <view class="world-row" wx:for="{{worlds}}" wx:key="id">
+        <text class="world-row__name">{{item.label}} · {{item.name}}</text>
+        <text class="world-row__state">{{item.enabled ? '进行中' : '敬请期待'}}</text>
+      </view>
+    </view>
+  </view>
+</view>

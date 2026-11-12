@@ -135,6 +135,41 @@ for (const s of skillMod.SKILLS) {
 }
 if (Object.keys(tierSeen).length !== 4) errors.push('天地玄黄中存在空阶');
 else checked += 1;
+
+// 8b. 功法命名规范：前缀 = 类别、分隔符唯一、正名三字且用体裁字、不写等级词。
+// 规则写在 data/skills.js，这里只做兜底，避免有人直接改 name 绕过校验函数。
+const nameIssues = skillMod.validateNames();
+if (nameIssues.length) errors.push('功法命名不规范：' + nameIssues.join('；'));
+else checked += 1;
+const allowedTypes = new Set(Object.keys(practiceMod.FAMILIES));
+for (const s of skillMod.SKILLS) {
+  if (!allowedTypes.has(s.type)) errors.push('功法类别不在游戏族表内: ' + s.id);
+  else checked += 1;
+  const prefix = s.name.split(skillMod.NAME_RULE.sep)[0];
+  if (prefix !== s.type) errors.push('功法名前缀与类别不一致: ' + s.id);
+  else checked += 1;
+}
+// 旧命名口径黑名单：这些写法一回来，统一感就散了。
+// 黑名单字面量本身写在 scripts/verify.js 里，跳过自身，否则会自己把自己检出来。
+for (const f of files.filter(function (x) { return (x.endsWith('.js') || x.endsWith('.wxml')) && rel(x) !== 'scripts/verify.js'; })) {
+  const src = fs.readFileSync(f, 'utf8');
+  for (const bad of ["name: '基础刀法'", "name: '吐纳诀'", "name: '剑诀·断岳'", "name: '灵契·并蒂引'", "name: '阵法·小五行阵'", "name: '丹道·凝露丹方'"]) {
+    if (src.indexOf(bad) >= 0) errors.push(rel(f) + ' 又写回了旧功法名：' + bad);
+    else checked += 1;
+  }
+}
+
+// 8c. 图鉴详情：未习得功法也必须能取到完整玩法与习得路径。
+const engineMod = require('../utils/game.js');
+const freshState = engineMod.createNewState();
+for (const s of skillMod.SKILLS) {
+  const d = engineMod.getSkillDetail(freshState, s.id);
+  if (!d || !d.guide || !d.guide.steps.length || !d.gainLines.length || !d.unlock.label) {
+    errors.push('图鉴详情缺内容: ' + s.id);
+  } else checked += 1;
+  if (!s.source || !s.source.kind) errors.push('功法缺获取方式: ' + s.id);
+  else checked += 1;
+}
 for (let i = 1; i < practiceMod.DIFFICULTIES.length; i += 1) {
   const prev = practiceMod.DIFFICULTIES[i - 1];
   const cur = practiceMod.DIFFICULTIES[i];
@@ -199,7 +234,7 @@ for (const mode of ['light', 'dark']) {
 }
 
 // 导航栏标题统一为「页面名」，配色交给 app.json 的 @变量（页面写死会在暗色下穿帮）。
-const TITLES = ['洞府', '功法', '论道', '道牒', '参悟', '登录', '修行指南'];
+const TITLES = ['主页', '修炼', '功法', '人物', '论道', '参悟', '登录', '修行指南', '说明', '修行日志'];
 for (const page of appJson.pages) {
   const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, page + '.json'), 'utf8'));
   if (TITLES.indexOf(cfg.navigationBarTitleText) < 0) {
@@ -215,11 +250,15 @@ for (const page of appJson.pages) {
 const RAW_COLOR = /#[0-9a-fA-F]{6}\b|rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+/g;
 const TOKENIZED = [
   'app.wxss',
+  'styles/immortal.wxss',
   'pages/index/index.wxss',
+  'pages/cultivate/cultivate.wxss',
   'pages/skills/skills.wxss',
   'pages/battle/battle.wxss',
   'pages/profile/profile.wxss',
   'pages/guide/guide.wxss',
+  'pages/help/help.wxss',
+  'pages/log/log.wxss',
   'pages/login/login.wxss',
 ];
 for (const f of TOKENIZED) {
@@ -232,7 +271,7 @@ for (const f of TOKENIZED) {
 // 运行时由 minigames/theme.js / data/visual.js 注入的盘面变量在这里白名单放行。
 const tokenDefs = new Set([...tokenSrc.matchAll(/(--[\w-]+)\s*:/g)].map(function (m) { return m[1]; }));
 const runtimeVars = new Set(['--acc', '--soft', '--ink', '--bg', '--frame', '--glow', '--deep', '--well', '--a', '--d']);
-const styleFiles = ['app.wxss', 'styles/scene.wxss'].concat(appJson.pages.map(function (pg) { return pg + '.wxss'; }));
+const styleFiles = ['app.wxss', 'styles/scene.wxss', 'styles/immortal.wxss'].concat(appJson.pages.map(function (pg) { return pg + '.wxss'; }));
 const undefinedVars = [];
 for (const f of styleFiles) {
   const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -291,6 +330,64 @@ for (const page of appJson.pages) {
   if (!cfg.usingComponents || !cfg.usingComponents.term) errors.push(page + '.json 没注册术语组件');
   else checked += 1;
 }
+
+// 11. 四页信息架构：tabBar 与导航真源一致、说明真源覆盖每页、解释不回页面
+const nav = require(path.join(ROOT, 'data/navigation.js'));
+const helpData = require(path.join(ROOT, 'data/help.js'));
+const tabPaths = appJson.tabBar.list.map(function (x) { return x.pagePath; });
+if (tabPaths.length !== 4) errors.push('四个 tab 的结构被改动');
+else checked += 1;
+for (let i = 0; i < nav.TAB_ORDER.length; i += 1) {
+  const expect = 'pages/' + nav.TAB_ORDER[i] + '/' + nav.TAB_ORDER[i];
+  if (tabPaths[i] !== expect) errors.push('tabBar 第 ' + (i + 1) + ' 项与导航真源不一致：' + tabPaths[i]);
+  else checked += 1;
+}
+if (nav.TILES.length !== 6) errors.push('主页六宫格不是 6 个入口');
+else checked += 1;
+for (const tile of nav.TILES) {
+  const target = tile.url.replace(/^\//, '');
+  if (appJson.pages.indexOf(target) < 0) errors.push('六宫格指向不存在的页面：' + tile.url);
+  else checked += 1;
+  if (!tile.label || !tile.glyph || !tile.mode || !tile.key) errors.push('六宫格条目字段不全：' + JSON.stringify(tile));
+  else checked += 1;
+}
+// 每个页面右上角的「说明」都要有对应主题，且主题里有可展开的分节。
+for (const pageKey of Object.keys(nav.HELP_TOPICS)) {
+  const topic = helpData.TOPICS[nav.HELP_TOPICS[pageKey]];
+  if (!topic) errors.push('说明真源缺少主题：' + pageKey);
+  else checked += 1;
+}
+for (const key of Object.keys(helpData.TOPICS)) {
+  const t = helpData.TOPICS[key];
+  if (!t.title || !t.lead || !t.sections || t.sections.length === 0) {
+    errors.push('说明主题不完整：' + key);
+    continue;
+  }
+  checked += 1;
+  for (const sec of t.sections) {
+    if (!sec.key || !sec.title || !sec.lines || sec.lines.length === 0) errors.push('说明分节不完整：' + key + '/' + sec.key);
+    else checked += 1;
+  }
+}
+// 说明页与日志页默认全折叠，别把说明书一次糊到脸上。
+const helpJs = fs.readFileSync(path.join(ROOT, 'pages/help/help.js'), 'utf8');
+if (!/open: false/.test(helpJs) || !/termsOpen: false/.test(helpJs)) errors.push('说明页没有默认折叠');
+else checked += 1;
+// 四个 tab 页：统一仙箓皮肤 + 说明入口，首屏不再出现长解释。
+for (const page of tabPaths) {
+  const src = fs.readFileSync(path.join(ROOT, page + '.wxml'), 'utf8');
+  if (!/class="pg pg--imm/.test(src)) errors.push(page + '.wxml 没用仙箓皮肤');
+  else checked += 1;
+  if (!/bindtap="onGoHelp"/.test(src)) errors.push(page + '.wxml 缺少「说明」入口');
+  else checked += 1;
+  if (/怎么提升战力|powerLines|copy\.hints\.|class="muted mt8"/.test(src)) {
+    errors.push(page + '.wxml 又把解释性文字印回首屏');
+  } else checked += 1;
+}
+// 低频信息不占首屏：日志与诸界要么进子页，要么默认折叠。
+const indexWxml = fs.readFileSync(path.join(ROOT, 'pages/index/index.wxml'), 'utf8');
+if (/onToggleWorld|worlds|修行记录/.test(indexWxml)) errors.push('主页还留着日志 / 诸界长区块');
+else checked += 1;
 
 if (errors.length > 0) {
   console.error('静态校验失败（' + errors.length + ' 项）:');

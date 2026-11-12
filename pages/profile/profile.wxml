@@ -1,140 +1,137 @@
-<view class="pg">
-  <view class="pg__head">
-    <view class="pg__head-top">
-      <text class="eyebrow">{{copy.pages.profile.eyebrow}}</text>
-    </view>
-    <text class="h1 serif">{{copy.pages.profile.title}}</text>
-    <text class="muted mt8">{{copy.pages.profile.desc}}</text>
+<view class="pg pg--imm">
+  <view class="imm-head">
+    <text class="imm-head__slot"></text>
+    <text class="imm-head__title serif">人 物</text>
+    <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
+  </view>
+
+  <view wx:if="{{!ov}}" class="state">
+    <text class="state__glyph">◇</text>
+    <text class="state__desc">{{copy.loading}}</text>
   </view>
 
   <block wx:if="{{ov}}">
-    <view class="sync-bar sync-bar--{{syncTone}} pressable" hover-class="pressable--on" bindtap="onRetrySync">
+    <view wx:if="{{syncTone !== 'ok'}}" class="sync-bar sync-bar--{{syncTone}} pressable" hover-class="pressable--on" bindtap="onRetrySync">
       <text class="sync-bar__dot"></text>
       <text class="sync-bar__text">{{syncLabel}}</text>
-      <text class="sync-bar__action">重试 ›</text>
     </view>
 
-    <view class="idcard">
-      <view class="idcard__inner">
-        <view class="idcard__hero">
-          <image wx:if="{{avatarUrl}}" class="idcard__avatar" src="{{avatarUrl}}" mode="aspectFill" />
-          <portrait wx:else variant="{{ov.portrait}}" realm="{{ov.realmIndex}}" size="normal" />
-          <view class="idcard__hero-text">
-            <text class="idcard__eyebrow">参 悟 · {{ov.worldLabel}} · {{ov.worldName}}</text>
-            <view class="row mt16">
-              <text class="idcard__name serif">{{ov.roleName}}</text>
-              <text class="tag tag--gold">{{ov.realmName}}</text>
-            </view>
-            <text class="idcard__title">{{ov.equippedTitleName}}</text>
-            <text class="idcard__edit" bindtap="openRoleEditor">立道号 · 塑道相 ›</text>
-          </view>
-        </view>
-        <text class="idcard__label">战 力</text>
-        <text class="idcard__power">{{ov.power}}</text>
-        <view class="idcard__rule"></view>
-        <text class="idcard__attrs">{{attrsLine}}</text>
-        <text class="idcard__label mt24">代 表 功 法</text>
-        <view class="idcard__skill" wx:for="{{topSkills}}" wx:key="name">
-          <text class="idcard__skill-name">{{item.name}}</text>
-          <text class="idcard__skill-tier" style="color:{{item.color}}">{{item.tierName}} · {{item.prof}}</text>
-        </view>
-        <view wx:if="{{topSkills.length === 0}}" class="idcard__empty">{{copy.emptySkills}}</view>
-        <view class="idcard__rule mt24"></view>
-        <text class="idcard__stats">{{statsLine}}</text>
-        <text class="idcard__code">战力码 {{myCode}}</text>
-        <text class="idcard__slogan">{{copy.brand.slogan}}</text>
+    <view class="imm-idcard">
+      <image wx:if="{{avatarUrl}}" class="imm-idcard__avatar" src="{{avatarUrl}}" mode="aspectFill" />
+      <portrait wx:else variant="{{ov.portrait}}" realm="{{ov.realmIndex}}" size="normal" />
+      <view class="imm-idcard__text">
+        <text class="imm-idcard__name serif">{{ov.roleName}}</text>
+        <text class="imm-idcard__line">道号 · {{ov.equippedTitleName}}</text>
+        <text class="imm-idcard__line">境界 · {{ov.realmName}}</text>
+        <text class="imm-idcard__edit pressable" hover-class="pressable--on" bindtap="openRoleEditor">立道号 ›</text>
       </view>
     </view>
 
-    <view class="btn-row">
-      <button class="btn btn--primary" bindtap="onMakeCard">生成卡片图</button>
-      <button class="btn btn--ghost" bindtap="onCopyCode">复制战力码</button>
-    </view>
-    <view class="link-row">
-      <text class="text-link text-link--muted" bindtap="onCopyCardText">复制文案</text>
-      <text class="text-link text-link--muted" bindtap="onGoBattle">看论道榜单</text>
-      <button class="btn btn--ghost btn--compact" open-type="share">邀道友同修</button>
+    <view class="imm-attrs">
+      <view class="imm-attr" wx:for="{{ov.attrs}}" wx:key="key">
+        <text class="imm-attr__name">{{item.name}}</text>
+        <text class="imm-attr__value">{{item.value}}</text>
+      </view>
     </view>
 
-    <view class="section">
-      <view class="section__head">
-        <text class="section__title">称号 · 可佩戴</text>
-        <text class="section__sub">{{ov.titlesCount}} / {{ov.titlesTotal}} 已解锁</text>
+    <view class="imm-panel">
+      <view class="imm-strip">
+        <text>当前称号 · {{ov.equippedTitleName}}</text>
+        <text class="imm-card__num">{{ov.titlesCount}} / {{ov.titlesTotal}}</text>
       </view>
-      <view class="card card--tight title-card" wx:for="{{titles}}" wx:key="id">
-        <view class="row--between">
+    </view>
+
+    <view class="imm-panel">
+      <text class="imm-panel__label">境 界 突 破 条 件</text>
+      <view class="imm-check" wx:for="{{breakList}}" wx:key="text">
+        <text class="imm-check__mark">{{item.ok ? '✓' : '○'}}</text>
+        <text class="imm-check__text grow">{{item.text}}</text>
+      </view>
+      <view class="imm-btn-row">
+        <button class="imm-btn {{ov.breakthrough.available ? '' : 'imm-btn--off'}}" bindtap="onBreakthrough">突破境界</button>
+        <button class="imm-btn--ghost" bindtap="onToggleMore">背包</button>
+      </view>
+    </view>
+
+    <!-- 低频功能全部折叠：首屏不出现说明书式文字，要用点开即可。 -->
+    <view class="help-sec">
+      <view class="help-sec__head pressable" hover-class="pressable--on" bindtap="onToggleTitles">
+        <text class="help-sec__idx">✦</text><text class="help-sec__title grow">称号簿</text>
+        <text class="help-sec__arrow">{{titlesOpen ? '−' : '+'}}</text>
+      </view>
+      <view wx:if="{{titlesOpen}}" class="help-sec__body">
+        <view class="fold-row" wx:for="{{titles}}" wx:key="id">
           <view class="grow">
-            <view class="row">
-              <text class="h3">{{item.name}}</text>
-              <text wx:if="{{item.equipped}}" class="tag tag--jade">佩戴中</text>
-              <text wx:elif="{{item.unlocked}}" class="tag tag--grey">已解锁</text>
-              <text wx:else class="tag tag--grey">未解锁</text>
-            </view>
-            <text class="tiny mt8">{{item.desc}}</text>
-            <text wx:if="{{!item.unlocked}}" class="tiny mt8">进度 {{item.progress}} / {{item.target}}</text>
+            <text class="fold-row__name">{{item.name}}</text>
+            <text class="fold-row__desc">{{item.desc}}</text>
+            <text wx:if="{{!item.unlocked}}" class="fold-row__desc">进度 {{item.progress}} / {{item.target}}</text>
           </view>
           <button wx:if="{{item.unlocked}}" class="btn {{item.equipped ? 'btn--plain' : 'btn--ghost'}} btn--small" data-id="{{item.id}}" bindtap="onEquipTitle">{{item.equipped ? '卸下' : '佩戴'}}</button>
         </view>
       </view>
     </view>
 
-    <view class="section">
-      <view class="section__head">
-        <text class="section__title">成就 · 修行印记</text>
-        <text class="section__sub">{{achievementUnlocked}} / {{achievementTotal}} 已达成</text>
+    <view class="help-sec">
+      <view class="help-sec__head pressable" hover-class="pressable--on" bindtap="onToggleAchBlock">
+        <text class="help-sec__idx">◇</text><text class="help-sec__title grow">成就 {{achievementUnlocked}} / {{achievementTotal}}</text>
+        <text class="help-sec__arrow">{{achOpen ? '−' : '+'}}</text>
       </view>
-      <view class="card card--tight" wx:for="{{achievementShown}}" wx:key="id">
-        <view class="row--between">
+      <view wx:if="{{achOpen}}" class="help-sec__body">
+        <view class="fold-row" wx:for="{{achievementShown}}" wx:key="id">
+          <text class="ach__glyph {{item.unlocked ? 'ach__glyph--on' : ''}}">{{item.glyph}}</text>
           <view class="grow">
-            <view class="row">
-              <text class="ach__glyph {{item.unlocked ? 'ach__glyph--on' : ''}}">{{item.glyph}}</text>
-              <text class="h3">{{item.name}}</text>
-              <text wx:if="{{item.unlocked}}" class="tag tag--jade">已达成</text>
-            </view>
-            <text class="tiny mt8">{{item.desc}}</text>
+            <text class="fold-row__name">{{item.name}}</text>
+            <text class="fold-row__desc">{{item.desc}}</text>
           </view>
           <text class="ach__progress">{{item.current}} / {{item.goal}}</text>
         </view>
+        <button class="btn btn--plain btn--block mt12" bindtap="onToggleAchievements">{{showAllAchievements ? '收起' : '查看全部成就'}}</button>
       </view>
-      <button class="btn btn--plain btn--block mt12" bindtap="onToggleAchievements">{{showAllAchievements ? '收起' : '查看全部成就'}}</button>
     </view>
 
-    <view class="section">
-      <view class="section__head">
-        <text class="section__title">{{copy.sections.settings}}</text>
-        <text class="section__sub">{{copy.hints.settings}}</text>
+    <view class="help-sec">
+      <view class="help-sec__head pressable" hover-class="pressable--on" bindtap="onToggleMore">
+        <text class="help-sec__idx">◈</text><text class="help-sec__title grow">背包 · 战力码</text>
+        <text class="help-sec__arrow">{{moreOpen ? '−' : '+'}}</text>
       </view>
-      <view class="card">
+      <view wx:if="{{moreOpen}}" class="help-sec__body">
+        <text class="fold-row__desc">{{statsLine}}</text>
+        <text class="fold-row__desc">{{attrsLine}}</text>
+        <text class="fold-row__desc">战力码 {{myCode}}</text>
+        <view class="btn-row btn-row--tight">
+          <button class="btn btn--primary" bindtap="onMakeCard">生成卡片图</button>
+          <button class="btn btn--ghost" bindtap="onCopyCode">复制战力码</button>
+        </view>
+        <view class="link-row">
+          <text class="text-link text-link--muted" bindtap="onCopyCardText">复制文案</text>
+          <text class="text-link text-link--muted" bindtap="onGoBattle">看论道榜单</text>
+          <button class="btn btn--ghost btn--compact" open-type="share">邀道友同修</button>
+        </view>
+      </view>
+    </view>
+
+    <view class="help-sec">
+      <view class="help-sec__head pressable" hover-class="pressable--on" bindtap="onToggleSettings">
+        <text class="help-sec__idx">☷</text><text class="help-sec__title grow">设置</text>
+        <text class="help-sec__arrow">{{settingsOpen ? '−' : '+'}}</text>
+      </view>
+      <view wx:if="{{settingsOpen}}" class="help-sec__body">
         <view class="row--between">
-          <view class="sfx-text grow">
-            <text class="h3">局内音效</text>
-            <text class="tiny mt8">轻 / 中 / 关三档，点一下切换</text>
-          </view>
+          <text class="h3">局内音效</text>
           <button class="btn btn--ghost btn--compact" bindtap="onToggleSfx">音效 · {{sfxLabel}}</button>
         </view>
-        <view class="divider"></view>
-        <view class="row--wrap">
+        <view class="row--wrap mt16">
           <term term-key="daohao" />
           <term term-key="code" />
           <term term-key="sStreak" />
         </view>
         <button class="btn btn--ghost btn--block mt12" bindtap="onGoGuide">修行指南 ›</button>
-      </view>
-    </view>
-
-    <view class="section">
-      <view class="section__head">
-        <text class="section__title">账号 · 存档</text>
-        <text class="section__sub">跟随账号 · 云端保存</text>
-      </view>
-      <view class="card">
-        <text class="body">当前账号：{{accountLabel || '读取中'}}</text>
-        <text class="tiny mt8">换设备登录后进度自动接续。</text>
+        <view class="divider"></view>
+        <text class="fold-row__desc">当前账号：{{accountLabel || '读取中'}}</text>
         <view class="btn-row btn-row--tight">
           <button class="btn btn--primary" bindtap="onExportSave">导出存档</button>
           <button class="btn btn--ghost" bindtap="openImport">导入存档</button>
         </view>
-        <view class="divider"></view>
         <text class="tiny">以下操作不可撤销，动手前建议先导出存档码</text>
         <view class="btn-row btn-row--tight">
           <button class="btn btn--warn btn--compact" bindtap="onReset">重置存档</button>
@@ -143,28 +140,19 @@
       </view>
     </view>
 
-    <view class="section">
-      <view class="section__head">
-        <view class="row"><text class="section__title">{{copy.sections.worlds}}</text><term term-key="worlds" /></view>
-        <text class="section__sub text-link" bindtap="onToggleWorld">{{worldOpen ? '收起' : '此界之外 · 展开 ›'}}</text>
+    <view class="help-sec">
+      <view class="help-sec__head pressable" hover-class="pressable--on" bindtap="onToggleWorld">
+        <text class="help-sec__idx">☰</text><text class="help-sec__title grow">诸界</text>
+        <text class="help-sec__arrow">{{worldOpen ? '−' : '+'}}</text>
       </view>
-      <block wx:if="{{worldOpen}}">
-        <view class="card card--tight world-card" wx:for="{{worlds}}" wx:key="id">
-          <view class="row--between">
-            <text class="h3">{{item.label}} · {{item.name}}</text>
-            <text wx:if="{{item.enabled}}" class="tag tag--jade">进行中</text>
-            <text wx:else class="tag tag--grey">敬请期待</text>
-          </view>
-          <text class="tiny mt8">{{item.intro}}</text>
+      <view wx:if="{{worldOpen}}" class="help-sec__body">
+        <view class="world-row" wx:for="{{worlds}}" wx:key="id">
+          <text class="world-row__name">{{item.label}} · {{item.name}}</text>
+          <text class="world-row__state">{{item.enabled ? '进行中' : '敬请期待'}}</text>
         </view>
-      </block>
+      </view>
     </view>
-
   </block>
-  <view wx:else class="state">
-    <text class="state__glyph">◇</text>
-    <text class="state__desc">{{copy.loading}}</text>
-  </view>
 
   <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
 
@@ -213,6 +201,4 @@
       </view>
     </view>
   </view>
-
-  <view class="pg__foot"><text class="text-link text-link--muted" bindtap="onGoGuide">{{copy.footHint}}</text></view>
 </view>

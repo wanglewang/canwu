@@ -1,7 +1,3 @@
 {
-  "navigationBarTitleText": "洞府",
-  "usingComponents": {
-    "portrait": "../../components/portrait/portrait",
-    "term": "../../components/term/term"
-  }
+  "navigationBarTitleText": "主页"
 }

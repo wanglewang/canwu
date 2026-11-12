@@ -76,14 +76,19 @@ check('洞府页有常驻吸底主按钮，且不再重复 tabBar 的跳转', fu
   assert.ok(!/>看道牒</.test(s), '仍保留与 tabBar 重复的「看道牒」');
 });
 
-check('洞府与道牒的「世界」占位区块默认可折叠', function () {
-  for (const rel of ['pages/index/index.wxml', 'pages/profile/profile.wxml']) {
-    const s = read(rel);
-    assert.ok(/bindtap="onToggleWorld"/.test(s), rel + ' 缺少折叠入口');
-    assert.ok(/wx:if="\{\{worldOpen\}\}"/.test(s), rel + ' 世界卡片没有条件渲染');
-  }
-  assert.ok(/onToggleWorld\s*:/.test(read('pages/index/index.js')));
+check('低频信息不占首屏：日志独立成页，诸界与设置默认折叠', function () {
+  const index = read('pages/index/index.wxml');
+  const profile = read('pages/profile/profile.wxml');
+  const log = read('pages/log/log.wxml');
+  assert.ok(!/onToggleWorld|worlds|修行记录/.test(index), '主页还留着日志 / 诸界长区块');
+  assert.ok(/bindtap="onToggleWorld"/.test(profile) && /wx:if="\{\{worldOpen\}\}"/.test(profile), '人物页诸界不能折叠');
+  assert.ok(/bindtap="onToggleWorld"/.test(log) && /wx:if="\{\{worldOpen\}\}"/.test(log), '日志页诸界不能折叠');
   assert.ok(/onToggleWorld\s*:/.test(read('pages/profile/profile.js')));
+  assert.ok(/onToggleWorld\s*:/.test(read('pages/log/log.js')));
+  // 人物页五个低频区块都有独立折叠开关，首屏只剩身份 / 属性 / 称号 / 突破。
+  for (const fn of ['onToggleTitles', 'onToggleAchBlock', 'onToggleMore', 'onToggleSettings']) {
+    assert.ok(new RegExp(fn + '\\s*:').test(read('pages/profile/profile.js')), '人物页缺折叠方法 ' + fn);
+  }
 });
 
 check('所有弹窗统一「次操作在左、主操作在右」', function () {
@@ -161,7 +166,7 @@ check('玩法说明接进准备页，术语速记常驻局内', function () {
   const click = read('minigames/click.js');
   assert.ok(/edgeName: '金锋'/.test(read('data/weapons.js')), '预留剑 profile 的金色长招没叫金锋');
   assert.ok(/profile\.edgeName/.test(click), '金色长招名没走兵器轴，容易串回剑法');
-  assert.ok(/顺着每桩箭头把刀扫到靶心/.test(read('data/guides.js')), '基础刀法说明没讲清顺箭头扫到靶心');
+  assert.ok(/顺着每桩箭头把刀扫到靶心/.test(read('data/guides.js')), '刀法·开锋诀说明没讲清顺箭头扫到靶心');
 });
 
 check('顺光扫斩：透明触摸层 + 坐标插值还原划动轨迹', function () {
@@ -252,7 +257,7 @@ check('吸底条适配安全区且有高优先级底部留白', function () {
   assert.ok(/\.pg\.pg--with-bar \{/.test(css), '留白选择器优先级不足');
 });
 
-check('视觉标准落在唯一真源，样板阶段只对基础刀法开', function () {
+check('视觉标准落在唯一真源，样板阶段只对刀法·开锋诀开', function () {
   const v = require('../data/visual.js');
   assert.strictEqual(Object.keys(v.FAMILIES).length, 5, '五类主题色板不齐');
   assert.deepStrictEqual(Object.keys(v.ENABLED), ['forge'], '样板阶段不该一次改十套');
@@ -339,19 +344,22 @@ check('兵器语言收在 data/weapons.js，玩法模块不硬编码招式名与
   assert.ok(/profile\.names/.test(click) && /words\./.test(click), '招式名与文案没走 profile');
   assert.ok(!/'平削'|'直刺'|'横劈'|'立劈'|'一剑中的'|'一刀斩中'/.test(click), '玩法模块里又硬编码了兵器称谓');
   assert.ok(/PROFILES = \{[\s\S]*sword:[\s\S]*dao:/.test(w), '兵器表没有剑 / 刀两套 profile');
-  assert.ok(/weapon: 'dao'/.test(read('data/practice.js')), '基础刀法没标兵器');
-  assert.ok(/weapon: 'sword'/.test(read('data/practice.js')), '剑诀·断岳没标兵器');
+  assert.ok(/weapon: 'dao'/.test(read('data/practice.js')), '刀法·开锋诀没标兵器');
+  assert.ok(/weapon: 'sword'/.test(read('data/practice.js')), '剑法·断岳诀没标兵器');
 });
 
-check('战力来源在洞府页与修行指南都讲清楚了', function () {
-  const wxml = read('pages/index/index.wxml');
-  const js = read('pages/index/index.js');
+check('战力明细收进「说明」真源，首屏只留数值；指南保留完整算法', function () {
+  const help = require('../data/help.js');
+  const power = help.topicOf('home').sections.filter(function (s) { return s.key === 'power'; })[0];
+  const lines = (power ? power.lines : []).join('');
+  assert.ok(lines.length > 0, '说明页缺战力专节');
+  assert.ok(/体魄 ×1\.0/.test(lines) && /境界加成/.test(lines) && /功法特效/.test(lines), '说明没讲公式三项');
+  assert.ok(/突破境界/.test(lines) && /大成/.test(lines) && /换着门练/.test(lines), '说明没讲突破、特效与轮换');
+  const index = read('pages/index/index.wxml');
+  const indexJs = read('pages/index/index.js');
+  assert.ok(!/powerOpen|powerLines|怎么提升战力/.test(index + indexJs), '主页又把长公式印回脸上');
+  assert.ok(/ov\.power/.test(index), '主页连战力数值都不显示了');
   const guide = read('pages/guide/guide.js');
-  assert.ok(/powerOpen/.test(wxml) && /onTogglePower/.test(js), '洞府页战力明细不能展开');
-  assert.ok(/ov\.powerBase/.test(wxml) && /ov\.powerRealmBonus/.test(wxml) && /ov\.powerEffectBonus/.test(wxml),
-    '洞府页没写出属性基础 / 境界 / 特效三项');
-  assert.ok(/powerLines/.test(js) && /体魄 ×1\.0/.test(js), '明细没讲属性权重');
-  assert.ok(/已学/.test(js) && /突破境界/.test(js) && /大成/.test(js), '明细没讲多学功法、突破与特效');
   assert.ok(/title: '二 · 战力从哪来'/.test(guide), '修行指南没有战力专节');
   assert.ok(/战力 = 属性加权/.test(guide) && /轮着练/.test(guide), '指南没讲公式与轮换练');
   assert.ok(/title: '十一 · 离线收益的时间'/.test(guide), '插了新专节，后面章节编号没顺延');
@@ -447,22 +455,26 @@ check('三连 S 直接晋级：准备页有进度、结算页有回执、指南�
   assert.ok(/title: '十一 · 离线收益的时间'/.test(guide), '新增专节后章节编号没顺延');
 });
 
-check('页面骨架统一：常规页面都用 .pg + 标准页头 + 统一页脚', function () {
-  for (const name of ['index', 'skills', 'battle', 'profile', 'guide']) {
+check('页面骨架统一：四 tab + 子页用仙箓皮肤，右上角唯一「说明」入口', function () {
+  const main = ['index', 'cultivate', 'skills', 'profile', 'battle', 'guide', 'help', 'log'];
+  for (const name of main) {
     const wxml = read('pages/' + name + '/' + name + '.wxml');
-    assert.ok(/^<view class="pg[ "]/m.test(wxml), name + ' 根节点不是 .pg');
-    assert.ok(/class="pg__head"/.test(wxml) && /class="pg__head-top"/.test(wxml), name + ' 页头结构不统一');
-    assert.ok(/class="eyebrow"/.test(wxml) && /class="h1 serif"/.test(wxml)
-      && /class="muted mt8"/.test(wxml), name + ' 页头缺少眉标 / 标题 / 说明');
-    assert.ok(/\{\{copy\.pages\./.test(wxml), name + ' 页头文案没走真源');
+    assert.ok(/^<view class="pg pg--imm/m.test(wxml), name + ' 根节点不是 .pg--imm');
+    assert.ok(/class="imm-head"/.test(wxml) && /class="imm-head__title serif"/.test(wxml),
+      name + ' 缺金线标题条');
+    // 说明页自己就是解释，不需要再嵌一个说明入口。
+    if (name !== 'help') assert.ok(/bindtap="onGoHelp"/.test(wxml), name + ' 缺右上角「说明」入口');
+    assert.ok(!/class="pg__head"|class="muted mt8"/.test(wxml),
+      name + ' 又把「大标题 + 说明句」印回首屏');
   }
-  // 页脚不再重复品牌口号：tab 页与参悟页指向同一个帮助入口，指南页是例外。
-  for (const name of ['index', 'skills', 'battle', 'profile', 'practice']) {
+  // 每个页面只有一个说明入口，不再有重复的页脚口号。
+  for (const name of main) {
     const wxml = read('pages/' + name + '/' + name + '.wxml');
-    assert.ok(/\{\{copy\.footHint\}\}/.test(wxml), name + ' 页脚没走文案真源');
-    assert.ok(/class="pg__foot"[\s\S]{0,120}bindtap="onGoGuide"/.test(wxml), name + ' 页脚不是可点的帮助入口');
+    assert.strictEqual((wxml.match(/bindtap="onGoHelp"/g) || []).length, name === 'help' ? 0 : 1,
+      name + ' 的说明入口不唯一');
+    assert.ok(!/copy\.footHint/.test(wxml), name + ' 还留着重复页脚口号');
   }
-  assert.ok(/\{\{copy\.footGuide\}\}/.test(read('pages/guide/guide.wxml')), '指南页页脚不该指向自己');
+  assert.ok(/\{\{copy\.footGuide\}\}/.test(read('pages/guide/guide.wxml')), '指南页页脚品牌行丢了');
   assert.ok(/class="login-page"/.test(read('pages/login/login.wxml')), '登录页根节点不是品牌页容器');
   assert.ok(/class="pg \{\{barMode/.test(read('pages/practice/practice.wxml')), '参悟页丢了 .pg 根容器');
 });
@@ -470,8 +482,8 @@ check('页面骨架统一：常规页面都用 .pg + 标准页头 + 统一页脚
 check('加载 / 空 / 错误状态统一用 .state 占位，不再白屏', function () {
   const index = read('pages/index/index.wxml');
   assert.ok(/class="state"/.test(index) && /\{\{copy\.errorTitle\}\}/.test(index), '洞府页状态占位不完整');
-  for (const name of ['skills', 'battle', 'profile']) {
-    assert.ok(/wx:else class="state"/.test(read('pages/' + name + '/' + name + '.wxml')),
+  for (const name of ['skills', 'battle', 'profile', 'cultivate']) {
+    assert.ok(/class="state"/.test(read('pages/' + name + '/' + name + '.wxml')),
       name + ' 数据未就绪时没有状态占位');
   }
   assert.ok(/class="state state--inline"/.test(read('pages/battle/battle.wxml')), '榜单错误没有用内嵌状态');
@@ -497,9 +509,11 @@ check('可点 view 统一按压反馈，反馈样式落在全局基础层', func
 
 check('全局基础层与常规页样式不写裸色值，尺寸走令牌', function () {
   const files = [
-    'app.wxss', 'pages/index/index.wxss', 'pages/skills/skills.wxss',
-    'pages/battle/battle.wxss', 'pages/profile/profile.wxss',
-    'pages/guide/guide.wxss', 'pages/login/login.wxss',
+    'app.wxss', 'styles/immortal.wxss',
+    'pages/index/index.wxss', 'pages/cultivate/cultivate.wxss',
+    'pages/skills/skills.wxss', 'pages/battle/battle.wxss',
+    'pages/profile/profile.wxss', 'pages/guide/guide.wxss',
+    'pages/help/help.wxss', 'pages/log/log.wxss', 'pages/login/login.wxss',
   ];
   const raw = /#[0-9a-fA-F]{6}\b|rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+/g;
   for (const f of files) {
@@ -514,7 +528,7 @@ check('全局基础层与常规页样式不写裸色值，尺寸走令牌', func
 });
 
 check('导航栏标题简洁统一，配色交给主题变量', function () {
-  const titles = ['洞府', '功法', '论道', '道牒', '参悟', '登录', '修行指南'];
+  const titles = ['主页', '修炼', '功法', '人物', '论道', '参悟', '登录', '修行指南', '说明', '修行日志'];
   for (const p of pageFiles('.json')) {
     const cfg = JSON.parse(read(p.rel));
     assert.ok(titles.indexOf(cfg.navigationBarTitleText) >= 0, p.rel + ' 标题不在统一命名表：' + cfg.navigationBarTitleText);
@@ -545,7 +559,7 @@ check('文案真源：跨页复用文案只在 data/copy.js 写一次', function
   for (const text of shared) {
     assert.ok(all.indexOf('>' + text + '<') < 0, '页面又硬编码了共享文案：' + text);
   }
-  for (const name of ['index', 'skills', 'battle', 'profile', 'guide', 'practice']) {
+  for (const name of ['index', 'cultivate', 'skills', 'battle', 'profile', 'guide', 'practice', 'help', 'log']) {
     const js = read('pages/' + name + '/' + name + '.js');
     assert.ok(/require\('\.\.\/\.\.\/data\/copy\.js'\)/.test(js), name + ' 没有引用文案真源');
     assert.ok(/copy: copy\.UI/.test(js), name + ' 没有把文案挂进 data');
@@ -577,11 +591,17 @@ check('术语解释：组件、词典与指南速查读同一份数据', functio
       used += 1;
     }
   }
-  assert.ok(used >= 10, '术语解释入口覆盖不足：' + used + ' 处');
-  for (const name of ['index', 'skills', 'battle', 'profile', 'guide', 'practice']) {
-    const cfg = JSON.parse(read('pages/' + name + '/' + name + '.json'));
+  // 改版后术语角标不再常驻首屏：解释统一进说明页的「名词速查」，
+  // 只在局内准备页、人物设置等少数地方保留就地角标。
+  assert.ok(used >= 4, '局内 / 设置的就地术语角标被删光了：' + used + ' 处');
+  assert.ok(/copy\.TERMS/.test(read('pages/help/help.js')) && /help-term/.test(read('pages/help/help.wxml')),
+    '说明页没有由词典生成的名词速查');
+  for (const rel of WXML) {
+    if (!/<term[^>]*term-key=/.test(read(rel))) continue;
+    const cfgPath = rel.replace(/\.wxml$/, '.json');
+    const cfg = JSON.parse(read(cfgPath));
     assert.ok(cfg.usingComponents && cfg.usingComponents.term === '../../components/term/term',
-      name + ' 没注册术语组件');
+      cfgPath + ' 用了术语组件却没注册');
   }
   for (const ext of ['.js', '.json', '.wxml', '.wxss']) {
     assert.ok(fs.existsSync(path.join(ROOT, 'components/term/term' + ext)), '术语组件缺 ' + ext);
@@ -591,27 +611,108 @@ check('术语解释：组件、词典与指南速查读同一份数据', functio
     '指南名词速查不是由术语词典生成的');
 });
 
-check('信息架构：主次分明，低频内容默认折叠，设置独立成区', function () {
+check('信息架构：主页只做导航，说明独立成页，低频内容默认折叠', function () {
+  const nav = require('../data/navigation.js');
+  const appJson = require('../app.json');
+  assert.strictEqual(appJson.tabBar.list.length, 4, 'tabBar 不是四页结构');
+  assert.deepStrictEqual(appJson.tabBar.list.map(function (x) { return x.text; }),
+    ['主页', '修炼', '功法', '人物'], '四个 tab 的名称或顺序不对');
+  assert.strictEqual(nav.TILES.length, 6, '主页六宫格不是 6 个入口');
   const index = read('pages/index/index.wxml');
-  assert.ok(/onToggleMore/.test(index) && /\{\{moreOpen\}\}/.test(index), '洞府没把日志 / 诸界收进折叠');
-  assert.ok(index.indexOf('近况') < 0 && index.indexOf('就差一点') < 0, '洞府仍有含糊区块标题');
+  assert.ok(/class="imm-grid"/.test(index) && /bindtap="onTile"/.test(index), '主页没有六宫格导航');
   assert.strictEqual((index.match(/bindtap="onQuickPractice"/g) || []).length, 1,
-    '洞府主行动入口重复：吸底按钮之外不该再放一个「就练这门」');
+    '主页主行动入口重复：吸底按钮之外不该再放一个');
+  assert.ok(index.indexOf('近况') < 0 && index.indexOf('就差一点') < 0, '主页仍有含糊区块标题');
+  assert.ok(!/class="card card--ink rec-card"/.test(index), '主页还留着整张「今日之课」长卡');
   const skills = read('pages/skills/skills.wxml');
-  assert.ok(/onToggleChain/.test(skills) && /\{\{chainOpen\}\}/.test(skills), '功法谱系没折叠');
+  assert.ok(/bindtap="onTab"/.test(skills) && /\{\{tab ===/.test(skills), '功法页没有「已习得 / 可解锁」两态');
   const battle = read('pages/battle/battle.wxml');
   assert.ok(/onToggleCode/.test(battle) && /\{\{codeOpen\}\}/.test(battle), '战力码没折叠');
   const profile = read('pages/profile/profile.wxml');
-  assert.ok(/\{\{copy\.sections\.settings\}\}/.test(profile) && /onToggleSfx/.test(profile), '设置没独立成区');
-  assert.ok(profile.indexOf('关于参悟') < 0, '音效与指南仍埋在「关于参悟」里');
+  assert.ok(/onToggleSfx/.test(profile) && /onToggleSettings/.test(profile), '设置没独立成折叠区');
+  assert.ok(/imm-attrs/.test(profile) && /breakList/.test(profile), '人物页缺属性格或突破清单');
+  const help = read('pages/help/help.wxml');
+  assert.ok(/bindtap="onToggle"/.test(help) && /bindtap="onToggleTerms"/.test(help), '说明页分节不能展开');
+  assert.ok(/open: false/.test(read('pages/help/help.js')), '说明页没有默认折叠');
   const guide = read('pages/guide/guide.wxml');
   assert.ok(/guide-toc/.test(guide) && /onJump/.test(guide) && /onToggleAll/.test(guide), '指南缺目录或全部展开');
   assert.ok(/item\.open \|\| showAll/.test(guide), '指南章节不能折叠');
   assert.ok(/id="\{\{item\.id\}\}"/.test(guide) && /pageScrollTo/.test(read('pages/guide/guide.js')),
     '目录点了只展开不滚动，不算直达');
+  const copy = require('../data/copy.js');
+  assert.ok(copy.formatProgress(2, 3) === '2 / 3', '进度写法没留在文案真源');
   assert.ok(/copy\.formatCost/.test(read('pages/skills/skills.js'))
-    && /copy\.formatGain/.test(read('pages/index/index.js'))
-    && /copy\.formatProgress/.test(read('pages/index/index.js')), '文案真源的格式化函数没接进页面');
+    && /copy\.formatGain/.test(read('pages/index/index.js')), '文案真源的格式化函数没接进页面');
+});
+
+check('功法命名统一：类别·三字正名，前缀严格等于类别', function () {
+  const skills = require('../data/skills.js');
+  const practice = require('../data/practice.js');
+  assert.deepStrictEqual(skills.validateNames(), [], '命名规范校验没通过');
+  assert.ok(skills.NAME_RULE && skills.NAME_RULE.sep === '·', '缺少命名规则真源');
+  for (const s of skills.SKILLS) {
+    const parts = s.name.split(skills.NAME_RULE.sep);
+    assert.strictEqual(parts.length, 2, s.id + ' 名字不是两段式');
+    assert.strictEqual(parts[0], s.type, s.id + ' 前缀与类别不一致');
+    assert.strictEqual(parts[1].length, 3, s.id + ' 正名不是三字');
+    assert.ok(skills.NAME_RULE.suffixes.indexOf(parts[1].slice(-1)) >= 0, s.id + ' 正名末字不是体裁字');
+    assert.ok(!/入门|基础|初级|小|大/.test(parts[1]), s.id + ' 正名带了等级词');
+    assert.ok(practice.FAMILIES[s.type], s.id + ' 类别不在游戏族表内');
+  }
+  // 十三门里不许再出现「有的没前缀」或「前缀和类别对不上」。
+  assert.strictEqual(skills.SKILLS.length, 13, '功法数变了，命名断言要同步');
+  const names = skills.SKILLS.map(function (s) { return s.name; });
+  assert.strictEqual(new Set(names).size, names.length, '功法名重复');
+  assert.ok(names.indexOf('刀法·开锋诀') >= 0 && names.indexOf('剑法·断岳诀') >= 0, '刀 / 剑两门没按规范统一');
+});
+
+check('功法图鉴：未习得也能看全玩法、收益与习得路径', function () {
+  const game = require('../utils/game.js');
+  const skills = require('../data/skills.js');
+  const js = read('pages/skills/skills.js');
+  const wxml = read('pages/skills/skills.wxml');
+  const wxss = read('pages/skills/skills.wxss');
+  assert.ok(/getSkillDetail\(/.test(js), '功法页没有从引擎取图鉴详情');
+  assert.ok(/onPrimary: function/.test(js) && /onToggleGuide: function/.test(js), '图鉴缺主按钮或玩法展开');
+  assert.ok(/detail\.guide\.steps/.test(wxml) && /detail\.guide\.terms/.test(wxml), '弹窗没展示玩法步骤与盘面符号');
+  assert.ok(/detail\.gainLines/.test(wxml) && /detail\.stageRules/.test(wxml), '弹窗没写练成收益与本门新法');
+  assert.ok(/detail\.unlock\.(label|text|hint|percent)/.test(wxml), '弹窗没写习得路径与进度');
+  assert.ok(/bindtap="openDetail"/.test(wxml) && /onCardAction/.test(wxml) && /item\.actionText/.test(wxml),
+    '卡片没有明确的可点详情 / 动作入口');
+  assert.ok(!/skill-card--dim|opacity/.test(wxml + wxss), '未习得卡片又被压灰成不可点的样子');
+  assert.ok(/\.codex__block/.test(wxss) && /\.codex__inline/.test(wxss), '图鉴分区样式没落地');
+  // 引擎层：锁定的天阶功法也必须返回完整说明与可执行的下一步。
+  const s = game.createNewState();
+  const d = game.getSkillDetail(s, 'duanyue');
+  assert.ok(!d.unlocked, '天阶功法初始不该是已习得');
+  assert.ok(d.guide && d.guide.steps.length >= 2 && d.guide.terms.length >= 2, '锁定功法看不到玩法说明');
+  assert.ok(d.gainLines.length >= 3 && d.stageRules !== undefined, '锁定功法看不到练成收益');
+  assert.ok(d.unlock.kind === 'battle' && d.unlock.action === 'battle', '掉落功法没给去论道的路径');
+  assert.ok(d.statusText && d.effectNote, '缺状态或特效生效说明');
+  for (const sk of skills.SKILLS) {
+    const item = game.getSkillDetail(s, sk.id);
+    assert.ok(item.previewInline && item.unlock.label, sk.id + ' 卡片缺玩法速记或习得标签');
+  }
+});
+
+check('图鉴文案走文案真源，解释统一收进「说明」页', function () {
+  const copy = require('../data/copy.js');
+  const help = require('../data/help.js');
+  const wxml = read('pages/skills/skills.wxml');
+  const helpJs = read('pages/help/help.js');
+  assert.ok(copy.termOf('codex'), '术语词典缺「功法图鉴」');
+  assert.ok(/copy\.TERMS/.test(helpJs), '说明页名词速查不是由术语词典生成的');
+  assert.ok(/topics|topicOf\(/.test(helpJs), '说明页没按主题取真源');
+  for (const k of ['codexPlay', 'codexGain', 'codexUnlock', 'codexTerms', 'codexStage']) {
+    assert.ok(copy.UI.sections[k], '区块文案缺 ' + k);
+    assert.ok(wxml.indexOf('copy.sections.' + k) >= 0 || wxml.indexOf('sections.' + k) >= 0, '弹窗没引用 ' + k);
+  }
+  // 「锁的是开练不是查阅」这句话从列表移到说明真源，列表只留数值与按钮。
+  const codex = help.topicOf('skills').sections.filter(function (s) { return s.key === 'codex'; })[0];
+  assert.ok(codex && /未习得也能看全/.test(codex.lines.join('')), '说明真源没讲清图鉴的锁与不锁');
+  assert.ok(!/copy\.hints\./.test(wxml), '功法页又把提示长句印回列表');
+  assert.ok(copy.UI.states.learned && copy.UI.states.buyable, '状态文案没进真源');
+  assert.ok(copy.UI.actions.viewDetail && copy.UI.actions.goBattle, '动作文案没进真源');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

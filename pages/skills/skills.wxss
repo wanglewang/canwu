@@ -1,25 +1,30 @@
-/* 功法页私有样式：原先这里手写了整套暗色覆盖，现在统一由 tokens.wxss 重定义变量，
-   页面不再维护第二套色板。 */
-.skill-card { margin-bottom: var(--sp-4); }
-
-.skill-card--dim { background: var(--c-surface-3); }
-
-.skill-type { margin-left: var(--sp-3); }
-
-.skill-rank {
-    margin-left: var(--sp-2);
-    font-size: var(--fs-caption);
+/* 功法页：列表只留名称 / 阶段 / 属性 / 进度 / 动作；规则与收益进图鉴弹层。 */
+.imm-mini-bar {
+    height: var(--sp-1);
+    border-radius: var(--r-pill);
+    background: var(--c-imm-track);
+    overflow: hidden;
+    margin: var(--sp-3) 0;
 }
 
-.skill-best {
-    margin-left: var(--sp-3);
-    color: var(--c-text-2);
+.imm-mini-bar__fill {
+    height: 100%;
+    border-radius: var(--r-pill);
+    background: var(--c-imm-cyan);
 }
 
-.tag--warn {
-    margin-left: var(--sp-2);
-    background: var(--c-danger-soft);
-    color: var(--c-danger-text);
+.imm-card__right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--sp-3);
+    flex: none;
+}
+
+.imm-card__right .imm-btn--ghost {
+    min-height: var(--touch-xs);
+    padding: 0 var(--sp-5);
+    font-size: var(--fs-note);
 }
 
 .warn-line {
@@ -28,45 +33,66 @@
     line-height: var(--lh-body);
 }
 
-.chain-card { padding-bottom: var(--sp-4); }
+/* ---------- 功法图鉴弹层：点开才出现，允许长内容滚动 ---------- */
+.modal--codex {
+    max-height: 86vh;
+    overflow-y: auto;
+    padding-bottom: var(--sp-8);
+}
 
-.chain-row {
+.codex__status { margin-right: var(--sp-2); }
+
+.codex__intro {
+    padding: var(--sp-4) var(--sp-5);
+    border-radius: var(--r-sm);
+    background: var(--c-surface-2);
+}
+
+.codex__block {
+    margin-top: var(--sp-8);
+    padding-top: var(--sp-6);
     border-top: 2rpx solid var(--c-divider);
-    padding-top: var(--sp-3);
 }
 
-.chain-row__label {
+.codex__inline {
     display: block;
-    font-size: var(--fs-note);
-    color: var(--c-text-2);
-    margin-bottom: var(--sp-2);
-}
-
-.chain-node {
-    display: inline-block;
-    margin: 0 var(--sp-2) var(--sp-2) 0;
-    padding: var(--sp-2) var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
     border-radius: var(--r-xs);
-    background: var(--c-neutral-soft);
-    color: var(--c-text-2);
-    font-size: var(--fs-caption);
+    background: var(--c-primary-soft);
+    color: var(--c-primary-text);
     line-height: var(--lh-body);
 }
 
-.chain-node--got {
-    background: var(--c-primary-soft);
-    color: var(--c-success-text);
+.codex__step,
+.codex__term {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-3);
+    line-height: var(--lh-body);
 }
 
-.chain-node--empty {
-    background: transparent;
-    border: 2rpx dashed var(--c-border-strong);
-    color: var(--c-text-3);
+.codex__dot { color: var(--c-primary-text); flex: none; }
+.codex__term > .tag { flex: none; }
+.codex__term > .grow { padding-top: var(--sp-1); }
+
+.codex__gain {
+    padding: var(--sp-3) 0;
+    border-bottom: 2rpx solid var(--c-divider);
 }
 
-.rank-detail {
-    border: 2rpx solid var(--c-border);
-    border-radius: var(--r-sm);
-    padding: var(--sp-4) var(--sp-5);
-    background: var(--c-surface-2);
+.codex__note {
+    display: block;
+    color: var(--c-text-2);
+    line-height: var(--lh-body);
+    margin-top: var(--sp-1);
+}
+
+.codex__warn {
+    padding: var(--sp-3) var(--sp-4);
+    border-radius: var(--r-xs);
+    background: var(--c-danger-soft);
+    color: var(--c-danger-text);
+    font-size: var(--fs-note);
+    line-height: var(--lh-body);
 }

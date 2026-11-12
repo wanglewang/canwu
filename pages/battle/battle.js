@@ -5,6 +5,7 @@ const engine = require('../../utils/game.js');
 const social = require('../../utils/cloud-social.js');
 const share = require('../../utils/share.js');
 const copy = require('../../data/copy.js');
+const nav = require('../../data/navigation.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -49,10 +50,18 @@ Page({
     codeOpen: false,
   },
 
-  onLoad: function () {
+  onLoad: function (query) {
     this.listener = this.refresh.bind(this);
     store.subscribe(this.listener);
+    this.focusBoard = !!(query && query.focus === 'board');
     this.refresh();
+  },
+
+  onReady: function () {
+    // 六宫格「战力仙榜」直达榜单，不用自己往下翻。
+    if (!this.focusBoard) return;
+    this.focusBoard = false;
+    wx.pageScrollTo({ selector: '#board', duration: 240 });
   },
 
   onShow: function () {
@@ -102,6 +111,14 @@ Page({
   },
 
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
+
+  onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('battle') }); },
+
+  onBack: function () {
+    const pages = getCurrentPages();
+    if (pages.length > 1) wx.navigateBack();
+    else wx.switchTab({ url: '/pages/index/index' });
+  },
 
   onFight: function (event) {
     const id = event.currentTarget.dataset.id;

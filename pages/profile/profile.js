@@ -8,6 +8,7 @@ const social = require('../../utils/cloud-social.js');
 const share = require('../../utils/share.js');
 const sfx = require('../../utils/sfx.js');
 const copy = require('../../data/copy.js');
+const nav = require('../../data/navigation.js');
 
 const SFX_LABEL = { low: '轻', mid: '中', off: '关' };
 
@@ -63,6 +64,11 @@ Page({
     draftPortrait: 0,
     draftAvatarTemp: '',
     sfxLabel: '轻',
+    breakList: [],
+    titlesOpen: false,
+    achOpen: false,
+    moreOpen: false,
+    settingsOpen: false,
     copy: copy.UI,
   },
 
@@ -75,6 +81,12 @@ Page({
   },
 
   onShow: function () {
+    // 主页六宫格「称号簿」跳 tab 时带不了 query，落地后展开对应折叠区。
+    const section = getApp().globalData.pendingSection;
+    if (section === 'titles') {
+      getApp().globalData.pendingSection = '';
+      this.setData({ titlesOpen: true });
+    }
     this.refresh();
     this.loadAccount();
     this.loadAvatar();
@@ -117,7 +129,16 @@ Page({
     const sorted = achievements.slice().sort(function (a, b) {
       return Number(a.unlocked) - Number(b.unlocked);
     });
+    // 突破条件清单：三门代表功法是否大成 + 战力是否够下一境，只给勾，不讲原理。
+    const breakList = top.map(function (s) {
+      return { text: s.name + ' · ' + s.tierName, ok: s.prof >= 1000 };
+    });
+    breakList.push({
+      text: '战力 ' + ov.power + ' / ' + (ov.breakthrough.need || ov.power),
+      ok: !!ov.breakthrough.available,
+    });
     this.setData({
+      breakList: breakList,
       ov: ov,
       topSkills: top,
       titles: titles,
@@ -141,6 +162,28 @@ Page({
     });
     this.setData({ showAllAchievements: show, achievementShown: show ? sorted : sorted.slice(0, 6) });
   },
+
+  // 低频区块默认全折叠：首屏只有身份、属性、称号、突破条件。
+  onToggleTitles: function () { this.setData({ titlesOpen: !this.data.titlesOpen }); },
+  onToggleAchBlock: function () { this.setData({ achOpen: !this.data.achOpen }); },
+  onToggleMore: function () { this.setData({ moreOpen: !this.data.moreOpen }); },
+  onToggleSettings: function () { this.setData({ settingsOpen: !this.data.settingsOpen }); },
+
+  onBreakthrough: function () {
+    if (!this.data.ov || !this.data.ov.breakthrough.available) {
+      toast('条件未齐，先练功法或攒战力');
+      return;
+    }
+    wx.navigateTo({ url: '/pages/practice/practice?mode=breakthrough' });
+  },
+
+  onRetrySync: async function () {
+    const r = await store.flushCloud();
+    toast(r && r.ok ? '已重新同步' : (r && r.message ? r.message : '同步失败'));
+    this.refresh();
+  },
+
+  onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('profile') }); },
 
   openRoleEditor: function () {
     const s = store.get();
@@ -210,7 +253,7 @@ Page({
     });
   },
 
-  onGoBattle: function () { wx.switchTab({ url: '/pages/battle/battle' }); },
+  onGoBattle: function () { wx.navigateTo({ url: '/pages/battle/battle?focus=board' }); },
 
   onToggleWorld: function () {
     this.setData({ worldOpen: !this.data.worldOpen });
@@ -220,12 +263,6 @@ Page({
     const id = event.currentTarget.dataset.id;
     const r = store.commitCritical(function (s) { return engine.equipTitle(s, id); });
     toast(r.ok ? (r.equipped ? '已佩戴称号' : '已卸下称号') : r.msg);
-    this.refresh();
-  },
-
-  onRetrySync: async function () {
-    const r = await store.flushCloud();
-    toast(r && r.ok ? '已重新同步' : (r && r.message ? r.message : '同步失败'));
     this.refresh();
   },
 

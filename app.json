@@ -1,12 +1,15 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/cultivate/cultivate",
     "pages/skills/skills",
-    "pages/battle/battle",
     "pages/profile/profile",
+    "pages/battle/battle",
     "pages/practice/practice",
-    "pages/login/login",
-    "pages/guide/guide"
+    "pages/guide/guide",
+    "pages/help/help",
+    "pages/log/log",
+    "pages/login/login"
   ],
   "window": {
     "navigationBarTitleText": "参悟",
@@ -21,10 +24,10 @@
     "backgroundColor": "@tabBgColor",
     "borderStyle": "@tabBorderStyle",
     "list": [
-      { "pagePath": "pages/index/index", "text": "洞府", "iconPath": "assets/tab/home.png", "selectedIconPath": "assets/tab/home-on.png" },
+      { "pagePath": "pages/index/index", "text": "主页", "iconPath": "assets/tab/home.png", "selectedIconPath": "assets/tab/home-on.png" },
+      { "pagePath": "pages/cultivate/cultivate", "text": "修炼", "iconPath": "assets/tab/cultivate.png", "selectedIconPath": "assets/tab/cultivate-on.png" },
       { "pagePath": "pages/skills/skills", "text": "功法", "iconPath": "assets/tab/book.png", "selectedIconPath": "assets/tab/book-on.png" },
-      { "pagePath": "pages/battle/battle", "text": "论道", "iconPath": "assets/tab/sword.png", "selectedIconPath": "assets/tab/sword-on.png" },
-      { "pagePath": "pages/profile/profile", "text": "道牒", "iconPath": "assets/tab/seal.png", "selectedIconPath": "assets/tab/seal-on.png" }
+      { "pagePath": "pages/profile/profile", "text": "人物", "iconPath": "assets/tab/seal.png", "selectedIconPath": "assets/tab/seal-on.png" }
     ]
   },
   "style": "v2",

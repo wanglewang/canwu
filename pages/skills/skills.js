@@ -2,41 +2,64 @@
 
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
-const worldData = require('../../data/world.js');
 const copy = require('../../data/copy.js');
+const nav = require('../../data/navigation.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
 }
 
+// 图鉴详情统一从引擎出：页面只补「当前资源够不够」这类即时状态。
+function detailOf(state, id) {
+  const d = engine.getSkillDetail(state, id);
+  if (!d) return null;
+  d.costText = d.cost ? copy.formatCost(d.cost.qi, d.cost.stone) : '';
+  d.affordable = !!d.cost && state.resources.qi >= d.cost.qi && state.resources.stone >= d.cost.stone;
+  d.stateText = d.unlocked ? copy.UI.states.learned
+    : (d.canBuy ? copy.UI.states.buyable : d.unlock.label);
+  d.tierTextColor = '#fffdf7';
+  d.primary = primaryOf(d);
+  return d;
+}
+
+// 弹窗右下角永远给一个能点的动作：未习得不等于死路。
+function primaryOf(d) {
+  if (d.unlocked) return { kind: 'practice', text: copy.UI.actions.practice, disabled: false };
+  if (d.canBuy) {
+    if (!d.realmOk || !d.affordable) return { kind: 'home', text: copy.UI.actions.goHome, disabled: false };
+    return { kind: 'buy', text: '兑换', disabled: false };
+  }
+  return { kind: d.unlock.action || 'home', text: d.unlock.actionText || copy.UI.actions.goHome, disabled: false };
+}
+
 Page({
   data: {
     ov: null,
+    tab: 'learned',
     cards: [],
-    unlocked: [],
-    shop: [],
-    locked: [],
-    legend: [],
-    families: [],
+    learnedCount: 0,
+    lockedCount: 0,
     showDetail: false,
     detail: null,
-    canAfford: false,
+    guideOpen: false,
     copy: copy.UI,
-    chainOpen: false,
   },
 
   onLoad: function () {
     this.listener = this.refresh.bind(this);
     store.subscribe(this.listener);
-    this.setData({
-      legend: worldData.TIERS.map(function (t) {
-        return { key: t.key, name: t.name, threshold: t.threshold, color: t.color, desc: t.desc };
-      }),
-    });
     this.refresh();
   },
 
-  onShow: function () { this.refresh(); },
+  onShow: function () {
+    // 主页六宫格的「藏经阁」跳 tab 时带不了 query，用 pendingSection 落地。
+    const section = getApp().globalData.pendingSection;
+    if (section === 'locked') {
+      getApp().globalData.pendingSection = '';
+      this.setData({ tab: 'locked' });
+    }
+    this.refresh();
+  },
 
   onUnload: function () { store.unsubscribe(this.listener); },
 
@@ -44,81 +67,75 @@ Page({
     const state = store.get();
     const ov = engine.getOverview(state);
     const list = engine.getSkillList(state);
-    const families = engine.getFamilies(state);
-    const unlocked = [];
-    const shop = [];
+    const learned = [];
     const locked = [];
     for (let i = 0; i < list.length; i += 1) {
       const s = list[i];
       s.costText = s.cost ? copy.formatCost(s.cost.qi, s.cost.stone) : '';
       s.affordable = !!s.cost && state.resources.qi >= s.cost.qi && state.resources.stone >= s.cost.stone;
-      if (s.unlocked) unlocked.push(s);
-      else if (s.canBuy) shop.push(s);
+      s.stateText = s.unlocked ? copy.UI.states.learned
+        : (s.canBuy ? copy.UI.states.buyable : s.unlock.label);
+      if (s.unlocked) learned.push(s);
       else locked.push(s);
     }
+    const source = this.data.tab === 'learned' ? learned : locked;
+    const cards = source.map(function (s) {
+      return {
+        id: s.id,
+        name: s.name,
+        mark: s.type.slice(0, 1),
+        stageText: s.unlocked ? s.profTierName + ' ' + s.percent + '%' : (s.canBuy ? '藏经阁可换' : '未修炼'),
+        bonusText: s.bonusText || s.effectText,
+        percent: s.percent,
+        tierLabel: s.tierLabel,
+        actionText: s.unlocked ? '修炼' : (s.canBuy ? '兑换' : '看详情'),
+        unlocked: s.unlocked,
+        canBuy: s.canBuy,
+      };
+    });
     const detailId = this.data.showDetail && this.data.detail ? this.data.detail.id : '';
-    let detail = null;
-    if (detailId) {
-      for (let i = 0; i < list.length; i += 1) if (list[i].id === detailId) detail = list[i];
-    }
-    const cards = [];
-    const groups = [
-      { title: '已习功法', sub: unlocked.length + ' 门 · 点开可开始参悟', items: unlocked, dim: false },
-      { title: '可兑换', sub: '用挂机与对战攒下的资源换功法', items: shop, dim: true },
-      { title: '尚未获得', sub: '论道首胜掉落，或等机缘', items: locked, dim: true },
-    ];
-    for (let g = 0; g < groups.length; g += 1) {
-      if (groups[g].items.length === 0) continue;
-      for (let i = 0; i < groups[g].items.length; i += 1) {
-        const s = groups[g].items[i];
-        cards.push({
-          id: s.id, name: s.name, type: s.type, desc: s.desc,
-          gameName: s.gameName,
-          tierKey: s.tierKey, tierName: s.tierName, tierLabel: s.tierLabel,
-          tierColor: s.tierColor, starsText: s.starsText, rewardText: s.rewardText,
-          maxRealm: s.maxRealm, maxRealmName: s.maxRealmName, decayed: s.decayed, decayText: s.decayText,
-          needRealm: s.needRealm, needRealmName: s.needRealmName, realmOk: s.realmOk,
-          bestText: s.bestText,
-          percent: s.percent, prof: s.prof, nextText: s.nextText,
-          profTierName: s.profTierName, profTierColor: s.profTierColor,
-          unlocked: s.unlocked, canBuy: s.canBuy, costText: s.costText,
-          affordable: s.affordable, sourceText: s.sourceText,
-          effectText: s.effectText, effectUnlocked: s.effectUnlocked,
-          bonusText: s.bonusText, flavor: s.flavor, maxed: s.maxed,
-          dim: groups[g].dim && !s.unlocked,
-          showHeader: i === 0,
-          groupTitle: groups[g].title,
-          groupSub: groups[g].sub,
-          canPractice: s.unlocked,
-        });
-      }
-    }
+    const detail = detailId ? detailOf(state, detailId) : null;
     this.setData({
       ov: ov,
       cards: cards,
-      families: families,
-      unlocked: unlocked,
-      shop: shop,
-      locked: locked,
+      learnedCount: learned.length,
+      lockedCount: locked.length,
       detail: detail,
       showDetail: !!detail,
-      canAfford: detail ? detail.affordable : false,
     });
   },
 
+  onTab: function (event) {
+    this.setData({ tab: event.currentTarget.dataset.tab }, this.refresh.bind(this));
+  },
+
+  showDetailFor: function (id) {
+    const d = detailOf(store.get(), id);
+    if (!d) return;
+    this.setData({ showDetail: true, detail: d, guideOpen: false });
+  },
+
   openDetail: function (event) {
+    this.showDetailFor(event.currentTarget.dataset.id);
+  },
+
+  // 卡片右侧按钮：已习得直接开练，其余先开图鉴看清再决定。
+  onCardAction: function (event) {
     const id = event.currentTarget.dataset.id;
-    const all = this.data.unlocked.concat(this.data.shop, this.data.locked);
-    for (let i = 0; i < all.length; i += 1) {
-      if (all[i].id === id) {
-        this.setData({ showDetail: true, detail: all[i], canAfford: all[i].affordable });
-        return;
-      }
+    const card = this.data.cards.filter(function (c) { return c.id === id; })[0];
+    if (card && card.unlocked) {
+      wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
+      return;
     }
+    this.showDetailFor(id);
   },
 
   closeDetail: function () {
-    this.setData({ showDetail: false, detail: null });
+    this.setData({ showDetail: false, detail: null, guideOpen: false });
+  },
+
+  onToggleGuide: function () {
+    this.setData({ guideOpen: !this.data.guideOpen });
   },
 
   onBuy: function () {
@@ -132,20 +149,23 @@ Page({
   onPractice: function () {
     const id = this.data.detail ? this.data.detail.id : '';
     if (!id) return;
-    this.setData({ showDetail: false, detail: null });
+    this.closeDetail();
     wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
   },
 
-  onToggleChain: function () {
-    this.setData({ chainOpen: !this.data.chainOpen });
+  onPrimary: function () {
+    const d = this.data.detail;
+    if (!d || !d.primary || d.primary.disabled) return;
+    const kind = d.primary.kind;
+    const id = d.id;
+    if (kind === 'buy') { this.onBuy(); return; }
+    this.closeDetail();
+    if (kind === 'practice') wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
+    else if (kind === 'battle') wx.navigateTo({ url: '/pages/battle/battle' });
+    else wx.switchTab({ url: '/pages/index/index' });
   },
 
+  onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('skills') }); },
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
-
-  onPracticeFromList: function (event) {
-    const id = event.currentTarget.dataset.id;
-    wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
-  },
-
   noop: function () {},
 });
