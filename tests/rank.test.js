@@ -93,6 +93,33 @@ check('同族共用游戏族，族内变体不重样', function () {
   assert.strictEqual(practice.familyOf('心法').kind, 'main');
 });
 
+check('一族一个品阶只放一门：撞阶会让谱系按阶取槽时丢门', function () {
+  const s = game.createNewState();
+  for (const f of game.getFamilies(s)) {
+    const seen = {};
+    for (const it of f.items) {
+      assert.ok(!seen[it.tierKey], f.type + ' 族内「' + it.tierName + '」阶撞车：' + it.name + ' / ' + seen[it.tierKey]);
+      seen[it.tierKey] = it.name;
+    }
+    // 谱系四个槽：有功法的一格必须有名字，缺变体的才允许是空档。
+    assert.strictEqual(f.slots.length, 4, f.type + ' 谱系刻度不是四阶');
+    assert.strictEqual(f.slots.filter(function (x) { return !x.empty; }).length, f.items.length,
+      f.type + ' 谱系显示的功法数与实际不符（同阶被盖掉）');
+  }
+});
+
+check('阵法难，挂地阶；扫雷轻，挂黄阶', function () {
+  const zhen = skills.getSkill('zhen');
+  const wuxing = skills.getSkill('wuxingzhen');
+  const leifu = skills.getSkill('leifu');
+  assert.strictEqual(zhen.tier, 'di', '阵灯推演是十门里最费脑的一门，不该留在低阶');
+  assert.strictEqual(wuxing.tier, 'xuan', '五行相生与燃灯诀要排成玄 → 地，撞阶会让谱系丢门');
+  assert.strictEqual(leifu.tier, 'huang', '数格辨禁难度低于阵法，应挂黄阶');
+  // 改名不动 id：存档、纪录、参悟进度都按 id 索引。
+  assert.strictEqual(zhen.id, 'zhen');
+  assert.ok(zhen.name.indexOf('入门') < 0, '地阶功法还叫「入门」，名实不副');
+});
+
 // ---------------------------------------------------------------- 难度解锁
 
 check('难度档只由本门熟练度解锁', function () {
@@ -120,7 +147,7 @@ check('品阶只改收益：同档同评级，黄 < 玄 < 地 < 天', function (
   const cases = [
     { id: 'jian', realm: 0 },
     { id: 'jingxin', realm: 1 },
-    { id: 'leifu', realm: 2 },
+    { id: 'dan', realm: 2 },
     { id: 'duanyue', realm: 3 },
   ];
   const cores = [];

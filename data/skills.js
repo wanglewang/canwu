@@ -20,8 +20,11 @@ const SKILLS = [
     source: { kind: 'start' },
   },
   {
-    id: 'zhen', name: '阵法入门', type: '阵法', kind: 'skill', tier: 'huang', method: 'arrayEye',
-    desc: '从点一盏灯开始，学会看懂一座阵。',
+    // 阵灯推演是十门里最费脑的一门，挂在黄阶会让「练得最苦、拿得最少」；
+    // 提到地阶后收益 ×2.2、属性 ×1.7、可修上限抬到元婴，代价是未到金丹只拿三成。
+    // 名字去掉「入门」：地阶功法再叫入门，就是玩家一眼看得见的名实相斥。
+    id: 'zhen', name: '阵法·燃灯诀', type: '阵法', kind: 'skill', tier: 'di', method: 'arrayEye',
+    desc: '一灯亮，四面翻；让整座阵同时亮起，才算看懂了阵眼。',
     flavor: '阵眼只在一处，找错了就得从头推。',
     bonus: { ling: 3, wu: 1 },
     effect: { type: 'variance', value: 0.05, text: '阵眼：对战波动下限提高' },
@@ -53,7 +56,9 @@ const SKILLS = [
   },
   {
     // id 沿用旧名（引雷符），存档与纪录都按 id 索引，改名不动 id。
-    id: 'leifu', name: '符箓·照影符', type: '符箓', kind: 'skill', tier: 'di', method: 'tanlei',
+    // 数格辨禁是「看得懂规则就稳」的一门，难度低于两门阵法，降到黄阶。
+    // 修习门槛随之从金丹降到炼气，但可修上限也只到筑基——练到头该换地阶那门。
+    id: 'leifu', name: '符箓·照影符', type: '符箓', kind: 'skill', tier: 'huang', method: 'tanlei',
     desc: '符光扫过，藏在石格下的禁制无所遁形。',
     flavor: '照影符不伤人，只照出你不想看见的东西。',
     bonus: { ling: 4, wu: 1 },
@@ -61,7 +66,9 @@ const SKILLS = [
     source: { kind: 'shop', cost: { qi: 160, stone: 50 } },
   },
   {
-    id: 'wuxingzhen', name: '阵法·小五行阵', type: '阵法', kind: 'skill', tier: 'di', method: 'wuxing',
+    // 五行相生偏反应、比阵灯推演轻，降到玄阶与燃灯诀排成「玄 → 地」两级。
+    // 一族一个品阶只能放一门，否则谱系按阶取槽时后一门会被同阶盖掉。
+    id: 'wuxingzhen', name: '阵法·小五行阵', type: '阵法', kind: 'skill', tier: 'xuan', method: 'wuxing',
     desc: '五盏阵灯，牵一发而动全身。',
     flavor: '师父说这叫举一反三，你觉得这叫加班。',
     bonus: { ling: 3, wu: 3 },
