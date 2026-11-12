@@ -1,19 +1,21 @@
 'use strict';
 
-// 顺光引剑（基础剑法）：剑光不再孤立亮在一格，而是一道「剑路」——
-// 沿 3×3 剑桩依次掠过 2–4 格，每桩用箭头指出下一桩，玩家顺箭头把剑引过去才算刺中。
+// 顺光扫斩（基础刀法）：刀光不再孤立亮在一格，而是一道「刀路」——
+// 沿 3×3 刀桩依次掠过 3–5 格，每桩用箭头指出下一桩，玩家顺箭头一刀扫到靶心才算斩中。
 //
 // 为什么是划不是点：点方块是「打地鼠」，手指不移动、没有方向、没有轨迹，做得再花也只是换皮。
-// 改成剑路之后，一次输入有了起手、走势、收势，动作感来自操作本身而不是特效。
-// 这里刻意不引 canvas：光靠格子按序点亮 + 一道 CSS 白光扫过就能表达「一道剑光掠过」，
+// 改成刀路之后，一次输入有了起手、走势、收势，动作感来自操作本身而不是特效。
+// 长轨迹、连扫数桩、重后摇这套语汇本来就是刀，所以这一门从功法名到浮字都归刀法，
+// 不拿「基础剑法」的名字去套刀的手感；点刺式的剑法留到以后做输入适配器时再开。
+// 这里刻意不引 canvas：光靠格子按序点亮 + 一道 CSS 白光扫过就能表达「一道刀光掠过」，
 // 页面用 touch 坐标命中预量好的格子矩形，既没有高频 setData，也不破坏统一的 vm.cells 协议。
 //
 // 兵器轴：轨迹长度、折线概率、光速、判定容差、后摇、招式名、称谓全部读 data/weapons.js。
-// 同一套 swipe(path) 引擎，剑走短直线点线、点到靶心即收；刀走长折线扫掠、容许多带几桩。
-// 加刀法只填数据，不改本文件。
+// 同一套 swipe(path) 引擎，刀走长折线扫掠、容许多带几桩；剑 profile 预留但未挂功法。
+// 再加一门刀法变体只填数据，不改本文件。
 //
-// 保留下来的深度：剑光有寿命（漏了断剑势）、刺偏罚一息、5/10/20 连击 ×1.5 / ×2 / ×3；
-// 每第五道是「金锋」——更长的金色剑路，分翻倍、寿命更短，漏了却不断剑势。
+// 保留下来的深度：刀光有寿命（漏了断刀势）、劈空罚一息、5/10/20 连击 ×1.5 / ×2 / ×3；
+// 每第五道是「重斩」——更长的金色刀路，分翻倍、寿命更短，漏了却不断刀势。
 // 五档难度落在「招式长度 / 光掠过的速度」上，不再只是把寿命拧小。
 
 const C = require('./common.js');
@@ -41,14 +43,15 @@ function nextTier(combo) {
   return out;
 }
 
-const EDGE_EVERY = 5;      // 每第五道是金锋（刀法为「重斩」）
-const EDGE_LIFE = 0.8;     // 金锋寿命八折
-const EDGE_MULT = 2;       // 金锋得分翻倍
+const EDGE_EVERY = 5;      // 每第五道是重斩（剑 profile 里叫「金锋」）
+const EDGE_LIFE = 0.8;     // 重斩寿命八折
+const EDGE_MULT = 2;       // 重斩得分翻倍
 
 // 一道招值多少分：越长越值钱，鼓励追着长招划而不是等短招。
 function pointOf(len) { return 8 + 4 * len; }
 
-// 3×3 上所有「直」的剑路（整行 / 整列 / 对角线的连续片段），按长度分组。
+// 3×3 上所有「直」的刀路（整行 / 整列 / 对角线的连续片段），按长度分组。
+// 直线最长只有 3 桩，4 桩以上必然走折线生成。
 // 直线招最好读也最好划，占多数；折线招留给长招和后期档位。
 function straightForms() {
   const lines = [
@@ -134,7 +137,7 @@ function angleOf(path) {
 }
 
 // 招式是称谓，不是方向指示：往哪划一律看盘面箭头。名字按兵器取，
-// 剑是平削 / 直刺 / 斜挑 / 绕指，刀是横劈 / 立劈 / 斜斩 / 游龙。
+// 刀法是横劈 / 立劈 / 斜斩 / 游龙；剑 profile 预留的是平削 / 直刺 / 斜挑 / 绕指。
 function nameOf(path, angle, profile) {
   if (isBent(path)) return profile.names.bent;
   if (angle === 0) return profile.names.flat;
@@ -152,7 +155,7 @@ function dirAngle(from, to) {
 }
 
 // 划过的路径里是否把这一招按顺序走完了。
-// 只认「起手 → 收势」这一个方向：剑路上每根桩都有箭头指路，反着划就是违招。
+// 只认「起手 → 收势」这一个方向：刀路上每根桩都有箭头指路，反着划就是违招。
 function containsSeq(hay, needle) {
   for (let s = 0; s + needle.length <= hay.length; s += 1) {
     let ok = true;
@@ -170,7 +173,7 @@ function matched(path, form) {
 }
 
 // 抚摸层 10px 插值会在格子边界抖出 [0,1,0,1,2] 这样的序列。
-// 压成「首次经过」的顺序，既抗抖动，也让「绕盘面乱划一大圈」不能被当成一剑。
+// 压成「首次经过」的顺序，既抗抖动，也让「绕盘面乱划一大圈」不能被当成一刀。
 function compress(path) {
   const out = [];
   for (let i = 0; i < path.length; i += 1) {
@@ -185,7 +188,7 @@ function compress(path) {
 function create(ctx) {
   const p = ctx.params || {};
   const perks = ctx.perks || {};
-  // 兵器是第五根轴：同一套引擎，剑走短直线点线，刀走长折线扫掠。
+  // 兵器是第五根轴：当前挂的是 dao，剑 profile 只是预留。
   const profile = W.weaponOf(p.weapon);
   const words = profile.words;
   const duration = Math.max(8, (p.duration || 15) + (perks.easy ? 3 : 0));
@@ -199,7 +202,7 @@ function create(ctx) {
 
   // 门槛按「每秒得分」定，并随档位抬：路变长后单招分更高，固定门槛会人人 S、
   // 高难度反而更容易满分。刀法长招更多，用 gradeScale 再同步抬一档。
-  // 用假时钟标定过：约 220ms / 400ms / 650ms 一剑的
+  // 用假时钟标定过：约 220ms / 400ms / 650ms 一刀的
   // 完美玩家分别落在 S / A / B，失误多了才掉到 C。
   const sLimit = Math.ceil(duration * (155 + depth * 20) * profile.gradeScale);
   const aLimit = Math.ceil(duration * (68 + depth * 8) * profile.gradeScale);
@@ -209,7 +212,7 @@ function create(ctx) {
   vm.timeText = C.mmss(duration);
   vm.scoreText = '得分 0';
   vm.trail = null;      // { path, name, angle, gold, on }：当前路与光头位置
-  vm.slash = null;      // { key, angle }：刺中时掠过盘面的一道白光
+  vm.slash = null;      // { key, angle }：斩中时掠过盘面的一道白光
   vm.extras.showCombo = true;
   vm.extras.showMeter = true;
   vm.extras.showSwipe = true;
@@ -292,7 +295,7 @@ function create(ctx) {
 
   function lifeMs() { return Math.round(formGold ? life * EDGE_LIFE : life); }
 
-  // 光头沿剑路逐桩掠过：已经走过的留一道浅光痕，当前桩最亮。玩家可以在光流动时就追着划。
+  // 光头沿刀路逐桩掠过：已经走过的留一道浅光痕，当前桩最亮。玩家可以在光流动时就追着划。
   // 寿命线只在光走到收势桩那一刻挂上，避免逐帧重绘把 CSS 动画反复重启。
   function lightStep(n) {
     if (done || !form) return;
@@ -321,8 +324,9 @@ function create(ctx) {
     busy = false;
     spawns += 1;
     formGold = spawns % EDGE_EVERY === 0;
-    formLen = Math.min(4, baseLen + (formGold ? 1 : 0));
-    // 4 桩在 3×3 上画不出直线，必然是折线；其余按档位概率掺入折线招。
+    // 上限跟着 profile 走，刀法的 5 桩长招才不会被写死的 4 截掉。
+    formLen = Math.min(profile.maxLen, baseLen + (formGold ? 1 : 0));
+    // 4 桩以上在 3×3 上画不出直线，必然是折线；其余按档位概率掺入折线招。
     const bent = formLen >= 4 || Math.random() < wanderChance;
     form = formOf(formLen, bent);
     formLen = form.length;
@@ -424,7 +428,7 @@ function create(ctx) {
     if (!path || path.length < 2) return;   // 轻点一下不算一招，也不算失手
     const trail = compress(path);
     if (trail.length < 2) return;
-    // 一招就是一道轨迹：剑最多带一桩（抗抖），刀可带两桩（刀势），绕圈不能白嫖。
+    // 一招就是一道轨迹：刀势允许最多带过两桩，但绕一大圈不能白嫖。
     if (trail.length > form.length + profile.slack) { whiff(); return; }
     if (matched(trail, form)) { strike(); return; }
     whiff();
@@ -464,4 +468,4 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'click', name: '顺光引剑', create: create };
+module.exports = { id: 'click', name: '顺光扫斩', create: create };

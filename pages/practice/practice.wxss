@@ -421,7 +421,7 @@
 .cell--dead { background: #e6ddd0; color: #9b8f7f; box-shadow: inset 0 0 0 4rpx #b4453c; }
 .cell--dead-lit { background: #efe6d8; }
 
-/* ---------- 循光劈刺：剑路（划） ---------- */
+/* ---------- 循光斩桩：刀路（划） ---------- */
 .trail-hint {
     display: flex;
     align-items: baseline;
@@ -435,7 +435,7 @@
     letter-spacing: 2rpx;
 }
 
-/* 剑路：已掠过的桩留一道浅光痕，光头最亮；金色是金锋长招。 */
+/* 刀路：已掠过的桩留一道浅光痕，光头最亮；金色是重斩长招。 */
 .cell--path {
     background: rgba(74, 107, 134, 0.26);
     color: var(--ink, #254253);
@@ -466,7 +466,7 @@
     animation: hitPop 0.18s ease-out;
 }
 
-/* 剑路方向：纯 CSS 三角 + 短杆，0° 朝上，inline transform 按相邻桩方向旋转。
+/* 刀路方向：纯 CSS 三角 + 短杆，0° 朝上，inline transform 按相邻桩方向旋转。
    不用汉字、不用 unicode 字形，颜色继承格子 currentColor，浅色 / 深色舞台都清楚。 */
 .cell__arrow {
     position: absolute;
@@ -526,7 +526,7 @@
     transform: translate(-50%, -50%);
 }
 
-/* 斩中时按剑招角度扫过盘面的一道白光：外层定位旋转，内层做扫光动画 */
+/* 斩中时按刀招角度扫过盘面的一道白光：外层定位旋转，内层做扫光动画 */
 .grid__slash {
     position: absolute;
     left: 50%;
@@ -553,7 +553,7 @@
     100% { transform: scaleX(1); opacity: 0; }
 }
 
-/* 透明触摸层：只在划剑玩法的局内出现，其它玩法的滚动与点按完全不受影响 */
+/* 透明触摸层：只在划刀玩法的局内出现，其它玩法的滚动与点按完全不受影响 */
 .swipe-layer {
     position: absolute;
     left: 0;
@@ -563,7 +563,7 @@
     z-index: 3;
 }
 
-/* ---------- 循光劈刺：剑光寿命线 / 金锋 / 劈中 ---------- */
+/* ---------- 循光斩桩：刀光寿命线 / 重斩 / 斩中 ---------- */
 .cell__life {
     position: absolute;
     left: 10rpx;
@@ -766,7 +766,7 @@
     animation: litPop 0.35s ease-out;
 }
 
-/* ---------- 剑招连段：卷轴 + 四个招式键 ---------- */
+/* ---------- 步法连段：卷轴 + 四个步法键 ---------- */
 .scroll {
     box-sizing: border-box;
     margin-top: 20rpx;

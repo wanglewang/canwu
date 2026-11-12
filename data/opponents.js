@@ -6,7 +6,7 @@
 const OPPONENTS = [
   {
     id: 'zhaoyan', kind: 'npc', name: '外门师兄·赵砚', title: '同门切磋',
-    power: 42, desc: '练了五年基础剑法，逢人便说「还差一点」。',
+    power: 42, desc: '练了五年剑，逢人便说「还差一点」。',
     reward: { qi: 40, stone: 12 }, drop: null,
     winLine: '赵砚收剑，盯着你的手腕看了半天，没说话。',
     loseLine: '赵砚笑了笑：「还差一点。」这次说的是你。',

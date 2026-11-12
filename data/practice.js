@@ -3,30 +3,30 @@
 // 参悟方式 = 一门功法 + 一套专属玩法 + 该门独有的规则花样(twist) + 表现主题(theme)。
 // 10 门功法对应 10 套互不复用内核的小游戏；同是剑法、同是阵法，也不会点进去是同一个盘面。
 // game 取值见 minigames/index.js：click / hunt / memory / bridge / tempo / sword / lights / wuxing / mines / seal。
-// 剑法两门都标 weapon: 'sword'：兵器是功法属性，不是某个玩法的私有参数。
-// charge 仅用于境界突破，不挂功法。
+// forge 是刀法（weapon: 'dao'），剑诀·断岳仍标 sword，但 hunt 引擎暂不读兵器轴。
+// 兵器是功法属性，不是某个玩法的私有参数。charge 仅用于境界突破，不挂功法。
 //
-// 命名分工：「参悟方式」写这一门功课具体在做什么（引剑 / 采露 / 观窍），
-// 「玩法名」写盘面上的动作（顺光引剑 / 循纹递推）。两者不可重名，也不可与功法本身相斥——
-// 剑法不练打铁，丹道不练渡河，符箓不练探雷。
+// 命名分工：「参悟方式」写这一门功课具体在做什么（斩桩 / 采露 / 观窍），
+// 「玩法名」写盘面上的动作（顺光扫斩 / 循纹递推）。两者不可重名，也不可与功法本身相斥——
+// 刀法不练数格子，丹道不练渡河，符箓不练探雷。
 // id 是稳定键（存档、纪录都按它索引），改文案时不要动 id。
 // base 是熟练度收益基数，按各玩法的通关难度分别配平。
 //
 // 一个维度只管一件事：
 //   类型 → 玩什么（游戏族，见 FAMILIES）
-//   兵器 → 怎么动（剑 / 刀，见 data/weapons.js；目前 click 引擎读它）
+//   兵器 → 怎么动（刀法走 click；剑 profile 预留，先不做剑法）
 //   品阶 → 收益倍率与属性加成（见 TIERS，天地玄黄）
 //   熟练度 → 可选难度档（见 DIFFICULTIES）
 //   境界 → 可修上限与收益衰减（品阶的 maxRealm）
 
 const PRACTICE_METHODS = [
   {
-    id: 'forge', name: '循光刺桩', game: 'click', theme: 'forge', twist: 'forge',
-    desc: '剑光沿剑桩连成一道剑路，每桩箭头指向下一桩，顺箭头把剑引到靶心才算刺中。反向或刺偏一记，少一息。',
-    tip: '顺着箭头引剑过去，点亮不算',
+    id: 'forge', name: '循光斩桩', game: 'click', theme: 'forge', twist: 'forge',
+    desc: '刀光沿刀桩连成一道刀路，每桩箭头指向下一桩，顺箭头一刀扫到靶心才算斩中。反向或劈空一记，少一息。',
+    tip: '顺着箭头一刀扫过去，点亮不算',
     base: 32,
     // weapon 是兵器轴：click 引擎读它分剑 / 刀，其余引擎目前忽略。
-    params: { duration: 15, life: 700, grid: 9, cols: 3, weapon: 'sword' },
+    params: { duration: 15, life: 700, grid: 9, cols: 3, weapon: 'dao' },
   },
   {
     id: 'snatch', name: '辨锋截击', game: 'hunt', theme: 'snatch', twist: 'snatch',
@@ -96,7 +96,7 @@ const PRACTICE_METHODS = [
 // 玩法中文名：只写盘面上的动作，不写题材。与 minigames/ 各模块导出的 name 一一对应，
 // 测试会断言两者不漂移。参悟方式名与这里不可重复（否则准备页标题和标签会撞词）。
 const GAME_LABELS = {
-  click: '顺光引剑',
+  click: '顺光扫斩',
   hunt: '辨伪择真',
   memory: '记序复现',
   bridge: '循纹递推',
@@ -111,7 +111,8 @@ const GAME_LABELS = {
 // 游戏族：同类功法共用一套手感内核，族内按品阶递进出变体。
 // 只有新增「族」或新增变体才需要写代码，加功法只填数据。
 const FAMILIES = {
-  剑法: { core: '辨光取真', note: '同族都在辨剑光：一门顺光引剑到靶心，一门在数道光里截真招', kind: 'skill' },
+  刀法: { core: '顺光成路', note: '顺着箭头把刀扫到靶心，招长而折，容许多带两桩', kind: 'skill' },
+  剑法: { core: '辨光取真', note: '先不做剑法，眼下只余剑诀·断岳一门，在数道剑光里截真招', kind: 'skill' },
   阵法: { core: '阵灯推演', note: '同族都在推阵灯，换的是推演方向与步数目标', kind: 'skill' },
   心法: { core: '记忆与节律', note: '三门主修各考一样：节拍、记性、配对', kind: 'main' },
   丹道: { core: '循纹递推', note: '看纹路递推，只有一门', kind: 'skill' },
@@ -227,7 +228,7 @@ const GOAL_KEYS = ['chainGoal', 'maxRound', 'segments', 'beats', 'scramble', 'mi
 const SPEED_KEY = 'speed';
 
 const FIELD_LABELS = {
-  interval: '灵光间隔', life: '剑光停留', flashMs: '闪烁时长', gapMs: '闪烁间隔', windowMs: '相生之窗', msPerNote: '每字息数',
+  interval: '灵光间隔', life: '刀光停留', flashMs: '闪烁时长', gapMs: '闪烁间隔', windowMs: '相生之窗', msPerNote: '每字息数',
   shuffleMs: '水流变阵', flipMs: '翻牌停留', window: '判定窗', speed: '气机收敛',
   chainGoal: '连生目标', maxRound: '口诀轮数', segments: '步法段数', beats: '息数',
   scramble: '打乱步数', mines: '禁制数', pairs: '符对数', decoys: '影子数',

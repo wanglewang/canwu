@@ -165,7 +165,7 @@
       </view>
     </view>
 
-    <!-- 样板玩法的游戏化 HUD：香炷计息、命灯、剑势刻度、灵石得分 -->
+    <!-- 样板玩法的游戏化 HUD：香炷计息、命灯、刀势刻度、灵石得分 -->
     <view wx:else class="scene-hud">
       <view class="scene-hud__top">
         <view class="scene-hud__id">
@@ -184,7 +184,7 @@
         <view class="scene-hud__incense-fill" style="width:{{incensePercent}}%"></view>
       </view>
       <view class="scene-hud__meter">
-        <text class="scene-hud__meter-label">{{vm.meter ? vm.meter.label : '剑势'}}</text>
+        <text class="scene-hud__meter-label">{{vm.meter ? vm.meter.label : '刀势'}}</text>
         <view class="scene-hud__meter-track">
           <view class="scene-hud__meter-fill" style="width:{{meterPercent}}%"></view>
           <view class="scene-hud__meter-tick" style="left:33%"></view>
@@ -230,7 +230,7 @@
 
       <view wx:if="{{vm.trail && started}}" class="trail-hint">
         <text class="trail-hint__name">{{vm.trail.name}}</text>
-        <text class="tiny">顺箭头引剑 {{trailLen}} 桩 · 反向算刺偏</text>
+        <text class="tiny">顺箭头扫斩 {{trailLen}} 桩 · 反向算劈空</text>
       </view>
 
       <view wx:if="{{(vm.stage === 'board' || vm.stage === 'lane') && vm.extras.showGrid}}" class="grid grid--c{{vm.cols}} {{vm.stage === 'lane' ? 'grid--lane' : ''}}" style="background:{{sceneOn ? stage.well : theme.bg}}">
@@ -239,7 +239,7 @@
         </view>
         <view wx:for="{{vm.cells}}" wx:key="key" class="{{item.cls}} cell--t{{item.tone}}" style="border-color:{{sceneOn ? stage.deep : theme.frame}}" data-index="{{index}}" bindtap="onCellTap" bindlongpress="onCellLongPress">
           <view wx:if="{{item.life}}" class="cell__life" style="animation-duration:{{item.life}}ms;animation-delay:{{item.lifeDelay}}ms"></view>
-          <!-- 剑路用形状指方向：每桩一个箭头指向下一桩，收势桩是靶心。盘面不放汉字。 -->
+          <!-- 刀路用形状指方向：每桩一个箭头指向下一桩，收势桩是靶心。盘面不放汉字。 -->
           <view wx:if="{{item.arrow >= 0}}" class="cell__arrow" style="transform:translate(-50%,-50%) rotate({{item.arrow}}deg)">
             <view class="cell__arrow-head"></view>
             <view class="cell__arrow-shaft"></view>
@@ -247,7 +247,7 @@
           <view wx:if="{{item.end}}" class="cell__end"></view>
           <text>{{item.label}}</text>
         </view>
-        <!-- 划剑玩法的透明触摸层：盖住静态格子，用手势坐标还原一条连续轨迹 -->
+        <!-- 划刀玩法的透明触摸层：盖住静态格子，用手势坐标还原一条连续轨迹 -->
         <view wx:if="{{vm.extras.showSwipe && started}}" class="swipe-layer" bindtouchstart="onBoardTouchStart" catchtouchmove="onBoardTouchMove" bindtouchend="onBoardTouchEnd" bindtouchcancel="onBoardTouchEnd"></view>
       </view>
 

@@ -135,7 +135,7 @@ const SOUNDS = {
     return b;
   },
 
-  // 金锋 / 大得：比 hit 高一点的轻铃，不再叠第二个音
+  // 重斩 / 大得：比 hit 高一点的轻铃，不再叠第二个音
   gold: function () {
     const b = blank(0.34);
     tone(b, {

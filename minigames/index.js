@@ -32,7 +32,7 @@ function createGame(gameId, ctx) {
   return mod.create(ctx);
 }
 
-function gameName(gameId) { return GAME_NAMES[gameId] || '顺光引剑'; }
+function gameName(gameId) { return GAME_NAMES[gameId] || '顺光扫斩'; }
 
 module.exports = {
   MODULES: MODULES,

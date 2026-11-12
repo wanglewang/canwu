@@ -159,12 +159,12 @@ check('玩法说明接进准备页，术语速记常驻局内', function () {
   assert.ok(/guides\.guideOf\(gameId\)/.test(js), '页面没有按玩法取说明');
   assert.ok(/onToggleGuide: function/.test(js), '缺少展开/收起方法');
   const click = read('minigames/click.js');
-  assert.ok(/edgeName: '金锋'/.test(read('data/weapons.js')), '剑法的金色长招没叫金锋');
-  assert.ok(/profile\.edgeName/.test(click), '金色长招名没走兵器轴，容易串回刀法');
-  assert.ok(/顺着每桩箭头把剑引到靶心/.test(read('data/guides.js')), '基础剑法说明还停留在「点格子」');
+  assert.ok(/edgeName: '金锋'/.test(read('data/weapons.js')), '预留剑 profile 的金色长招没叫金锋');
+  assert.ok(/profile\.edgeName/.test(click), '金色长招名没走兵器轴，容易串回剑法');
+  assert.ok(/顺着每桩箭头把刀扫到靶心/.test(read('data/guides.js')), '基础刀法说明没讲清顺箭头扫到靶心');
 });
 
-check('顺光引剑：透明触摸层 + 坐标插值还原划动轨迹', function () {
+check('顺光扫斩：透明触摸层 + 坐标插值还原划动轨迹', function () {
   const s = read('pages/practice/practice.wxml');
   const js = read('pages/practice/practice.js');
   const css = read('pages/practice/practice.wxss');
@@ -175,8 +175,8 @@ check('顺光引剑：透明触摸层 + 坐标插值还原划动轨迹', functio
   assert.ok(/Math\.sqrt\(dx \* dx \+ dy \* dy\) \/ 10/.test(js), '相邻 move 之间没插值，划快了会漏桩');
   assert.ok(/controller\.swipe\(path\)/.test(js), '页面没有把轨迹交给玩法层');
   assert.ok(/showSwipe/.test(common) && /swipe: noop/.test(common), '统一协议里没有 swipe 与 showSwipe');
-  assert.ok(/\.grid__slash-beam/.test(css) && /slashSweep/.test(css), '刺中缺少按招式角度掠过的白光');
-  assert.ok(/\.cell--path\b/.test(css) && /\.cell--pathon/.test(css), '剑路缺光痕与光头两种状态');
+  assert.ok(/\.grid__slash-beam/.test(css) && /slashSweep/.test(css), '斩中缺少按招式角度掠过的白光');
+  assert.ok(/\.cell--path\b/.test(css) && /\.cell--pathon/.test(css), '刀路缺光痕与光头两种状态');
 });
 
 check('音效保持柔和不叠加（刺耳问题不退回去）', function () {
@@ -238,7 +238,7 @@ check('吸底条适配安全区且有高优先级底部留白', function () {
   assert.ok(/\.pg\.pg--with-bar \{/.test(css), '留白选择器优先级不足');
 });
 
-check('视觉标准落在唯一真源，样板阶段只对基础剑法开', function () {
+check('视觉标准落在唯一真源，样板阶段只对基础刀法开', function () {
   const v = require('../data/visual.js');
   assert.strictEqual(Object.keys(v.FAMILIES).length, 5, '五类主题色板不齐');
   assert.deepStrictEqual(Object.keys(v.ENABLED), ['forge'], '样板阶段不该一次改十套');
@@ -295,7 +295,7 @@ check('舞台动画只动 transform / opacity，不超循环预算', function ()
   assert.ok((css.match(/infinite/g) || []).length <= v.MOTION.loops, '常驻循环动画超过 3 路');
 });
 
-check('剑路用形状指方向：箭头节点、纯 CSS 图形、盘面无汉字', function () {
+check('刀路用形状指方向：箭头节点、纯 CSS 图形、盘面无汉字', function () {
   const wxml = read('pages/practice/practice.wxml');
   const css = read('pages/practice/practice.wxss');
   const click = read('minigames/click.js');
@@ -304,7 +304,7 @@ check('剑路用形状指方向：箭头节点、纯 CSS 图形、盘面无汉�
   assert.ok(/class="cell__end"/.test(wxml), '收势桩没有靶心节点');
   assert.ok(/\.cell__arrow-head/.test(css) && /\.cell__arrow-shaft/.test(css), '箭头不是纯 CSS 画的，不能靠文字字形');
   assert.ok(/function dirAngle/.test(click), '玩法层没有算相邻桩方向');
-  assert.ok(!/theme\.glyph \|\| '锋'/.test(click), '剑路还在写「锋」字');
+  assert.ok(!/theme\.glyph \|\| '锋'/.test(click), '刀路还在写「锋」字');
   assert.ok(!/回锋/.test(click), '还留着「回锋」这种反向招式名');
   assert.ok(!/containsSeq\(path, form\.slice\(\)\.reverse\(\)\)/.test(click), '判定还允许反着划');
 });
@@ -313,7 +313,7 @@ check('局内提示明确禁止反向，不再写「反着划也算」', functio
   const wxml = read('pages/practice/practice.wxml');
   const guides = read('data/guides.js');
   assert.ok(!/反着划也算/.test(wxml), 'HUD 还在说反着划也行');
-  assert.ok(/反向算刺偏/.test(wxml), 'HUD 没写清方向约束');
+  assert.ok(/反向算劈空/.test(wxml), 'HUD 没写清方向约束');
   assert.ok(/箭头/.test(guides) && /不能反/.test(guides), '玩法说明没讲箭头与禁反向');
 });
 
@@ -325,7 +325,8 @@ check('兵器语言收在 data/weapons.js，玩法模块不硬编码招式名与
   assert.ok(/profile\.names/.test(click) && /words\./.test(click), '招式名与文案没走 profile');
   assert.ok(!/'平削'|'直刺'|'横劈'|'立劈'|'一剑中的'|'一刀斩中'/.test(click), '玩法模块里又硬编码了兵器称谓');
   assert.ok(/PROFILES = \{[\s\S]*sword:[\s\S]*dao:/.test(w), '兵器表没有剑 / 刀两套 profile');
-  assert.ok(/weapon: 'sword'/.test(read('data/practice.js')), '剑法功法没标兵器');
+  assert.ok(/weapon: 'dao'/.test(read('data/practice.js')), '基础刀法没标兵器');
+  assert.ok(/weapon: 'sword'/.test(read('data/practice.js')), '剑诀·断岳没标兵器');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

@@ -454,7 +454,7 @@ Page({
           sfx.play('go');
           if (self.controller) self.controller.start();
           self.syncBar();
-          // 盘面刚从「准备态」切到「局内态」，等一帧再量格子矩形给划剑用。
+          // 盘面刚从「准备态」切到「局内态」，等一帧再量格子矩形给划刀用。
           setTimeout(function () { if (self.pageAlive) self.measureBoard(); }, 60);
         } else {
           self.setData({ countdown: n });
@@ -502,7 +502,7 @@ Page({
 
   onCellTap: function (event) {
     if (!this.controller) return;
-    // 划剑玩法由透明触摸层接管，静态格子的 tap 一律不判，避免划完抬手又补一次点击。
+    // 划刀玩法由透明触摸层接管，静态格子的 tap 一律不判，避免划完抬手又补一次点击。
     if (this.data.vm && this.data.vm.extras.showSwipe) return;
     const before = this.lastFxKey;
     this.controller.tap(Number(event.currentTarget.dataset.index || 0));
@@ -518,10 +518,10 @@ Page({
     if (this.lastFxKey === before) sfx.play('tap');
   },
 
-  // ---------- 划剑输入 ----------
+  // ---------- 划刀输入 ----------
   // 小程序的 touchmove 目标固定在起手元素上，给每个格子单独绑 move 是收不到跨格轨迹的。
   // 所以盘面上盖一层透明触摸层：开局量一次所有格子的视口矩形，再把相邻两次 move 之间的
-  // 线段按 10px 步长插值，补出手指快速掠过时的中间格——不然划快了会漏桩，白白判成刺偏。
+  // 线段按 10px 步长插值，补出手指快速掠过时的中间格——不然划快了会漏桩，白白判成劈空。
   measureBoard: function () {
     if (typeof wx === 'undefined' || !wx.createSelectorQuery) return;
     const self = this;
@@ -602,7 +602,7 @@ Page({
     if (!this.boardReady()) return;
     const before = this.lastFxKey;
     this.controller.swipe(path);
-    // 轻点一下（路径不足两桩）玩法不判也不罚，这里补一声轻响当作「这一剑没递出去」。
+    // 轻点一下（路径不足两桩）玩法不判也不罚，这里补一声轻响当作「这一刀没递出去」。
     if (this.lastFxKey === before) sfx.play('tap');
   },
 

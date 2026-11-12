@@ -259,10 +259,13 @@ check('getFamilies 四档刻度齐全，缺变体的档位标空档', function (
   const s = freshState('', 0, 0);
   const fams = game.getFamilies(s);
   assert.ok(fams.length >= 5);
+  const dao = fams.find(function (f) { return f.type === '刀法'; });
+  assert.ok(dao && dao.core, '新增的刀法族没进功法谱系');
   const sword = fams.find(function (f) { return f.type === '剑法'; });
   assert.strictEqual(sword.slots.length, 4);
   assert.ok(sword.core, '游戏族核心玩法缺失');
-  assert.strictEqual(sword.slots.filter(function (x) { return x.empty; }).length, 2, '剑法中间两阶应为空档');
+  // 这一版先不做剑法：初始功法改刀法后，剑法族只余天阶的剑诀·断岳。
+  assert.strictEqual(sword.slots.filter(function (x) { return x.empty; }).length, 3, '剑法族应只剩一门、空三档');
   for (const f of fams) {
     for (const node of f.slots) {
       assert.ok(node.tierName && node.starsText);

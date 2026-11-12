@@ -5,17 +5,18 @@ const practiceData = require('./practice.js');
 // 技能表。熟练度阈值走 world.js 的 TIERS，品阶与可修境界走 practice.js 的 TIERS。
 // effect.type：power 对战战力 / variance 对战波动 / practice 参悟收益 / offline 挂机收益
 // source.kind：start 初始 / shop 藏经阁 / battle 首胜掉落 / chance 机缘
-// kind：main 主修（心法，决定修炼速度）/ skill 技艺（剑法、阵法、丹道、符箓、身法）
+// kind：main 主修（心法，决定修炼速度）/ skill 技艺（刀法、剑法、阵法、丹道、符箓、身法）
 // tier：huang 黄 / xuan 玄 / di 地 / tian 天 —— 只决定收益倍率、属性加成与可修境界上限，不决定难度。
 // 难度由玩家在这门功法上的熟练度决定（见 data/practice.js 的 DIFFICULTIES）。
 
 const SKILLS = [
   {
-    id: 'jian', name: '基础剑法', type: '剑法', kind: 'skill', tier: 'huang', method: 'forge',
+    // id 沿用旧名（基础剑法），存档与纪录都按 id 索引，改成刀法不动 id。
+    id: 'jian', name: '基础刀法', type: '刀法', kind: 'skill', tier: 'huang', method: 'forge',
     desc: '外门人人会，练到极处的没几个。',
-    flavor: '剑是死的，手腕是活的。',
+    flavor: '刀是死的，手腕是活的。',
     bonus: { shen: 3, ti: 1 },
-    effect: { type: 'power', value: 0.06, text: '剑意：对战战力 +6%' },
+    effect: { type: 'power', value: 0.06, text: '刀意：对战战力 +6%' },
     source: { kind: 'start' },
   },
   {

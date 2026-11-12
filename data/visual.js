@@ -25,9 +25,10 @@ const STAGE = {
 // 统一的是品质与骨架，不同的是母题、色彩、道具、动画与音色。
 // 每类 = 主辉光 + 辅光 + 场景暗底；盘面永远是全场最高对比。
 const FAMILIES = {
+  // key 只是内部标识，不对外显示；刀法与剑法共用这一类青蓝锋芒色板。
   sword: {
-    key: 'sword', name: '剑法', glow: '#6FD4E8', deep: '#2B7FA8', well: '#0D202B',
-    motif: '山门 · 剑气 · 剑痕',
+    key: 'sword', name: '兵刃', glow: '#6FD4E8', deep: '#2B7FA8', well: '#0D202B',
+    motif: '山门 · 锋芒 · 刃痕',
   },
   mind: {
     key: 'mind', name: '心法', glow: '#A8E6CF', deep: '#3D8C74', well: '#0D2420',
@@ -56,7 +57,7 @@ const FAMILY_OF = {
   breakthrough: 'alchemy',
 };
 
-// 样板阶段只给基础剑法开沉浸舞台。真机验过再逐个放开，避免一次改十套、方向错了全废。
+// 样板阶段只给基础刀法开沉浸舞台。真机验过再逐个放开，避免一次改十套、方向错了全废。
 const ENABLED = { forge: true };
 
 // 低端机红线：粒子与循环动画有上限，所有动画只动 transform / opacity。
