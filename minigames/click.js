@@ -34,6 +34,14 @@ const BASE_TIER = { at: 0, mult: 1, text: '×1' };
 const EDGE_LIFE = 0.8;     // 重斩寿命八折
 const EDGE_MULT = 2;       // 重斩得分翻倍
 
+// 低档缓入：入门档要留出「看清刀路 → 决定从哪起手 → 划过去」的时间，
+// 高档则迅速收回，不拖慢本已变紧的节奏。用比例而不是固定毫秒，
+// 剑刀各自的基准速度都能保住自己的比例差。
+// 简单档 156 → 257ms/桩（3 桩约半秒亮完），绝境档仍是 120ms/桩。
+const EASE_STEP = [1.65, 1.3, 1.08, 1.02, 1];
+// 接招间隔同样缓入：190 → 285ms，斩完有一拍喘息，不至于一招压一招。
+const EASE_GAP = [1.5, 1.25, 1.06, 1.02, 1];
+
 // 阶段新法：与 data/practice.js 的 STAGE_RULES 一一对应。
 const STAGE_HOLD = 3;      // 大成：收势
 const STAGE_BAN = 4;       // 圆满：禁桩
@@ -269,10 +277,10 @@ function create(ctx) {
 
   // 数值旋钮：全部挂 depth。后摇是刀法唯一能压到「高手也变紧」的速度项，
   // 因为能读图的人会抢在光走完之前划掉，光速与寿命只卡新手。
-  const stepMs = Math.max(72, profile.stepMs - depth * profile.stepDecay);
+  const stepMs = Math.max(72, Math.round(profile.stepMs * EASE_STEP[depth]) - depth * profile.stepDecay);
   const baseLen = Math.min(profile.maxLen, profile.baseLen + Math.floor(depth / 2));
   const wanderChance = Math.min(0.9, profile.bentBase + depth * profile.bentStep);
-  const gapMs = Math.max(96, profile.gap - depth * 12);
+  const gapMs = Math.max(96, Math.round(profile.gap * EASE_GAP[depth]) - depth * 12);
   const edgeEvery = Math.max(3, 5 - Math.floor(depth / 2));
   const whiffCost = depth >= 3 ? 2 : 1;
   const tiers = tiersFor(depth);
