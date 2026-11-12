@@ -406,7 +406,7 @@ check('顺光扫斩：刀路亮完才起寿命线，没划到就算漏', functio
       trail.path.length, '亮起的桩数与刀路长度不符');
     const last = trail.path[trail.path.length - 1];
     assert.strictEqual(ctx.st.vm.cells[last].life, 0, '光还没走到收势桩就开始倒计时了');
-    advance(540);                       // 刀势起手沉，3 桩两步才走到收势桩（简单档 257ms/桩）
+    advance(720);                       // 刀势起手沉，3 桩两步才走到收势桩（简单档 343ms/桩）
     assert.ok(ctx.st.vm.cells[last].life > 0, '收势桩没有寿命线，玩家看不出还剩多久');
     const before = ctx.st.vm.scoreText;
     advance(720);                       // 站着不动，等寿命线走完（别等到下一招出来，否则状态被覆盖）
@@ -443,7 +443,7 @@ check('顺光扫斩：连击 5 记起算刀势，第 5 道换成重斩长招', f
       assert.ok(t && !t.gold, '第 ' + (n + 1) + ' 道刀路没有亮起');
       normalLen = t.path.length;
       ctx.c.swipe(t.path.slice());
-      advance(320);                     // 刀的后摇 285ms，要等过换气空档
+      advance(450);                     // 刀的后摇 418ms，要等过换气空档
     }
     assert.strictEqual(ctx.st.vm.scoreText, '得分 80', '四道三桩刀路的分数不对');
     assert.ok(ctx.st.vm.meter && ctx.st.vm.meter.label.indexOf('刀势') >= 0, '没有刀势条');
@@ -909,7 +909,7 @@ check('顺光扫斩：档位越高刀路越长，重斩是更长的金桩长招'
           if (t.gold) sawGold = true;
           ctx.c.swipe(t.path.slice());
         }
-        advance(320);
+        advance(450);
       }
       maxLens.push(longest);
       ctx.c.destroy();
@@ -935,12 +935,12 @@ check('刀法四档：后摇更短、重斩更密、连击门槛更高、劈空�
       return ctx;
     }
 
-    // 后摇：斩中之后多少毫秒接下一招。简单档 285ms，绝境 142ms。
+    // 后摇：斩中之后多少毫秒接下一招。简单档 418ms，绝境 142ms。
     const slow = open(0);
     slow.c.swipe(slow.st.vm.trail.path.slice());
     advance(145);
     assert.ok(!slow.st.vm.trail, '简单档的后摇不该短到 145ms');
-    advance(200);
+    advance(300);
     assert.ok(slow.st.vm.trail, '简单档后摇过长，接不上下一招');
     slow.c.destroy();
 
@@ -994,9 +994,37 @@ check('刀法入门档留出读图时间：每桩明显慢于高档', function (
     }
     const easy = perStep(0);
     const desperate = perStep(4);
-    assert.ok(easy >= 230, '简单档每桩只要 ' + Math.round(easy) + 'ms，来不及读图');
+    assert.ok(easy >= 300, '简单档每桩只要 ' + Math.round(easy) + 'ms，来不及读图');
     assert.ok(desperate <= 140, '绝境档每桩 ' + Math.round(desperate) + 'ms，没有收紧');
     assert.ok(easy > desperate * 1.7, '入门档与绝境档的光速没拉开：' + Math.round(easy) + ' / ' + Math.round(desperate));
+  } finally { restoreClock(); }
+});
+
+// 评级门槛曾经按「每秒划 4 刀」的机器人配，简单档 S 要 3139 分（15 息内 157 刀），
+// 人力只能靠抢在光头到达前盲划去刷——这才是「明明调慢了还是觉得被催」的根源。
+// 这条断言按正常节奏整局跑一遍：等光走到收势桩才出手，不带任何抢划。
+check('刀法评级门槛是人打得到的：简单档按正常节奏能拿 A 以上', function () {
+  installClock();
+  try {
+    const m = data.getMethod('forge');
+    const ctx = makeCtx(m, {}, Object.assign({}, m.params, { depth: 0, duration: 15, life: 700 }));
+    ctx.c.start();
+    let guard = 0;
+    while (!ctx.st.finished && guard < 3000) {
+      guard += 1;
+      const vm = ctx.st.vm;
+      if (!vm.trail) { advance(40); continue; }
+      const last = vm.trail.path[vm.trail.path.length - 1];
+      // 光还没走到收势桩就继续等——这就是「不抢划」的定义。
+      if (!vm.cells[last] || !(vm.cells[last].life > 0)) { advance(40); continue; }
+      ctx.c.swipe(vm.trail.path.slice());
+    }
+    assert.ok(ctx.st.finished, '一局没跑完');
+    const r = ctx.st.finished;
+    assert.ok(r.score > 0, '正常节奏一分没拿到');
+    assert.ok(r.grade === 'S' || r.grade === 'A',
+      '正常速度只拿到 ' + r.grade + '（' + r.score + ' 分）：门槛还是在逼玩家抢划');
+    ctx.c.destroy();
   } finally { restoreClock(); }
 });
 
@@ -1029,15 +1057,15 @@ check('连招：连中三记起接招更快，断了就恢复', function () {
     ctx.c.swipe(ctx.st.vm.trail.path.slice());
     advance(120);
     assert.ok(!ctx.st.vm.trail, '第一招之后就开始连招了');
-    advance(180);
+    advance(300);
     assert.ok(ctx.st.vm.trail, '单招之后接不上下一招');
     for (let n = 0; n < 2; n += 1) {
       ctx.c.swipe(ctx.st.vm.trail.path.slice());
-      advance(320);
+      advance(450);
     }
     assert.strictEqual(ctx.st.vm.combo, 3);
     ctx.c.swipe(ctx.st.vm.trail.path.slice());
-    advance(180);
+    advance(250);
     assert.ok(ctx.st.vm.trail, '连中三记后没有把接招间隔压短');
     ctx.c.destroy();
   } finally { restoreClock(); }
@@ -1058,7 +1086,7 @@ check('收势：大成后到靶心不停住算收势未成，断势但不扣息'
     assert.ok(/收势/.test(ctx.st.vm.fx.text), '收势未成没有反馈');
     assert.strictEqual(ctx.st.vm.comboText, '', '收势未成没有断势');
     assert.strictEqual(parseInt(ctx.st.vm.progressText, 10), before, '收势未成不该扣息');
-    advance(320);
+    advance(450);
     ctx.c.swipe(ctx.st.vm.trail.path.slice(), { hold: 160 });
     const full = Number((ctx.st.vm.scoreText.match(/\d+/) || [0])[0]) - weak;
     assert.ok(full > weak, '收住之后的得分没有明显高于半分：' + full + ' vs ' + weak);
@@ -1198,7 +1226,7 @@ check('同一套 click 引擎，两套兵器 profile 仍分得开（剑预留、
           // 只记命中类浮字，别把随后「漏了一刀」这类失手浮字当成命中样本。
           if (ctx.st.vm.fx && ctx.st.vm.fx.text && ctx.st.vm.fx.tone !== 'bad') flashes.push(ctx.st.vm.fx.text);
         }
-        advance(320);
+        advance(450);
       }
       const out = {
         avg: n ? total / n : 0,

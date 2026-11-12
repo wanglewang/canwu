@@ -37,10 +37,11 @@ const EDGE_MULT = 2;       // 重斩得分翻倍
 // 低档缓入：入门档要留出「看清刀路 → 决定从哪起手 → 划过去」的时间，
 // 高档则迅速收回，不拖慢本已变紧的节奏。用比例而不是固定毫秒，
 // 剑刀各自的基准速度都能保住自己的比例差。
-// 简单档 156 → 257ms/桩（3 桩约半秒亮完），绝境档仍是 120ms/桩。
-const EASE_STEP = [1.65, 1.3, 1.08, 1.02, 1];
-// 接招间隔同样缓入：190 → 285ms，斩完有一拍喘息，不至于一招压一招。
-const EASE_GAP = [1.5, 1.25, 1.06, 1.02, 1];
+// 简单档 156 → 343ms/桩（3 桩要走 0.7 秒才亮完，看得清每一步该往哪拐），
+// 绝境档仍是 120ms/桩。入门档不是「稍慢一点」，而是慢到能边看边想。
+const EASE_STEP = [2.2, 1.45, 1.08, 1.02, 1];
+// 接招间隔同样缓入：190 → 418ms，斩完有一拍实打实的喘息。
+const EASE_GAP = [2.2, 1.45, 1.08, 1.02, 1];
 
 // 阶段新法：与 data/practice.js 的 STAGE_RULES 一一对应。
 const STAGE_HOLD = 3;      // 大成：收势
@@ -291,12 +292,14 @@ function create(ctx) {
   const doubleOn = stage >= STAGE_DOUBLE;
   const banCount = stage >= STAGE_DOUBLE ? 2 : 1;
 
-  // 门槛按「每秒得分」定，并随档位抬：路变长后单招分更高，固定门槛会人人 S、
-  // 高难度反而更容易满分。刀法长招更多，用 gradeScale 再同步抬一档。
-  // 用假时钟标定过：约 220ms / 400ms / 650ms 一刀的完美玩家分别落在 S / A / B。
-  const sLimit = Math.ceil(duration * (155 + depth * 20) * profile.gradeScale);
-  const aLimit = Math.ceil(duration * (68 + depth * 8) * profile.gradeScale);
-  const bLimit = Math.ceil(duration * (22 + depth * 3) * profile.gradeScale);
+  // 门槛按「这一档实际打得出多少分」标定，不按机器人的手速。
+  // 一刀 3–5 桩是 20–28 分；简单档光走完就要 686ms、后摇 418ms，一局约 12–14 刀，
+  // 连击不断打下来 530 上下，所以 S 定 507、A 385——完美连击才 S，稍一迟疑是 A。
+  // 别把 S 定到刚好等于完美分（差 1 分就会变成运气），留 4% 余量。
+  // 旧值 155/68/22 是按「每秒 4 刀」配的，15 息要 157 刀，人力根本达不到。
+  const sLimit = Math.ceil(duration * (25 + depth * 5) * profile.gradeScale);
+  const aLimit = Math.ceil(duration * (19 + depth * 3) * profile.gradeScale);
+  const bLimit = Math.ceil(duration * (10 + depth * 2) * profile.gradeScale);
 
   const vm = C.makeVm(cols, grid, words.ready, ctx.tip || words.tip);
   vm.timeText = C.mmss(duration);
