@@ -1,0 +1,206 @@
+/* ==========================================================================
+   《参悟》设计令牌 · Design Tokens · 唯一真源
+   --------------------------------------------------------------------------
+   所有页面的颜色、字号、间距、圆角、阴影、层级都从这里取，不要在页面 wxss
+   里再写裸色值。明暗两套只在下方 @media 里重定义一次，页面无需各写一遍
+   @media (prefers-color-scheme: dark)。
+
+   【页面规范】
+   1. 结构：一级页 / 二级页根节点统一 .pg（登录页 .login-page 例外），
+      页头 .pg__head = 眉标 .eyebrow + 标题 .h1 + 说明 .muted，
+      区块 .section = .section__head + 若干 .card，页尾 .pg__foot。
+   2. 栅格：以 4rpx 为基准，只用 --sp-*；页面左右留白 --page-x（28rpx）。
+   3. 排版：只用 --fs-* 阶梯；caption 只用于角标 / 注脚，正文不小于 body。
+   4. 触控：主操作高度 --touch（88rpx）；卡片内次操作可以降到 --touch-sm，
+      但必须靠 .btn-row 或父行留白补足热区，两个可点元素间距 ≥ --sp-2。
+   5. 反馈：可点 view 统一挂 hover-class="pressable"；危险操作用 .btn--warn。
+   6. 层级：内容 0 / 吸底条 40 / 倒计时 80 / 遮罩 90 / 结算 100，
+      只用 --z-*，禁止随手写 z-index: 999。
+   7. 安全区：所有吸底元素与页面底部留白必须带 env(safe-area-inset-bottom)。
+   8. 主题：--c-nav / --c-tab / --c-tab-* 必须与 theme.json 的 @变量同值；
+      scripts/verify.js 会逐项核对，改色请两处一起改。
+   9. 玩法盘面主题色（--acc / --soft / --ink / --glow / --well / --deep）
+      由 minigames/theme.js 与 data/visual.js 注入，不在这里定义。
+
+   【命名】--c-* 颜色 / --fs-* 字号 / --sp-* 间距 / --r-* 圆角 /
+           --sh-* 阴影 / --z-* 层级 / --dur-* 动效 / --lh-* 行高
+   ========================================================================== */
+
+page {
+    /* ---------- 颜色：表面与文字 ---------- */
+    --c-bg:              #f2eee4;   /* 页面底色 */
+    --c-surface:         #fffdf7;   /* 卡片 / 面板 / 吸底条 */
+    --c-surface-2:       #f1ede1;   /* 内嵌块：码框 / 输入框底 / 次按钮 */
+    --c-surface-3:       #f7f3e8;   /* 更浅的嵌套块 */
+    --c-surface-ink:     #2f4a41;   /* 深绿主卡 */
+    --c-on-ink:          #fffdf7;   /* 深绿卡主文字 */
+    --c-on-ink-2:        #b9c9bf;   /* 深绿卡次文字 */
+    --c-border:          #e3ddcd;   /* 常规描边 */
+    --c-border-strong:   #ddd5c2;   /* 强调描边 */
+    --c-divider:         #e9e3d4;   /* 分隔线 */
+    --c-text:            #2f3a34;   /* 正文 */
+    --c-text-2:          #8a8f83;   /* 次要文字 */
+    --c-text-3:          #a09e8f;   /* 辅助 / 占位 / 页脚 */
+    --c-placeholder:     #a9a99a;   /* 输入框 placeholder */
+
+    /* ---------- 颜色：语义与强调（*-text 用于文字，裸名用于背景） ---------- */
+    --c-primary:         #2f6b5b;
+    --c-primary-soft:    #e2efe8;
+    --c-primary-on:      #fffdf7;
+    --c-primary-text:    #2f6b5b;
+    --c-gold:            #b8893b;
+    --c-gold-soft:       #f5ead2;
+    --c-gold-text:       #a2762d;
+    --c-danger:          #b4453c;
+    --c-danger-soft:     #f5e2de;
+    --c-danger-text:     #b4453c;
+    --c-success:         #3d8c74;
+    --c-success-soft:    #dff0e7;
+    --c-success-text:    #2f6b5b;
+    --c-neutral:         #8a8f83;
+    --c-neutral-soft:    #ece9df;
+    --c-link:            #2f6b5b;
+    --c-track:           #e9e3d4;   /* 进度轨 */
+    --c-fill:            #3d8c74;   /* 进度填充 */
+    --c-mask:            rgba(30, 40, 34, 0.55);
+    --c-ink-scrim:       rgba(0, 0, 0, 0.18);   /* 深色卡内嵌块 */
+    --c-ink-track:       rgba(255, 253, 247, 0.18);  /* 深色卡上的进度轨 / 标签底 */
+    --c-ink-divider:     rgba(255, 253, 247, 0.16);  /* 深色卡上的分隔线 */
+    --c-gold-bright:     #d8b775;               /* 金色高光，明暗通用 */
+    --c-idcard:          #2f4a41;               /* 道牒卡纸：明暗都保持深绿金边 */
+    --c-idcard-edge:     #b8893b;
+
+    /* ---------- 颜色：原生导航与 tabBar（与 theme.json 一一对应） ---------- */
+    --c-nav:             #f7f3e8;   /* @navBgColor */
+    --c-tab:             #fffdf7;   /* @tabBgColor */
+    --c-tab-text:        #8a8f83;   /* @tabColor */
+    --c-tab-active:      #2f6b5b;   /* @tabSelectedColor */
+
+    /* ---------- 字号阶梯（rpx，1sp ≈ 2rpx） ---------- */
+    --fs-caption:        22rpx;     /* 角标 / 注脚，下限 */
+    --fs-note:           24rpx;     /* 辅助说明 */
+    --fs-body-sm:        26rpx;     /* 密集文本：指南条目 */
+    --fs-body:           28rpx;     /* 正文 */
+    --fs-subhead:        30rpx;     /* 区块标题 */
+    --fs-h3:             32rpx;     /* 卡片标题 / 数值 */
+    --fs-h2:             34rpx;     /* 小节标题 */
+    --fs-lead:           40rpx;     /* 姓名 / 强调标题 */
+    --fs-h1:             54rpx;     /* 页面大标题 */
+    --fs-display:        76rpx;     /* 战力等大数字 */
+
+    /* ---------- 行高 ---------- */
+    --lh-tight:          1.25;
+    --lh-head:           1.4;
+    --lh-body:           1.65;
+    --lh-loose:          1.7;
+
+    /* ---------- 间距栅格（4rpx 基准） ---------- */
+    --sp-1:              4rpx;
+    --sp-2:              8rpx;
+    --sp-3:              12rpx;
+    --sp-4:              16rpx;
+    --sp-5:              20rpx;
+    --sp-6:              24rpx;
+    --sp-8:              32rpx;
+    --sp-10:             40rpx;
+    --sp-12:             48rpx;
+    --sp-16:             64rpx;
+    --page-x:            28rpx;     /* 页面左右留白 */
+    --page-top:          28rpx;
+    --page-bottom:       60rpx;     /* 页面底部留白（不含安全区） */
+    --card-pad:          28rpx;     /* 卡片内边距 */
+    --card-gap:          24rpx;     /* 卡片间距 */
+    --section-gap:       40rpx;     /* 区块间距 */
+    --bar-height:        152rpx;    /* 吸底条占位高度 */
+
+    /* ---------- 圆角 ---------- */
+    --r-xs:              8rpx;
+    --r-sm:              12rpx;
+    --r-md:              16rpx;
+    --r-lg:              24rpx;
+    --r-xl:              28rpx;
+    --r-pill:            999rpx;
+
+    /* ---------- 阴影 ---------- */
+    --sh-card:           0 6rpx 18rpx rgba(80, 68, 40, 0.05);
+    --sh-bar:            0 -8rpx 24rpx rgba(40, 52, 44, 0.08);
+    --sh-modal:          0 20rpx 60rpx rgba(30, 40, 34, 0.22);
+    --sh-none:           none;
+
+    /* ---------- 层级 ---------- */
+    --z-base:            0;
+    --z-sticky:          40;
+    --z-countdown:       80;
+    --z-mask:            90;
+    --z-settle:          100;
+
+    /* ---------- 触控 ---------- */
+    --touch:             88rpx;     /* 主操作最小高度 */
+    --touch-sm:          76rpx;     /* 次操作 */
+    --touch-xs:          68rpx;     /* 卡片内紧凑操作 / 文字链 */
+    --touch-icon:        68rpx;     /* 图标按钮 */
+
+    /* ---------- 动效 ---------- */
+    --dur-fast:          120ms;
+    --dur:               200ms;
+    --dur-slow:          320ms;
+    --ease:              cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    /* ---------- 安全区 ---------- */
+    --safe-bottom:       env(safe-area-inset-bottom);
+}
+
+/* 暗色：只重定义令牌，页面样式一行都不用改。 */
+@media (prefers-color-scheme: dark) {
+    page {
+        --c-bg:              #141a18;
+        --c-surface:         #1e2723;
+        --c-surface-2:       #24302a;
+        --c-surface-3:       #1a221e;
+        --c-surface-ink:     #24453c;
+        --c-on-ink:          #e8eee9;
+        --c-on-ink-2:        #9fb8aa;
+        --c-border:          #33403a;
+        --c-border-strong:   #4a5a51;
+        --c-divider:         #2b3832;
+        --c-text:            #e8eee9;
+        --c-text-2:          #9aa79f;
+        --c-text-3:          #7d8b83;
+        --c-placeholder:     #7d8b83;
+
+        --c-primary:         #2f6b5b;
+        --c-primary-soft:    #24453c;
+        --c-primary-on:      #f2f7f3;
+        --c-primary-text:    #7fc9ae;
+        --c-gold:            #8a6a2c;
+        --c-gold-soft:       #3a3020;
+        --c-gold-text:       #e0bb72;
+        --c-danger:          #8f3b34;
+        --c-danger-soft:     #3a2523;
+        --c-danger-text:     #e89b92;
+        --c-success:         #3d8c74;
+        --c-success-soft:    #263a30;
+        --c-success-text:    #9fd7bd;
+        --c-neutral:         #9aa79f;
+        --c-neutral-soft:    #2b3832;
+        --c-link:            #8fd0b7;
+        --c-track:           #33403a;
+        --c-fill:            #6fc0a2;
+        --c-mask:            rgba(0, 0, 0, 0.68);
+        --c-ink-scrim:       rgba(0, 0, 0, 0.28);
+        --c-ink-track:       rgba(255, 253, 247, 0.18);
+        --c-ink-divider:     rgba(255, 253, 247, 0.16);
+        --c-gold-bright:     #d8b775;
+        --c-idcard:          #2f4a41;
+        --c-idcard-edge:     #b8893b;
+
+        --c-nav:             #1c2421;
+        --c-tab:             #1c2421;
+        --c-tab-text:        #8d9a92;
+        --c-tab-active:      #7fc9ae;
+
+        --sh-card:           none;
+        --sh-bar:            none;
+        --sh-modal:          0 20rpx 60rpx rgba(0, 0, 0, 0.5);
+    }
+}

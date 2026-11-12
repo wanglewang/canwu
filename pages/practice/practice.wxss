@@ -993,25 +993,25 @@
 .diff-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 10rpx;
+    gap: var(--sp-2);
 }
 .diff-chip {
     width: calc((100% - 20rpx) / 3);
     box-sizing: border-box;
-    padding: 12rpx 8rpx;
-    border: 1rpx solid rgba(0, 0, 0, 0.10);
-    border-radius: 10rpx;
+    padding: var(--sp-3) var(--sp-2);
+    border: 2rpx solid var(--c-border);
+    border-radius: var(--r-sm);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2rpx;
-    background: rgba(255, 255, 255, 0.6);
+    background: var(--c-surface);
 }
-.diff-chip__name { font-size: 26rpx; color: #2f3b35; font-weight: 600; }
-.diff-chip__mult { font-size: 22rpx; color: #6f7b74; }
-.diff-chip__need { font-size: 18rpx; color: #b4453c; }
+.diff-chip__name { font-size: var(--fs-body-sm); color: var(--c-text); font-weight: 600; }
+.diff-chip__mult { font-size: var(--fs-caption); color: var(--c-text-2); }
+.diff-chip__need { font-size: var(--fs-caption); color: var(--c-danger-text); }
 .diff-chip--on { background: var(--acc, #3d8c74); border-color: var(--acc, #3d8c74); }
-.diff-chip--on .diff-chip__name, .diff-chip--on .diff-chip__mult { color: #fffdf7; }
+.diff-chip--on .diff-chip__name, .diff-chip--on .diff-chip__mult { color: var(--c-on-ink); }
 .diff-chip--lock { opacity: 0.55; }
 
 @media (prefers-color-scheme: dark) {
@@ -1025,11 +1025,6 @@
     .rank-chain__item { background: #2b3832; color: #cfd8cf; }
     .rank-chain__item--now { background: var(--acc, #3d8c74); color: #fffdf7; }
     .warn-note { background: rgba(180, 69, 60, 0.18); color: #f0b4ad; }
-    .diff-chip { background: #26342d; border-color: #33403a; }
-    .diff-chip__name { color: #e8eee9; }
-    .diff-chip__mult { color: #9aa79f; }
-    .diff-chip--on { background: var(--acc, #3d8c74); border-color: var(--acc, #3d8c74); }
-    .diff-chip--on .diff-chip__name, .diff-chip--on .diff-chip__mult { color: #fffdf7; }
     .cell { border-color: #1e2723; }
     .cell--off, .cell--hidden { background: #2b3832; color: #9aa79f; }
     .trail-hint__name { color: #e8eee9; }
@@ -1068,11 +1063,11 @@
 .stage-rule {
   display: flex;
   align-items: flex-start;
-  gap: 12rpx;
-  margin-top: 12rpx;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
 }
 
-.stage-rule__text { line-height: 1.5; }
+.stage-rule__text { line-height: var(--lh-body); }
 
 /* ---------- 三连 S 晋级：准备页常驻进度 ---------- */
 .streak-card {
@@ -1113,13 +1108,13 @@
 
 .pad {
   display: flex;
-  gap: 12rpx;
-  margin-top: 16rpx;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
 }
 
 .pad__key {
   flex: 1;
-  min-height: 84rpx;
+  min-height: var(--touch);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1127,7 +1122,7 @@
   color: var(--ink, #2f6b5b);
   background: var(--soft, #efe9db);
   border: 3rpx solid var(--frame, #fffdf7);
-  border-radius: 14rpx;
+  border-radius: var(--r-md);
 }
 
 @media (prefers-color-scheme: dark) {

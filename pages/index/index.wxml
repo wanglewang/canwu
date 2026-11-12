@@ -1,22 +1,26 @@
 <view class="pg pg--with-bar">
   <view class="pg__head">
-    <text class="eyebrow">洞 府</text>
+    <view class="pg__head-top">
+      <text class="eyebrow">洞 府</text>
+      <text class="pg__head-action text-link" bindtap="onGoGuide">修行指南 ›</text>
+    </view>
     <text class="h1 serif">参悟</text>
     <text class="muted mt8">等是保底，练才是加速。</text>
-    <text class="guide-link text-link mt8" bindtap="onGoGuide">修行指南 ›</text>
   </view>
 
-  <view wx:if="{{syncTone !== 'ok'}}" class="alert-bar alert-bar--{{syncTone}}" bindtap="onRetrySync">
+  <view wx:if="{{syncTone !== 'ok'}}" class="alert-bar alert-bar--{{syncTone}} pressable" hover-class="pressable--on" bindtap="onRetrySync">
     <text class="alert-bar__text">{{syncLabel}}</text>
     <text class="alert-bar__action">重试 ›</text>
   </view>
 
-  <view wx:if="{{viewState === 'loading'}}" class="card">
-    <text class="muted">正在推演气机…</text>
+  <view wx:if="{{viewState === 'loading'}}" class="state">
+    <text class="state__glyph">◇</text>
+    <text class="state__desc">正在推演气机…</text>
   </view>
-  <view wx:elif="{{viewState === 'error'}}" class="card">
-    <text class="h3">读取存档失败</text>
-    <button class="btn btn--primary mt16" bindtap="refresh">重试</button>
+  <view wx:elif="{{viewState === 'error'}}" class="state">
+    <text class="state__title">读取存档失败</text>
+    <text class="state__desc">可以再试一次，或到「道牒」导入存档码。</text>
+    <button class="btn btn--primary state__action" bindtap="refresh">重试</button>
   </view>
 
   <block wx:if="{{viewState === 'ready' && ov}}">
@@ -33,7 +37,7 @@
         </view>
       </view>
       <view class="hero-power mt16">
-        <view class="power-head" bindtap="onTogglePower">
+        <view class="power-head pressable" hover-class="pressable--on" bindtap="onTogglePower">
           <text class="tiny hero-label">战 力</text>
           <text class="tiny power-link">{{powerOpen ? '收起 ∧' : '战力从哪来 ›'}}</text>
         </view>
@@ -188,5 +192,5 @@
     </view>
   </view>
 
-  <view class="pg__foot">参 悟 · 不玩也在变强，玩了明显更快</view>
+  <view class="pg__foot">参 悟 · 等是保底，练才是加速</view>
 </view>

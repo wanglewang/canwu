@@ -1,6 +1,8 @@
 <view class="pg">
   <view class="pg__head">
-    <text class="eyebrow">藏 经 阁</text>
+    <view class="pg__head-top">
+      <text class="eyebrow">藏 经 阁</text>
+    </view>
     <text class="h1 serif">功法</text>
     <text class="muted mt8">十三门功法，十族玩法，品阶定收益。</text>
   </view>
@@ -13,6 +15,10 @@
     <view class="row--wrap mt16">
       <text class="tag tag--dark" wx:for="{{legend}}" wx:key="key">{{item.name}} {{item.threshold}}</text>
     </view>
+  </view>
+  <view wx:else class="state">
+    <text class="state__glyph">◇</text>
+    <text class="state__desc">正在翻检藏经阁…</text>
   </view>
 
   <view class="card chain-card">
@@ -38,7 +44,7 @@
         <text class="section__sub">{{item.groupSub}}</text>
       </view>
     </view>
-    <view class="card card--tight skill-card {{item.dim ? 'skill-card--dim' : ''}}" data-id="{{item.id}}" bindtap="openDetail">
+    <view class="card card--tight skill-card {{item.dim ? 'skill-card--dim' : ''}} pressable" hover-class="pressable--on" data-id="{{item.id}}" bindtap="openDetail">
       <view class="row--between">
         <view class="row">
           <text class="h3">{{item.name}}</text>
@@ -132,5 +138,5 @@
     </view>
   </view>
 
-  <view class="pg__foot">一 门 一 法 · 各 有 门 道</view>
+  <view class="pg__foot">参 悟 · 等是保底，练才是加速</view>
 </view>

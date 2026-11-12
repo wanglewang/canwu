@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "洞府 · 参悟",
+  "navigationBarTitleText": "洞府",
   "usingComponents": {
     "portrait": "../../components/portrait/portrait"
   }

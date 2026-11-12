@@ -1,21 +1,18 @@
+/* 洞府页私有样式：只写布局，颜色一律取 tokens.wxss 的语义变量。 */
 .hero-card {
-    padding: 32rpx;
+    padding: var(--sp-8);
 }
 
 .hero-name {
-    font-size: 40rpx;
+    font-size: var(--fs-lead);
     font-weight: 700;
-    color: #fffdf7;
-    margin-right: 16rpx;
+    color: var(--c-on-ink);
+    margin-right: var(--sp-4);
 }
 
-.hero-label {
-    color: #b9c9bf;
-}
+.hero-label { color: var(--c-on-ink-2); }
 
-.hero-num {
-    color: #fffdf7;
-}
+.hero-num { color: var(--c-on-ink); }
 
 .hero-power {
     display: flex;
@@ -27,132 +24,99 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    min-height: 48rpx;
+    min-height: var(--sp-12);
 }
 
-.power-link {
-    color: #e5c884;
-}
+.power-link { color: var(--c-gold-bright); }
 
 .power-formula {
-    margin-top: 8rpx;
+    margin-top: var(--sp-2);
     opacity: 0.86;
 }
 
 .power-detail {
-    background: rgba(0, 0, 0, 0.18);
-    border-radius: 12rpx;
-    padding: 20rpx 22rpx;
+    background: var(--c-ink-scrim);
+    border-radius: var(--r-sm);
+    padding: var(--sp-5) var(--sp-6);
 }
 
 .power-detail__title {
     display: block;
-    color: #fffdf7;
+    color: var(--c-on-ink);
     font-weight: 700;
-    margin-bottom: 12rpx;
+    margin-bottom: var(--sp-3);
 }
 
 .power-detail__line {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
-    margin-top: 10rpx;
+    margin-top: var(--sp-2);
 }
 
 .power-detail__dot {
-    color: #e5c884;
-    margin-right: 10rpx;
+    color: var(--c-gold-bright);
+    margin-right: var(--sp-2);
 }
 
 .power-detail__text {
-    color: #d7e3da;
-    line-height: 1.65;
+    color: var(--c-on-ink-2);
+    line-height: var(--lh-body);
 }
 
 .power-detail__more {
     display: block;
-    color: #e5c884;
-    margin-top: 18rpx;
+    color: var(--c-gold-bright);
+    margin-top: var(--sp-4);
 }
 
-.hero-divider {
-    background: rgba(255, 253, 247, 0.16);
-}
+.hero-divider { background: var(--c-ink-divider); }
 
 .log-line {
-    padding: 8rpx 0;
-    border-bottom: 2rpx solid #f4efe3;
+    padding: var(--sp-2) 0;
+    border-bottom: 2rpx solid var(--c-divider);
 }
 
-.log-line:last-child {
-    border-bottom: none;
-}
+.log-line:last-child { border-bottom: none; }
 
-.world-row {
-    opacity: 1;
-}
+.world-row .tag { margin-left: var(--sp-3); }
 
-.world-row .tag {
-    margin-left: 14rpx;
-}
-
-.guide-link {
-    display: inline-flex;
-    align-items: center;
-    min-height: 64rpx;
-    padding: 0 10rpx;
-    font-size: 24rpx;
-    color: #2f6b5b;
-}
-
-.hero-id {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    margin-top: 16rpx;
-}
-
-.hero-id__text {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-left: 8rpx;
-}
+/* 页头右上角的文字入口：热区由 .text-link 提供，这里只负责对齐。 */
+.guide-link { align-self: flex-start; }
 
 .alert-bar {
     display: flex;
     flex-direction: row;
     align-items: center;
     box-sizing: border-box;
-    padding: 18rpx 22rpx;
-    margin-bottom: 20rpx;
-    border-radius: 14rpx;
-    border: 2rpx solid #e3ddcd;
-    background: #fffdf7;
+    padding: var(--sp-4) var(--sp-6);
+    margin-bottom: var(--sp-5);
+    border-radius: var(--r-md);
+    border: 2rpx solid var(--c-border);
+    background: var(--c-surface);
 }
 
 .alert-bar--warn {
-    border-color: #d8b775;
-    background: #fbf3e2;
+    border-color: var(--c-gold-bright);
+    background: var(--c-gold-soft);
 }
 
 .alert-bar--error {
-    border-color: #b4453c;
-    background: #f9ebe8;
+    border-color: var(--c-danger);
+    background: var(--c-danger-soft);
 }
 
 .alert-bar__text {
     flex: 1;
-    font-size: 23rpx;
-    color: #5d6358;
-    line-height: 1.5;
+    font-size: var(--fs-caption);
+    color: var(--c-text-2);
+    line-height: var(--lh-body);
 }
 
-.alert-bar--error .alert-bar__text { color: #8f3b34; }
+.alert-bar--error .alert-bar__text { color: var(--c-danger-text); }
 
 .alert-bar__action {
-    font-size: 22rpx;
-    color: #2f6b5b;
-    margin-left: 12rpx;
+    font-size: var(--fs-caption);
+    color: var(--c-link);
+    margin-left: var(--sp-3);
 }

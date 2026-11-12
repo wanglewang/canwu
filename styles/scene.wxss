@@ -1,7 +1,12 @@
 /* 参悟 · 沉浸舞台
    三层场景 + 游戏化 HUD + 命中粒子 + 结算五段演出。
    舞台固定深色，不跟随 prefers-color-scheme；外围页面仍走 app.wxss 的双主题。
-   全部由纯 CSS 色块与 transform/opacity 画出，零图片资源。 */
+   全部由纯 CSS 色块与 transform/opacity 画出，零图片资源。
+
+   本文件与 pages/practice/practice.wxss 的盘面色板是「页面规范」的白名单例外：
+   玩法主题色由 minigames/theme.js / data/visual.js 按功法注入（--acc / --soft /
+   --ink / --glow / --well / --deep），必须固定，不跟明暗主题漂移。准备页、结算页
+   等通用控件仍一律取 styles/tokens.wxss 的语义变量。 */
 
 .pg--scene {
     position: relative;

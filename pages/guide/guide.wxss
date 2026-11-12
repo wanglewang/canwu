@@ -1,24 +1,23 @@
+/* 修行指南：长文本列表，行高与分隔符都用全局令牌，暗色下不再出现浅色横线。 */
 .guide-line {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
-    padding: 10rpx 0;
-    border-bottom: 2rpx solid #f4efe3;
+    padding: var(--sp-2) 0;
+    border-bottom: 2rpx solid var(--c-divider);
 }
 
-.guide-line:last-child {
-    border-bottom: none;
-}
+.guide-line:last-child { border-bottom: none; }
 
 .guide-dot {
-    width: 26rpx;
+    width: var(--fs-body-sm);
     flex: none;
-    color: #b8893b;
-    font-size: 26rpx;
-    line-height: 1.6;
+    color: var(--c-gold-text);
+    font-size: var(--fs-body-sm);
+    line-height: var(--lh-body);
 }
 
 .guide-line .body {
-    font-size: 25rpx;
-    line-height: 1.7;
+    font-size: var(--fs-body-sm);
+    line-height: var(--lh-loose);
 }

@@ -57,7 +57,7 @@
   </view>
 
   <view wx:if="{{!started && !showResult && guide}}" class="card guide-card">
-    <view class="row--between" bindtap="onToggleGuide">
+    <view class="row--between pressable" hover-class="pressable--on" bindtap="onToggleGuide">
       <view class="row">
         <text class="section__title">怎么玩</text>
         <text class="tag tag--grey">{{gameName}}</text>

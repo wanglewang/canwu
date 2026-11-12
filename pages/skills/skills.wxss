@@ -1,91 +1,72 @@
-.skill-card {
-    margin-bottom: 16rpx;
-}
+/* 功法页私有样式：原先这里手写了整套暗色覆盖，现在统一由 tokens.wxss 重定义变量，
+   页面不再维护第二套色板。 */
+.skill-card { margin-bottom: var(--sp-4); }
 
-.skill-card--dim {
-    background: #f7f3e9;
-}
+.skill-card--dim { background: var(--c-surface-3); }
 
-.skill-type {
-    margin-left: 12rpx;
-}
+.skill-type { margin-left: var(--sp-3); }
 
 .skill-rank {
-    margin-left: 8rpx;
-    font-size: 20rpx;
+    margin-left: var(--sp-2);
+    font-size: var(--fs-caption);
 }
 
 .skill-best {
-    margin-left: 12rpx;
-    color: #6d7a70;
+    margin-left: var(--sp-3);
+    color: var(--c-text-2);
 }
 
 .tag--warn {
-    margin-left: 8rpx;
-    background: #f5e2de;
-    color: #b4453c;
+    margin-left: var(--sp-2);
+    background: var(--c-danger-soft);
+    color: var(--c-danger-text);
 }
 
 .warn-line {
     display: block;
-    color: #b4453c;
-    line-height: 1.6;
+    color: var(--c-danger-text);
+    line-height: var(--lh-body);
 }
 
-.chain-card {
-    padding-bottom: 18rpx;
-}
+.chain-card { padding-bottom: var(--sp-4); }
 
 .chain-row {
-    border-top: 1rpx solid rgba(0, 0, 0, 0.06);
-    padding-top: 14rpx;
+    border-top: 2rpx solid var(--c-divider);
+    padding-top: var(--sp-3);
 }
 
 .chain-row__label {
     display: block;
-    font-size: 24rpx;
-    color: #6d7a70;
-    margin-bottom: 8rpx;
+    font-size: var(--fs-note);
+    color: var(--c-text-2);
+    margin-bottom: var(--sp-2);
 }
 
 .chain-node {
     display: inline-block;
-    margin: 0 10rpx 10rpx 0;
-    padding: 8rpx 14rpx;
-    border-radius: 8rpx;
-    background: #eeeae0;
-    color: #8a8f83;
-    font-size: 22rpx;
-    line-height: 1.5;
+    margin: 0 var(--sp-2) var(--sp-2) 0;
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-xs);
+    background: var(--c-neutral-soft);
+    color: var(--c-text-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-body);
 }
 
 .chain-node--got {
-    background: #e2efe8;
-    color: #2f6b5b;
+    background: var(--c-primary-soft);
+    color: var(--c-success-text);
 }
 
 .chain-node--empty {
     background: transparent;
-    border: 1rpx dashed rgba(0, 0, 0, 0.14);
-    color: #a5aca3;
+    border: 2rpx dashed var(--c-border-strong);
+    color: var(--c-text-3);
 }
 
 .rank-detail {
-    border: 1rpx solid rgba(0, 0, 0, 0.08);
-    border-radius: 12rpx;
-    padding: 18rpx 20rpx;
-    background: #faf7ef;
-}
-
-@media (prefers-color-scheme: dark) {
-    .skill-card--dim { background: #202a25; }
-    .chain-row { border-color: #33403a; }
-    .chain-row__label { color: #9aa79f; }
-    .chain-node { background: #2b3832; color: #9aa79f; }
-    .chain-node--got { background: #263a30; color: #9fd7bd; }
-    .chain-node--empty { border-color: #3a4740; color: #6d7a70; }
-    .skill-best { color: #9aa79f; }
-    .tag--warn { background: rgba(180, 69, 60, 0.20); color: #f0b4ad; }
-    .warn-line { color: #f0b4ad; }
-    .rank-detail { border-color: #33403a; background: #202a25; }
+    border: 2rpx solid var(--c-border);
+    border-radius: var(--r-sm);
+    padding: var(--sp-4) var(--sp-5);
+    background: var(--c-surface-2);
 }

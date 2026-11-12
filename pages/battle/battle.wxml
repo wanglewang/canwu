@@ -1,6 +1,8 @@
 <view class="pg">
   <view class="pg__head">
-    <text class="eyebrow">论 道 台</text>
+    <view class="pg__head-top">
+      <text class="eyebrow">论 道 台</text>
+    </view>
     <text class="h1 serif">论道</text>
     <text class="muted mt8">与青云界高手过招，或凭战力码会一会朋友。</text>
   </view>
@@ -14,6 +16,10 @@
       <text class="tiny pr-tiny">当前战力 · 出手 ±15%</text>
       <text class="big-number hero-num">{{ov.power}}</text>
     </view>
+  </view>
+  <view wx:else class="state">
+    <text class="state__glyph">◇</text>
+    <text class="state__desc">正在整理论道台…</text>
   </view>
 
   <view class="section">
@@ -61,9 +67,9 @@
       <text class="section__title">论道榜单 · 真实道友</text>
       <text class="section__sub">{{board.length}} 位在榜</text>
     </view>
-    <view class="card card--tight" wx:if="{{boardError}}">
-      <text class="tiny">{{boardError}}</text>
-      <button class="btn btn--plain btn--small btn--block mt12" bindtap="onRefreshBoard">重新加载</button>
+    <view class="state state--inline" wx:if="{{boardError}}">
+      <text class="state__desc">{{boardError}}</text>
+      <button class="btn btn--plain btn--small state__action" bindtap="onRefreshBoard">重新加载</button>
     </view>
     <block wx:else>
       <view class="card card--tight board-row" wx:for="{{board}}" wx:key="uid">
@@ -156,5 +162,5 @@
     </view>
   </view>
 
-  <view class="pg__foot">战 力 可 截 图 · 称 号 可 晒 出</view>
+  <view class="pg__foot">参 悟 · 等是保底，练才是加速</view>
 </view>

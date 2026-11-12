@@ -1,51 +1,53 @@
+/* 道牒页：道牒卡是一张「名片」，明暗都保持深绿金边（--c-idcard / --c-idcard-edge），
+   其余面板与列表一律走语义变量，暗色下不再出现浅底浅字。 */
 .idcard {
     box-sizing: border-box;
-    padding: 16rpx;
-    margin-bottom: 22rpx;
-    border-radius: 28rpx;
-    background: #f2eee4;
-    border: 2rpx solid #e3ddcd;
+    padding: var(--sp-4);
+    margin-bottom: var(--card-gap);
+    border-radius: var(--r-xl);
+    background: var(--c-bg);
+    border: 2rpx solid var(--c-border);
 }
 
 .idcard__inner {
     box-sizing: border-box;
     min-height: 780rpx;
-    padding: 44rpx 36rpx;
-    border: 3rpx solid #b8893b;
-    border-radius: 20rpx;
-    background: #2f4a41;
+    padding: var(--sp-12) var(--sp-8);
+    border: 3rpx solid var(--c-idcard-edge);
+    border-radius: var(--r-md);
+    background: var(--c-idcard);
     display: flex;
     flex-direction: column;
 }
 
 .idcard__eyebrow {
-    color: #d8b775;
-    font-size: 22rpx;
-    letter-spacing: 4rpx;
+    color: var(--c-gold-bright);
+    font-size: var(--fs-caption);
+    letter-spacing: var(--sp-1);
 }
 
 .idcard__name {
-    font-size: 48rpx;
+    font-size: var(--fs-h1);
     font-weight: 700;
-    color: #fffdf7;
-    margin-right: 16rpx;
+    color: var(--c-on-ink);
+    margin-right: var(--sp-4);
 }
 
 .idcard__title {
-    margin-top: 8rpx;
-    color: #c9d6cd;
-    font-size: 24rpx;
+    margin-top: var(--sp-2);
+    color: var(--c-on-ink-2);
+    font-size: var(--fs-note);
 }
 
 .idcard__label {
-    margin-top: 36rpx;
-    color: #d8b775;
-    font-size: 21rpx;
-    letter-spacing: 4rpx;
+    margin-top: var(--sp-8);
+    color: var(--c-gold-bright);
+    font-size: var(--fs-caption);
+    letter-spacing: var(--sp-1);
 }
 
 .idcard__power {
-    color: #fffdf7;
+    color: var(--c-on-ink);
     font-family: "Songti SC", "SimSun", serif;
     font-size: 104rpx;
     font-weight: 700;
@@ -54,57 +56,55 @@
 
 .idcard__rule {
     height: 2rpx;
-    background: rgba(255, 253, 247, 0.2);
-    margin: 20rpx 0;
+    background: var(--c-ink-divider);
+    margin: var(--sp-5) 0;
 }
 
 .idcard__attrs {
-    color: #c9d6cd;
-    font-size: 24rpx;
+    color: var(--c-on-ink-2);
+    font-size: var(--fs-note);
 }
 
 .idcard__skill {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12rpx 0;
-    border-bottom: 2rpx solid rgba(255, 253, 247, 0.1);
+    padding: var(--sp-3) 0;
+    border-bottom: 2rpx solid var(--c-ink-divider);
 }
 
 .idcard__skill-name {
-    color: #fffdf7;
-    font-size: 27rpx;
+    color: var(--c-on-ink);
+    font-size: var(--fs-body-sm);
     font-weight: 600;
 }
 
-.idcard__skill-tier {
-    font-size: 23rpx;
-}
+.idcard__skill-tier { font-size: var(--fs-caption); }
 
 .idcard__empty {
-    color: #9fb3a7;
-    font-size: 24rpx;
-    padding: 16rpx 0;
+    color: var(--c-on-ink-2);
+    font-size: var(--fs-note);
+    padding: var(--sp-4) 0;
 }
 
 .idcard__stats {
-    color: #c9d6cd;
-    font-size: 23rpx;
+    color: var(--c-on-ink-2);
+    font-size: var(--fs-caption);
 }
 
 .idcard__code {
-    margin-top: 12rpx;
-    color: #9fb3a7;
-    font-size: 20rpx;
+    margin-top: var(--sp-3);
+    color: var(--c-on-ink-2);
+    font-size: var(--fs-caption);
     word-break: break-all;
 }
 
 .idcard__slogan {
     margin-top: auto;
-    padding-top: 28rpx;
-    color: #9fb3a7;
-    font-size: 21rpx;
-    letter-spacing: 2rpx;
+    padding-top: var(--sp-8);
+    color: var(--c-on-ink-2);
+    font-size: var(--fs-caption);
+    letter-spacing: var(--sp-1);
 }
 
 .share-canvas {
@@ -116,9 +116,7 @@
 }
 
 .title-card,
-.world-card {
-    margin-bottom: 14rpx;
-}
+.world-card { margin-bottom: var(--sp-4); }
 
 .idcard__hero {
     display: flex;
@@ -136,54 +134,54 @@
 .idcard__edit {
     display: inline-flex;
     align-items: center;
-    min-height: 64rpx;
-    padding: 0 8rpx;
-    margin-top: 10rpx;
-    color: #d8b775;
-    font-size: 23rpx;
+    min-height: var(--touch-xs);
+    padding: 0 var(--sp-2);
+    margin-top: var(--sp-2);
+    color: var(--c-gold-bright);
+    font-size: var(--fs-caption);
 }
 
 .role-editor__preview {
     display: flex;
     flex-direction: row;
     align-items: center;
-    margin-top: 24rpx;
+    margin-top: var(--sp-6);
 }
 
 .role-editor__name {
-    margin-left: 24rpx;
-    font-size: 32rpx;
-    color: #2f4a41;
+    margin-left: var(--sp-6);
+    font-size: var(--fs-h3);
+    color: var(--c-text);
     font-weight: 500;
 }
 
 .role-editor__input {
     box-sizing: border-box;
     width: 100%;
-    height: 78rpx;
-    padding: 0 20rpx;
-    background: #f7f3e8;
-    border: 2rpx solid #ddd5c2;
-    border-radius: 12rpx;
-    font-size: 28rpx;
-    color: #2f4a41;
+    height: var(--touch-sm);
+    padding: 0 var(--sp-5);
+    background: var(--c-surface-2);
+    border: 2rpx solid var(--c-border-strong);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-body);
+    color: var(--c-text);
 }
 
 .idcard__avatar {
     width: 192rpx;
     height: 218rpx;
-    border-radius: 20rpx;
-    border: 3rpx solid #d8b775;
-    background: #24453c;
+    border-radius: var(--r-md);
+    border: 3rpx solid var(--c-gold-bright);
+    background: var(--c-surface-ink);
     flex-shrink: 0;
 }
 
 .role-editor__avatar {
     width: 108rpx;
     height: 122rpx;
-    border-radius: 14rpx;
-    border: 2rpx solid #b8893b;
-    background: #f2eee4;
+    border-radius: var(--r-md);
+    border: 2rpx solid var(--c-gold);
+    background: var(--c-bg);
     flex-shrink: 0;
 }
 
@@ -192,37 +190,37 @@
     flex-direction: row;
     align-items: center;
     box-sizing: border-box;
-    padding: 16rpx 22rpx;
-    margin-bottom: 18rpx;
-    border-radius: 14rpx;
-    border: 2rpx solid #e3ddcd;
-    background: #fffdf7;
+    padding: var(--sp-4) var(--sp-6);
+    margin-bottom: var(--sp-4);
+    border-radius: var(--r-md);
+    border: 2rpx solid var(--c-border);
+    background: var(--c-surface);
 }
 
 .sync-bar__dot {
-    width: 14rpx;
-    height: 14rpx;
+    width: var(--sp-3);
+    height: var(--sp-3);
     border-radius: 50%;
-    margin-right: 14rpx;
-    background: #3d8c74;
+    margin-right: var(--sp-3);
+    background: var(--c-success);
     flex-shrink: 0;
 }
 
-.sync-bar--warn .sync-bar__dot { background: #b8893b; }
-.sync-bar--error .sync-bar__dot { background: #b4453c; }
+.sync-bar--warn .sync-bar__dot { background: var(--c-gold); }
+.sync-bar--error .sync-bar__dot { background: var(--c-danger); }
 
 .sync-bar__text {
     flex: 1;
-    font-size: 23rpx;
-    color: #5d6358;
+    font-size: var(--fs-caption);
+    color: var(--c-text-2);
 }
 
-.sync-bar--error .sync-bar__text { color: #b4453c; }
+.sync-bar--error .sync-bar__text { color: var(--c-danger-text); }
 
 .sync-bar__action {
-    font-size: 22rpx;
-    color: #2f6b5b;
-    margin-left: 12rpx;
+    font-size: var(--fs-caption);
+    color: var(--c-link);
+    margin-left: var(--sp-3);
 }
 
 .ach__glyph {
@@ -231,22 +229,22 @@
     height: 44rpx;
     line-height: 44rpx;
     text-align: center;
-    border-radius: 10rpx;
-    margin-right: 14rpx;
-    background: #ece9df;
-    color: #9a9a8b;
-    font-size: 24rpx;
+    border-radius: var(--r-xs);
+    margin-right: var(--sp-3);
+    background: var(--c-neutral-soft);
+    color: var(--c-text-3);
+    font-size: var(--fs-note);
 }
 
 .ach__glyph--on {
-    background: #2f6b5b;
-    color: #f2eee4;
+    background: var(--c-primary);
+    color: var(--c-on-ink);
 }
 
 .ach__progress {
-    font-size: 23rpx;
-    color: #8a8f83;
-    margin-left: 16rpx;
+    font-size: var(--fs-caption);
+    color: var(--c-text-2);
+    margin-left: var(--sp-4);
     flex-shrink: 0;
 }
 

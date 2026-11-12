@@ -227,14 +227,23 @@ check('不再使用会被 .btn-row 覆盖的 mt12 / mt16 组合', function () {
   }
 });
 
-check('按钮与文字链满足最小触控高度', function () {
+check('按钮与文字链尺寸取自令牌，且令牌满足最小触控高度', function () {
   const css = read('app.wxss');
+  const tokens = read('styles/tokens.wxss');
+  const size = function (name) {
+    const m = tokens.match(new RegExp('--' + name + ':\\s*(\\d+)rpx'));
+    return m ? Number(m[1]) : 0;
+  };
+  assert.ok(size('touch') >= 84, '--touch 低于 84rpx 主操作下限');
+  assert.ok(size('touch-sm') >= 72, '--touch-sm 低于 72rpx 次操作下限');
+  assert.ok(size('touch-xs') >= 64, '--touch-xs 低于 64rpx 紧凑操作下限');
+  assert.ok(size('touch-icon') >= 64, '--touch-icon 低于 64rpx 图标按钮下限');
   const btn = (css.match(/\.btn \{[\s\S]*?\}/) || [])[0] || '';
-  assert.ok(/min-height:\s*8[4-9]rpx/.test(btn), '.btn 触控高度不足');
+  assert.ok(/min-height:\s*var\(--touch\)/.test(btn), '.btn 没有取主操作令牌');
   const small = (css.match(/\.btn--small \{[^}]*\}/) || [])[0] || '';
-  assert.ok(/min-height:\s*7[2-9]rpx/.test(small), '.btn--small 触控高度不足');
+  assert.ok(/min-height:\s*var\(--touch-sm\)/.test(small), '.btn--small 没有取次操作令牌');
   const link = (css.match(/\.text-link \{[\s\S]*?\}/) || [])[0] || '';
-  assert.ok(/min-height:\s*6[0-9]rpx/.test(link), '.text-link 没有可点热区');
+  assert.ok(/min-height:\s*var\(--touch-xs\)/.test(link), '.text-link 没有可点热区');
 });
 
 check('吸底条适配安全区且有高优先级底部留白', function () {
@@ -436,6 +445,86 @@ check('三连 S 直接晋级：准备页有进度、结算页有回执、指南�
   assert.ok(/连 S 进度/.test(js) && /sStreakGoal/.test(js), '结算页没写还差几局');
   assert.ok(/title: '六 · 三连 S 直接晋级'/.test(guide) && /连续完成 3 局 S/.test(guide), '指南没有三连 S 专节');
   assert.ok(/title: '十一 · 离线收益的时间'/.test(guide), '新增专节后章节编号没顺延');
+});
+
+check('页面骨架统一：常规页面都用 .pg + 标准页头 + 统一页脚', function () {
+  const foot = '参 悟 · 等是保底，练才是加速';
+  for (const name of ['index', 'skills', 'battle', 'profile', 'guide']) {
+    const wxml = read('pages/' + name + '/' + name + '.wxml');
+    assert.ok(/^<view class="pg[ "]/m.test(wxml), name + ' 根节点不是 .pg');
+    assert.ok(/class="pg__head"/.test(wxml) && /class="pg__head-top"/.test(wxml), name + ' 页头结构不统一');
+    assert.ok(/class="eyebrow"/.test(wxml) && /class="h1 serif"/.test(wxml)
+      && /class="muted mt8"/.test(wxml), name + ' 页头缺少眉标 / 标题 / 说明');
+    assert.ok(wxml.indexOf(foot) >= 0, name + ' 页脚文案不统一');
+  }
+  assert.ok(/class="login-page"/.test(read('pages/login/login.wxml')), '登录页根节点不是品牌页容器');
+  assert.ok(/class="pg \{\{barMode/.test(read('pages/practice/practice.wxml')), '参悟页丢了 .pg 根容器');
+});
+
+check('加载 / 空 / 错误状态统一用 .state 占位，不再白屏', function () {
+  const index = read('pages/index/index.wxml');
+  assert.ok(/class="state"/.test(index) && /读取存档失败/.test(index), '洞府页状态占位不完整');
+  for (const name of ['skills', 'battle', 'profile']) {
+    assert.ok(/wx:else class="state"/.test(read('pages/' + name + '/' + name + '.wxml')),
+      name + ' 数据未就绪时没有状态占位');
+  }
+  assert.ok(/class="state state--inline"/.test(read('pages/battle/battle.wxml')), '榜单错误没有用内嵌状态');
+  const css = read('app.wxss');
+  for (const cls of ['.state {', '.state--inline', '.state__title', '.state__desc', '.state__action']) {
+    assert.ok(css.indexOf(cls) >= 0, '全局基础层缺少 ' + cls);
+  }
+});
+
+check('可点 view 统一按压反馈，反馈样式落在全局基础层', function () {
+  const css = read('app.wxss');
+  assert.ok(/\.pressable \{/.test(css) && /\.pressable--on \{/.test(css), '按压反馈样式没定义');
+  let total = 0;
+  for (const rel of WXML) {
+    const tags = (read(rel).match(/<view[^>]*hover-class="pressable--on"[^>]*>/g) || []);
+    for (const tag of tags) {
+      assert.ok(/class="[^"]*pressable\b/.test(tag), rel + ' 的按压元素没挂常态类');
+      total += 1;
+    }
+  }
+  assert.ok(total >= 5, '按压反馈覆盖不足：' + total + ' 处');
+});
+
+check('全局基础层与常规页样式不写裸色值，尺寸走令牌', function () {
+  const files = [
+    'app.wxss', 'pages/index/index.wxss', 'pages/skills/skills.wxss',
+    'pages/battle/battle.wxss', 'pages/profile/profile.wxss',
+    'pages/guide/guide.wxss', 'pages/login/login.wxss',
+  ];
+  const raw = /#[0-9a-fA-F]{6}\b|rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+/g;
+  for (const f of files) {
+    const hits = read(f).match(raw) || [];
+    assert.strictEqual(hits.length, 0, f + ' 出现裸色值：' + hits.join(', '));
+  }
+  const css = read('app.wxss');
+  assert.ok(/padding: var\(--page-top\) var\(--page-x\)/.test(css), '页面留白没走令牌');
+  assert.ok(/var\(--z-sticky\)/.test(css) && /var\(--z-mask\)/.test(css), '层级没走令牌');
+  assert.ok(/var\(--r-lg\)/.test(css) && /var\(--sh-card\)/.test(css), '圆角或阴影没走令牌');
+  assert.ok(/var\(--fs-body\)/.test(css) && /var\(--fs-caption\)/.test(css), '字号没走令牌');
+});
+
+check('导航栏标题简洁统一，配色交给主题变量', function () {
+  const titles = ['洞府', '功法', '论道', '道牒', '参悟', '登录', '修行指南'];
+  for (const p of pageFiles('.json')) {
+    const cfg = JSON.parse(read(p.rel));
+    assert.ok(titles.indexOf(cfg.navigationBarTitleText) >= 0, p.rel + ' 标题不在统一命名表：' + cfg.navigationBarTitleText);
+    assert.ok(!cfg.navigationBarBackgroundColor && !cfg.navigationBarTextStyle,
+      p.rel + ' 写死了导航栏配色，暗色下会穿帮');
+  }
+});
+
+check('设计令牌覆盖色彩 / 字号 / 间距 / 圆角 / 层级 / 触控 / 动效 / 安全区', function () {
+  const t = read('styles/tokens.wxss');
+  for (const key of ['--c-bg', '--fs-body', '--sp-4', '--r-lg', '--sh-card', '--z-sticky',
+    '--touch:', '--dur-fast', '--safe-bottom', '--lh-body', '--page-x', '--card-gap']) {
+    assert.ok(t.indexOf(key) >= 0, '令牌表缺少 ' + key);
+  }
+  assert.ok(/@media \(prefers-color-scheme: dark\)/.test(t), '没有暗色令牌段');
+  assert.ok(/@import\s+"\.\/styles\/tokens\.wxss"/.test(read('app.wxss')), 'app.wxss 没引入令牌表');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

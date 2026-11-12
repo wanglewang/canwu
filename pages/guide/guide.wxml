@@ -1,6 +1,8 @@
 <view class="pg">
   <view class="pg__head">
-    <text class="eyebrow">修 行 指 南</text>
+    <view class="pg__head-top">
+      <text class="eyebrow">修 行 指 南</text>
+    </view>
     <text class="h1 serif">玩法与数值</text>
     <text class="muted mt8">不看也能玩，看完少走弯路。</text>
   </view>
