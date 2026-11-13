@@ -1,7 +1,7 @@
 <view class="pg pg--imm">
   <view class="imm-head">
     <text class="imm-head__back pressable" hover-class="pressable--on" bindtap="onBack">‹</text>
-    <text class="imm-head__title serif">论 道</text>
+    <text class="imm-head__title">论道</text>
     <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
   </view>
 

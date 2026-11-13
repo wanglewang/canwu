@@ -85,10 +85,13 @@ check('低频信息不占首屏：日志独立成页，诸界与设置默认折�
   assert.ok(/bindtap="onToggleWorld"/.test(log) && /wx:if="\{\{worldOpen\}\}"/.test(log), '日志页诸界不能折叠');
   assert.ok(/onToggleWorld\s*:/.test(read('pages/profile/profile.js')));
   assert.ok(/onToggleWorld\s*:/.test(read('pages/log/log.js')));
-  // 人物页五个低频区块都有独立折叠开关，首屏只剩身份 / 属性 / 称号 / 突破。
-  for (const fn of ['onToggleTitles', 'onToggleAchBlock', 'onToggleMore', 'onToggleSettings']) {
+  // 人物页低频区块都有独立折叠开关，称号已独立成页，只剩成 / 背包 / 设置。
+  for (const fn of ['onToggleAchBlock', 'onToggleMore', 'onToggleSettings']) {
     assert.ok(new RegExp(fn + '\\s*:').test(read('pages/profile/profile.js')), '人物页缺折叠方法 ' + fn);
   }
+  // 称号本不再埋在人物页，而是六宫格里的独立页；人物页只留一行入口。
+  assert.ok(/bindtap="onGoTitles"/.test(profile), '人物页没有通往称号簿的入口');
+  assert.ok(!/titlesOpen/.test(profile), '称号仍然埋在人物页折叠区里');
 });
 
 check('所有弹窗统一「次操作在左、主操作在右」', function () {
@@ -102,7 +105,7 @@ check('所有弹窗统一「次操作在左、主操作在右」', function () {
       const major = [];
       let lastMinor = -1;
       buttons.forEach(function (c, i) {
-        if (/btn--primary|btn--gold/.test(c)) major.push(i);
+        if (/btn--primary|btn--gold|imm-btn(?![\w-])/.test(c)) major.push(i);
         else lastMinor = i;
       });
       if (major.length > 0) {
@@ -120,8 +123,8 @@ check('不可撤销操作使用警示样式并与常规操作分区', function (
   const s = read('pages/profile/profile.wxml');
   const reset = (s.match(/<button[^>]*bindtap="onReset"[^>]*>/) || [])[0] || '';
   const signOut = (s.match(/<button[^>]*bindtap="onSignOut"[^>]*>/) || [])[0] || '';
-  assert.ok(/btn--warn/.test(reset), '重置存档未用警示样式');
-  assert.ok(/btn--warn/.test(signOut), '退出登录未用警示样式');
+  assert.ok(/btn--warn|imm-btn--danger/.test(reset), '重置存档未用警示样式');
+  assert.ok(/btn--warn|imm-btn--danger/.test(signOut), '退出登录未用警示样式');
   assert.ok(/以下操作不可撤销/.test(s), '缺少危险操作提示');
   assert.ok(/btn--warn/.test(read('app.wxss')), 'app.wxss 未定义 .btn--warn');
 });
@@ -456,12 +459,16 @@ check('三连 S 直接晋级：准备页有进度、结算页有回执、指南�
 });
 
 check('页面骨架统一：四 tab + 子页用仙箓皮肤，右上角唯一「说明」入口', function () {
-  const main = ['index', 'cultivate', 'skills', 'profile', 'battle', 'guide', 'help', 'log'];
+  const main = ['index', 'cultivate', 'skills', 'profile', 'battle', 'shop', 'board', 'titles', 'guide', 'help', 'log'];
   for (const name of main) {
     const wxml = read('pages/' + name + '/' + name + '.wxml');
     assert.ok(/^<view class="pg pg--imm/m.test(wxml), name + ' 根节点不是 .pg--imm');
-    assert.ok(/class="imm-head"/.test(wxml) && /class="imm-head__title serif"/.test(wxml),
-      name + ' 缺金线标题条');
+    assert.ok(/class="imm-head"/.test(wxml) && /class="imm-head__title"/.test(wxml),
+      name + ' 缺统一页头');
+    // 标题不做手写空格、不挂衬线体：层级交给字号与字重。
+    const head = (wxml.match(/class="imm-head__title"[^>]*>([^<]*)</) || [])[1] || '';
+    assert.ok(head.indexOf(' ') < 0 || head.indexOf('{{') >= 0, name + ' 的标题里还塞着空格');
+    assert.ok(!/imm-head__title serif/.test(wxml), name + ' 的标题又挂回了衬线体');
     // 说明页自己就是解释，不需要再嵌一个说明入口。
     if (name !== 'help') assert.ok(/bindtap="onGoHelp"/.test(wxml), name + ' 缺右上角「说明」入口');
     assert.ok(!/class="pg__head"|class="muted mt8"/.test(wxml),
@@ -482,10 +489,12 @@ check('页面骨架统一：四 tab + 子页用仙箓皮肤，右上角唯一「
 check('加载 / 空 / 错误状态统一用 .state 占位，不再白屏', function () {
   const index = read('pages/index/index.wxml');
   assert.ok(/class="state"/.test(index) && /\{\{copy\.errorTitle\}\}/.test(index), '洞府页状态占位不完整');
-  for (const name of ['skills', 'battle', 'profile', 'cultivate']) {
-    assert.ok(/class="state"/.test(read('pages/' + name + '/' + name + '.wxml')),
+  for (const name of ['skills', 'battle', 'profile', 'shop', 'board']) {
+    assert.ok(/class="state[ "]/.test(read('pages/' + name + '/' + name + '.wxml')),
       name + ' 数据未就绪时没有状态占位');
   }
+  // 修炼页的空态是真「还没习得功法」，用面板内的一句空态，不是加载中。
+  assert.ok(/imm-empty/.test(read('pages/cultivate/cultivate.wxml')), '修炼页空态没有文案占位');
   assert.ok(/class="state state--inline"/.test(read('pages/battle/battle.wxml')), '榜单错误没有用内嵌状态');
   const css = read('app.wxss');
   for (const cls of ['.state {', '.state--inline', '.state__title', '.state__desc', '.state__action']) {
@@ -528,7 +537,8 @@ check('全局基础层与常规页样式不写裸色值，尺寸走令牌', func
 });
 
 check('导航栏标题简洁统一，配色交给主题变量', function () {
-  const titles = ['主页', '修炼', '功法', '人物', '论道', '参悟', '登录', '修行指南', '说明', '修行日志'];
+  const titles = ['主页', '修炼', '功法', '人物', '论道', '参悟', '登录', '修行指南', '说明', '修行日志',
+    '藏经阁', '战力仙榜', '称号簿'];
   for (const p of pageFiles('.json')) {
     const cfg = JSON.parse(read(p.rel));
     assert.ok(titles.indexOf(cfg.navigationBarTitleText) >= 0, p.rel + ' 标题不在统一命名表：' + cfg.navigationBarTitleText);
@@ -680,7 +690,7 @@ check('功法图鉴：未习得也能看全玩法、收益与习得路径', func
   assert.ok(/bindtap="openDetail"/.test(wxml) && /onCardAction/.test(wxml) && /item\.actionText/.test(wxml),
     '卡片没有明确的可点详情 / 动作入口');
   assert.ok(!/skill-card--dim|opacity/.test(wxml + wxss), '未习得卡片又被压灰成不可点的样子');
-  assert.ok(/\.codex__block/.test(wxss) && /\.codex__inline/.test(wxss), '图鉴分区样式没落地');
+  assert.ok(/\.codex__block/.test(wxss) && /\.codex__note/.test(wxss), '图鉴分区样式没落地');
   // 引擎层：锁定的天阶功法也必须返回完整说明与可执行的下一步。
   const s = game.createNewState();
   const d = game.getSkillDetail(s, 'duanyue');
@@ -703,7 +713,8 @@ check('图鉴文案走文案真源，解释统一收进「说明」页', functio
   assert.ok(copy.termOf('codex'), '术语词典缺「功法图鉴」');
   assert.ok(/copy\.TERMS/.test(helpJs), '说明页名词速查不是由术语词典生成的');
   assert.ok(/topics|topicOf\(/.test(helpJs), '说明页没按主题取真源');
-  for (const k of ['codexPlay', 'codexGain', 'codexUnlock', 'codexTerms', 'codexStage']) {
+  // 弹窗只保留三个必要小标题；盘面符号与本门新法不另起标题，直接跟在区块里。
+  for (const k of ['codexPlay', 'codexGain', 'codexUnlock']) {
     assert.ok(copy.UI.sections[k], '区块文案缺 ' + k);
     assert.ok(wxml.indexOf('copy.sections.' + k) >= 0 || wxml.indexOf('sections.' + k) >= 0, '弹窗没引用 ' + k);
   }
@@ -713,6 +724,28 @@ check('图鉴文案走文案真源，解释统一收进「说明」页', functio
   assert.ok(!/copy\.hints\./.test(wxml), '功法页又把提示长句印回列表');
   assert.ok(copy.UI.states.learned && copy.UI.states.buyable, '状态文案没进真源');
   assert.ok(copy.UI.actions.viewDetail && copy.UI.actions.goBattle, '动作文案没进真源');
+});
+
+check('主页六宫格各进各的子页，不再借道别的 tab', function () {
+  const nav = require('../data/navigation.js');
+  const app = JSON.parse(read('app.json'));
+  const tabs = app.tabBar.list.map(function (t) { return t.pagePath; });
+  assert.strictEqual(nav.TILES.length, 6, '六宫格不再是六格');
+  const urls = nav.TILES.map(function (t) { return t.url; });
+  assert.strictEqual(new Set(urls).size, urls.length, '六宫格有重复去处');
+  for (const t of nav.TILES) {
+    const rel = t.url.replace(/^\//, '');
+    assert.ok(app.pages.indexOf(rel) >= 0, t.label + ' 指向不存在的页面');
+    // 关键：不能一格「看着是子页、点进去跳到别的 tab」。
+    assert.ok(tabs.indexOf(rel) < 0, t.label + ' 仍然跳去 tab 页 ' + rel);
+  }
+  // 三个新子页都是独立四件套，且带返回。
+  for (const name of ['shop', 'board', 'titles']) {
+    for (const ext of ['.js', '.json', '.wxml', '.wxss']) {
+      assert.ok(fs.existsSync(path.join(ROOT, 'pages/' + name + '/' + name + ext)), name + ' 缺 ' + ext);
+    }
+    assert.ok(/class="imm-head__back/.test(read('pages/' + name + '/' + name + '.wxml')), name + ' 没有返回入口');
+  }
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

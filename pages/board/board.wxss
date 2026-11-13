@@ -1,0 +1,2 @@
+/* 战力仙榜：一张我的卡 + 一张榜单，不留别的东西。 */
+.pg--imm .imm-row--on .imm-row__name { color: var(--c-imm-gold); }

@@ -40,7 +40,6 @@ Page({
   data: {
     ov: null,
     topSkills: [],
-    titles: [],
     worlds: [],
     worldOpen: false,
     myCode: '',
@@ -65,7 +64,6 @@ Page({
     draftAvatarTemp: '',
     sfxLabel: '轻',
     breakList: [],
-    titlesOpen: false,
     achOpen: false,
     moreOpen: false,
     settingsOpen: false,
@@ -81,12 +79,6 @@ Page({
   },
 
   onShow: function () {
-    // 主页六宫格「称号簿」跳 tab 时带不了 query，落地后展开对应折叠区。
-    const section = getApp().globalData.pendingSection;
-    if (section === 'titles') {
-      getApp().globalData.pendingSection = '';
-      this.setData({ titlesOpen: true });
-    }
     this.refresh();
     this.loadAccount();
     this.loadAvatar();
@@ -119,7 +111,6 @@ Page({
     const state = store.get();
     const ov = engine.getOverview(state);
     const top = engine.getTopSkills(state, 3);
-    const titles = engine.getTitleList(state);
     const worlds = worldData.WORLDS.map(function (w) {
       return { id: w.id, label: w.label, name: w.name, enabled: w.enabled, intro: w.intro, style: w.style };
     });
@@ -141,7 +132,6 @@ Page({
       breakList: breakList,
       ov: ov,
       topSkills: top,
-      titles: titles,
       worlds: worlds,
       myCode: engine.battleCode(state),
       attrsLine: attrsLine,
@@ -164,7 +154,6 @@ Page({
   },
 
   // 低频区块默认全折叠：首屏只有身份、属性、称号、突破条件。
-  onToggleTitles: function () { this.setData({ titlesOpen: !this.data.titlesOpen }); },
   onToggleAchBlock: function () { this.setData({ achOpen: !this.data.achOpen }); },
   onToggleMore: function () { this.setData({ moreOpen: !this.data.moreOpen }); },
   onToggleSettings: function () { this.setData({ settingsOpen: !this.data.settingsOpen }); },
@@ -253,17 +242,14 @@ Page({
     });
   },
 
-  onGoBattle: function () { wx.navigateTo({ url: '/pages/battle/battle?focus=board' }); },
+  onGoBattle: function () { wx.navigateTo({ url: '/pages/battle/battle' }); },
+
+  onGoTitles: function () { wx.navigateTo({ url: '/pages/titles/titles' }); },
+
+  onGoShop: function () { wx.navigateTo({ url: '/pages/shop/shop' }); },
 
   onToggleWorld: function () {
     this.setData({ worldOpen: !this.data.worldOpen });
-  },
-
-  onEquipTitle: function (event) {
-    const id = event.currentTarget.dataset.id;
-    const r = store.commitCritical(function (s) { return engine.equipTitle(s, id); });
-    toast(r.ok ? (r.equipped ? '已佩戴称号' : '已卸下称号') : r.msg);
-    this.refresh();
   },
 
   onCopyCode: function () {

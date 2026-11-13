@@ -1,64 +1,18 @@
-/* 主页：身份两行 + 境界大卡 + 一行提示 + 六宫格。说明文字全部收进说明页。 */
-.imm-id {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-bottom: var(--sp-2);
-}
-
-.imm-id__line {
-    color: var(--c-imm-text-2);
-    font-size: var(--fs-body-sm);
-    line-height: var(--lh-body);
-    letter-spacing: 2rpx;
-}
-
-.imm-stat__value--sm {
-    font-size: var(--fs-body);
-    font-weight: 600;
-    letter-spacing: 2rpx;
-}
-
-.imm-daily {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: var(--touch-sm);
-    margin-top: var(--sp-4);
-    padding: 0 var(--sp-6);
-    border: 1rpx solid var(--c-imm-gold);
-    border-radius: var(--r-pill);
-    background: linear-gradient(to bottom, var(--c-imm-gold-soft), var(--c-imm-panel));
-}
-
-.imm-daily__text {
-    color: var(--c-imm-text);
-    font-size: var(--fs-body-sm);
-}
-
-.imm-daily__go {
-    color: var(--c-imm-gold);
-    font-size: var(--fs-body-sm);
-}
-
-/* 吸底主按钮沿用全局 .sticky-bar，只把主色换成仙箓金线。 */
+/* 主页：一张境界卡 + 一行提示 + 一整块六宫格。除此之外不放任何说明文字。 */
 .pg--imm .sticky-bar {
-    background: var(--c-imm-panel);
-    border-top: 1rpx solid var(--c-imm-gold-dim);
+    background: var(--c-imm-bg);
+    border-top: 1rpx solid var(--c-imm-line-soft);
     box-shadow: var(--sh-none);
 }
 
-.pg--imm .sticky-bar .btn--primary {
-    background: linear-gradient(to bottom, var(--c-imm-gold-soft), var(--c-imm-panel-2));
-    border: 2rpx solid var(--c-imm-gold);
-    border-radius: var(--r-pill);
-    color: var(--c-imm-gold);
-    font-size: var(--fs-h3);
-    letter-spacing: 4rpx;
-}
-
 .pg--imm .alert-bar {
-    background: var(--c-imm-panel-2);
     border: 1rpx solid var(--c-imm-gold-dim);
+    background: var(--c-imm-gold-soft);
     color: var(--c-imm-text);
 }
+
+.pg--imm .alert-bar__text { color: var(--c-imm-text); }
+.pg--imm .alert-bar__action { color: var(--c-imm-gold); }
+
+/* 突破进度那一行的左字比右侧百分比更重要一点 */
+.imm-strip + .imm-strip { margin-top: var(--sp-2); }

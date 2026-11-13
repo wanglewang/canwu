@@ -1,7 +1,7 @@
 <view class="pg pg--imm">
   <view class="imm-head">
     <text class="imm-head__slot"></text>
-    <text class="imm-head__title serif">人 物</text>
+    <text class="imm-head__title">人物</text>
     <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
   </view>
 
@@ -20,9 +20,9 @@
       <image wx:if="{{avatarUrl}}" class="imm-idcard__avatar" src="{{avatarUrl}}" mode="aspectFill" />
       <portrait wx:else variant="{{ov.portrait}}" realm="{{ov.realmIndex}}" size="normal" />
       <view class="imm-idcard__text">
-        <text class="imm-idcard__name serif">{{ov.roleName}}</text>
-        <text class="imm-idcard__line">道号 · {{ov.equippedTitleName}}</text>
-        <text class="imm-idcard__line">境界 · {{ov.realmName}}</text>
+        <text class="imm-idcard__name">{{ov.roleName}}</text>
+        <text class="imm-idcard__line">{{ov.realmName}} · 战力 {{ov.power}}</text>
+        <text class="imm-idcard__line">称号 · {{ov.equippedTitleName}}</text>
         <text class="imm-idcard__edit pressable" hover-class="pressable--on" bindtap="openRoleEditor">立道号 ›</text>
       </view>
     </view>
@@ -34,17 +34,24 @@
       </view>
     </view>
 
-    <view class="imm-panel">
-      <view class="imm-strip">
-        <text>当前称号 · {{ov.equippedTitleName}}</text>
-        <text class="imm-card__num">{{ov.titlesCount}} / {{ov.titlesTotal}}</text>
+    <!-- 称号本来自成一页，这里只留一行入口，不重复列全表。 -->
+    <view class="imm-list">
+      <view class="imm-row pressable" hover-class="pressable--on" bindtap="onGoTitles">
+        <view class="imm-row__body">
+          <text class="imm-row__name">称号簿</text>
+          <text class="imm-row__sub">已解锁 {{ov.titlesCount}} / {{ov.titlesTotal}}</text>
+        </view>
+        <text class="imm-row__value">›</text>
       </view>
     </view>
 
     <view class="imm-panel">
-      <text class="imm-panel__label">境 界 突 破 条 件</text>
+      <view class="imm-panel__head">
+        <text class="imm-panel__label">境界突破</text>
+        <text class="imm-chip">{{ov.realmName}} → {{ov.breakthrough.nextName}}</text>
+      </view>
       <view class="imm-check" wx:for="{{breakList}}" wx:key="text">
-        <text class="imm-check__mark">{{item.ok ? '✓' : '○'}}</text>
+        <text class="imm-check__mark {{item.ok ? 'imm-check__mark--on' : ''}}">{{item.ok ? '✓' : '·'}}</text>
         <text class="imm-check__text grow">{{item.text}}</text>
       </view>
       <view class="imm-btn-row">
@@ -54,23 +61,6 @@
     </view>
 
     <!-- 低频功能全部折叠：首屏不出现说明书式文字，要用点开即可。 -->
-    <view class="help-sec">
-      <view class="help-sec__head pressable" hover-class="pressable--on" bindtap="onToggleTitles">
-        <text class="help-sec__idx">✦</text><text class="help-sec__title grow">称号簿</text>
-        <text class="help-sec__arrow">{{titlesOpen ? '−' : '+'}}</text>
-      </view>
-      <view wx:if="{{titlesOpen}}" class="help-sec__body">
-        <view class="fold-row" wx:for="{{titles}}" wx:key="id">
-          <view class="grow">
-            <text class="fold-row__name">{{item.name}}</text>
-            <text class="fold-row__desc">{{item.desc}}</text>
-            <text wx:if="{{!item.unlocked}}" class="fold-row__desc">进度 {{item.progress}} / {{item.target}}</text>
-          </view>
-          <button wx:if="{{item.unlocked}}" class="btn {{item.equipped ? 'btn--plain' : 'btn--ghost'}} btn--small" data-id="{{item.id}}" bindtap="onEquipTitle">{{item.equipped ? '卸下' : '佩戴'}}</button>
-        </view>
-      </view>
-    </view>
-
     <view class="help-sec">
       <view class="help-sec__head pressable" hover-class="pressable--on" bindtap="onToggleAchBlock">
         <text class="help-sec__idx">◇</text><text class="help-sec__title grow">成就 {{achievementUnlocked}} / {{achievementTotal}}</text>
@@ -85,7 +75,7 @@
           </view>
           <text class="ach__progress">{{item.current}} / {{item.goal}}</text>
         </view>
-        <button class="btn btn--plain btn--block mt12" bindtap="onToggleAchievements">{{showAllAchievements ? '收起' : '查看全部成就'}}</button>
+        <button class="imm-btn--ghost imm-btn--block imm-btn--sm" bindtap="onToggleAchievements">{{showAllAchievements ? '收起' : '查看全部成就'}}</button>
       </view>
     </view>
 
@@ -99,13 +89,13 @@
         <text class="fold-row__desc">{{attrsLine}}</text>
         <text class="fold-row__desc">战力码 {{myCode}}</text>
         <view class="btn-row btn-row--tight">
-          <button class="btn btn--primary" bindtap="onMakeCard">生成卡片图</button>
-          <button class="btn btn--ghost" bindtap="onCopyCode">复制战力码</button>
+          <button class="imm-btn--ghost imm-btn--sm" bindtap="onMakeCard">生成卡片图</button>
+          <button class="imm-btn--ghost imm-btn--sm" bindtap="onCopyCode">复制战力码</button>
         </view>
         <view class="link-row">
           <text class="text-link text-link--muted" bindtap="onCopyCardText">复制文案</text>
-          <text class="text-link text-link--muted" bindtap="onGoBattle">看论道榜单</text>
-          <button class="btn btn--ghost btn--compact" open-type="share">邀道友同修</button>
+          <text class="text-link text-link--muted" bindtap="onGoBattle">去论道</text>
+          <button class="imm-btn--ghost imm-btn--sm" open-type="share">邀道友同修</button>
         </view>
       </view>
     </view>
@@ -117,25 +107,25 @@
       </view>
       <view wx:if="{{settingsOpen}}" class="help-sec__body">
         <view class="row--between">
-          <text class="h3">局内音效</text>
-          <button class="btn btn--ghost btn--compact" bindtap="onToggleSfx">音效 · {{sfxLabel}}</button>
+          <text class="imm-row__name">局内音效</text>
+          <button class="imm-btn--ghost imm-btn--sm" bindtap="onToggleSfx">音效 · {{sfxLabel}}</button>
         </view>
         <view class="row--wrap mt16">
           <term term-key="daohao" />
           <term term-key="code" />
           <term term-key="sStreak" />
         </view>
-        <button class="btn btn--ghost btn--block mt12" bindtap="onGoGuide">修行指南 ›</button>
+        <button class="imm-btn--ghost imm-btn--block imm-btn--sm mt12" bindtap="onGoGuide">修行指南 ›</button>
         <view class="divider"></view>
         <text class="fold-row__desc">当前账号：{{accountLabel || '读取中'}}</text>
         <view class="btn-row btn-row--tight">
-          <button class="btn btn--primary" bindtap="onExportSave">导出存档</button>
-          <button class="btn btn--ghost" bindtap="openImport">导入存档</button>
+          <button class="imm-btn--ghost imm-btn--sm" bindtap="onExportSave">导出存档</button>
+          <button class="imm-btn--ghost imm-btn--sm" bindtap="openImport">导入存档</button>
         </view>
-        <text class="tiny">以下操作不可撤销，动手前建议先导出存档码</text>
+        <text class="fold-row__desc">以下操作不可撤销，动手前建议先导出存档码</text>
         <view class="btn-row btn-row--tight">
-          <button class="btn btn--warn btn--compact" bindtap="onReset">重置存档</button>
-          <button class="btn btn--warn btn--compact" bindtap="onSignOut">退出登录</button>
+          <button class="imm-btn--ghost imm-btn--sm imm-btn--danger" bindtap="onReset">重置存档</button>
+          <button class="imm-btn--ghost imm-btn--sm imm-btn--danger" bindtap="onSignOut">退出登录</button>
         </view>
       </view>
     </view>
@@ -158,7 +148,7 @@
 
   <view class="mask" wx:if="{{showRoleEditor}}" bindtap="closeRoleEditor">
     <view class="modal" catchtap="noop">
-      <text class="modal__title serif">立道号 · 塑道相</text>
+      <text class="modal__title">立道号 · 塑道相</text>
       <text class="modal__sub">给自己一个称呼，挑一尊随身道相</text>
       <view class="role-editor__preview">
         <image wx:if="{{draftAvatarTemp}}" class="role-editor__avatar" src="{{draftAvatarTemp}}" mode="aspectFill" />
@@ -167,37 +157,37 @@
       </view>
       <input class="role-editor__input mt16" type="nickname" value="{{draftName}}" bindinput="onRoleNameInput" maxlength="12" placeholder="点这里用微信昵称，或自己起道号" placeholder-class="code-ph" />
       <view class="btn-row btn-row--tight">
-        <button class="btn btn--ghost btn--small" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">用微信头像</button>
-        <button class="btn btn--ghost btn--small" bindtap="onNextPortrait">换道相</button>
+        <button class="imm-btn--ghost imm-btn--sm" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">用微信头像</button>
+        <button class="imm-btn--ghost imm-btn--sm" bindtap="onNextPortrait">换道相</button>
       </view>
-      <button wx:if="{{draftAvatarTemp}}" class="btn btn--plain btn--small btn--block mt12" bindtap="onClearAvatar">换回道相</button>
+      <button wx:if="{{draftAvatarTemp}}" class="imm-btn--ghost imm-btn--block imm-btn--sm mt12" bindtap="onClearAvatar">换回道相</button>
       <view class="modal__actions">
-        <button class="btn btn--plain" bindtap="closeRoleEditor">{{copy.actions.cancel}}</button>
-        <button class="btn btn--primary" bindtap="onSaveRole">定下</button>
+        <button class="imm-btn--ghost" bindtap="closeRoleEditor">{{copy.actions.cancel}}</button>
+        <button class="imm-btn" bindtap="onSaveRole">定下</button>
       </view>
     </view>
   </view>
 
   <view class="mask" wx:if="{{showSaveCode}}" bindtap="closeSaveCode">
     <view class="modal" catchtap="noop">
-      <text class="modal__title serif">存档码</text>
+      <text class="modal__title">存档码</text>
       <text class="modal__sub">已复制到剪贴板，请妥善保存</text>
       <view class="code-box mt16">{{saveCode}}</view>
       <view class="modal__actions">
-        <button class="btn btn--primary btn--block" bindtap="closeSaveCode">{{copy.actions.confirm}}</button>
+        <button class="imm-btn imm-btn--block" bindtap="closeSaveCode">{{copy.actions.confirm}}</button>
       </view>
     </view>
   </view>
 
   <view class="mask" wx:if="{{showImport}}" bindtap="closeImport">
     <view class="modal" catchtap="noop">
-      <text class="modal__title serif">导入存档</text>
+      <text class="modal__title">导入存档</text>
       <text class="modal__sub">粘贴以 CANWU1: 开头的存档码</text>
       <input class="code-input mt16" value="{{importCode}}" bindinput="onImportInput" placeholder="CANWU1:..." placeholder-class="code-ph" />
-      <button class="btn btn--plain btn--small btn--block mt12" bindtap="onPasteImport">从剪贴板读取</button>
+      <button class="imm-btn--ghost imm-btn--block imm-btn--sm mt12" bindtap="onPasteImport">从剪贴板读取</button>
       <view class="modal__actions">
-        <button class="btn btn--plain" bindtap="closeImport">{{copy.actions.cancel}}</button>
-        <button class="btn btn--primary" bindtap="onImportSave">导入</button>
+        <button class="imm-btn--ghost" bindtap="closeImport">{{copy.actions.cancel}}</button>
+        <button class="imm-btn" bindtap="onImportSave">导入</button>
       </view>
     </view>
   </view>

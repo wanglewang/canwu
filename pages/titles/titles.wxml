@@ -1,0 +1,32 @@
+<view class="pg pg--imm">
+  <view class="imm-head">
+    <text class="imm-head__back pressable" hover-class="pressable--on" bindtap="onBack">‹</text>
+    <text class="imm-head__title">称号簿</text>
+    <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
+  </view>
+
+  <view class="imm-panel">
+    <view class="imm-panel__head">
+      <text class="imm-panel__label">当前称号</text>
+      <text class="imm-chip">{{unlockedCount}} / {{totalCount}}</text>
+    </view>
+    <text class="imm-realm">{{equippedName}}</text>
+  </view>
+
+  <view class="imm-sec-title">全 部 称 号</view>
+
+  <view class="imm-list">
+    <view class="imm-row {{item.equipped ? 'imm-row--on' : ''}}" wx:for="{{items}}" wx:key="id">
+      <view class="imm-row__body">
+        <text class="imm-row__name">{{item.name}}</text>
+        <text class="imm-row__sub">{{item.desc}}</text>
+        <view wx:if="{{!item.unlocked}}" class="imm-bar imm-bar--thin">
+          <view class="imm-bar__fill" style="width:{{item.percent}}%"></view>
+        </view>
+        <text wx:if="{{!item.unlocked}}" class="imm-row__sub">{{item.progressText}}</text>
+      </view>
+      <button wx:if="{{item.unlocked}}" class="{{item.equipped ? 'imm-btn--ghost' : 'imm-btn'}} imm-btn--sm" data-id="{{item.id}}" bindtap="onEquip">{{item.equipped ? '卸下' : '佩戴'}}</button>
+      <text wx:else class="imm-chip">未解锁</text>
+    </view>
+  </view>
+</view>

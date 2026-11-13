@@ -1,7 +1,7 @@
 <view class="pg pg--imm pg--with-bar">
   <view class="imm-head">
     <text class="imm-head__slot"></text>
-    <text class="imm-head__title serif">无 上 修 炼 系 统</text>
+    <text class="imm-head__title">参悟</text>
     <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
   </view>
 
@@ -18,40 +18,50 @@
   <view wx:elif="{{viewState === 'error'}}" class="state">
     <text class="state__title">{{copy.errorTitle}}</text>
     <text class="state__desc">{{copy.errorDesc}}</text>
-    <button class="btn btn--primary state__action" bindtap="refresh">{{copy.actions.retry}}</button>
+    <button class="imm-btn imm-btn--block" bindtap="refresh">{{copy.actions.retry}}</button>
   </view>
 
   <block wx:if="{{viewState === 'ready' && ov}}">
-    <view class="imm-id">
-      <text class="imm-id__line">宿主 · {{ov.roleName}}</text>
-      <text class="imm-id__line">境界 · {{ov.realmName}}</text>
-    </view>
-
     <view class="imm-panel">
-      <text class="imm-panel__label">当 前 境 界</text>
-      <text class="imm-realm serif">{{ov.realmName}}</text>
+      <view class="imm-panel__head">
+        <text class="imm-panel__label">{{ov.roleName}}</text>
+        <text class="imm-chip">境界 {{ov.realmIndex + 1}} / {{ov.realmCount}}</text>
+      </view>
+      <text class="imm-realm">{{ov.realmName}}</text>
       <view class="imm-bar"><view class="imm-bar__fill" style="width:{{breakPercent}}%"></view></view>
-      <text class="imm-percent">{{breakPercent}}%</text>
+      <view class="imm-strip">
+        <text>突破 {{ov.breakthrough.maxed ? '已至大圆满' : '所需战力 ' + ov.breakthrough.need}}</text>
+        <text class="imm-strip__value">{{breakPercent}}%</text>
+      </view>
       <view class="imm-stats">
         <view class="imm-stat">
           <text class="imm-stat__label">战 力</text>
           <text class="imm-stat__value">{{ov.power}}</text>
         </view>
         <view class="imm-stat">
-          <text class="imm-stat__label">称 号</text>
-          <text class="imm-stat__value imm-stat__value--sm">{{ov.equippedTitleName}}</text>
+          <text class="imm-stat__label">灵 气</text>
+          <text class="imm-stat__value">{{ov.qi}}</text>
+        </view>
+        <view class="imm-stat">
+          <text class="imm-stat__label">灵 石</text>
+          <text class="imm-stat__value">{{ov.stone}}</text>
         </view>
       </view>
     </view>
 
     <view class="imm-hint">
-      <text class="imm-hint__pin">◈</text>
-      <text>{{hintText}}</text>
+      <text class="imm-hint__pin">◆</text>
+      <text class="grow">{{hintText}}</text>
     </view>
 
-    <view wx:if="{{dailyReady}}" class="imm-daily pressable" hover-class="pressable--on" bindtap="onClaimDaily">
-      <text class="imm-daily__text">今日份例可领 · {{dailyGain}}</text>
-      <text class="imm-daily__go">领取 ›</text>
+    <view wx:if="{{dailyReady}}" class="imm-list">
+      <view class="imm-row pressable" hover-class="pressable--on" bindtap="onClaimDaily">
+        <view class="imm-row__body">
+          <text class="imm-row__name">{{copy.sections.today}}</text>
+          <text class="imm-row__sub">{{dailyGain}}</text>
+        </view>
+        <text class="imm-row__value">领取 ›</text>
+      </view>
     </view>
 
     <view class="imm-grid">
@@ -65,13 +75,12 @@
   </block>
 
   <view wx:if="{{viewState === 'ready' && ov}}" class="sticky-bar">
-    <button class="btn btn--primary btn--block" bindtap="onQuickPractice">{{quickLabel}}</button>
+    <button class="imm-btn imm-btn--block" bindtap="onQuickPractice">{{quickLabel}}</button>
   </view>
 
   <view class="mask" wx:if="{{showOffline && offline}}">
     <view class="modal">
-      <text class="eyebrow">闭 关 收 获</text>
-      <text class="modal__title serif mt12">你不在的时候，也没闲着</text>
+      <text class="modal__title">闭关收获</text>
       <text class="modal__sub">离线 {{offline.duration}} · 最多累计 8 小时</text>
       <view class="modal__body">
         <view class="res-line">
@@ -84,7 +93,7 @@
         </view>
       </view>
       <view class="modal__actions">
-        <button class="btn btn--primary btn--block" bindtap="closeOffline">{{copy.actions.confirm}}</button>
+        <button class="imm-btn imm-btn--block" bindtap="closeOffline">{{copy.actions.confirm}}</button>
       </view>
     </view>
   </view>

@@ -11,11 +11,11 @@
     --c-text: var(--c-imm-text);
     --c-text-2: var(--c-imm-text-2);
     --c-text-3: var(--c-imm-text-2);
-    --c-primary-text: var(--c-imm-cyan);
+    --c-primary-text: var(--c-imm-jade);
     --c-primary-soft: var(--c-imm-panel-2);
     --c-gold-text: var(--c-imm-gold);
     --c-gold-soft: var(--c-imm-gold-soft);
-    --c-link: var(--c-imm-cyan);
+    --c-link: var(--c-imm-jade);
     --c-track: var(--c-imm-track);
     --c-neutral-soft: var(--c-imm-panel-2);
     background: var(--c-imm-bg);

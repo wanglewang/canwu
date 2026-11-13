@@ -1,0 +1,3 @@
+/* 称号簿：进度条只在未解锁的行里出现，且比页面主进度条更细。 */
+.imm-bar--thin { height: 4rpx; margin-top: var(--sp-3); }
+.imm-row__sub + .imm-bar { margin-top: var(--sp-3); }

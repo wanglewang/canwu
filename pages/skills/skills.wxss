@@ -1,98 +1,90 @@
-/* 功法页：列表只留名称 / 阶段 / 属性 / 进度 / 动作；规则与收益进图鉴弹层。 */
-.imm-mini-bar {
-    height: var(--sp-1);
-    border-radius: var(--r-pill);
-    background: var(--c-imm-track);
-    overflow: hidden;
-    margin: var(--sp-3) 0;
-}
-
-.imm-mini-bar__fill {
-    height: 100%;
-    border-radius: var(--r-pill);
-    background: var(--c-imm-cyan);
-}
-
-.imm-card__right {
+/* 功法页：一张列表 + 一个图鉴弹窗。列表每行只有名字、进度、品阶与一个动作。 */
+.skill-name {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
+    align-items: center;
     gap: var(--sp-3);
-    flex: none;
 }
 
-.imm-card__right .imm-btn--ghost {
-    min-height: var(--touch-xs);
-    padding: 0 var(--sp-5);
-    font-size: var(--fs-note);
-}
+.skill-name .imm-chip { flex: none; }
 
-.warn-line {
+/* ---------- 图鉴弹窗 ---------- */
+.modal--codex { padding: var(--sp-8); }
+
+.codex__text {
     display: block;
-    color: var(--c-danger-text);
+    font-size: var(--fs-body-sm);
     line-height: var(--lh-body);
-}
-
-/* ---------- 功法图鉴弹层：点开才出现，允许长内容滚动 ---------- */
-.modal--codex {
-    max-height: 86vh;
-    overflow-y: auto;
-    padding-bottom: var(--sp-8);
-}
-
-.codex__status { margin-right: var(--sp-2); }
-
-.codex__intro {
-    padding: var(--sp-4) var(--sp-5);
-    border-radius: var(--r-sm);
-    background: var(--c-surface-2);
+    color: var(--c-imm-text-2);
+    margin-top: var(--sp-4);
 }
 
 .codex__block {
-    margin-top: var(--sp-8);
-    padding-top: var(--sp-6);
-    border-top: 2rpx solid var(--c-divider);
+    margin-top: var(--sp-6);
+    padding-top: var(--sp-5);
+    border-top: 1rpx solid var(--c-imm-line-soft);
 }
 
-.codex__inline {
-    display: block;
-    padding: var(--sp-3) var(--sp-4);
-    border-radius: var(--r-xs);
-    background: var(--c-primary-soft);
-    color: var(--c-primary-text);
-    line-height: var(--lh-body);
-}
-
-.codex__step,
-.codex__term {
+.codex__head {
     display: flex;
-    align-items: flex-start;
-    gap: var(--sp-3);
-    margin-bottom: var(--sp-3);
-    line-height: var(--lh-body);
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-4);
 }
 
-.codex__dot { color: var(--c-primary-text); flex: none; }
-.codex__term > .tag { flex: none; }
-.codex__term > .grow { padding-top: var(--sp-1); }
+.codex__title {
+    display: block;
+    color: var(--c-imm-text);
+    font-size: var(--fs-body);
+    font-weight: 600;
+}
 
-.codex__gain {
-    padding: var(--sp-3) 0;
-    border-bottom: 2rpx solid var(--c-divider);
+.codex__more {
+    color: var(--c-imm-gold);
+    font-size: var(--fs-caption);
+    padding: var(--sp-1) 0 var(--sp-1) var(--sp-4);
 }
 
 .codex__note {
     display: block;
-    color: var(--c-text-2);
+    color: var(--c-imm-text-3);
+    font-size: var(--fs-caption);
     line-height: var(--lh-body);
-    margin-top: var(--sp-1);
+    margin-top: var(--sp-2);
 }
 
-.codex__warn {
-    padding: var(--sp-3) var(--sp-4);
-    border-radius: var(--r-xs);
-    background: var(--c-danger-soft);
-    color: var(--c-danger-text);
-    font-size: var(--fs-note);
-    line-height: var(--lh-body);
+.codex__value {
+    color: var(--c-imm-gold);
+    font-size: var(--fs-body);
+    font-weight: 600;
+    flex: none;
 }
+
+.codex__step {
+    display: flex;
+    gap: var(--sp-2);
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-body);
+    margin-top: var(--sp-2);
+}
+
+.codex__dot { color: var(--c-imm-gold-dim); flex: none; }
+
+.codex__term {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    margin-top: var(--sp-2);
+}
+
+.codex__term .imm-chip { flex: none; }
+
+.codex__kv {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    margin-top: var(--sp-3);
+}
+
+.codex__warn { color: var(--c-danger-text); }

@@ -178,8 +178,8 @@ function main() {
   const outDir = path.join(__dirname, '..', 'assets', 'tab');
   fs.mkdirSync(outDir, { recursive: true });
   // 与 theme.json 的 tabColor / tabSelectedColor 同值：深青底上的灰青与金色。
-  const normal = hexToRgb('#8aa89b');
-  const active = hexToRgb('#d8b775');
+  const normal = hexToRgb('#7d8a83');
+  const active = hexToRgb('#cfae6d');
   let count = 0;
   for (const key of Object.keys(ICONS)) {
     const alpha = downsample(render(ICONS[key]));

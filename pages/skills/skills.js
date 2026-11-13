@@ -17,7 +17,6 @@ function detailOf(state, id) {
   d.affordable = !!d.cost && state.resources.qi >= d.cost.qi && state.resources.stone >= d.cost.stone;
   d.stateText = d.unlocked ? copy.UI.states.learned
     : (d.canBuy ? copy.UI.states.buyable : d.unlock.label);
-  d.tierTextColor = '#fffdf7';
   d.primary = primaryOf(d);
   return d;
 }
@@ -51,15 +50,7 @@ Page({
     this.refresh();
   },
 
-  onShow: function () {
-    // 主页六宫格的「藏经阁」跳 tab 时带不了 query，用 pendingSection 落地。
-    const section = getApp().globalData.pendingSection;
-    if (section === 'locked') {
-      getApp().globalData.pendingSection = '';
-      this.setData({ tab: 'locked' });
-    }
-    this.refresh();
-  },
+  onShow: function () { this.refresh(); },
 
   onUnload: function () { store.unsubscribe(this.listener); },
 

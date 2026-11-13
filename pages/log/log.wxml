@@ -1,12 +1,12 @@
 <view class="pg pg--imm">
   <view class="imm-head">
     <text class="imm-head__back pressable" hover-class="pressable--on" bindtap="onBack">‹</text>
-    <text class="imm-head__title serif">修 行 日 志</text>
+    <text class="imm-head__title">修行日志</text>
     <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
   </view>
 
   <view wx:if="{{logs.length > 0}}" class="imm-panel">
-    <view class="imm-panel__label">近 期 动 静</view>
+    <view class="imm-panel__label">近期动静</view>
     <view class="log-line" wx:for="{{logs}}" wx:key="at">
       <text class="log-line__dot">◆</text>
       <text class="log-line__text grow">{{item.text}}</text>

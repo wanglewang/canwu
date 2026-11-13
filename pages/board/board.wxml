@@ -1,0 +1,44 @@
+<view class="pg pg--imm">
+  <view class="imm-head">
+    <text class="imm-head__back pressable" hover-class="pressable--on" bindtap="onBack">‹</text>
+    <text class="imm-head__title">战力仙榜</text>
+    <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
+  </view>
+
+  <view class="imm-panel">
+    <view class="imm-panel__head">
+      <text class="imm-panel__label">我的战力</text>
+      <text class="imm-chip">{{myRank > 0 ? '榜上第 ' + myRank : '尚未上榜'}}</text>
+    </view>
+    <text class="imm-realm">{{ov ? ov.power : 0}}</text>
+    <view class="imm-strip">
+      <text>{{ov ? ov.realmName : ''}}</text>
+      <text class="imm-strip__value">{{ov ? ov.equippedTitleName : ''}}</text>
+    </view>
+  </view>
+
+  <view wx:if="{{rival}}" class="imm-btn-row">
+    <button class="imm-btn" bindtap="onFight">与 {{rival.name}} 切磋</button>
+  </view>
+
+  <view class="imm-sec-title">前 十</view>
+
+  <view wx:if="{{loading}}" class="state state--inline">
+    <text class="state__desc">{{copy.loading}}</text>
+  </view>
+  <view wx:elif="{{error}}" class="state state--inline">
+    <text class="state__desc">{{error}}</text>
+    <text class="text-link" bindtap="onRefresh">重试</text>
+  </view>
+
+  <view wx:else class="imm-list">
+    <view class="imm-row {{item.isMe ? 'imm-row--on' : ''}}" wx:for="{{rows}}" wx:key="uid">
+      <text class="imm-row__rank {{item.rank <= 3 ? 'imm-row__rank--top' : ''}}">{{item.rank}}</text>
+      <view class="imm-row__body">
+        <text class="imm-row__name">{{item.name}}{{item.isMe ? ' · 我' : ''}}</text>
+        <text class="imm-row__sub">{{item.realmName}}</text>
+      </view>
+      <text class="imm-row__value">{{item.power}}</text>
+    </view>
+  </view>
+</view>
