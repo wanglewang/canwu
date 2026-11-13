@@ -44,7 +44,7 @@ const FAMILIES = {
   },
   array: {
     key: 'array', name: '阵法', glow: '#B39CE8', deep: '#6F5B9E', well: '#191628',
-    motif: '阵盘 · 阵眼 · 五行环',
+    motif: '阵盘 · 灯阵 · 五行环',
   },
 };
 

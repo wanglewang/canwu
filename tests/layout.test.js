@@ -1302,4 +1302,74 @@ check('阵灯破阵：四路反馈齐备、停顿不计时、规则写进游戏�
   }
 });
 
+check('阵灯推演：本档 S 线盘数同源、阵眼术语收敛、HUD 步数成对照', function () {
+  const pd = require('../data/practice.js');
+  const lights = read('minigames/lights.js');
+  const themes = require('../minigames/theme.js');
+  const skills = require('../data/skills.js');
+  const guides = require('../data/guides.js');
+  const method = pd.getMethod('arrayEye');
+  const skill = skills.SKILLS.filter(function (s) { return s.method === 'arrayEye'; })[0];
+
+  // 达标盘数只有一份表：准备页那行与玩法层共用，换难度档跟着变。
+  assert.ok(Array.isArray(pd.LIGHTS_TARGETS)
+    && pd.LIGHTS_TARGETS.length === pd.DIFFICULTIES.length, '达标盘数表没盖住全部难度档');
+  assert.strictEqual(pd.lightsTargetsOf('hard')[0], 6, '困难档 S 线盘数变了');
+  assert.strictEqual(JSON.stringify(pd.buildParams(method, 'hard').boardTargets),
+    JSON.stringify(pd.LIGHTS_TARGETS[2]), '玩法层没拿到按档注入的达标盘数');
+  assert.ok(/Array\.isArray\(p\.boardTargets\)/.test(lights)
+    && !/const TARGETS = \[/.test(lights), 'lights.js 又抄了一份达标盘数');
+  assert.ok(/本档 S 线 解 9 盘/.test(pd.sLineText(method, 'easy')), '准备页没写出本档要解几盘');
+  assert.ok(/goalText: sLine/.test(read('pages/practice/practice.js')), '准备页的 S 线没走同源文案');
+
+  // 「阵眼」只留给提示技能：开局横幅、印章、风味与特效不再混用这个词。
+  assert.ok(themes.themeOf('arrayEye', 'lights').banner.indexOf('阵眼') < 0,
+    '开局横幅还在用「阵眼」');
+  assert.ok(!/阵眼/.test(skill.flavor + skill.effect.text), '风味与特效名还在用「阵眼」');
+  assert.strictEqual(pd.HINT_LABELS.lights, '阵眼感应', '提示技能名不该跟着改');
+
+  // HUD 步数改成「已走 / 最优」对照，说明里也要讲清它不参与评级。
+  assert.ok(/' \+ moves \+ ' \/ ' \+ steps \+ ' 步'/.test(lights), 'HUD 没把已走步数并进对照');
+  assert.ok(!/本盘最少/.test(lights), 'HUD 还摆着容易误读的「本盘最少 N 步」');
+  const terms = guides.GUIDES.lights.terms.map(function (t) { return t.name; }).join('');
+  assert.ok(/X \/ N 步/.test(terms), '名词速查没解释步数对照');
+  assert.ok(/不参与评级/.test(guides.GUIDES.lights.steps.join('') + guides.GUIDES.lights.scoring),
+    '没讲清步数不参与评级');
+});
+
+check('阵灯推演：翻转范围微光是一次性动画，不占常驻预算', function () {
+  const lights = read('minigames/lights.js');
+  const wxss = read('pages/practice/practice.wxss');
+  assert.ok(/return hit/.test(lights), 'toggle 没把被翻的格子交回来');
+  assert.ok(/cell--flip/.test(lights) && /clearFlip/.test(lights), '微光没有收回逻辑');
+  assert.ok(/const FLIP_MS = (\d+)/.exec(lights), '没设一次性时长');
+  assert.ok(/@keyframes flipGlow/.test(wxss), '盘面没画翻转微光');
+  assert.ok(/animation: flipGlow[^;]*1;/.test(wxss), '微光没设成只跑一次');
+  const rule = (wxss.match(/\.cell--flip-a, \.cell--flip-b \{[^}]*\}/) || [''])[0];
+  assert.ok(rule && !/infinite/.test(rule), '翻转微光成了常驻循环动画');
+  assert.ok(/flipSeq \+= 1/.test(lights), '连点 / 破阵没让旧定时器作废');
+});
+
+check('参悟结算：留在本页、回看战绩、倒计时可反悔', function () {
+  const wxml = read('pages/practice/practice.wxml');
+  const js = read('pages/practice/practice.js');
+  const copy = require('../data/copy.js');
+  assert.strictEqual(copy.UI.actions.stay, '留在本页', '结算主按钮文案没进真源');
+  assert.ok(/primary: copy\.UI\.actions\.stay/.test(js), '结算主按钮没走文案真源');
+  assert.ok(!/primary: '再来一次'/.test(js), '主按钮仍在把玩家推进下一局');
+  assert.ok(/onStay: function/.test(js) && /showResult: false, started: false/.test(js),
+    '留在本页没有收起遮罩回到准备页');
+  assert.ok(/onAgain: function/.test(js) && /result\.canAgain/.test(wxml),
+    '快捷连刷没单独给一条文字链');
+  assert.ok(/onOpenRecord: function/.test(js) && /recordBrief && !showResult/.test(wxml),
+    '准备页没有可回看上局战绩的入口');
+  assert.ok(/onCancelCountdown: function/.test(js) && /catchtap="onCancelCountdown"/.test(wxml),
+    '倒数三秒不能反悔');
+  const cancel = /onCancelCountdown: function \(\) \{[\s\S]*?\n  \}/.exec(js);
+  assert.ok(cancel && !/controller\.start/.test(cancel[0]), '取消倒计时却已经开局了');
+  const primary = /onPrimary: function \(\) \{[\s\S]*?\n  \}/.exec(js);
+  assert.ok(primary && !/onStart\(\)/.test(primary[0]), '主按钮还在自动开下一局');
+  assert.ok(/goalText/.test(wxml), '准备页没显示本档 S 线');
+});
+
 console.log('\n布局断言全部通过：' + passed + ' 项');

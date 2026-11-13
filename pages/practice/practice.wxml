@@ -55,6 +55,11 @@
       <!-- 下一段给什么：只写「还差 114」等于只给了个数字，练到头才发现没好处。 -->
       <text wx:if="{{nextBenefit}}" class="tiny pr-tier-next">{{nextBenefit}}</text>
     </view>
+    <!-- 留在本页时这一行还在：随时能把刚收起的结算明细叫回来重看，不必再打一局。 -->
+    <view wx:if="{{recordBrief && !showResult}}" class="pr-record pressable" hover-class="pressable--on" bindtap="onOpenRecord">
+      <text class="tiny">{{recordBrief}}</text>
+      <text class="text-link tiny">{{copy.actions.reviewRecord}} ›</text>
+    </view>
   </view>
 
   <view wx:if="{{!started && !showResult && guide}}" class="card guide-card">
@@ -348,6 +353,7 @@
       <text class="countdown-seal">{{theme.motif}}</text>
       <text class="countdown-num">{{countdown}}</text>
       <text class="tiny">凝神 · 起手（点一下跳过）</text>
+      <text class="text-link countdown__stay pressable" hover-class="pressable--on" catchtap="onCancelCountdown">{{copy.actions.cancelStart}}</text>
     </view>
   </view>
 
@@ -381,6 +387,7 @@
         <button class="btn btn--plain" catchtap="onSecondary">{{result.secondary}}</button>
         <button class="btn btn--primary" catchtap="onPrimary">{{result.primary}}</button>
       </view>
+      <text wx:if="{{settlePhase >= 4 && result.canAgain}}" class="text-link text-link--muted settle__again pressable" hover-class="pressable--on" catchtap="onAgain">{{copy.actions.again}} ›</text>
     </view>
     <text wx:if="{{settlePhase < 4}}" class="settle__skip">点任意处跳过演出</text>
   </view>
@@ -415,6 +422,7 @@
         <button class="btn btn--plain" bindtap="onSecondary">{{result.secondary}}</button>
         <button class="btn btn--primary" bindtap="onPrimary">{{result.primary}}</button>
       </view>
+      <text wx:if="{{result.canAgain}}" class="text-link text-link--muted modal__again pressable" hover-class="pressable--on" bindtap="onAgain">{{copy.actions.again}} ›</text>
     </view>
   </view>
 

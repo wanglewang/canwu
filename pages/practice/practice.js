@@ -78,6 +78,8 @@ Page({
     guide: null,
     // 说明默认收起：准备页先看功法与熟练度，要看规则再点「展开」。
     guideOpen: false,
+    // 收起结算后准备页顶部还留一行「上局战绩」，随时能把结算明细叫回来重看。
+    recordBrief: '',
     slashList: [],
     trailLen: 0,
     sceneOn: false,
@@ -279,9 +281,9 @@ Page({
     // 下一段给什么：现在只写「还差 114」，玩家不知道练到那一步能得到什么。
     // 收益就在 world.TIERS[].desc 里（解锁难度 / 属性 / 阶段新法），原样搬一句，不另编。
     const nextTier = info.maxed ? null : worldData.TIERS[info.index + 1];
-    // S 线只写在准备页：局内只报「还差几分」，这里给出本档总分门槛与评级口径。
-    // 数字与玩法层同源（practiceData.MATCH_S），换难度档会跟着变。
-    const sLine = practiceData.sLineOf(method, diffKey);
+    // S 线只写在准备页：局内只报「还差几分」，这里给出本档门槛与评级口径。
+    // 分数线（三秀同收）与盘数线（阵灯推演）都由 practiceData 同源生成，换难度档跟着变。
+    const sLine = practiceData.sLineText(method, diffKey);
 
     this.theme = theme;
     this.twist = method.twist;
@@ -303,7 +305,7 @@ Page({
       // 高难度除了倍率还收紧了什么：diffDetail 已经算好了（亮起时长、口诀轮数…），
       // 以前只在数据里躺着没渲染，玩家只能看到「×1.70」。
       diffBrief: diff.brief,
-      goalText: sLine ? '本档 S 线 ' + sLine + ' 分 · 评级只看总分，无效互换只少息、不扣分' : '',
+      goalText: sLine,
       rankLabel: tier.label,
       rankChar: tier.name,
       rankStars: engine.starsOf(tier.stars),
@@ -419,7 +421,8 @@ Page({
     this.setData({
       started: false,
       showResult: false,
-      result: null,
+      // result / recordBrief 不清：留在准备页时切出去再回来，controller 要重建，
+      // 但「上局战绩」还得能点开重看。只有「再来一局」才显式清掉。
       guide: guides.guideOf(gameId),
       hintLabel: practiceData.hintLabelOf(gameId),
       sceneOn: stage.on,
@@ -544,6 +547,16 @@ Page({
     this.syncBar();
     const self = this;
     setTimeout(function () { if (self.pageAlive) self.measureBoard(); }, 60);
+  },
+
+  // 倒数三秒里还能反悔：这时 controller.start() 还没调用，撤掉遮罩就是回到准备页，
+  // 不用先开局再「收功」。想看清规则、难度与本门新法的人有这一拍。
+  onCancelCountdown: function () {
+    if (!this.pageAlive || this.data.countdown <= 0) return;
+    this.clearCountdown();
+    this.setData({ started: false });
+    this.refresh();
+    this.syncBar();
   },
 
   onResize: function () { this.measureBoard(); },
@@ -781,8 +794,8 @@ Page({
         lines: [],
         notes: [],
         titles: [],
-        primary: '再试一次',
-        secondary: '返回',
+        primary: copy.UI.actions.stay,
+        secondary: copy.UI.actions.back,
       };
     } else if (this.mode === 'breakthrough') {
       const r = store.commitCritical(function (s) { return engine.applyBreakthrough(s, grade); });
@@ -803,8 +816,8 @@ Page({
         ],
         notes: ['此后挂机与对战都会按新境界计算。'],
         titles: (r.newTitles || []).map(function (t) { return t.name; }),
-        primary: '回洞府',
-        secondary: '去功法页',
+        primary: copy.UI.actions.backHome,
+        secondary: copy.UI.actions.goSkills,
       };
     } else {
       const r = store.commitCritical(function (s) {
@@ -871,8 +884,8 @@ Page({
         lines: lines,
         notes: notes,
         titles: (r.newTitles || []).map(function (t) { return t.name; }),
-        primary: '再来一次',
-        secondary: '返回功法',
+        primary: copy.UI.actions.stay,
+        secondary: copy.UI.actions.backSkills,
       };
     }
 
@@ -882,21 +895,57 @@ Page({
     if (grade === 'S' || grade === 'A') sfx.play('clear');
     else if (grade === 'F') sfx.play('fail');
     else sfx.play('settle');
+    // 结算不再只有「返回 / 再来一局」两条把玩家推走的路：主按钮留在准备页，
+    // 想连刷的人另给一条文字链。突破结算没有准备页可留，保持原来的两个去处。
+    rv.canAgain = this.mode !== 'breakthrough';
+    let recordBrief = '';
+    if (rv.canAgain) {
+      let gain = '';
+      for (let i = 0; i < rv.lines.length; i += 1) {
+        if (rv.lines[i].k === '熟练度') gain = rv.lines[i].v;
+      }
+      recordBrief = '上局 · ' + (rv.gradeTitle || '') + (gain ? ' · ' + gain + ' 熟练度' : '');
+    }
     this.clearCountdown();
-    this.setData({ showResult: true, result: rv, started: false });
+    this.setData({ showResult: true, result: rv, recordBrief: recordBrief, started: false });
     this.syncBar();
     this.refresh();
     if (this.data.sceneOn) this.startSettle(rv, grade);
   },
 
+  // 结算主按钮：留在本页（突破结算仍回洞府）。收起遮罩后准备页按这一局的结果重算，
+  // 熟练度、连 S 进度、本门最佳与难度档都变了，玩家终于有一拍能看清这页写了什么。
   onPrimary: function () {
+    const rv = this.data.result;
+    if (!rv) return;
+    if (rv.kind === 'breakthrough') { this.onBack(); return; }
+    this.onStay();
+  },
+
+  onStay: function () {
+    if (!this.pageAlive) return;
     this.clearSettleTimers();
-    const kind = this.data.result ? this.data.result.kind : '';
-    if (kind === 'breakthrough') { this.onBack(); return; }
-    this.setData({ showResult: false, result: null });
+    this.setData({ showResult: false, started: false, settlePhase: 4 });
+    this.refresh();
+    this.syncBar();
+  },
+
+  // 快捷连刷：跳过准备页直接起下一局，留给已经熟悉规则的人；不再是唯一的默认动作。
+  onAgain: function () {
+    if (!this.pageAlive) return;
+    this.clearSettleTimers();
+    this.setData({ showResult: false, result: null, recordBrief: '', started: false });
     this.buildGame();
     this.onStart();
     this.refresh();
+  },
+
+  // 准备页顶部那行「上局战绩」：把刚收起的结算明细叫回来重看，不必再打一局。
+  onOpenRecord: function () {
+    if (!this.data.result) return;
+    this.clearSettleTimers();
+    this.setData({ showResult: true, settlePhase: 4 });
+    this.syncBar();
   },
 
   onSecondary: function () {

@@ -898,6 +898,30 @@ check('阵灯推演：大成开死门，点到整盘复位并罚时', function (
   } finally { restoreClock(); }
 });
 
+check('阵灯推演：点一格，被翻的五格同步闪一拍，跑完即收', function () {
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('arrayEye'));
+    ctx.c.start();
+    advance(100);
+    // 简单档最优解是 2 步，点任意一格都不会当场破阵，正好能看这一手的范围。
+    ctx.c.tap(4);
+    let vm = ctx.st.vm;
+    assert.strictEqual(vm.phase, 'playing', '点一格不该直接结算');
+    const flipped = [];
+    for (let i = 0; i < vm.cells.length; i += 1) {
+      if (/cell--flip[ab]/.test(vm.cells[i].cls)) flipped.push(i);
+    }
+    assert.strictEqual(flipped.join(','), '1,3,4,5,7',
+      '闪烁范围不是中心 + 四邻：' + flipped.join(','));
+    advance(300);
+    vm = ctx.st.vm;
+    assert.ok(vm.cells.every(function (c) { return !/cell--flip[ab]/.test(c.cls); }),
+      '微光没有收回，成了常驻动画');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
 check('触雷不再一击出局，只扣一盏心神并显形', function () {
   installClock();
   try {

@@ -94,6 +94,14 @@ const UI = {
         goHome: '去攒资源',
         openShop: '去藏经阁',
         allAchievements: '全部成就',
+        // 参悟结算：主按钮不再把玩家推走，留在准备页慢慢看；连刷另给一条文字链。
+        stay: '留在本页',
+        again: '再来一局',
+        back: '返回',
+        backSkills: '返回功法',
+        backHome: '回洞府',
+        cancelStart: '再看看',
+        reviewRecord: '上局战绩',
     },
 
     // 功法页两态：locked 里混着藏经阁兑换、切磋首胜与境界前置，统称「未习得」才准确。

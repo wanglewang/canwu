@@ -263,9 +263,38 @@ function difficultyList(prof, current) {
 // 都从这一份数取，不许一边算 620 + depth×150、另一边照着再抄一遍。
 const MATCH_S = { base: 620, step: 150 };
 
+// 阵灯推演的达标盘数：[S, A, B]，下标是难度档 depth。
+// 步数越多每盘越慢，所以档位越高要求的盘数越少。按假时钟标定：机器人（读盘 0.4s /
+// 每步 0.4s）能解 12 / 11 / 10 / 10 / 9 盘，真人节奏（读盘 2.5s / 每步 0.9s）能解
+// 11 / 8 / 7 / 6 / 5 盘；S 取真人的七五折，B 兜住新手第一局。
+// 玩法层（lights.js 的 gradeOf）与准备页都从这一份数取，不许各抄一遍。
+const LIGHTS_TARGETS = [
+  [9, 6, 3],
+  [7, 4, 2],
+  [6, 4, 2],
+  [5, 3, 2],
+  [4, 3, 2],
+];
+
+function lightsTargetsOf(diffKey) {
+  return LIGHTS_TARGETS[difficultyOf(diffKey).depth];
+}
+
 function sLineOf(method, diffKey) {
   if (!method || method.game !== 'match') return 0;
   return MATCH_S.base + difficultyOf(diffKey).depth * MATCH_S.step;
+}
+
+// 准备页那一整行 S 线文案：分数线与盘数线口径不同，别在页面 JS 里各拼一遍。
+function sLineText(method, diffKey) {
+  if (!method) return '';
+  if (method.game === 'match') {
+    return '本档 S 线 ' + sLineOf(method, diffKey) + ' 分 · 评级只看总分，无效互换只少息、不扣分';
+  }
+  if (method.game === 'lights') {
+    return '本档 S 线 解 ' + lightsTargetsOf(diffKey)[0] + ' 盘 · 评级只看解开的盘数';
+  }
+  return '';
 }
 
 // ---------------------------------------------------------------- 参数缩放
@@ -326,6 +355,10 @@ function buildParams(method, diffKey) {
   if (method && method.game === 'match') {
     out.sBase = MATCH_S.base;
     out.sStep = MATCH_S.step;
+  }
+  // 阵灯推演按「解开的盘数」评级，达标盘数同样由这一份表按档注入。
+  if (method && method.game === 'lights') {
+    out.boardTargets = lightsTargetsOf(diffKey).slice();
   }
   // steps 是「这盘最少几步」这类按档递增的量：params 里写的是简单档的值，每档 +1。
   if (typeof out.steps === 'number') out.steps += d.depth;
@@ -447,6 +480,9 @@ module.exports = {
   buildParams: buildParams,
   diffDetail: diffDetail,
   sLineOf: sLineOf,
+  sLineText: sLineText,
+  lightsTargetsOf: lightsTargetsOf,
+  LIGHTS_TARGETS: LIGHTS_TARGETS,
   hintLabelOf: hintLabelOf,
   stageRulesOf: stageRulesOf,
 };

@@ -14,7 +14,8 @@
 //   3. 大成的「死门」：盘上有一格点不得，点到整盘复位并罚三秒；圆满再加一格。
 //      死门先定，再只用「点得动的格子」生成，所以每盘都解得开。
 //
-// 评级按解开的盘数，档位越高、每盘越慢，达标盘数相应递减。
+// 评级按解开的盘数，档位越高、每盘越慢，达标盘数相应递减。达标盘数表住在
+// data/practice.js 的 LIGHTS_TARGETS，准备页与这里共用一份，不各抄一遍。
 
 const C = require('./common.js');
 
@@ -24,6 +25,9 @@ const DEAD_COST = 3000;   // 触死门：罚三秒
 // 破阵到换盘之间的停顿。tick() 在 paused 时不扣 timeLeft，所以这一拍是「免费」的：
 // 给得够长，玩家才读得完「破阵 · 第 N 盘」、看得见整盘金光；又不占局内时辰。
 const RESET_PAUSE = 640;
+// 点一格时，被翻的「自己 + 四邻」同步闪一拍：新手最容易卡在不知道哪几格变了。
+// 只闪一次、不常驻，动画跑完就收回。
+const FLIP_MS = 260;
 const BASE_STEPS = 2;     // 参数里没写 steps 时的简单档步数
 
 // 盘面不放汉字：亮 / 灭靠实心与空心圆点 + 底色，死门用叉号与暗红底，三重状态不靠读字。
@@ -33,31 +37,22 @@ const DEAD_GLYPH = '✕';
 const HINT_GLYPH = '◎';
 const HINT_COST_TEXT = '阵眼感应花 3 秒';
 
-// 达标盘数：[S, A, B]，下标是 depth（0 简单 … 4 绝境）。
-// 步数越多每盘越慢，所以档位越高要求的盘数越少。
-// 按假时钟标定：机器人（读盘 0.4s / 每步 0.4s）能解 12 / 11 / 10 / 10 / 9 盘，
-// 真人节奏（读盘 2.5s / 每步 0.9s）能解 11 / 8 / 7 / 6 / 5 盘。
-// S 取真人的七五折——练到位才拿得到；B 兜住新手第一局。
-const TARGETS = [
-  [9, 6, 3],
-  [7, 4, 2],
-  [6, 4, 2],
-  [5, 3, 2],
-  [4, 3, 2],
-];
-
+// 返回这一手真正翻到的格子，给「翻转范围微光」用；生成与求解时忽略返回值即可。
 function toggle(board, size, index) {
   const r = Math.floor(index / size);
   const c = index % size;
   const dirs = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]];
+  const hit = [];
   for (let i = 0; i < dirs.length; i += 1) {
     const nr = r + dirs[i][0];
     const nc = c + dirs[i][1];
     if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
       const k = nr * size + nc;
       board[k] = !board[k];
+      hit.push(k);
     }
   }
+  return hit;
 }
 
 function allLit(board) {
@@ -89,6 +84,9 @@ function create(ctx) {
   const size = Math.min(5, p.size || 3);
   const n = size * size;
   const steps = Math.min(n - 1, p.steps || (BASE_STEPS + depth));
+  // 达标盘数由 data/practice.js 的 LIGHTS_TARGETS 按难度档注入；测试探针直接调
+  // create 时没带 params，落在简单档（与真源第 0 档同值，不参与正常对局）。
+  const target = Array.isArray(p.boardTargets) ? p.boardTargets : [9, 6, 3];
   const deadCount = (function () {
     // 死门 / 双门是「多一格不能碰的」，玩家可以在准备页关掉；
     // 关双门只回到一格死门，关死门才是整盘无死门。
@@ -97,7 +95,6 @@ function create(ctx) {
     const base = stageIdx >= 4 ? 2 : stageIdx >= 3 ? 1 : 0;
     return off.indexOf('双门') >= 0 ? Math.min(base, 1) : base;
   })();
-  const target = TARGETS[Math.min(TARGETS.length - 1, depth)];
 
   const duration = Math.round((p.duration || 36) * 1000) + (perks.easy ? 8000 : 0);
 
@@ -122,8 +119,18 @@ function create(ctx) {
   let done = false;
   let started = false;
   let tickTimer = null;
+  let flipSeq = 0;
 
   function render() { ctx.render(vm); }
+
+  // 收回翻转微光。seq 不匹配说明玩家又点了一格，别把新的一闪清掉。
+  // a / b 两个类名交替，连点同一格时 class 真的变了，动画才会重播。
+  function clearFlip(seq) {
+    if (seq !== flipSeq) return;
+    for (let i = 0; i < n; i += 1) {
+      vm.cells[i].cls = vm.cells[i].cls.replace(/ cell--flip[ab]/g, '');
+    }
+  }
 
   function gradeOf() {
     if (solved >= target[0]) return 'S';
@@ -136,7 +143,9 @@ function create(ctx) {
     // 破阵那一拍仍在展示刚解开的盘，盘号别提前跳到下一盘；换盘后 paused 归 false 才 +1。
     const round = paused ? Math.max(1, solved) : solved + 1;
     vm.timeText = '余 ' + (timeLeft / 1000).toFixed(1) + ' 秒 · 第 ' + round + ' 盘';
-    vm.goal = timeLeft > 0 ? '解亮 ' + n + ' 盏 · 本盘最少 ' + steps + ' 步' : '时辰已尽';
+    // 「X / N 步」把已走与最优并成一组：最少步数本来只是难度锚点，单独摆出来
+    // 玩家会误以为是评级条件；给个对照才知道自己这一盘推得顺不顺。
+    vm.goal = timeLeft > 0 ? '解亮 ' + n + ' 盏 · ' + moves + ' / ' + steps + ' 步' : '时辰已尽';
   }
 
   function syncHud() {
@@ -191,6 +200,7 @@ function create(ctx) {
   }
 
   function nextBoard() {
+    flipSeq += 1;   // 上一盘没跑完的微光定时器作废，别清到新盘
     newBoard();
     paused = false;
     // 破阵是一次性高光：换盘把金框收回去，paint() 重置 cls 也会撤掉整盘泛金。
@@ -243,6 +253,7 @@ function create(ctx) {
   }
 
   function onDead(index) {
+    flipSeq += 1;
     board = startBoard.slice();
     moves = 0;
     timeLeft = Math.max(0, timeLeft - DEAD_COST);
@@ -257,11 +268,12 @@ function create(ctx) {
   function tap(index) {
     if (done || paused || vm.phase !== 'playing') return;
     if (dead.indexOf(index) >= 0) { onDead(index); return; }
-    toggle(board, size, index);
+    const flipped = toggle(board, size, index);
     moves += 1;
     paint();
     syncHud();
     if (allLit(board)) {
+      flipSeq += 1;   // 破阵那一盘不留翻转微光，整盘只走一次性泛金
       solved += 1;
       paused = true;
       // 解开一盘是这一局唯一的高光。以前这一击照样弹「阵灯转明」、只留一行小字，
@@ -281,8 +293,18 @@ function create(ctx) {
       }, RESET_PAUSE);
       return;
     }
+    // 这一手影响到的全部格子同步闪一拍：把「点一格翻五格」画出来，不用回去读规则。
+    flipSeq += 1;
+    const seq = flipSeq;
+    const flipCls = ' cell--flip' + (seq % 2 ? 'a' : 'b');
+    for (let i = 0; i < flipped.length; i += 1) vm.cells[flipped[i]].cls += flipCls;
     C.flash(vm, theme.hit || '阵灯转明', 'good');
     render();
+    bag.after(function () {
+      if (done || seq !== flipSeq) return;
+      clearFlip(seq);
+      render();
+    }, FLIP_MS);
   }
 
   function hint() {

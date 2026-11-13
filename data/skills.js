@@ -75,10 +75,10 @@ const SKILLS = [
     // 提到地阶后收益 ×2.2、属性 ×1.7、可修上限抬到元婴，代价是未到金丹只拿三成。
     // 名字去掉「入门」：地阶功法再叫入门，就是玩家一眼看得见的名实相斥。
     id: 'zhen', name: '阵法·燃灯诀', type: '阵法', kind: 'skill', tier: 'di', method: 'arrayEye',
-    desc: '一灯明，四面翻；点一格，自身与上下左右四格同翻明暗，令整座阵同时亮起即破阵。',
-    flavor: '阵眼只在一处，找错了就得从头推。',
+    desc: '一灯明，四面翻；落子一处，自身与上下左右四格明暗相易，九盏齐明，阵破功成。',
+    flavor: '一步推错，九灯皆要重来。',
     bonus: { ling: 3, wu: 1 },
-    effect: { type: 'variance', value: 0.05, text: '阵眼：对战波动下限提高' },
+    effect: { type: 'variance', value: 0.05, text: '灯势：对战波动下限提高' },
     source: { kind: 'start' },
   },
   {

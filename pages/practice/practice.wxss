@@ -1313,3 +1313,42 @@
   border-radius: var(--r-md);
 }
 
+/* ---------- 阵灯推演：翻转范围微光 ---------- */
+/* 点一格时，被翻的自身 + 四邻同步闪一拍。a / b 两个类名交替，连点同一格动画才会重播；
+   animation 不设 forwards，跑完自动回到灯态，不占常驻循环动画的预算。 */
+.cell--flip-a, .cell--flip-b { animation: flipGlow 0.26s ease-out 1; }
+
+@keyframes flipGlow {
+    0% { box-shadow: inset 0 0 0 6rpx rgba(255, 253, 247, 0.95), 0 0 20rpx rgba(255, 253, 247, 0.5); }
+    100% { box-shadow: inset 0 0 0 0 rgba(255, 253, 247, 0), 0 0 0 rgba(255, 253, 247, 0); }
+}
+
+/* ---------- 参悟结算：留在本页 ---------- */
+/* 主按钮改成「留在本页」后，连刷要有一条不抢主按钮的轻量出口。 */
+.modal__again, .settle__again {
+    display: block;
+    text-align: center;
+    min-height: var(--touch-xs);
+    line-height: var(--touch-xs);
+    font-size: var(--fs-body-sm);
+    margin-top: var(--sp-3);
+}
+
+/* 准备页顶部那行「上局战绩」：数值在左、可点的入口在右，不占首屏一行说明。 */
+.pr-record {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    margin-top: var(--sp-3);
+    padding-top: var(--sp-2);
+    border-top: 1rpx solid var(--c-imm-line-soft);
+}
+
+/* 倒数三秒里的反悔入口：别跟「点一下跳过」抢，catchtap 单独接。 */
+.countdown__stay {
+    margin-top: var(--sp-4);
+    padding: var(--sp-2) var(--sp-4);
+    font-size: var(--fs-body-sm);
+}
+

@@ -43,8 +43,9 @@ const THEMES = {
   arrayEye: {
     key: 'arrayEye', name: '阵灯', accent: '#6f5b9e', soft: '#e9e3f5', ink: '#453771',
     // 亮起的阵灯画成实心圆点，不再往盘面写「阵」字：二元状态只靠形状与颜色分。
-    bg: '#ece7f6', frame: '#faf7ff', glyph: '●', motif: '眼',
-    hit: '阵灯转明', miss: '推演偏了', banner: '阵眼已现', praise: '一眼破阵', solved: '破阵',
+    // 「阵眼」只留给提示技能：开局横幅与印章不再用这个词，免得玩家把横幅当成提示。
+    bg: '#ece7f6', frame: '#faf7ff', glyph: '●', motif: '灯',
+    hit: '阵灯转明', miss: '推演偏了', banner: '九灯待明', praise: '一眼破阵', solved: '破阵',
   },
   wuxing: {
     key: 'wuxing', name: '五灯', accent: '#9c7427', soft: '#f4e9cf', ink: '#66501c',
