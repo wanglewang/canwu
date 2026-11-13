@@ -1285,4 +1285,21 @@ check('玩家可见文案不写「看详情 / 去看看」这类口语前缀', f
   assert.ok(/copy\.actions\.allAchievements/.test(read('pages/profile/profile.wxml')), '成就入口没走文案真源');
 });
 
+check('阵灯破阵：四路反馈齐备、停顿不计时、规则写进游戏内', function () {
+  const lights = read('minigames/lights.js');
+  const wxss = read('pages/practice/practice.wxss');
+  const themes = require('../minigames/theme.js');
+  const guides = require('../data/guides.js');
+  const pause = /const RESET_PAUSE = (\d+)/.exec(lights);
+  assert.ok(pause && Number(pause[1]) >= 500, '破阵停顿太短，玩家读不完提示');
+  assert.ok(/C\.flash\(vm, vm\.status, 'gold'\)/.test(lights), '破阵没走最亮的一档浮字');
+  assert.ok(/cell--solved/.test(lights) && /@keyframes solvedGlow/.test(wxss), '整盘一次性泛金没落地');
+  assert.ok(/theme\.banner \|\| ''/.test(lights), '换盘没把一次性金框收回去');
+  assert.strictEqual(themes.themeOf('arrayEye', 'lights').solved, '破阵', '破阵文案没进主题真源');
+  assert.ok(/不计时/.test(guides.GUIDES.lights.steps.join('')), '玩法说明没讲破阵这一拍不计时');
+  for (const f of ['data/practice.js', 'minigames/theme.js', 'data/guides.js']) {
+    assert.ok(!/立刻换下一盘/.test(read(f)), f + ' 还写着「立刻换下一盘」的旧口径');
+  }
+});
+
 console.log('\n布局断言全部通过：' + passed + ' 项');

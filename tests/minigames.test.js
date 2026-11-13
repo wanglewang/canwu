@@ -782,7 +782,7 @@ check('阵灯推演：难度档只改「这盘最少几步」，盘子始终 3×
   } finally { restoreClock(); }
 });
 
-check('阵灯推演：连续几盘都解得开，且解完立刻换盘', function () {
+check('阵灯推演：连续几盘都解得开，破阵那一拍过后才换盘', function () {
   installClock();
   try {
     const m = data.getMethod('arrayEye');
@@ -814,8 +814,41 @@ check('阵灯推演：连续几盘都解得开，且解完立刻换盘', functio
       }
       solved += 1;
       assert.ok(ctx.st.vm.scoreText.indexOf('已解 ' + solved) >= 0, '解开一盘没有计数');
-      advance(300);
+      advance(750);   // 破阵停顿 640ms；等它过完才换盘，否则下一轮的点会被 paused 挡掉
     }
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('阵灯推演：破阵有整盘金光与破阵浮字，这一拍不计时', function () {
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('arrayEye'));
+    ctx.c.start();
+    let vm = ctx.st.vm;
+    for (let guard = 0; guard < 40; guard += 1) {
+      const board = vm.cells.map(function (x) { return x.cls.indexOf('cell--lit') >= 0; });
+      const plan = solve(board, vm.cols);
+      if (!plan || plan.length === 0) break;
+      ctx.c.tap(plan[0]);
+      vm = ctx.st.vm;
+      if (vm.fx && vm.fx.tone === 'gold') break;
+    }
+    assert.ok(vm.fx && vm.fx.tone === 'gold', '破阵那一击没有走最亮的一档浮字');
+    assert.ok(vm.fx.text.indexOf('破阵') >= 0, '浮字没写破阵：' + vm.fx.text);
+    assert.ok(vm.banner.indexOf('破阵') >= 0, '金框 banner 没有破阵提示');
+    assert.ok(vm.status.indexOf('破阵') >= 0, '状态行没有破阵提示');
+    assert.strictEqual(
+      vm.cells.filter(function (c) { return c.cls.indexOf('cell--solved') >= 0; }).length,
+      vm.cells.length, '整盘没有一次性泛金');
+    const timeAtSolved = vm.timeText;
+    advance(480);
+    assert.strictEqual(ctx.st.vm.timeText, timeAtSolved, '破阵那一拍扣了局内时辰');
+    assert.ok(ctx.st.vm.banner.indexOf('破阵') >= 0, '还没换盘金框就收了');
+    advance(300);
+    assert.ok(ctx.st.vm.banner.indexOf('破阵') < 0, '换盘后还挂着破阵金框');
+    assert.ok(ctx.st.vm.cells.every(function (c) { return c.cls.indexOf('cell--solved') < 0; }),
+      '换盘后整盘泛金没撤掉');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });

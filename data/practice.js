@@ -67,7 +67,7 @@ const PRACTICE_METHODS = [
   },
   {
     id: 'arrayEye', name: '参悟阵眼', game: 'lights', theme: 'arrayEye', twist: 'arrayEye',
-    desc: '点一格翻转它与上下左右四格，让九盏阵灯同时亮起；解亮一盘立刻换下一盘。',
+    desc: '点一格翻转它与上下左右四格，让九盏阵灯同时亮起；破阵有一拍金光与提示，不计时辰。',
     tip: '触死门复位并罚 3 秒',
     base: 42,
     params: { size: 3, steps: 2, duration: 36 },

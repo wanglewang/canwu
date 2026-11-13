@@ -9,7 +9,7 @@
 // 五档是 2 / 3 / 4 / 5 / 6 步，每档只多一步，但多一步就得多推一层。
 //
 // 三处压力：
-//   1. 一局就是这么多时辰，解一盘立刻换下一盘，想得久就解得少；
+//   1. 一局就是这么多时辰，解一盘换下一盘（破阵那一拍不计时），想得久就解得少；
 //   2. 阵眼感应（提示）花三秒，只照出一格，贪提示就少解一盘；
 //   3. 大成的「死门」：盘上有一格点不得，点到整盘复位并罚三秒；圆满再加一格。
 //      死门先定，再只用「点得动的格子」生成，所以每盘都解得开。
@@ -21,7 +21,9 @@ const C = require('./common.js');
 const TICK = 100;
 const HINT_COST = 3000;   // 阵眼感应：花三秒
 const DEAD_COST = 3000;   // 触死门：罚三秒
-const RESET_PAUSE = 160;  // 解完一盘到下一盘之间的顿挫（要短，别把节奏切断）
+// 破阵到换盘之间的停顿。tick() 在 paused 时不扣 timeLeft，所以这一拍是「免费」的：
+// 给得够长，玩家才读得完「破阵 · 第 N 盘」、看得见整盘金光；又不占局内时辰。
+const RESET_PAUSE = 640;
 const BASE_STEPS = 2;     // 参数里没写 steps 时的简单档步数
 
 // 盘面不放汉字：亮 / 灭靠实心与空心圆点 + 底色，死门用叉号与暗红底，三重状态不靠读字。
@@ -131,7 +133,9 @@ function create(ctx) {
   }
 
   function syncTime() {
-    vm.timeText = '余 ' + (timeLeft / 1000).toFixed(1) + ' 秒 · 第 ' + (solved + 1) + ' 盘';
+    // 破阵那一拍仍在展示刚解开的盘，盘号别提前跳到下一盘；换盘后 paused 归 false 才 +1。
+    const round = paused ? Math.max(1, solved) : solved + 1;
+    vm.timeText = '余 ' + (timeLeft / 1000).toFixed(1) + ' 秒 · 第 ' + round + ' 盘';
     vm.goal = timeLeft > 0 ? '解亮 ' + n + ' 盏 · 本盘最少 ' + steps + ' 步' : '时辰已尽';
   }
 
@@ -189,6 +193,8 @@ function create(ctx) {
   function nextBoard() {
     newBoard();
     paused = false;
+    // 破阵是一次性高光：换盘把金框收回去，paint() 重置 cls 也会撤掉整盘泛金。
+    vm.banner = theme.banner || '';
     vm.status = '第 ' + (solved + 1) + ' 盘 · 让全阵亮起';
     paint();
     syncHud();
@@ -255,14 +261,18 @@ function create(ctx) {
     moves += 1;
     paint();
     syncHud();
-    C.flash(vm, theme.hit || '阵灯转明', 'good');
     if (allLit(board)) {
       solved += 1;
       paused = true;
-      vm.status = '解开了 · ' + moves + ' 步';
-      vm.banner = '解 ' + solved + ' 盘';
-      paint();
+      // 解开一盘是这一局唯一的高光。以前这一击照样弹「阵灯转明」、只留一行小字，
+      // 盘面转眼就换了，玩家常常不知道自己刚破了一阵。现在四路一起给：
+      // 金框 banner + 破阵浮字（gold 音与一次中量触感）+ 整盘一次性泛金 + 状态行。
+      const word = theme.solved || '破阵';
+      vm.status = word + ' · 第 ' + solved + ' 盘 · ' + moves + ' 步';
+      vm.banner = word + ' · 已解 ' + solved + ' 盘';
+      for (let i = 0; i < n; i += 1) vm.cells[i].cls += ' cell--solved';
       syncHud();
+      C.flash(vm, vm.status, 'gold');
       render();
       if (solved >= target[0] + 6) { finishOnce('解亮 ' + solved + ' 盘，阵法已成'); return; }
       bag.after(function () {
@@ -271,6 +281,7 @@ function create(ctx) {
       }, RESET_PAUSE);
       return;
     }
+    C.flash(vm, theme.hit || '阵灯转明', 'good');
     render();
   }
 
