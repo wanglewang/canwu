@@ -143,6 +143,7 @@
         <text class="section__title">连 S 晋级</text>
         <text class="tiny">{{streakText}}</text>
       </view>
+      <text class="tiny mt8">{{repeatNote}}</text>
       <view class="streak-dots mt8">
         <view wx:for="{{streakDots}}" wx:key="id" class="streak-dot {{item.on ? 'streak-dot--on' : ''}}"></view>
       </view>

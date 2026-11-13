@@ -55,6 +55,8 @@ Page({
     bestText: '',
     // 三连 S 直接晋级：准备页常驻「还差几局」，不占按钮也不打断计时。
     streakText: '',
+    // 收益口径一行：只奖不罚，开局前就写清本局会不会吃到换门加成。
+    repeatNote: '',
     streakDots: [],
     theme: themes.themeOf('forge', 'click'),
     twistName: '常规功课',
@@ -241,6 +243,9 @@ Page({
     const streakText = streakNow > 0
       ? '已连 ' + streakNow + ' 局 S · 再 ' + (streakGoal - streakNow) + ' 局直接晋一段'
       : '连续 ' + streakGoal + ' 局 S 直接晋一段 · 非 S 断连';
+    // 这一局是不是「换门」由存档里的上一门决定，和结算用的是同一条判定。
+    const crossNow = !!state.lastPractice.skillId && state.lastPractice.skillId !== skill.id;
+    const repeatNote = copy.practiceNote(crossNow, worldData.CROSS_BONUS);
 
     const realms = worldData.getWorld(state.worldId).realms;
     const realmNow = state.realmIndex + 1;
@@ -309,6 +314,7 @@ Page({
       chainLabel: skill.type + ' 一脉',
       bestText: bestText,
       streakText: streakText,
+      repeatNote: repeatNote,
       streakDots: streakDots,
       theme: theme,
       twistName: twist.name,
@@ -841,8 +847,7 @@ Page({
         notes.push('连 S 进度 ' + r.sStreak + ' / ' + r.sStreakGoal + '（这一档断了连，下一局重新数）。');
       }
       if (r.tierUp) notes.push('【' + r.skillName + '】升段至「' + r.tierName + '」，属性加成提高。');
-      if (r.cross) notes.push('触类旁通：换了门功法，熟练度 ×1.15。');
-      if (r.restless > 0) notes.push('心浮气躁：同一门连练 ' + r.restless + ' 次，收益递减。');
+      if (r.cross) notes.push('触类旁通：换了门功法，熟练度 ×' + r.crossBonus.toFixed(2) + '。');
       if (r.diffFellBack) notes.push('所选难度尚未解锁，已按「' + r.diffMaxName + '」结算。');
       if (r.decayed) notes.push('境界不符（' + r.realmReason + '）：熟练度收益只剩 30%。');
       if (r.capped) notes.push('总倍率已封顶 ×' + r.coreMult.toFixed(2) + '，再叠也不再加成。');

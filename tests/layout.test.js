@@ -387,14 +387,15 @@ check('战力明细收进「说明」真源，首屏只留数值；指南保留�
   const lines = (power ? power.lines : []).join('');
   assert.ok(lines.length > 0, '说明页缺战力专节');
   assert.ok(/体魄 ×1\.0/.test(lines) && /境界加成/.test(lines) && /功法特效/.test(lines), '说明没讲公式三项');
-  assert.ok(/突破境界/.test(lines) && /大成/.test(lines) && /换着门练/.test(lines), '说明没讲突破、特效与轮换');
+  assert.ok(/突破境界/.test(lines) && /大成/.test(lines) && /换着门练/.test(lines)
+    && /不减收益/.test(lines), '说明没讲突破、特效与「只奖不罚」');
   const index = read('pages/index/index.wxml');
   const indexJs = read('pages/index/index.js');
   assert.ok(!/powerOpen|powerLines|怎么提升战力/.test(index + indexJs), '主页又把长公式印回脸上');
   assert.ok(/ov\.power/.test(index), '主页连战力数值都不显示了');
   const guide = read('pages/guide/guide.js');
   assert.ok(/title: '四 · 战力从哪来'/.test(guide), '修行指南没有战力专节');
-  assert.ok(/战力 = 属性加权/.test(guide) && /轮着练/.test(guide), '指南没讲公式与轮换练');
+  assert.ok(/战力 = 属性加权/.test(guide) && /同一门连练不减收益/.test(guide), '指南没讲公式与「只奖不罚」');
   assert.ok(/title: '二 · 离线挂机收益规则'/.test(guide), '插了新专节，后面章节编号没顺延');
 });
 
@@ -905,7 +906,7 @@ check('信息架构：主页只做导航，说明独立成页，低频内容默�
   assert.ok(index.indexOf('近况') < 0 && index.indexOf('就差一点') < 0, '主页仍有含糊区块标题');
   assert.ok(!/class="card card--ink rec-card"/.test(index), '主页还留着整张「今日之课」长卡');
   const skills = read('pages/skills/skills.wxml');
-  assert.ok(/bindtap="onTab"/.test(skills) && /\{\{tab ===/.test(skills), '功法页没有「已习得 / 可解锁」两态');
+  assert.ok(/bindtap="onTab"/.test(skills) && /\{\{tab ===/.test(skills), '功法页没有「已习得 / 未习得」两态');
   const battle = read('pages/battle/battle.wxml');
   assert.ok(/onToggleCode/.test(battle) && /\{\{codeOpen\}\}/.test(battle), '战力码没折叠');
   const profile = read('pages/profile/profile.wxml');
@@ -1208,6 +1209,53 @@ check('13 套玩法的代价句在局内真的看得见（运行时探针）', f
       m.game + ' 开局后代价句不见了：' + vm.hint);
     c.destroy();
   }
+});
+
+check('收益只奖不罚：连练递减全站清零，换门倍率有单一真源', function () {
+  const files = ['utils/game.js', 'pages/practice/practice.js', 'pages/guide/guide.js',
+    'data/help.js', 'data/world.js', 'data/copy.js'];
+  for (const f of files) {
+    assert.ok(!/心浮气躁|收益递减|restless|repeatCount/.test(read(f)),
+      f + ' 还留着连练递减的旧口径');
+  }
+  const world = require('../data/world.js');
+  assert.strictEqual(world.CROSS_BONUS, 1.15, '换门倍率没进数值真源');
+  assert.ok(/worldData\.CROSS_BONUS/.test(read('utils/game.js')), '收益公式没走换门倍率真源');
+  assert.ok(/copy\.practiceNote/.test(read('pages/practice/practice.js'))
+    && /repeatNote/.test(read('pages/practice/practice.wxml')),
+    '准备页没把「连练不减收益」写在开局前');
+  assert.ok(/WARN 只刷简单的熟练度反超/.test(read('scripts/simulate.js')),
+    '曲线重标定后暴露的已知问题没被如实记录');
+});
+
+check('功法页默认排序与主页推荐同一份口径', function () {
+  const js = read('pages/skills/skills.js');
+  const engine = read('utils/game.js');
+  assert.ok(/engine\.recommendScore/.test(js), '功法页没走推荐排序真源');
+  assert.ok(/function recommendScore/.test(engine) && /recommendScore: recommendScore/.test(engine),
+    '排序口径没有单一真源');
+  assert.strictEqual((js.match(/\.sort\(/g) || []).length, 1, '功法页又写了第二套排序规则');
+});
+
+check('功法卡片落地玩法名、阶段色与详情入口，颜色全走令牌', function () {
+  const js = read('pages/skills/skills.js');
+  const wxml = read('pages/skills/skills.wxml');
+  const wxss = read('pages/skills/skills.wxss');
+  assert.ok(/gameName: s\.gameName/.test(js) && /item\.gameName/.test(wxml), '卡片没标玩法名');
+  assert.ok(/detailText/.test(js) && /item\.detailText/.test(wxml), '卡片没给看得见的详情入口');
+  assert.ok(/catchtap="openDetail"/.test(wxml), '详情链接没挡住冒泡，会开两层');
+  assert.ok(/barTone/.test(js) && /item\.barTone/.test(wxml), '进度条没按阶段分档');
+  assert.ok(/imm-bar--gold/.test(wxss) && /imm-bar--dim/.test(wxss), '阶段色类名没落地');
+  assert.ok(!/#[0-9a-fA-F]{3,8}/.test(wxss), '功法页 wxss 又写了裸色值');
+  assert.ok(!/copy\.hints\./.test(wxml), '功法页又把提示长句印回列表');
+});
+
+check('功法页两态用「未习得」，不再含糊地叫「可解锁」', function () {
+  const copy = require('../data/copy.js');
+  const wxml = read('pages/skills/skills.wxml');
+  assert.strictEqual(copy.UI.skillsTabs.locked, '未习得');
+  assert.ok(/copy\.skillsTabs\.(learned|locked)/.test(wxml), '两态文案没走真源');
+  assert.ok(!/可解锁/.test(wxml), '功法页 tab 还写着「可解锁」');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

@@ -1,7 +1,7 @@
 <view class="pg pg--imm">
   <view class="imm-tabs">
-    <view class="imm-tab {{tab === 'learned' ? 'imm-tab--on' : ''}} pressable" hover-class="pressable--on" data-tab="learned" bindtap="onTab">已习得 {{learnedCount}}</view>
-    <view class="imm-tab {{tab === 'locked' ? 'imm-tab--on' : ''}} pressable" hover-class="pressable--on" data-tab="locked" bindtap="onTab">可解锁 {{lockedCount}}</view>
+    <view class="imm-tab {{tab === 'learned' ? 'imm-tab--on' : ''}} pressable" hover-class="pressable--on" data-tab="learned" bindtap="onTab">{{copy.skillsTabs.learned}} {{learnedCount}}</view>
+    <view class="imm-tab {{tab === 'locked' ? 'imm-tab--on' : ''}} pressable" hover-class="pressable--on" data-tab="locked" bindtap="onTab">{{copy.skillsTabs.locked}} {{lockedCount}}</view>
   </view>
 
   <view wx:if="{{!ov}}" class="state">
@@ -19,10 +19,14 @@
       <view class="imm-row__body">
         <view class="skill-name">
           <text class="imm-row__name grow">{{item.name}}</text>
+          <text class="skill-game">{{item.gameName}}</text>
           <text class="imm-chip">{{item.tierLabel}}</text>
         </view>
-        <text class="imm-row__sub">{{item.stageText}} · {{item.bonusText}}</text>
-        <view wx:if="{{item.percent > 0}}" class="imm-bar imm-bar--thin">
+        <view class="imm-row__sub skill-sub">
+          <text class="grow">{{item.stageText}} · {{item.bonusText}}</text>
+          <text class="skill-sub__link" data-id="{{item.id}}" catchtap="openDetail">{{item.detailText}}</text>
+        </view>
+        <view wx:if="{{item.percent > 0}}" class="imm-bar imm-bar--thin {{item.barTone}}">
           <view class="imm-bar__fill" style="width:{{item.percent}}%"></view>
         </view>
       </view>

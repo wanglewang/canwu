@@ -59,6 +59,7 @@ function run({ skillId, realmIndex, runs, mode }) {
   if (typeof realmIndex === 'number') state.realmIndex = realmIndex;
   const rng = makeRng(20261111);
   let total = 0;
+  let promoted = 0;
   const marks = [];
   for (let i = 1; i <= runs; i += 1) {
     const prof = state.skills[skillId].prof;
@@ -66,9 +67,10 @@ function run({ skillId, realmIndex, runs, mode }) {
     const grade = pickGrade(rng, GRADE_DIST[key]);
     const r = game.applyPractice(state, skillId, grade, { difficulty: key, score: 0 });
     total += r.gain;
+    promoted += r.promotionGain;
     if (i % 30 === 0) marks.push({ run: i, prof: state.skills[skillId].prof, gain: total });
   }
-  return { total: total, marks: marks, prof: state.skills[skillId].prof };
+  return { total: total, promoted: promoted, marks: marks, prof: state.skills[skillId].prof };
 }
 
 function fmt(n) { return String(n).padStart(6, ' '); }
@@ -92,8 +94,14 @@ console.log('  ' + header.join('  '));
 const results = [];
 for (const st of strategies) {
   const r = run({ skillId: st.skillId, realmIndex: st.realmIndex, runs: RUNS, mode: st.mode });
-  results.push({ name: st.name, total: r.total, prof: r.prof });
+  results.push({ name: st.name, total: r.total, promoted: r.promoted, prof: r.prof });
   console.log('  ' + st.name.padEnd(16) + r.marks.map(function (m) { return fmt(m.prof); }).join('  '));
+}
+
+// 熟练度 = 正常收益 + 三连 S 直接晋级的补额。两者分开看，才知道曲线是被哪一截抬起来的。
+console.log('\n== 熟练度构成（正常收益 / 三连 S 补额）==');
+for (const r of results) {
+  console.log('  ' + r.name.padEnd(16) + fmt(r.total) + ' / ' + fmt(r.promoted) + ' = ' + fmt(r.prof));
 }
 
 const easy = results[0];
@@ -114,7 +122,10 @@ for (let i = 1; i < exp.length; i += 1) {
 expect(auto.total > easy.total * 1.2, '逐档升的累计熟练度明显高于只刷简单（' + auto.total + ' vs ' + easy.total + '）');
 expect(tian.total > auto.total, '天阶累计高于黄阶（' + tian.total + ' vs ' + auto.total + '）');
 expect(decayed.total < auto.total * 0.5, '黄阶在金丹后明显衰减（' + decayed.total + ' vs ' + auto.total + '）');
-expect(tian.prof <= 30000, '天阶 ' + RUNS + ' 局不会把熟练度刷到失控（' + tian.prof + '）');
+// 取消「同一门连练递减」后重标定：6000 就是大圆满，之后不再解锁段位 / 难度 / 属性，
+// 多出来的只是数字。护栏只防数值失控，不再拿旧阈值假装曲线被压住。
+expect(tian.prof >= 6000, '天阶 ' + RUNS + ' 局能练到大圆满（' + tian.prof + '）');
+expect(tian.prof <= 80000, '天阶 ' + RUNS + ' 局数值不失控（' + tian.prof + '）');
 
 // 单局最高收益不能离谱：天阶 + 绝境 + S 已被 MAX_MULTIPLIER 压住。
 const topState = game.createNewState();
@@ -123,6 +134,12 @@ topState.skills.taixu.prof = 6000;
 topState.realmIndex = 3;
 const top = game.applyPractice(topState, 'taixu', 'S', { difficulty: 'desperate', score: 0 });
 expect(top.capped === true && top.coreMult === world.MAX_MULTIPLIER, '极端组合被总倍率上限压住（×' + top.coreMult + '）');
+
+// 已知问题，只报告不判失败：简单档 S 概率高，三连 S 的补额更容易触发，
+// 熟练度可能反超逐档升；但正常收益（上表第一列）仍是逐档升更高。
+if (easy.prof > auto.prof) {
+  console.log('  WARN 只刷简单的熟练度反超逐档升：连 S 晋级补额在低难度更易触发，见 README 已知问题');
+}
 
 console.log(bad === 0 ? '\n收益曲线检查全部通过' : '\n有 ' + bad + ' 项不达标，需要调数值');
 process.exit(bad === 0 ? 0 : 1);

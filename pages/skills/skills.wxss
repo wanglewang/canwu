@@ -7,6 +7,30 @@
 
 .skill-name .imm-chip { flex: none; }
 
+/* 玩法名只用一个词，帮玩家想起这门练的是哪套小游戏；整句说明只留在图鉴里。 */
+.skill-game {
+    flex: none;
+    color: var(--c-imm-text-3);
+    font-size: var(--fs-caption);
+}
+
+/* 整行本来就能点，这里补一个看得见的「看详情」入口，别让玩家猜。 */
+.skill-sub {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-3);
+}
+
+.skill-sub__link {
+    flex: none;
+    color: var(--c-imm-gold);
+    font-size: var(--fs-caption);
+}
+
+/* 阶段只分三档，颜色全由语义令牌给：未入门弱化、大成以上旧金，常规仍是青玉。 */
+.imm-bar--dim .imm-bar__fill { background: var(--c-imm-text-3); }
+.imm-bar--gold .imm-bar__fill { background: var(--c-imm-gold); }
+
 /* ---------- 图鉴弹窗 ---------- */
 .modal--codex { padding: var(--sp-8); }
 

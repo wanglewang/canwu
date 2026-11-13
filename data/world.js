@@ -24,6 +24,8 @@ const GRADE_COLOR = { S: '#b4453c', A: '#b8893b', B: '#3d8c74', C: '#8a8f83', F:
 const MAX_MULTIPLIER = 8.0;
 // 境界超过功法可修上限后的收益衰减。不为 0：还能练，但该换功法了。
 const REALM_DECAY = 0.3;
+// 换一门功法参悟的「触类旁通」倍率：只奖不罚，鼓励多样化而不惩罚专精。
+const CROSS_BONUS = 1.15;
 
 // 世界是数据：首版只启用修仙，另外两个只保留元信息，验证同一套系统的可复用性。
 const WORLDS = [
@@ -91,6 +93,7 @@ module.exports = {
   GRADE_COLOR: GRADE_COLOR,
   MAX_MULTIPLIER: MAX_MULTIPLIER,
   REALM_DECAY: REALM_DECAY,
+  CROSS_BONUS: CROSS_BONUS,
   WORLDS: WORLDS,
   getWorld: getWorld,
 };

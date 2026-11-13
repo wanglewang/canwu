@@ -94,6 +94,12 @@ const UI = {
         openShop: '去藏经阁',
     },
 
+    // 功法页两态：locked 里混着藏经阁兑换、切磋首胜与境界前置，统称「未习得」才准确。
+    skillsTabs: {
+        learned: '已习得',
+        locked: '未习得',
+    },
+
     // 页面标题：主页面只显示金线标题，不再有眉标与说明句。
     // tabBar 文案与顺序由 data/navigation.js 管，这里只保留二级页可用的同名口径。
     pages: {
@@ -160,6 +166,15 @@ function decayText(kind, realmName) {
     return head + '，熟练度收益仅剩 30%；属性加成照拿，评级门槛不变。';
 }
 
+// 参悟准备页的收益口径：只奖不罚。开局前就说清这一局会不会吃到换门加成，
+// 也写明连练同一门不减收益 —— 攒「连 3 局 S」本来就该连着练。
+function practiceNote(cross, mult) {
+    const bonus = '触类旁通 ×' + Number(mult).toFixed(2);
+    return cross
+        ? '本局换了门功法 · ' + bonus
+        : '同一门连练不减收益 · 换一门另有' + bonus;
+}
+
 // 资源 / 进度统一写法：数字与单位之间留空格，不混用「+3 / 3 / 3 枚」。
 function formatCost(qi, stone) {
     return '灵气 ' + qi + ' · 灵石 ' + stone;
@@ -181,6 +196,7 @@ module.exports = {
     GRADE_TITLE: GRADE_TITLE,
     termOf: termOf,
     decayText: decayText,
+    practiceNote: practiceNote,
     formatCost: formatCost,
     formatGain: formatGain,
 };

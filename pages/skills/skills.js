@@ -63,18 +63,30 @@ Page({
       if (s.unlocked) learned.push(s);
       else locked.push(s);
     }
+    // 默认排序与主页「今日之课」共用 engine.recommendScore：离下一段最近的在前，
+    // 按阶段跨度归一；不另写「品阶 / 进度绝对值」一套，免得高熟练度功法永远霸榜。
+    learned.sort(function (a, b) {
+      const d = engine.recommendScore(a).score - engine.recommendScore(b).score;
+      if (d !== 0) return d;
+      return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0);
+    });
     const source = this.data.tab === 'learned' ? learned : locked;
     const cards = source.map(function (s) {
       return {
         id: s.id,
         name: s.name,
         mark: s.type.slice(0, 1),
+        // 一个词点出这套功法玩什么，不用整句说明；长文只留在图鉴弹窗里。
+        gameName: s.gameName,
         stageText: s.unlocked ? s.profTierName + ' ' + s.percent + '%' : (s.canBuy ? '藏经阁可换' : '未修炼'),
         bonusText: s.bonusText || s.effectText,
         percent: s.percent,
         tierLabel: s.tierLabel,
+        // 阶段只分三档、颜色全走 tokens：未入门弱化 / 常规青玉 / 大成以上旧金。
+        barTone: s.tierIndex === 0 ? 'imm-bar--dim' : (s.tierIndex >= 3 ? 'imm-bar--gold' : ''),
+        detailText: copy.UI.actions.viewDetail,
         actionText: s.unlocked ? copy.UI.actions.practice
-          : (s.canBuy ? copy.UI.actions.openShop : '看详情'),
+          : (s.canBuy ? copy.UI.actions.openShop : copy.UI.actions.viewDetail),
         unlocked: s.unlocked,
         canBuy: s.canBuy,
       };

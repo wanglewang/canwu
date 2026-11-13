@@ -228,14 +228,18 @@ check('已至大圆满时三连 S 不再补熟练度，也不会越界', functio
   assert.strictEqual(r.tierAfter, 5);
 });
 
-check('三连 S 时正常收益已跨段：只补到门槛，不白送两段', function () {
+check('三连 S 晋级：只补到开场段位的下一门槛，不白送两段', function () {
   const s = game.createNewState();
   game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
   game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
   const r = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  const tiers = require('../data/world.js').TIERS;
   assert.ok(r.promotion && !r.promotion.maxed, '第三局仍该给出三连圆满回执');
-  assert.strictEqual(r.promotion.added, 0, '已过门槛就不该再补一笔');
-  assert.ok(r.profAfter < 400, '不该顺手把玩家送到下下段');
+  // 以前「补额恰好为 0」是连练递减压出来的巧合；该守的是「只晋一段」这条语义。
+  assert.strictEqual(r.promotion.threshold, tiers[r.tierBefore + 1].threshold, '补的不是开场段位的下一门槛');
+  assert.ok(r.profAfter >= r.promotion.threshold, '没补到下一门槛');
+  const nextNext = tiers[r.tierBefore + 2];
+  assert.ok(!nextNext || r.profAfter < nextNext.threshold, '不该顺手把玩家送到下下段');
   assert.strictEqual(r.profAfter, r.profBefore + r.totalGain, '入账与实际增长对不上');
 });
 check('getSkillList 输出每门功法的连 S 进度', function () {
@@ -244,6 +248,58 @@ check('getSkillList 输出每门功法的连 S 进度', function () {
   const item = game.getSkillList(s).find(function (x) { return x.id === 'jian'; });
   assert.strictEqual(item.sStreak, 2);
   assert.strictEqual(item.sStreakGoal, 3);
+});
+
+check('同一门连练不减收益：换门只给正激励，不罚专精', function () {
+  const solo = game.createNewState();
+  solo.skills.jian.unlocked = true;
+  const gains = [];
+  for (let i = 0; i < 6; i += 1) {
+    gains.push(game.applyPractice(solo, 'jian', 'A', { difficulty: 'easy', score: 0 }).gain);
+  }
+  for (let i = 1; i < gains.length; i += 1) {
+    assert.strictEqual(gains[i], gains[0], '第 ' + (i + 1) + ' 局收益变了，连练又被罚了');
+  }
+  assert.strictEqual(solo.repeatCount, undefined, '连练计数不该再写进存档');
+
+  const alt = game.createNewState();
+  alt.skills.jian.unlocked = true;
+  alt.skills.tuna.unlocked = true;
+  const seq = ['jian', 'tuna', 'jian', 'tuna', 'jian', 'tuna'];
+  const altGains = seq.map(function (id) {
+    return game.applyPractice(alt, id, 'A', { difficulty: 'easy', score: 0 }).gain;
+  });
+  const sum = function (a) { return a.reduce(function (x, y) { return x + y; }, 0); };
+  // 轮换只该多拿 15% 的「触类旁通」，不该像旧机制那样拉开 56%。
+  assert.ok(sum(gains) >= sum(altGains) * 0.85,
+    '连练与轮换的差距超过换门加成（' + sum(gains) + ' vs ' + sum(altGains) + '）');
+  assert.ok(altGains[1] > altGains[0], '换门那一局没拿到触类旁通');
+  const r = game.applyPractice(solo, 'jian', 'A', { difficulty: 'easy', score: 0 });
+  assert.strictEqual(r.restless, undefined, '结算里不该再出现递减文案的数据');
+  assert.strictEqual(r.crossBonus, 1, '同一门连练不该算换门');
+});
+
+check('旧存档的连练计数字段被丢弃，上一门记录仍在', function () {
+  const old = game.createNewState();
+  old.repeatCount = 4;
+  old.lastPractice = { skillId: 'jian', at: 1 };
+  const n = game.normalizeState(old);
+  assert.strictEqual(n.repeatCount, undefined, '废弃字段不该被写回存档');
+  assert.strictEqual(n.lastPractice.skillId, 'jian', '换门加成要用的上一门记录仍在');
+});
+
+check('功法页排序与主页推荐同源，境界不符的整段压后', function () {
+  const s = game.createNewState();
+  for (const id of Object.keys(s.skills)) s.skills[id].unlocked = true;
+  s.skills.jingxin.prof = 392; // 距小成很近，但玄阶在炼气期只有三成收益
+  s.skills.jian.prof = 20;
+  const scored = game.getSkillList(s).slice().sort(function (a, b) {
+    return game.recommendScore(a).score - game.recommendScore(b).score;
+  });
+  assert.strictEqual(scored[0].id, game.recommend(s).id, '列表首位与主页推荐不一致');
+  const firstDecayed = scored.findIndex(function (x) { return !x.realmOk; });
+  const lastFull = scored.map(function (x) { return x.realmOk; }).lastIndexOf(true);
+  assert.ok(firstDecayed > lastFull, '境界不符的功法没被整段压到后面');
 });
 
 console.log('\ngame.test: ' + passed + ' assertions passed');

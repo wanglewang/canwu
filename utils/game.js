@@ -72,7 +72,6 @@ function createNewState() {
     skills: skills,
     resources: { qi: 0, stone: 20 },
     lastPractice: { skillId: '', at: 0 },
-    repeatCount: 0,
     buff: { multiplier: 1, until: 0 },
     defeated: [],
     stats: {
@@ -155,7 +154,7 @@ function normalizeState(input) {
     base.lastPractice.skillId = typeof raw.lastPractice.skillId === 'string' ? raw.lastPractice.skillId : '';
     base.lastPractice.at = num(raw.lastPractice.at, 0);
   }
-  base.repeatCount = Math.floor(num(raw.repeatCount, 0));
+  // 旧存档里的连练计数字段随机制一并废弃；白名单重建时自然丢弃，不升版本号。
   if (raw.buff) {
     base.buff.multiplier = num(raw.buff.multiplier, 1) || 1;
     base.buff.until = num(raw.buff.until, 0);
@@ -482,11 +481,10 @@ function applyPractice(state, skillId, grade, options) {
   const wuFactor = Math.min(1.6, 1 + (attrs.wu || 0) / 200);
   const practiceBonus = effectValue(state, 'practice');
 
-  const isRepeat = state.lastPractice.skillId === skillId;
-  const repeatCount = isRepeat ? Math.min(6, (state.repeatCount || 0) + 1) : 0;
-  const restless = Math.pow(0.85, repeatCount);
-  const cross = !isRepeat && !!state.lastPractice.skillId;
-  const crossBonus = cross ? 1.15 : 1;
+  // 只奖不罚：同一门连练不再递减。攒「连 3 局 S 直接晋级」本来就要连练同一门，
+  // 若同时扣收益，等于在最该上瘾的临门一脚反着来。多样化靠换门的正激励，不靠惩罚专精。
+  const cross = !!state.lastPractice.skillId && state.lastPractice.skillId !== skillId;
+  const crossBonus = cross ? worldData.CROSS_BONUS : 1;
 
   // 一个维度只管一件事：品阶管倍率、难度档管倍率与对局参数、评级管这一局打得好不好、境界管衰减。
   // 四个系数连乘后按 MAX_MULTIPLIER 封顶，避免「天阶 + 绝境 + S」把熟练度曲线一次打穿。
@@ -510,7 +508,7 @@ function applyPractice(state, skillId, grade, options) {
   const coreMult = Math.min(worldData.MAX_MULTIPLIER, coreRaw);
   const capped = coreRaw > worldData.MAX_MULTIPLIER + 1e-9;
 
-  const gain = Math.max(1, Math.round(method.base * coreMult * wuFactor * (1 + practiceBonus) * restless * crossBonus));
+  const gain = Math.max(1, Math.round(method.base * coreMult * wuFactor * (1 + practiceBonus) * crossBonus));
 
   // 局内得分第一次真正进入养成：记住本门最佳，给重复参悟一个可追的目标。
   if (!state.records) state.records = {};
@@ -523,7 +521,6 @@ function applyPractice(state, skillId, grade, options) {
   const bestScore = Math.max(prevBest, score);
 
   state.lastPractice = { skillId: skillId, at: Date.now() };
-  state.repeatCount = repeatCount;
   if (cross) state.stats.comboCount += 1;
 
   // 三连 S 直接晋级：连续完成的 3 局都拿到 S，就把熟练度直接补到下一阶段门槛。
@@ -642,8 +639,8 @@ function applyPractice(state, skillId, grade, options) {
     tierAfter: afterTier,
     tierUp: afterTier > beforeTier,
     tierName: worldData.TIERS[afterTier].name,
-    restless: repeatCount > 0 ? repeatCount : 0,
     cross: cross,
+    crossBonus: crossBonus,
     // 倍率构成：品阶 × 难度档 × 评级 × 境界衰减，封顶后才是实际入账的倍率。
     tierKey: tier.key,
     tierLabel: tier.label,
@@ -1243,9 +1240,20 @@ function getSkillDetail(state, id) {
   });
 }
 
+// 推荐排序口径：不看品阶也不看熟练度绝对值，看「离下一个阶段还有多远」，
+// 并按阶段跨度归一，免得高熟练度功法永远霸榜；已达可修上限的往后压，已圆满的再往后。
+// 主页的「今日之课」与功法页的默认排序共用这一份，不各写一套规则。
+function recommendScore(s) {
+  const floor = worldData.TIERS[s.tierIndex] ? worldData.TIERS[s.tierIndex].threshold : 0;
+  const span = Math.max(1, s.nextThreshold - floor);
+  const ratio = Math.max(0, s.nextThreshold - s.prof) / span;
+  // 三段分明：能拿全额收益的在前，境界不符（只剩三成）的整段压后，已圆满的最后。
+  // 列表不隐藏任何一门，只靠分段表达「现在该练谁」；主页推荐再从第一段里挑一个。
+  const bias = (s.realmOk ? 0 : 1) - (s.prof === 0 ? 0.05 : 0) + (s.maxed ? 2 : 0);
+  return { ratio: ratio, score: ratio + bias };
+}
+
 // 修炼建议：首页只回答一个问题——现在练哪门、为什么、下一步是什么。
-// 排序不看品阶也不看熟练度绝对值，看「离下一个阶段最近」，并按阶段跨度归一，
-// 免得高熟练度功法永远霸榜；已达可修上限（收益只剩三成）的功法往后压。
 function recommend(state) {
   const list = getSkillList(state);
   const pool = list.filter(function (s) { return s.unlocked; });
@@ -1255,12 +1263,8 @@ function recommend(state) {
   let pick = null;
   for (let i = 0; i < cand.length; i += 1) {
     const s = cand[i];
-    const floor = worldData.TIERS[s.tierIndex] ? worldData.TIERS[s.tierIndex].threshold : 0;
-    const span = Math.max(1, s.nextThreshold - floor);
-    const ratio = Math.max(0, s.nextThreshold - s.prof) / span;
-    const bias = (s.realmOk ? 0 : 0.35) - (s.prof === 0 ? 0.05 : 0);
-    const score = ratio + bias;
-    if (!pick || score < pick.score) pick = { skill: s, score: score, ratio: ratio };
+    const scored = recommendScore(s);
+    if (!pick || scored.score < pick.score) pick = { skill: s, score: scored.score, ratio: scored.ratio };
   }
 
   if (!pick) {
@@ -1460,6 +1464,7 @@ module.exports = {
   unlockInfo: unlockInfo,
   getFamilies: getFamilies,
   recommend: recommend,
+  recommendScore: recommendScore,
   starsOf: starsTextOf,
   getChallengeList: getChallengeList,
   getTitleList: getTitleList,
