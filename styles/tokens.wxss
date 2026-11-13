@@ -83,6 +83,7 @@ page {
     --c-imm-line:        #2a3833;   /* 常规描边 */
     --c-imm-line-soft:   #1f2a26;   /* 分隔线 */
     --c-imm-gold:        #cfae6d;   /* 旧金：唯一强调色 */
+    --c-imm-gold-deep:   #b08f52;   /* 亮金下沿：只做实心按钮渐变的末端，不用它画描边 */
     --c-imm-gold-dim:    #5d4c2b;   /* 暗金：只用于描边 */
     --c-imm-gold-soft:   rgba(207, 174, 109, 0.10);
     --c-imm-text:        #ece5d8;   /* 暖白正文 */
@@ -230,6 +231,7 @@ page {
         --c-imm-line:        #2a3833;
         --c-imm-line-soft:   #1f2a26;
         --c-imm-gold:        #cfae6d;
+        --c-imm-gold-deep:   #b08f52;
         --c-imm-gold-dim:    #5d4c2b;
         --c-imm-gold-soft:   rgba(207, 174, 109, 0.10);
         --c-imm-text:        #ece5d8;

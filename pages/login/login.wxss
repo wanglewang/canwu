@@ -1,18 +1,23 @@
 /* 登录页：唯一不使用 .pg 的品牌页，根容器挂 .pg--imm 接入全站墨金映射，
-   间距 / 字号 / 颜色仍取自全局令牌；json 里不写死导航栏配色。 */
+   间距 / 字号 / 颜色仍取自全局令牌；json 里不写死导航栏配色。
+
+   这里的底色与文字色直接取 --c-imm-*（tokens.wxss 里的全局令牌），
+   不取 .pg--imm 重定义过的 --c-bg / --c-text：那两个值只有 .pg--imm 这层
+   类选择器贴住时才是墨色，一旦某个环境没命中，页面会退回 tokens 的
+   浅米底 + 深色字，整页看着就是「几行没有样式的纯文字」。 */
 .login-page {
     min-height: 100vh;
     padding: var(--sp-16) var(--sp-10);
     /* 页面 wxss 的 padding 简写会盖掉全局兜底，安全区必须在这里再写一次 */
     padding-bottom: calc(var(--sp-16) + env(safe-area-inset-bottom));
     box-sizing: border-box;
-    background: var(--c-bg);
-    color: var(--c-text);
+    background-color: var(--c-imm-bg);
+    color: var(--c-imm-text);
 }
 
 .login-brand { margin-bottom: var(--sp-12); }
 
-/* 品牌字用旧金，与四页的标题体系一致；原先取的是--c-primary-text（青玉） */
+/* 品牌字用旧金，与四页的标题体系一致 */
 .login-brand-name {
     display: block;
     font-size: var(--fs-h1);
@@ -26,10 +31,12 @@
     margin-top: var(--sp-4);
     font-size: var(--fs-body-sm);
     line-height: var(--lh-body);
-    color: var(--c-text-2);
+    color: var(--c-imm-text-2);
 }
 
-/* 微信登录 = 主操作：金色实心，高度与行高和全站按钮同口径（微信按钮默认行高 2.55 会撑高） */
+/* 微信登录 = 主操作。底色放 background-color，明暗层次单独挂 background-image：
+   写成 `background: linear-gradient(...)` 时，色标变量一旦解析失败整条声明作废，
+   按钮就只剩一行字。高度用固定值 + line-height:1，避开微信按钮默认行高 2.55。 */
 .btn-wechat {
     box-sizing: border-box;
     display: flex;
@@ -39,12 +46,14 @@
     width: 100%;
     height: var(--touch);
     padding: 0 var(--sp-6);
-    background: linear-gradient(to bottom, var(--c-imm-gold), var(--c-imm-gold-dim));
+    background-color: var(--c-imm-gold);
+    background-image: linear-gradient(to bottom, var(--c-imm-gold), var(--c-imm-gold-deep));
     color: var(--c-imm-bg);
     font-size: var(--fs-h3);
     font-weight: 600;
     line-height: 1;
     letter-spacing: var(--sp-1);
+    border: 0;
     border-radius: var(--r-md);
 }
 
@@ -55,44 +64,53 @@
     margin-top: var(--sp-4);
     text-align: center;
     font-size: var(--fs-note);
-    color: var(--c-text-2);
+    color: var(--c-imm-text-2);
 }
 
+/* 次入口做成细描边按钮，和金色主按钮形成「主 / 次」两支；
+   只写下划线的文字链在墨底上太弱，整页就只剩几行字的感觉。 */
 .login-alt {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--touch-sm);
     margin-top: var(--sp-16);
-    padding: var(--sp-5);
-    min-height: var(--touch-xs);
-    text-align: center;
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-md);
+    background-color: transparent;
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-body-sm);
 }
 
 .login-alt-text {
+    color: var(--c-imm-text-2);
     font-size: var(--fs-body-sm);
-    color: var(--c-link);
-    text-decoration: underline;
 }
 
-.login-email { margin-top: var(--sp-2); }
+.login-email { margin-top: var(--sp-8); }
 
+/* 说明块做成一块墨面板 + 细描边，避免整页看上去只是几行字 */
 .login-note {
     margin-top: var(--sp-8);
     padding: var(--sp-6) var(--sp-8);
-    background: var(--c-surface);
+    border: 1rpx solid var(--c-imm-line);
     border-radius: var(--r-lg);
+    background-color: var(--c-imm-panel);
     font-size: var(--fs-note);
     line-height: var(--lh-loose);
-    color: var(--c-text-2);
+    color: var(--c-imm-text-2);
 }
 
 .login-error {
     display: block;
     margin-top: var(--sp-6);
     font-size: var(--fs-body-sm);
-    color: var(--c-danger-text);
+    color: var(--c-imm-danger);
 }
 
 .login-busy {
     display: block;
     margin-top: var(--sp-6);
     font-size: var(--fs-body-sm);
-    color: var(--c-link);
+    color: var(--c-imm-gold);
 }

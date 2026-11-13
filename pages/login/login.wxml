@@ -7,7 +7,7 @@
     <button class="btn-wechat" bindtap="onWechatLogin" disabled="{{busy}}" loading="{{busy}}">微信一键登录</button>
     <text class="login-hint">不设密码，用微信身份直接开始</text>
 
-    <view class="login-alt" bindtap="toggleEmail">
+    <view class="login-alt" hover-class="pressable" bindtap="toggleEmail">
         <text class="login-alt-text">{{showEmail ? '收起邮箱登录' : '使用邮箱验证码登录'}}</text>
     </view>
     <view class="login-email" wx:if="{{showEmail}}">

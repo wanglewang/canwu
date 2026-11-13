@@ -50,8 +50,10 @@
     --c-ink-track: var(--c-imm-track);
     --c-ink-divider: var(--c-imm-line-soft);
     --c-ink-scrim: var(--c-imm-gold-soft);
-    background: linear-gradient(to bottom, var(--c-imm-bg-2), var(--c-imm-bg) 360rpx);
+    /* 底色走 background-color 兜住，顶部那层微亮单独挂在 background-image 上：
+       它即便解析失败，页面仍是完整的一块墨，不会塌成「白底黑字的纯文本流」。 */
     background-color: var(--c-imm-bg);
+    background-image: linear-gradient(to bottom, var(--c-imm-bg-2), transparent 360rpx);
     color: var(--c-imm-text);
     min-height: 100vh;
     padding-bottom: calc(var(--page-bottom) + var(--safe-bottom));
@@ -108,7 +110,8 @@
     box-sizing: border-box;
     border: 1rpx solid var(--c-imm-line);
     border-radius: var(--r-lg);
-    background: linear-gradient(to bottom, var(--c-imm-panel-2), var(--c-imm-panel));
+    background-color: var(--c-imm-panel);
+    background-image: linear-gradient(to bottom, var(--c-imm-panel-2), transparent 240rpx);
     padding: var(--sp-6);
     margin-top: var(--sp-5);
 }
@@ -447,9 +450,19 @@
     letter-spacing: 2rpx;
 }
 
+/* 金色实心按钮用 background-color，不用 linear-gradient：
+   渐变里再套 var() 一旦任何一个变量解析失败，整条 background 会被判为无效，
+   按钮就退化成「一行没有底色的字」——真机上这种整条声明失效的坑很难查。
+   层次感改由 1rpx 亮边 + 内阴影给，不依赖渐变。 */
 .imm-btn {
-    background: linear-gradient(to bottom, var(--c-imm-gold), var(--c-imm-gold-dim));
+    /* 底色放在 background-color、明暗层次单独挂在 background-image 上。
+       两者分开写是必须的：若把渐变塞进 background 简写、色标又直接写变量，
+       任何一个变量在个别环境里解析失败，整条 background 会被判为无效，
+       按钮就退化成「一行没有底色的字」——真机上极难排查。 */
+    background-color: var(--c-imm-gold);
+    background-image: linear-gradient(to bottom, var(--c-imm-gold), var(--c-imm-gold-deep));
     color: var(--c-imm-bg);
+    border: 1rpx solid var(--c-imm-gold);
 }
 
 .imm-btn--ghost {

@@ -81,7 +81,9 @@
     padding: 0 var(--sp-6);
     border: 0;
     border-radius: var(--r-md);
-    background: linear-gradient(to bottom, var(--c-imm-gold), var(--c-imm-gold-dim));
+    /* 同 .btn-wechat：实色在 background-color 上兜底，渐变只作层次 */
+    background-color: var(--c-imm-gold);
+    background-image: linear-gradient(to bottom, var(--c-imm-gold), var(--c-imm-gold-deep));
     color: var(--c-imm-bg);
     font-size: var(--fs-h3);
     font-weight: 600;
