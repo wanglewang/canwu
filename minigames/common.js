@@ -72,9 +72,11 @@ function flash(vm, text, tone) {
   vm.fx = { key: vm.fxSeq, n: vm.fxSeq % 2, text: text, tone: tone || 'good' };
 }
 
+// 目标句只讲「这一局还差什么」。「圆满」是段位名（未入门→入门→小成→大成→圆满），
+// 拿它来形容已经拿到 S，玩家会当场以为自己晋了段；这里一律只说评级。
 function goalFor(grade, remain, unit) {
-  if (grade === 'S') return '已入圆满 · 稳住这一局';
-  if (remain <= 0) return '再进一点就是圆满';
+  if (grade === 'S') return '已入 S · 稳住这一局';
+  if (remain <= 0) return '再进一点就是 S';
   return '再 ' + remain + ' ' + unit + '可入 S';
 }
 

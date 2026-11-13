@@ -76,7 +76,7 @@ function create(ctx) {
     vm.combo = chain;
     vm.comboText = chain >= 2 ? '相生 ×' + chain : '';
     vm.gradeNow = gradeNow();
-    vm.goal = chain >= goal ? '已入圆满 · 稳住这一局' : '再连 ' + (goal - best) + ' 位可入 S';
+    vm.goal = chain >= goal ? '已入 S · 稳住这一局' : '再连 ' + (goal - best) + ' 位可入 S';
     vm.meter = { label: '相生之窗', value: Math.round(windowMs / 100) / 10, max: Math.round(startWindow / 100) / 10 };
     vm.hint = '中央是「' + ELEMENTS[current] + '」，点它相生的下一盏。';
   }

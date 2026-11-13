@@ -469,6 +469,55 @@ check('斜向擦角：页面接了输入工具，玩法层摘掉擦角桩再判�
   assert.ok(/斜斩的角/.test(g) && /斜斩擦角不算/.test(g), '玩法说明没讲清斜斩擦角');
 });
 
+check('刀法局内：得分不叫灵石，新法生效范围只说一次，两条阶段规则同屏', function () {
+  const wxml = read('pages/practice/practice.wxml');
+  const click = read('minigames/click.js');
+  const guides = read('data/guides.js');
+  const practice = read('data/practice.js');
+
+  // 灵石是能换功法的资源，局内分数一枚灵石都不是：同一局里「灵石 608」会和结算「灵石 +3」当场打架。
+  assert.ok(/scene-hud__score-label">得分</.test(wxml), '场次 HUD 又把局内得分写成了灵石');
+
+  // 新法生效范围：标题右侧一句说透，条目里不许逐条重复。
+  assert.ok(/习得后每局生效/.test(wxml), '本门新法没讲清是永久被动还是每局重来');
+  assert.ok(!/只在本局生效/.test(practice), '新法条目又逐条重复「只在本局生效」');
+
+  // 局内速记只写常驻规则：未入门的玩家不该在常驻行里读到「大成后……」。
+  const clickGuide = guides.slice(guides.indexOf('  click: {'));
+  const inline = (clickGuide.match(/inline: '([^']+)'/) || ['', ''])[1];
+  assert.ok(inline && !/大成|圆满/.test(inline), '局内速记又写死了阶段新法的触发条件');
+  assert.ok(/单点不判/.test(inline), '局内速记没讲「轻点一下不判也不罚」');
+
+  // 大圆满同时开着双锋与收势：只报一条，另一条就悄悄消失。
+  assert.ok(/bits\.push\('真招会呼吸'\)/.test(click) && /bits\.push\('停一拍再抬'\)/.test(click),
+    '两条阶段规则不能同时显示');
+  assert.ok(/bits\.join\(' · '\)/.test(click), '阶段规则没有拼成一句');
+
+  // 深墨盘底上，禁桩那支淡朱几乎看不出颜色，而它「划到就断势」——舞台上必须单独提亮。
+  const scene = read('styles/scene.wxss');
+  assert.ok(/\.pg--scene \.cell--ban \{[^}]*?color: #e2836f/.test(scene), '舞台上的禁桩又看不清了');
+});
+
+check('「圆满」是段位名：任何玩法都不许拿它讲评级', function () {
+  const dir = path.join(ROOT, 'minigames');
+  for (const name of fs.readdirSync(dir)) {
+    if (!/\.js$/.test(name)) continue;
+    const s = read('minigames/' + name);
+    // 只查「已入圆满」这类拿段位名当评级说的句子；注释里说明段位体系不算。
+    const code = s.split('\n').filter(function (line) { return !/^\s*\/\//.test(line); }).join('\n');
+    assert.ok(!/已入圆满/.test(code), 'minigames/' + name + ' 又用段位名讲「已拿到 S」');
+  }
+  assert.ok(/已入 S/.test(read('minigames/common.js')), '目标句没统一走「已入 S」');
+});
+
+check('「息」有解释：HUD、香炷与罚时都按它走，名词速查里查得到', function () {
+  const copy = read('data/copy.js');
+  assert.ok(/key: 'xi', name: '息'/.test(copy), '术语表没有「息」，玩家不知道一息是多久');
+  assert.ok(/一息即一秒/.test(copy), '「息」没说清等于几秒');
+  assert.ok(/息/.test(read('data/guides.js')) && /一息即一秒/.test(read('data/guides.js')),
+    '玩法说明的盘上所见里也该有「息」');
+});
+
 check('三套经典玩法落地：注册、黄阶定位、盘面与方向键都接进页面', function () {
   const skills = read('data/skills.js');
   const practice = read('data/practice.js');

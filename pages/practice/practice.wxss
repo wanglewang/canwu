@@ -478,6 +478,8 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
+    /* 大圆满会同时挂两条规则，右侧那行容易顶到边；允许换行，宁可排两行也别溢出。 */
+    flex-wrap: wrap;
     margin-top: 20rpx;
 }
 

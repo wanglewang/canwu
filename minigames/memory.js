@@ -117,7 +117,7 @@ function create(ctx) {
       : '';
     vm.hearts = { value: lives, max: maxLives };
     const remainScore = (sLimit - score);
-    vm.goal = remainScore > 0 ? '再 ' + remainScore + ' 分可入 S' : '已入圆满 · 稳住这一局';
+    vm.goal = C.goalFor(vm.gradeNow, remainScore, '分');
   }
 
   function stopTick() {

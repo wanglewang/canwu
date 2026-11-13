@@ -340,6 +340,11 @@ Page({
         if (vm.fx && vm.fx.key !== self.lastFxKey) {
           self.lastFxKey = vm.fx.key;
           sfx.tone(vm.fx.tone);
+          // 金招（重斩）是这一局最值钱的一下，光有音效不够：补一次中量触感，
+          // 手指还按在屏幕上时也能确认「这一刀真的斩中了」。其余判定不加，免得麻木。
+          if (vm.fx.tone === 'gold' && wx.vibrateShort) {
+            try { wx.vibrateShort({ type: 'medium' }); } catch (e) { /* 部分环境不支持震动 */ }
+          }
           if (self.data.sceneOn) {
             const tone = vm.fx.tone;
             if (tone === 'bad') burstList = [self.makeBurst(0)];

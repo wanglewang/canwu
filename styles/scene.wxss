@@ -272,6 +272,14 @@
 
 .pg--scene .cell--cut { background: #e8f8ff; color: #0b2331; }
 
+/* 禁桩：深墨盘底上，practice.wxss 那支淡朱（0.72 透明度压在 0.1 底上）几乎看不出颜色，
+   而它「划到就断势」——看不清就等于手感事故。舞台上单独提亮，浅纸盘面不跟着变。 */
+.pg--scene .cell--ban {
+    background: rgba(196, 84, 72, 0.18);
+    color: #e2836f;
+    box-shadow: inset 0 0 0 3rpx rgba(226, 131, 111, 0.55);
+}
+
 .pg--scene .cell__life { background: rgba(232, 196, 106, 0.85); }
 
 .pg--scene .grid__slash-beam { background: linear-gradient(90deg, transparent, #ffffff, transparent); }

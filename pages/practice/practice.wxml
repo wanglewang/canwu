@@ -94,8 +94,12 @@
 
     <view wx:if="{{stageRules.length}}" class="mt16">
       <!-- 这里原来挂了一个 term 角标，可它渲染出来是「本门新法?」，紧挨着同名的小标题，
-           一屏上出现两遍「本门新法」。解释交给说明页的名词速查，这一行只留标题。 -->
-      <view class="row"><text class="section__title">本门新法</text></view>
+           一屏上出现两遍「本门新法」。解释交给说明页的名词速查，这一行只留标题。
+           右侧那句回答的是「这是永久被动，还是只有本局？」——习得是永久的，效果每局从头算。 -->
+      <view class="row--between">
+        <text class="section__title">本门新法</text>
+        <text class="tiny">习得后每局生效</text>
+      </view>
       <view wx:for="{{stageRules}}" wx:key="name" class="stage-rule">
         <text class="tag {{item.on ? 'tag--jade' : 'tag--grey'}}">{{item.on ? '已得' : item.atName}}</text>
         <text class="tiny grow stage-rule__text">{{item.name}} · {{item.desc}}</text>
@@ -178,7 +182,9 @@
       </view>
     </view>
 
-    <!-- 样板玩法的游戏化 HUD：香炷计息、命灯、刀势刻度、灵石得分 -->
+    <!-- 样板玩法的游戏化 HUD：香炷计息、命灯、刀势刻度、局内得分。
+         这里原来把得分写成「灵石」——灵石是能换功法的资源，局内分数一分灵石都不是，
+         同一局里「灵石 608」和结算「灵石 +3」会当场打架，改用与结算一致的「得分」。 -->
     <view wx:else class="scene-hud">
       <view class="scene-hud__top">
         <view class="scene-hud__id">
@@ -206,7 +212,7 @@
         <text class="scene-hud__combo">{{vm.comboText || '连击 0'}}</text>
       </view>
       <view class="scene-hud__score">
-        <text class="scene-hud__score-label">灵石</text>
+        <text class="scene-hud__score-label">得分</text>
         <text class="scene-hud__score-num">{{scoreNum}}</text>
         <text class="scene-hud__goal">{{vm.goal || vm.status}}</text>
       </view>

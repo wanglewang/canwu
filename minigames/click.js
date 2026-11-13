@@ -459,10 +459,14 @@ function create(ctx) {
     repaintArrows();
   }
 
+  // 盘面上方那一行是「这一刀现在要守什么」。大圆满同时开着双锋与收势，
+  // 只报一条会让另一条悄悄消失——宁可两句话并用省略式，也别让规则看不见。
   function ruleText() {
-    if (fake) return '认会呼吸的靶心';
-    if (holdOn) return '到靶心停一拍再抬手';
-    return profile.key === 'sword' ? '反向算刺偏' : '反向算劈空';
+    const bits = [];
+    if (fake) bits.push('真招会呼吸');
+    if (holdOn) bits.push('停一拍再抬');
+    if (!bits.length) bits.push(profile.key === 'sword' ? '反向算刺偏' : '反向算劈空');
+    return bits.join(' · ');
   }
 
   function syncHud() {
