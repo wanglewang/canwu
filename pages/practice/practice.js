@@ -252,13 +252,22 @@ Page({
       decayTip = '已超本门可修上限「' + maxRealmName + '」，收益只剩三成，该换更高阶的功法了。';
     }
 
+    const offTwists = engine.twistsOff(state, this.skillId);
     const stageRules = practiceData.stageRulesOf(method.id).map(function (r) {
+      const on = rec.prof >= worldData.TIERS[r.at].threshold;
+      // 只有 hard 类（改规矩的）才给开关；照影、稳基那种纯加成关了没好处，
+      // 多一个开关只是多一处看不懂。
+      const toggle = !!r.hard && on;
+      const enabled = on && offTwists.indexOf(r.name) < 0;
       return {
         name: r.name,
         short: r.short || '',
         desc: r.desc,
-        on: rec.prof >= worldData.TIERS[r.at].threshold,
-        atName: worldData.TIERS[r.at].name,
+        toggle: toggle,
+        enabled: enabled,
+        // 关掉和「还没解锁」是两件事：前者写「已关」，后者写段位名。
+        stateText: on ? (enabled ? '已得' : '已关') : worldData.TIERS[r.at].name,
+        tagCls: on && enabled ? 'tag--jade' : 'tag--grey',
       };
     });
     // 下一段给什么：现在只写「还差 114」，玩家不知道练到那一步能得到什么。
@@ -324,7 +333,8 @@ Page({
     }
     const perks = this.mode === 'breakthrough'
       ? { easy: state.realmIndex >= 2, tier: state.realmIndex }
-      : { easy: tier >= 3, tier: tier };
+      // 关掉的阶段新法跟着这一局走：玩家在准备页关掉逆诵，进局就该真的不逆诵。
+      : { easy: tier >= 3, tier: tier, offTwists: engine.twistsOff(state, this.skillId) };
 
     const self = this;
     this.controller = minigames.createGame(gameId, {
@@ -541,6 +551,32 @@ Page({
     this.buildGame();
   },
 
+  // 阶段新法的开关：逆诵 / 死门 / 收势这类是「改规矩」，练到手就该能关——
+  // 想安心练基础记忆的人，不该被已经解锁的机制按着头走。
+  // 开关只在准备页，进局后不提供：局内改规则才是真的打断节奏。
+  onToggleTwist: function (event) {
+    if (this.data.started || this.data.countdown > 0) return;
+    const name = event.currentTarget.dataset.name;
+    // 传的是「点完之后该是什么」：胶囊上写的是当前状态，点它就是翻面。
+    const enabled = event.currentTarget.dataset.next === 'on';
+    if (!name) return;
+    const self = this;
+    store.commitCritical(function (s) { return engine.setTwist(s, self.skillId, name, enabled); });
+    // 只改这一条，不整页重算：开关就在原地，别让它跳走。
+    const stageRules = this.data.stageRules.map(function (r) {
+      if (r.name !== name) return r;
+      return Object.assign({}, r, {
+        enabled: enabled,
+        stateText: enabled ? '已得' : '已关',
+        tagCls: enabled ? 'tag--jade' : 'tag--grey',
+      });
+    });
+    this.setData({ stageRules: stageRules });
+    // 开关进的是 perks，得重建一次 controller 才带上；准备页还没开局，重建是安全的。
+    this.buildGame();
+    toast(enabled ? '「' + name + '」已开' : '「' + name + '」已关 · 以后这一门不再触发');
+  },
+
   onCellTap: function (event) {
     if (!this.controller) return;
     // 划刀玩法由透明触摸层接管，静态格子的 tap 一律不判，避免划完抬手又补一次点击。
@@ -745,6 +781,8 @@ Page({
           { k: '灵气', v: '+' + r.qi },
           { k: '灵石', v: '+' + r.stone },
           { k: '境界', v: r.realmName },
+          // 突破最实在的收益就是这一跳，摆在最后一行收尾。
+          { k: '战力', v: r.powerBefore + ' → ' + r.powerAfter + '（+' + (r.powerAfter - r.powerBefore) + '）' },
         ],
         notes: ['此后挂机与对战都会按新境界计算。'],
         titles: (r.newTitles || []).map(function (t) { return t.name; }),
@@ -770,6 +808,15 @@ Page({
       lines.push({ k: '倍率构成', v: multText });
       lines.push({ k: '挂机加速', v: '×' + r.buffMultiplier.toFixed(1) + ' · 30 分钟' });
       lines.push({ k: '当前熟练度', v: String(r.profAfter) });
+      // 战力是阶梯值：只跟段位系数与境界加成走，段位不跳它就一分不动。
+      // 所以不能只报「这局涨了多少战力」（大多数局都是 0，等于每局告诉玩家白练），
+      // 要连「离下一境还差多少」一起报——玩家心里的目标一直是境界，不是熟练度。
+      const dp = r.powerAfter - r.powerBefore;
+      lines.push({ k: '战力', v: dp > 0 ? r.powerAfter + '（+' + dp + '）' : r.powerAfter + ' · 跨段才涨' });
+      const btAfter = engine.breakthroughInfo(store.get());
+      if (!btAfter.maxed) {
+        lines.push({ k: '距离「' + btAfter.nextName + '」', v: '还差 ' + Math.max(0, btAfter.need - r.powerAfter) + ' 战力' });
+      }
       const notes = [];
       if (r.promotion && !r.promotion.maxed) {
         notes.push(r.promotion.added > 0

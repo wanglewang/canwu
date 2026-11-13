@@ -82,6 +82,10 @@ function createNewState() {
     records: {},
     // 每门功法连续拿到 S 的次数：满 3 次直接晋一段，随后清零重数。
     sStreak: {},
+    // 各门功法被玩家手动关掉的阶段新法：{ 功法 id: ['逆诵', ...] }。
+    // 逆诵 / 死门这类是「改规则」，不是「给便利」——练到解锁就该能关，
+    // 否则想安心练基础记忆的人没有退路。缺省为空 = 全开（老存档自动是这个行为）。
+    twists: {},
     daily: { date: todayKey(Date.now()), count: 0, claimed: false },
     equippedTitle: '',
     titles: [],
@@ -187,6 +191,17 @@ function normalizeState(input) {
       base.sStreak[id] = Math.min(S_STREAK_GOAL - 1, Math.floor(num(raw.sStreak[id], 0)));
     }
   }
+  // 关掉的阶段新法：缺省即空（老档、以及从没关过的人都是这个状态，等于全开）。
+  // 不跟着升 SAVE_VERSION —— 它是「有就用、没有就空」的可选字段，
+  // 老客户端读到新存档只会忽略它，不需要走迁移。
+  if (raw.twists && typeof raw.twists === 'object') {
+    const tids = Object.keys(raw.twists);
+    for (let i = 0; i < tids.length; i += 1) {
+      const id = tids[i];
+      if (!skillData.SKILL_MAP[id] || !Array.isArray(raw.twists[id])) continue;
+      base.twists[id] = raw.twists[id].filter(function (x) { return typeof x === 'string'; }).slice(0, 8);
+    }
+  }
   if (Array.isArray(raw.titles)) base.titles = raw.titles.filter(function (x) { return typeof x === 'string'; });
   if (typeof raw.equippedTitle === 'string') base.equippedTitle = raw.equippedTitle;
   if (Array.isArray(raw.log)) base.log = raw.log.slice(0, 12);
@@ -276,14 +291,17 @@ function computeAttributes(state) {
   return out;
 }
 
-function powerDetail(state) {
+// realmIndex 可指定「算哪个境界的战力」：不传就是当前境界。
+// 主页要预告「突破之后战力多少」，靠它把下一境界的加成代进去重算，而不是自己再抄一遍公式。
+function powerDetail(state, realmIndex) {
   const w = worldData.getWorld(state.worldId);
   const attrs = computeAttributes(state);
   let base = 0;
   for (let i = 0; i < w.attributes.length; i += 1) {
     base += (attrs[w.attributes[i].key] || 0) * w.attributes[i].weight;
   }
-  const realm = w.realms[state.realmIndex] || w.realms[0];
+  const at = typeof realmIndex === 'number' ? realmIndex : state.realmIndex;
+  const realm = w.realms[at] || w.realms[0];
   const realmBonus = realm.bonus || 0;
   const effectBonus = effectValue(state, 'power');
   return {
@@ -295,6 +313,23 @@ function powerDetail(state) {
 }
 
 function computePower(state) { return powerDetail(state).total; }
+
+// 阶段新法的开关。只有 data/practice.js 的 STAGE_RULES 标了 hard 的才该出现在开关里
+//（逆诵改点击方向、死门多一格不能碰的、收势要求停一拍）——那些是「改规则」。
+// 照影 / 照纹 / 稳基是纯加成，关掉没有任何好处，不给开关。
+function twistsOff(state, skillId) {
+  const all = state && state.twists;
+  const list = all && all[skillId];
+  return Array.isArray(list) ? list : [];
+}
+
+function setTwist(state, skillId, name, enabled) {
+  if (!state.twists) state.twists = {};
+  const cur = twistsOff(state, skillId).filter(function (x) { return x !== name; });
+  if (!enabled) cur.push(name);
+  state.twists[skillId] = cur;
+  return cur;
+}
 
 function computeMetrics(state) {
   let maxTier = 0;
@@ -437,6 +472,9 @@ function applyPractice(state, skillId, grade, options) {
   const rec = state.skills[skillId];
   const beforeTier = tierIndex(rec.prof);
   const profBefore = rec.prof;
+  // 战力是阶梯值：属性 = 功法条目 × 段位系数，段位不跳战力就不动。
+  // 先记下开场值，结算时才能如实说「这一局涨了没有」，而不是含糊带过。
+  const powerBefore = powerDetail(state).total;
 
   const factor = worldData.GRADE_FACTOR[grade] || 0.6;
   const attrs = computeAttributes(state);
@@ -592,6 +630,9 @@ function applyPractice(state, skillId, grade, options) {
     // gain 是本局正常收益；若触发三连晋级，profAfter 还会含直接补到门槛的那一段。
     promotionGain: promotion ? promotion.added : 0,
     totalGain: gain + (promotion ? promotion.added : 0),
+    // 战力在这一局前后的值：没跨段位就是相等的，不是算错。
+    powerBefore: powerBefore,
+    powerAfter: powerDetail(state).total,
     sStreak: streakNow,
     sStreakGoal: S_STREAK_GOAL,
     promotion: promotion,
@@ -759,14 +800,21 @@ function breakthroughInfo(state) {
   const w = worldData.getWorld(state.worldId);
   const maxed = state.realmIndex >= w.realms.length - 1;
   const next = maxed ? null : w.realms[state.realmIndex + 1];
-  const power = computePower(state);
+  const pd = powerDetail(state);
+  const powerAfter = maxed ? pd.total : powerDetail(state, state.realmIndex + 1).total;
   return {
     maxed: maxed,
     currentName: w.realms[state.realmIndex].name,
     nextName: next ? next.name : '',
     need: next ? next.power : 0,
-    power: power,
-    available: !!next && power >= next.power,
+    power: pd.total,
+    // 突破之后战力会跳到多少：境界加成是乘数（筑基 ×1.06、金丹 ×1.14……），
+    // 只写「还差 46」玩家算不出这一步的收益，得把这个数直接摆出来。
+    powerAfter: powerAfter,
+    powerGain: powerAfter - pd.total,
+    bonusNow: pd.realmBonus,
+    bonusAfter: next ? (next.bonus || 0) : pd.realmBonus,
+    available: !!next && pd.total >= next.power,
   };
 }
 
@@ -788,6 +836,10 @@ function applyBreakthrough(state, grade) {
     ok: true, hit: true, grade: grade,
     realmName: w.realms[state.realmIndex].name,
     qi: qi, stone: stone,
+    // 突破的最大收益就是这一跳：境界加成从 ×1.06 到 ×1.14，战力整体抬一档。
+    // info 是在突破前算的，里面已经有突破后的战力，直接用。
+    powerBefore: info.power,
+    powerAfter: info.powerAfter,
     newTitles: checkTitles(state),
   };
 }
@@ -1380,6 +1432,8 @@ module.exports = {
   computeAttributes: computeAttributes,
   powerDetail: powerDetail,
   computePower: computePower,
+  twistsOff: twistsOff,
+  setTwist: setTwist,
   computeMetrics: computeMetrics,
   checkTitles: checkTitles,
   checkDaily: checkDaily,

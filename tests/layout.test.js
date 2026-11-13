@@ -446,6 +446,32 @@ check('突破只有战力一个门槛：文案不许再讲「功法条件」', f
   assert.ok(/imm-check__mark--ref/.test(profile), '主修三门又被当成条件打了勾叉');
 });
 
+check('战力是阶梯：结算与主页都要说「跳到多少」，不能只报缺口', function () {
+  const game = require('../utils/game.js');
+  const s = game.createNewState();
+  // 境界加成是乘数：突破之后战力必然高于现在。只写「还差 46」玩家算不出这一步的收益。
+  const bt = game.breakthroughInfo(s);
+  assert.ok(bt.powerAfter > bt.power, '没算出突破后的战力：' + bt.power + ' → ' + bt.powerAfter);
+  assert.ok(bt.powerGain > 0, '突破的战力增量算成了 0');
+
+  // 属性 = 功法条目 × 段位系数，段位是阶梯。所以练一局常常「熟练度涨了、战力没动」，
+  // 这不是 bug，是设计。界面必须能如实表达它，而不是每局丢一个 +0 给玩家。
+  const id = Object.keys(s.skills).filter(function (k) { return s.skills[k].unlocked; })[0];
+  const r = game.applyPractice(s, id, 'S', { difficulty: 'easy', score: 100 });
+  assert.ok(r.ok, '参悟结算没跑通');
+  assert.ok(typeof r.powerBefore === 'number' && typeof r.powerAfter === 'number', '结算没带战力前后值');
+  assert.ok(r.profAfter > r.profBefore, '熟练度没涨，断言前提不成立');
+
+  const page = read('pages/practice/practice.js');
+  assert.ok(/k: '战力'/.test(page), '结算面板没摆战力');
+  assert.ok(/距离「/.test(page), '结算面板没摆「离下一境还差多少」');
+  assert.ok(/跨段才涨/.test(page), '战力没跳时没解释原因，玩家会以为白练');
+  assert.ok(/powerBefore: info\.power/.test(read('utils/game.js')), '突破结算没带战力前后值');
+
+  const index = read('pages/index/index.js');
+  assert.ok(/powerGain/.test(index), '主页只报缺口，没说突破能得到什么');
+});
+
 check('局内两行不说同一句话：tip 讲代价，inline 讲操作', function () {
   const practice = require('../data/practice.js');
   const guides = require('../data/guides.js');
@@ -489,14 +515,52 @@ check('局内速记只列已解锁的进阶机制，收起态不吓新手', func
   // 逆诵（大成）与死门（大成）都是后面才有的规则，收起态里不该先出现。
   assert.ok(guides.guideOf('memory').inline.indexOf('逆诵') < 0, '记序复现的速记又提前写了逆诵');
   assert.ok(guides.guideOf('lights').inline.indexOf('忌') < 0, '阵灯推演的速记又提前写了死门');
-  // 收起态把「已解锁」的阶段新法接在基础操作后面，未解锁的不列。
-  assert.ok(/stageRules[\s\S]{0,160}item\.on[\s\S]{0,80}item\.short/.test(wxml),
+  // 收起态把「已解锁且开着」的阶段新法接在基础操作后面；未解锁的、被玩家关掉的都不列。
+  assert.ok(/stageRules[\s\S]{0,160}item\.enabled[\s\S]{0,80}item\.short/.test(wxml),
     '收起态没接已解锁的阶段新法');
   for (const id of Object.keys(practice.STAGE_RULES)) {
     for (const r of practice.STAGE_RULES[id]) {
       assert.ok(r.short && r.short.length >= 2, id + '/' + r.name + ' 缺速记写法 short');
     }
   }
+});
+
+check('阶段新法可关：只有「改规矩」的才给开关，关了真的不触发', function () {
+  const practice = require('../data/practice.js');
+  const engine = require('../utils/game.js');
+  const wxml = read('pages/practice/practice.wxml');
+  const js = read('pages/practice/practice.js');
+
+  // 逆诵会改点击方向、死门会多一格不能碰的、收势要求停一拍——这些是「改规矩」，
+  // 练到解锁之后玩家该能关掉。照影 / 照纹 / 稳基是纯加成，关掉没有任何好处，
+  // 给它们开关只是多一处看不懂的东西。
+  assert.ok(practice.STAGE_RULES.recite.some(function (r) { return r.name === '逆诵' && r.hard; }),
+    '逆诵没被标成可关');
+  assert.ok(practice.STAGE_RULES.arrayEye.some(function (r) { return r.hard; }),
+    '死门没被标成可关');
+  assert.ok(!practice.STAGE_RULES.tanlei.some(function (r) { return r.hard; }),
+    '照影符的纯加成也被给了开关');
+  assert.ok(!practice.STAGE_RULES.stackstone.some(function (r) { return r.hard; }),
+    '垒岳诀的纯加成也被给了开关');
+
+  // 开关要一路通到底：准备页有 UI、页面把开关塞进 perks、玩法模块真的读它。
+  // 用自己的胶囊不用原生 switch：后者在墨底上未选中轨道是一块白，与皮肤冲突。
+  assert.ok(/stage-rule__toggle/.test(wxml) && /onToggleTwist/.test(wxml), '准备页没有阶段新法的开关');
+  assert.ok(!/stage-rule__switch/.test(wxml) && !/<switch/.test(wxml), '准备页又用回了原生 switch');
+  assert.ok(/offTwists: engine\.twistsOff/.test(js), '开关没传进这一局');
+  for (const m of ['memory', 'lights', 'click']) {
+    assert.ok(/perks\.offTwists/.test(read('minigames/' + m + '.js')), m + ' 玩法没读开关');
+  }
+
+  // 关掉的要跟着存档走，重开还在；新档默认全开。
+  const s = engine.createNewState();
+  assert.deepStrictEqual(engine.twistsOff(s, 'jian'), [], '新档默认应是全开');
+  engine.setTwist(s, 'jian', '逆诵', false);
+  assert.deepStrictEqual(engine.twistsOff(s, 'jian'), ['逆诵'], '关掉的规则没记下来');
+  assert.deepStrictEqual(engine.normalizeState(JSON.parse(JSON.stringify(s))).twists.jian, ['逆诵'],
+    '关掉的规则没跟着存档往返');
+  engine.setTwist(s, 'jian', '逆诵', true);
+  assert.deepStrictEqual(engine.twistsOff(s, 'jian'), [], '开回来之后还挂着关闭记录');
 });
 
 check('局内代价句用阿拉伯数字，与 HUD 的「余 12.3 息」同一套写法', function () {

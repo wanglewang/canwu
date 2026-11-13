@@ -347,9 +347,14 @@ function create(ctx) {
   const tiers = tiersFor(depth);
 
   // 规则旋钮：挂熟练度阶段，与档位解耦。
-  const holdOn = stage >= STAGE_HOLD;
-  const banOn = stage >= STAGE_BAN;
-  const doubleOn = stage >= STAGE_DOUBLE;
+  // 收势 / 禁桩 / 双锋都是「改规矩」（要停一拍、有不能碰的桩、两道刀路挑一道），
+  // 玩家可以在准备页逐条关掉；关掉就回到更早那一档的手感。
+  const offTwists = Array.isArray(perks.offTwists) ? perks.offTwists : [];
+  const holdOn = stage >= STAGE_HOLD && offTwists.indexOf('收势') < 0;
+  const banOn = stage >= STAGE_BAN && offTwists.indexOf('禁桩') < 0;
+  const doubleOn = stage >= STAGE_DOUBLE && offTwists.indexOf('双锋') < 0;
+  // 禁桩个数只看段位，不跟双锋的开关走：关掉双锋是「不要两道刀路」，
+  // 不该顺手把禁桩减回一根。
   const banCount = stage >= STAGE_DOUBLE ? 2 : 1;
 
   // 门槛按「这一档实际打得出多少分」标定，不按机器人的手速。

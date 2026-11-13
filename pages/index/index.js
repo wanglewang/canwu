@@ -68,9 +68,13 @@ Page({
     const near = learned.filter(function (s) { return !s.maxed && s.percent >= 75; });
     near.sort(function (a, b) { return b.percent - a.percent; });
     if (near.length > 0) hintText = '叮！' + near[0].name + ' 即将升段。';
-    else if (bt.available) hintText = '境界已足，可去人物页突破。';
+    else if (bt.available) hintText = '境界已足，可去人物页突破 · 突破后战力 +' + bt.powerGain;
     // 门槛只有战力（world.realms[].power）：到这条线就够，不必再列第二个条件。
-    else if (!bt.maxed && bt.need > 0) hintText = '距「' + bt.nextName + '」还差 ' + Math.max(0, bt.need - bt.power) + ' 战力。';
+    // 但缺口是个冷数字，得同时说清「填平之后战力跳到多少」——那是玩家攒战力的理由。
+    else if (!bt.maxed && bt.need > 0) {
+      hintText = '距「' + bt.nextName + '」还差 ' + Math.max(0, bt.need - bt.power) + ' 战力';
+      if (bt.powerGain > 0) hintText += ' · 突破后 +' + bt.powerGain;
+    }
 
     const dailyReady = !ov.daily.claimed && ov.daily.count >= ov.daily.target;
     const sync = store.getSyncStatus();

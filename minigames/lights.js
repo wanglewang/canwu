@@ -80,7 +80,14 @@ function create(ctx) {
   const size = Math.min(5, p.size || 3);
   const n = size * size;
   const steps = Math.min(n - 1, p.steps || (BASE_STEPS + depth));
-  const deadCount = stageIdx >= 4 ? 2 : stageIdx >= 3 ? 1 : 0;
+  const deadCount = (function () {
+    // 死门 / 双门是「多一格不能碰的」，玩家可以在准备页关掉；
+    // 关双门只回到一格死门，关死门才是整盘无死门。
+    const off = Array.isArray(perks.offTwists) ? perks.offTwists : [];
+    if (off.indexOf('死门') >= 0) return 0;
+    const base = stageIdx >= 4 ? 2 : stageIdx >= 3 ? 1 : 0;
+    return off.indexOf('双门') >= 0 ? Math.min(base, 1) : base;
+  })();
   const target = TARGETS[Math.min(TARGETS.length - 1, depth)];
 
   const duration = Math.round((p.duration || 36) * 1000) + (perks.easy ? 8000 : 0);

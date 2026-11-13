@@ -87,7 +87,7 @@
          没解锁的不列——新手第一眼要看到的是「怎么点」，不是三条规则硬拼在一行。 -->
     <view wx:else class="guide__inline mt12">
       <text class="tiny">{{guide.inline}}</text>
-      <text wx:for="{{stageRules}}" wx:key="name" wx:if="{{item.on}}" class="tiny guide__inline-more"> · {{item.name}}＝{{item.short}}</text>
+      <text wx:for="{{stageRules}}" wx:key="name" wx:if="{{item.enabled}}" class="tiny guide__inline-more"> · {{item.name}}＝{{item.short}}</text>
     </view>
   </view>
 
@@ -104,11 +104,17 @@
            右侧那句回答的是「这是永久被动，还是只有本局？」——习得是永久的，效果每局从头算。 -->
       <view class="row--between">
         <text class="section__title">本门新法</text>
-        <text class="tiny">习得后每局生效</text>
+        <text class="tiny">习得后每局生效 · 可关</text>
       </view>
       <view wx:for="{{stageRules}}" wx:key="name" class="stage-rule">
-        <text class="tag {{item.on ? 'tag--jade' : 'tag--grey'}}">{{item.on ? '已得' : item.atName}}</text>
+        <text class="tag {{item.tagCls}}">{{item.stateText}}</text>
         <text class="tiny grow stage-rule__text">{{item.name}} · {{item.desc}}</text>
+        <!-- 关掉之后这一局就真的不触发：想专心练基础记忆的人得有退路。
+             不用原生 switch：它在墨底上的未选中轨道是块白，和这套皮肤打架。 -->
+        <view wx:if="{{item.toggle}}"
+          class="stage-rule__toggle {{item.enabled ? 'stage-rule__toggle--on' : ''}} pressable"
+          hover-class="pressable--on" data-name="{{item.name}}" data-next="{{item.enabled ? 'off' : 'on'}}"
+          bindtap="onToggleTwist">{{item.enabled ? '开' : '关'}}</view>
       </view>
     </view>
 

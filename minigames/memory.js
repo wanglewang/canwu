@@ -26,8 +26,13 @@ const RUSH_MAX = 1.9;      // 抢记倍率上限：一个字都没闪就抢（�
 const RUSH_MIN = 1.2;      // 快要闪完才抢，只剩这点加成
 const STREAK_STEP = 0.15;  // 连对每多一轮 +15%
 const STREAK_CAP = 0.45;   // 连对加成封顶 +45%
-const REVERSE_AT = 3;      // 逆诵：第 3 轮起，奇轮倒着点
-const REPEAT_AT = 5;       // 叠印：第 5 轮起允许重复格子
+// 「第几轮起」和「哪个段位解锁」是两件事，别用一个常量兼着——
+// 上一版 REPEAT_AT = 5 同时当轮次与段位索引，于是准备页在「圆满」就写叠印已解锁
+// （STAGE_RULES at:4），进局却要「大圆满」（索引 5）才生效，说了不兑现。
+const REVERSE_ROUND = 3;   // 逆诵：第 3 轮起，且只看奇数轮
+const REVERSE_TIER = 3;    // 逆诵：大成解锁（TIERS[3]）
+const REPEAT_ROUND = 5;    // 叠印：第 5 轮起
+const REPEAT_TIER = 4;     // 叠印：圆满解锁（TIERS[4]，与 STAGE_RULES at:4 对齐）
 // 评级按「理论满分的百分比」给，不写死分数。
 // 高难档轮数多、满分自然高，写死分数会让绝境比简单更容易拿 S。
 const GRADE_RATIO = { S: 0.78, A: 0.50, B: 0.26 };
@@ -36,6 +41,11 @@ function create(ctx) {
   const p = ctx.params || {};
   const perks = ctx.perks || {};
   const stageIdx = typeof perks.tier === 'number' ? perks.tier : 0;
+  // 玩家可以在准备页把逆诵 / 叠印关掉，专心练基础记忆。
+  // 关掉是「这局不启用」，不是「还没解锁」——两者在提示上要分开。
+  const offTwists = Array.isArray(perks.offTwists) ? perks.offTwists : [];
+  const reverseOn = stageIdx >= REVERSE_TIER && offTwists.indexOf('逆诵') < 0;
+  const repeatOn = stageIdx >= REPEAT_TIER && offTwists.indexOf('叠印') < 0;
   const theme = ctx.theme || {};
   const grid = p.grid || 9;
   const startLen = p.startLen || 2;
@@ -163,11 +173,20 @@ function create(ctx) {
     }, flashMs);
   }
 
+  // 轮间预告：逆诵 / 叠印都是「第 N 轮起」生效。等那一轮闪起来才说，玩家第一下
+  // 已经点下去了——所以在前一轮结算时就先报出来，让他有整整一个间隙去换脑子。
+  function ruleHintFor(r) {
+    const out = [];
+    if (reverseOn && r === REVERSE_ROUND) out.push('下一轮起逆诵：从末字往前点');
+    if (repeatOn && r === REPEAT_ROUND) out.push('下一轮起叠印：同一格要连点两下');
+    return out.join(' · ');
+  }
+
   function beginRound() {
     if (done) return;
     const len = roundLen(round);
-    reversed = stageIdx >= REVERSE_AT && round >= REVERSE_AT && round % 2 === 1;
-    const allowRepeat = stageIdx >= REPEAT_AT && round >= REPEAT_AT;
+    reversed = reverseOn && round >= REVERSE_ROUND && round % 2 === 1;
+    const allowRepeat = repeatOn && round >= REPEAT_ROUND;
     const picked = [];
     if (allowRepeat) {
       for (let i = 0; i < len; i += 1) picked.push(C.randInt(grid));
@@ -185,7 +204,11 @@ function create(ctx) {
     accepting = false;
     vm.phase = 'flashing';
     vm.status = '第 ' + round + ' 轮 · 记住口诀次第';
-    vm.banner = reversed ? '逆诵：从末字往前' : '';
+    // 本轮生效的规则要一直挂着，不能只在开头闪一下：输入阶段才是真正要用它的时候。
+    const bannerBits = [];
+    if (reversed) bannerBits.push('逆诵：从末字往前');
+    if (allowRepeat && round === REPEAT_ROUND) bannerBits.push('叠印：同一格连点两下');
+    vm.banner = bannerBits.join(' · ');
     vm.meter = { label: '口诀次第', value: 0, max: len };
     C.clearCells(vm.cells);
     syncHud();
@@ -282,17 +305,20 @@ function create(ctx) {
     const tag = rushed ? '抢记 ×' + rushMul.toFixed(1) : theme.hit || '口诀无误';
     C.flash(vm, tag + ' +' + gain, 'gold');
     syncHud();
+    const nextHint = round < maxRound ? ruleHintFor(round + 1) : '';
+    if (nextHint) vm.status = nextHint;
     render();
     if (round >= maxRound) {
       finishOnce(maxRound + ' 轮全过 · 得分 ' + score);
       return;
     }
+    // 有预告就把间隙拉长：这行字是给下一轮定心的，一闪而过等于没说。
     bag.after(function () {
       if (done) return;
       round += 1;
       C.clearCells(vm.cells);
       beginRound();
-    }, 640);
+    }, nextHint ? 1500 : 640);
   }
 
   // ---------------------------------------------------------------- 输入

@@ -9,6 +9,7 @@ const data = require('../data/practice.js');
 const skills = require('../data/skills.js');
 const guides = require('../data/guides.js');
 const weapons = require('../data/weapons.js');
+const worldData = require('../data/world.js');
 
 let passed = 0;
 function check(name, fn) {
@@ -74,7 +75,7 @@ function advance(ms) {
 
 // ---------------------------------------------------------------- 驱动
 function makeCtx(method, perks, params) {
-  const st = { vm: null, finished: null, flash: [], roundKey: '', plan: null, planAt: 0, at: 0, pressed: false, seen: {}, sawReverse: false };
+  const st = { vm: null, finished: null, flash: [], roundKey: '', plan: null, planAt: 0, at: 0, pressed: false, seen: {}, sawReverse: false, sawRepeat: false, hints: [] };
   const c = index.createGame(method.game, {
     params: params || method.params,
     difficulty: 'normal',
@@ -89,6 +90,9 @@ function makeCtx(method, perks, params) {
         st.roundKey = vm.timeText;
       }
       if (vm.timeText && vm.timeText.indexOf('逆诵') >= 0) st.sawReverse = true;
+      if (vm.banner && vm.banner.indexOf('叠印') >= 0) st.sawRepeat = true;
+      // 轮间预告：这一行是在下一轮闪起来之前报的，玩家靠它换脑子，所以单独记。
+      if (vm.status && vm.status.indexOf('下一轮') === 0 && st.hints.indexOf(vm.status) < 0) st.hints.push(vm.status);
       if (vm.phase === 'flashing') {
         for (let i = 0; i < vm.cells.length; i += 1) {
           if (vm.cells[i].cls.indexOf('cell--lit') >= 0 && st.flash[st.flash.length - 1] !== i) st.flash.push(i);
@@ -178,7 +182,12 @@ function actionFor(game) {
   }
   if (game === 'memory') {
     return function (vm, c, st) {
-      if (vm.phase === 'input' && vm.meter && vm.meter.value < st.flash.length) c.tap(st.flash[vm.meter.value]);
+      if (vm.phase !== 'input' || !vm.meter || vm.meter.value >= st.flash.length) return;
+      // 逆诵轮要从末字往前点。判断依据就是 HUD 上那行「第 N / 7 轮 · 逆诵」——
+      // 不认这一条，驱动每局一到第 3 轮就必然全错，逆诵等于从来没被测过。
+      const back = vm.timeText && vm.timeText.indexOf('逆诵') >= 0;
+      const i = back ? st.flash.length - 1 - vm.meter.value : vm.meter.value;
+      c.tap(st.flash[i]);
     };
   }
   if (game === 'bridge') {
@@ -663,6 +672,93 @@ check('记序复现：大成解锁逆诵', function () {
     drive(ctx, 'memory', 60000, 60);
     assert.ok(ctx.st.sawReverse, '大成之后没有出现逆诵轮');
     ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('记序复现：规则要变，得在前一轮结束时就说', function () {
+  // 逆诵是「第 3 轮起」生效。等第 3 轮闪起来才写，玩家第一下已经点下去了，
+  // 只会觉得「好好记着顺序，突然让倒着点」。预告必须落在上一轮的间隙里。
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('recite'), { tier: 3 });
+    ctx.c.start();
+    drive(ctx, 'memory', 60000, 60);
+    assert.ok(ctx.st.hints.some(function (h) { return h.indexOf('逆诵') >= 0; }),
+      '逆诵没有在上一轮结束前预告：' + JSON.stringify(ctx.st.hints));
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('记序复现：把逆诵关掉，这一门就真的不逆诵了', function () {
+  // 逆诵是「改规矩」：练到解锁之后，想安心练基础记忆的人该有退路。
+  // 开关只影响这一门、这一局，不是「还没解锁」——所以断言的是「跑过第 3 轮但没逆诵」。
+  installClock();
+  try {
+    const ctx = makeCtx(data.getMethod('recite'), { tier: 3, offTwists: ['逆诵'] });
+    ctx.c.start();
+    drive(ctx, 'memory', 60000, 60);
+    assert.ok(!ctx.st.sawReverse, '关掉逆诵之后还在倒着点');
+    // 没跑到第 3 轮的话，上面那句等于没测：先证明它确实走过了逆诵本来该生效的那一轮。
+    const txt = ctx.st.finished ? ctx.st.finished.summary : '';
+    assert.ok(/第 [3-7] 轮|7 轮全过/.test(txt), '没跑到第 3 轮，这条断言等于没测：' + txt);
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('阵灯推演：关掉死门，盘上就没有不能点的格子', function () {
+  installClock();
+  try {
+    const m = data.getMethod('arrayEye');
+    const on = makeCtx(m, { tier: 5 });
+    on.c.start();
+    drive(on, 'lights', 20000, 80);
+    const deadWhenOn = on.st.vm.cells.filter(function (c) { return c.cls.indexOf('cell--dead') >= 0; }).length;
+    assert.ok(deadWhenOn > 0, '大圆满开局居然没有死门，断言前提不成立');
+    on.c.destroy();
+  } finally { restoreClock(); }
+  installClock();
+  try {
+    const off = makeCtx(data.getMethod('arrayEye'), { tier: 5, offTwists: ['死门'] });
+    off.c.start();
+    drive(off, 'lights', 20000, 80);
+    const deadWhenOff = off.st.vm.cells.filter(function (c) { return c.cls.indexOf('cell--dead') >= 0; }).length;
+    assert.strictEqual(deadWhenOff, 0, '关掉死门之后盘上还有 ' + deadWhenOff + ' 格不能点的');
+    off.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('阵灯推演：关掉双门只是回到一格死门，不是全没有', function () {
+  installClock();
+  try {
+    const off = makeCtx(data.getMethod('arrayEye'), { tier: 5, offTwists: ['双门'] });
+    off.c.start();
+    drive(off, 'lights', 20000, 80);
+    const n = off.st.vm.cells.filter(function (c) { return c.cls.indexOf('cell--dead') >= 0; }).length;
+    assert.strictEqual(n, 1, '关掉双门后死门数不是 1：' + n);
+    off.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('记序复现：叠印的解锁段位与准备页说明一致（圆满，不是大圆满）', function () {
+  // data/practice.js 的 STAGE_RULES.recite 写的是 at:4（圆满）解锁叠印，
+  // 准备页据此把它标成「已解锁」。玩法内阈值若比它更晚，就是说了不兑现。
+  const rule = data.STAGE_RULES.recite.filter(function (r) { return r.name === '叠印'; })[0];
+  assert.ok(rule, 'STAGE_RULES 里没有叠印');
+  installClock();
+  try {
+    const atTier = makeCtx(data.getMethod('recite'), { tier: rule.at });
+    atTier.c.start();
+    drive(atTier, 'memory', 140000, 60);
+    assert.ok(atTier.st.sawRepeat, '说明写「' + worldData.TIERS[rule.at].name + '解锁叠印」，进局却没有叠印');
+    atTier.c.destroy();
+  } finally { restoreClock(); }
+  installClock();
+  try {
+    const lower = makeCtx(data.getMethod('recite'), { tier: rule.at - 1 });
+    lower.c.start();
+    drive(lower, 'memory', 140000, 60);
+    assert.ok(!lower.st.sawRepeat, '还没到「' + worldData.TIERS[rule.at].name + '」就出了叠印');
+    lower.c.destroy();
   } finally { restoreClock(); }
 });
 

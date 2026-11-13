@@ -1220,6 +1220,30 @@
 
 .stage-rule__text { line-height: var(--lh-body); }
 
+/* 胶囊开关：墨底上只有两句状态字，开是金边金字、关是灰边灰字。
+   原生 switch 在深色下未选中轨道是一块白，和这套皮肤打架，所以自己做。
+   热区撑到 --touch-xs，别让两个字小到点不准。 */
+.stage-rule__toggle {
+  flex: none;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72rpx;
+  min-height: var(--touch-xs);
+  padding: 0 10rpx;
+  border: 1rpx solid var(--c-imm-line);
+  border-radius: 999rpx;
+  color: var(--c-imm-text-3);
+  font-size: var(--fs-caption);
+  letter-spacing: 1rpx;
+}
+
+.stage-rule__toggle--on {
+  border-color: var(--c-imm-gold-dim);
+  color: var(--c-imm-gold);
+}
+
 /* ---------- 三连 S 晋级：准备页常驻进度 ---------- */
 .streak-card {
   padding: 16rpx 20rpx;
