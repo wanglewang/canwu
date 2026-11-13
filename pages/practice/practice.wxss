@@ -458,6 +458,11 @@
 .cell--bad { background: #b4453c; color: #fffdf7; animation: badShake 0.22s ease-out; }
 .cell--hidden { background: #d5cdb9; color: #9a9a8b; }
 .cell--open { background: #f7f3e8; color: var(--ink, #2f6b5b); font-weight: 700; }
+/* 探禁：翻开格上的数字按大小分色（1 / 2 / 3+），一眼扫得出「1 的边界在哪」。
+   这是经典扫雷里唯一值得照搬的辅助；把数字画成符文反而读不出来。 */
+.cell--open.cell--t1 { color: #2f6b5b; }
+.cell--open.cell--t2 { color: #b4453c; }
+.cell--open.cell--t3 { color: #a8791f; }
 .cell--flag { background: #f5ead2; color: #a2762d; }
 .cell--sensed { background: #f5e2de; color: #b4453c; }
 .cell--mine { background: #b4453c; color: #fffdf7; animation: badShake 0.3s ease-out; }

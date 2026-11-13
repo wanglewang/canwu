@@ -56,6 +56,7 @@ Page({
     streakDots: [],
     theme: themes.themeOf('forge', 'click'),
     twistName: '常规功课',
+    twistTag: '本门机制',
     twistDesc: '',
     stageRules: [],
     hintLabel: '提示',
@@ -196,6 +197,7 @@ Page({
         streakDots: [],
         theme: this.theme,
         twistName: '长按蓄力',
+        twistTag: '',
         twistDesc: '按住蓄力，松手停在朱线区间。越贴近正中，评级越高。',
         stageRules: [],
       });
@@ -234,7 +236,7 @@ Page({
     for (let i = 0; i < streakGoal; i += 1) streakDots.push({ id: i, on: i < streakNow });
     const streakText = streakNow > 0
       ? '已连 ' + streakNow + ' 局 S · 再 ' + (streakGoal - streakNow) + ' 局直接晋一段'
-      : '连续 ' + streakGoal + ' 局 S 直接晋一段';
+      : '连续 ' + streakGoal + ' 局 S 直接晋一段 · 非 S 断连';
 
     const realms = worldData.getWorld(state.worldId).realms;
     const realmNow = state.realmIndex + 1;
@@ -285,6 +287,7 @@ Page({
       streakDots: streakDots,
       theme: theme,
       twistName: twist.name,
+      twistTag: '本门机制',
       twistDesc: twist.desc,
       stageRules: stageRules,
     });
@@ -676,7 +679,7 @@ Page({
     const self = this;
     wx.showModal({
       title: '中途收功',
-      content: '这一局会按「走火」结算，几乎拿不到收益。确定现在收功？',
+      content: '这一局按「走火」结算，几乎拿不到收益，连 S 进度也会断。确定收功？',
       confirmText: '收功',
       confirmColor: '#b4453c',
       success: function (res) {

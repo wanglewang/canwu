@@ -880,7 +880,7 @@ check('照影符：无猜布局能纯靠数字零失误翻完全盘', function (
   } finally { restoreClock(); }
 });
 
-check('照影符：旗数对上点数字格可连开，旗插错照样踩禁制', function () {
+check('照影符：镇符数对上点数字格可连开，压错位置照样踩禁制', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('tanlei'));
@@ -889,7 +889,7 @@ check('照影符：旗数对上点数字格可连开，旗插错照样踩禁制'
     const cells = ctx.st.vm.cells;
     const isHidden = function (j) { return cells[j].cls.indexOf('cell--hidden') >= 0; };
     const isOpen = function (j) { return cells[j].cls.indexOf('cell--open') >= 0; };
-    // 旗数不合：只点数字格，不该翻开任何东西。
+    // 符数不合：只点数字格，不该翻开任何东西。
     let numCell = -1;
     for (let i = 0; i < cells.length && numCell < 0; i += 1) {
       if (isOpen(i) && cells[i].label && mineNeighbors(i, 6, 6).some(isHidden)) numCell = i;
@@ -900,10 +900,10 @@ check('照影符：旗数对上点数字格可连开，旗插错照样踩禁制'
     };
     const beforeOpen = openCount();
     ctx.c.tap(numCell);
-    assert.ok(/旗数未合/.test(ctx.st.vm.status), '没插旗就点数字格，应该提示旗数未合');
-    assert.strictEqual(openCount(), beforeOpen, '旗数不合竟然连开了');
+    assert.ok(/镇符未合/.test(ctx.st.vm.fx && ctx.st.vm.fx.text), '没布符就点数字格，应该浮字提示镇符未合');
+    assert.strictEqual(openCount(), beforeOpen, '符数不合竟然连开了');
 
-    // 插够旗数再点：要么连开安全格，要么旗插错踩到禁制，两者都说明 chord 真的生效了。
+    // 布够镇符再点：要么连开安全格，要么压错踩到禁制，两者都说明 chord 真的生效了。
     let target = -1;
     let toFlag = [];
     for (let i = 0; i < cells.length && target < 0; i += 1) {
@@ -915,12 +915,12 @@ check('照影符：旗数对上点数字格可连开，旗插错照样踩禁制'
       }).length;
       if (num >= 1 && marked === 0 && unknown.length > num) { target = i; toFlag = unknown.slice(0, num); }
     }
-    assert.ok(target >= 0, '构造不出旗数对上的连开局面');
+    assert.ok(target >= 0, '构造不出符数对上的连开局面');
     for (let k = 0; k < toFlag.length; k += 1) ctx.c.longpress(toFlag[k]);
     const beforeHearts = ctx.st.vm.hearts.value;
     ctx.c.tap(target);
     const changed = openCount() > beforeOpen || ctx.st.vm.hearts.value < beforeHearts;
-    assert.ok(changed, '旗数对上后点数字格，既没连开也没判误触');
+    assert.ok(changed, '符数对上后点数字格，既没连开也没判误触');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });

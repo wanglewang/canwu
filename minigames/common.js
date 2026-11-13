@@ -163,6 +163,9 @@ function makeVm(cols, cellCount, status, hint) {
       showHearts: false,
       showMeter: false,
       showProgress: true,
+      // 局内评级徽章：只有「档位会一直往上爬」的玩法才值得显。按用时反推档位的玩法
+      // （探禁）开局必是 S，摆出来就是骗人，那种玩法自己关掉。
+      showGradeNow: true,
       showCombo: false,
       showSwipe: false,
       showPad: false,

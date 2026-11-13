@@ -404,12 +404,29 @@ check('照影符按经典扫雷深耕：无猜、首点空白、连开、分数�
   const p = read('data/practice.js');
   assert.ok(/function solvable/.test(m) && /LAYOUT_TRIES/.test(m), '布禁制没验「不用猜」');
   assert.ok(/firstZone/.test(m), '首点及其八邻没有免禁制');
-  assert.ok(/function chord/.test(m), '插旗后没有连开');
+  assert.ok(/function chord/.test(m), '布符后没有连开');
   assert.ok(/scoreOf\(\)/.test(m) && !/score: elapsed/.test(m), '结算分仍是耗时，破纪录方向是反的');
   assert.ok(!/hard \? 3/.test(m), '还在 ctx.difficulty 上叠 +3，三档会挤成一盘');
   assert.ok(/MINE_GLYPH = '✕'/.test(m) && /FLAG_GLYPH = '⚑'/.test(m), '盘面还在写汉字');
   assert.ok(/不必猜/.test(g) && /连开/.test(g) && /⚑/.test(g), '玩法说明没讲无猜与连开');
   assert.ok(/tanlei: \[/.test(p) && /圆照/.test(p), '阶段新法没登记照影符');
+});
+
+check('照影符局内只讲「在追哪一档」：不摆当前评级，HUD 不重复计数', function () {
+  const m = read('minigames/mines.js');
+  const g = read('data/guides.js');
+  const w = read('pages/practice/practice.wxml');
+  // 评级只看用时，按当前用时反推出来的档，开局那一刻必是 S。摆进 HUD 等于告诉玩家
+  // 「已经拿到 S 了」，之后只能看它一路往下掉。局内改成只报下一档的时限。
+  assert.ok(/showGradeNow = false/.test(m), '照影符又把「当前评级」摆回 HUD 了');
+  assert.ok(/function paceGoal/.test(m), '局内没给「下一档还差几秒」');
+  assert.ok(m.indexOf("'还剩 '") < 0, 'HUD 又用「还剩 N 格」重复「已探 X / Y」');
+  assert.ok(/不必靠猜/.test(m), '提示区没讲「此盘不必猜」');
+  // 扫雷原生词一律换题材词：旗 → 镇符（盘面上的 ⚑ 只是个记号，不落汉字）。
+  assert.ok(!/插旗|旗数/.test(m + g), '还在用「插旗 / 旗数」，扫雷既视感没洗掉');
+  assert.ok(/镇符/.test(m) && /镇符/.test(g), '镇符没进玩法与说明');
+  // 玩法名一屏只写一处：页头那一处，其余卡片的 tag 都该收掉。
+  assert.strictEqual((w.match(/\{\{gameName\}\}/g) || []).length, 1, '同一屏上写了两遍玩法名');
 });
 
 check('斜向擦角：插值只认中心内圈，抬手仍用整格命中补定', function () {

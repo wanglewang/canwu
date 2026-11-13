@@ -80,8 +80,8 @@ const PRACTICE_METHODS = [
   },
   {
     id: 'tanlei', name: '持符探禁', game: 'mines', theme: 'tanlei', twist: 'tanlei',
-    desc: '照影符照出石格下的禁制。看数字推位置、插旗连开，把安全石格一处处翻明。',
-    tip: '点中间一格开空白区 · 看数字推禁制 · 长按插旗可连开',
+    desc: '照影符照出石格下的禁制。看数字推位置、布镇符连开，把安全石格一处处翻明。',
+    tip: '点一格开一片 · 看数字推禁制 · 长按布镇符',
     base: 50,
     params: { cols: 6, rows: 6, mines: 6 },
   },
@@ -241,7 +241,7 @@ function difficultyList(prof, current) {
       desc: d.desc,
       unlocked: i <= idx,
       current: d.key === cur,
-      lockedText: i <= idx ? '' : '熟练度 ' + d.need,
+      lockedText: i <= idx ? '' : '需 ' + d.need + ' 熟练度',
     };
   });
 }
@@ -363,8 +363,8 @@ const STAGE_RULES = {
   ],
   // 照影符是黄阶入门功法，阶段新法只给「看得更清」的便利，不往经典扫雷里加新规则。
   tanlei: [
-    { at: 3, name: '照影', desc: '大成起开局照见 3 处禁制并直接标出，不必靠误触换线索' },
-    { at: 5, name: '圆照', desc: '大圆满起开局照见 5 处禁制' },
+    { at: 3, name: '照影', desc: '大成起每局开局照见 3 处禁制并标出（只在本局生效）' },
+    { at: 5, name: '圆照', desc: '大圆满起每局开局照见 5 处禁制（只在本局生效）' },
   ],
   // 三套经典玩法是黄阶里的入门功课，阶段新法只给「看得更清 / 手更稳」的便利，
   // 不往经典规则里塞新花样——看一眼就会玩，才配叫简单。

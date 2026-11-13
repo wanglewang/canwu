@@ -7,11 +7,11 @@
 //   ① 首点及其八邻无禁制，第一下必开出一片空白，不会开局就被一个数字堵死。
 //   ② 整盘「无猜」：布完禁制用约束传播验一遍，确认从首点纯推理能翻完，否则重布。
 //      新手不该死在「两格只能猜一个」上，那是扫雷最劝退的地方。
-//   ③ 插旗不再只是装饰：点已翻开的数字格，旗数对上就自动连开其余邻格（chord）。
-//      不插旗照样能玩，会用的人才快，所以不破坏「一看就懂」。
+//   ③ 布镇符不再只是装饰：点已翻开的数字格，符数对上就自动连开其余邻格（chord）。
+//      不布符照样能玩，会用的人才快，所以不破坏「一看就懂」。
 //
-// 保留下来的本门机制：三盏心神（误触只扣一盏并让那处显形，耗尽才收功）、长按插旗、
-// 大成开局照见禁制。盘面只有数字与两个通用符号（✕ 禁制 / ⚑ 旗），不落汉字。
+// 保留下来的本门机制：三盏心神（误触只扣一盏并让那处显形，耗尽才收功）、长按布镇符、
+// 大成开局照见禁制。盘面只有数字与两个通用符号（✕ 禁制 / ⚑ 镇符），不落汉字。
 //
 // finish.score 一律「越大越好」：engine.applyPractice 按 score > prevBest 记破纪录，
 // 旧实现把「耗时秒数」当 score 传出去，越慢反而越容易破纪录，方向是反的。
@@ -21,7 +21,11 @@ const C = require('./common.js');
 const LAYOUT_TRIES = 64;   // 单格可解布局约占十几分之一，64 次足够；找不到就接受最后一盘，绝不死循环
 const HEARTS_BY_DEPTH = [3, 3, 3, 2, 2];
 const MINE_GLYPH = '✕';
-const FLAG_GLYPH = '⚑';
+const FLAG_GLYPH = '⚑';   // 镇符：长按落下的记号，仍是个通用符号，不落汉字
+// 评级只看用时，所以「按当前用时换算出来的档」在开局那一刻一定是 S。那个字母摆在局内
+// 等于骗人：玩家会以为 S 已经到手，之后只会看着它一路往下掉。
+// 局内不给档位（extras.showGradeNow = false），只给下一档的时限，让玩家知道在追什么。
+const GRADE_LINE = [25, 45, 75];
 
 function create(ctx) {
   const p = ctx.params || {};
@@ -38,10 +42,12 @@ function create(ctx) {
   const tier = perks.tier || 0;
   const sensedCount = tier >= 5 ? 5 : (tier >= 3 || perks.easy ? 3 : 0);
   const maxHearts = HEARTS_BY_DEPTH[depth];
-  const vm = C.makeVm(cols, n, '点开第一格，禁制才会显形', ctx.tip || '点开格子，长按可插旗标记');
+  // 提示区只留规则，操作速记交给 guides 的 inline（两行都在讲「长按布镇符」是重复的）。
+  const vm = C.makeVm(cols, n, '点开第一格，禁制才会显形', '误触禁制折一盏心神；此盘已验过，不必靠猜');
   vm.timeText = '00:00';
   vm.scoreText = '已探 0 / ' + (n - mineCount);
   vm.extras.showHearts = true;
+  vm.extras.showGradeNow = false;
   vm.extras.noGuess = false;
   vm.hearts = { value: maxHearts, max: maxHearts };
 
@@ -196,10 +202,20 @@ function create(ctx) {
   }
 
   function gradeTime(t) {
-    if (t <= 25) return 'S';
-    if (t <= 45) return 'A';
-    if (t <= 75) return 'B';
+    if (t <= GRADE_LINE[0]) return 'S';
+    if (t <= GRADE_LINE[1]) return 'A';
+    if (t <= GRADE_LINE[2]) return 'B';
     return 'C';
+  }
+
+  // 局内的目标句：只讲「下一档还差几秒」，不讲「还剩几格」——还剩几格和上面那个
+  // 「已探 X / Y」是同一个数的两种说法，讲两遍只是让 HUD 更挤。
+  function paceGoal(t) {
+    const grade = ['S', 'A', 'B'];
+    for (let i = 0; i < GRADE_LINE.length; i += 1) {
+      if (t <= GRADE_LINE[i]) return grade[i] + ' 线 ' + GRADE_LINE[i] + ' 秒 · 已用 ' + t + ' 秒';
+    }
+    return '已过 B 线 · 探完只算 C';
   }
 
   // 越大越好：探明格数 ×10，扣用时与误触。与 engine 的破纪录比较方向一致。
@@ -215,24 +231,30 @@ function create(ctx) {
     vm.progressText = opened + ' / ' + safeTotal + ' 格';
     vm.scoreText = '已探 ' + opened + ' / ' + safeTotal;
     vm.hearts = { value: hearts, max: maxHearts };
-    vm.gradeNow = gradeTime(elapsed);
-    vm.goal = '还剩 ' + Math.max(0, safeTotal - opened) + ' 格 · 心神 ' + hearts + ' 盏';
+    vm.goal = paceGoal(elapsed);
   }
 
   function paint() {
     for (let i = 0; i < n; i += 1) {
       if (revealed[i]) {
+        const num = numbers[i];
         vm.cells[i].cls = 'cell cell--open';
-        vm.cells[i].label = numbers[i] > 0 ? String(numbers[i]) : '';
+        vm.cells[i].label = num > 0 ? String(num) : '';
+        // 数字按大小分色（1/2/3+ 三档）：扫一眼就能看出 1 与 2 的边界，
+        // 这是经典扫雷里唯一值得照搬的辅助，比把数字画成符文更能读。
+        vm.cells[i].tone = num >= 3 ? 3 : num;
       } else if (exposed[i] || sensedSet[i]) {
         vm.cells[i].cls = 'cell cell--mine';
         vm.cells[i].label = MINE_GLYPH;
+        vm.cells[i].tone = 0;
       } else if (flags[i]) {
         vm.cells[i].cls = 'cell cell--flag';
         vm.cells[i].label = FLAG_GLYPH;
+        vm.cells[i].tone = 0;
       } else {
         vm.cells[i].cls = 'cell cell--hidden';
         vm.cells[i].label = '';
+        vm.cells[i].tone = 0;
       }
     }
   }
@@ -291,8 +313,8 @@ function create(ctx) {
     render();
   }
 
-  // 经典扫雷的 chord：数字格周围旗数对上，一键连开其余邻格。
-  // 旗插错照样会踩到禁制，按误触规矩扣心神，不替玩家兜底。
+  // 经典扫雷的 chord：数字格周围符数对上，一键连开其余邻格。
+  // 符压错位置照样会踩到禁制，按误触规矩扣心神，不替玩家兜底。
   function chord(index) {
     if (!revealed[index] || numbers[index] <= 0) return;
     const nb = neighbors(index);
@@ -305,7 +327,10 @@ function create(ctx) {
     }
     if (pending.length === 0) return;
     if (marked !== numbers[index]) {
-      vm.status = '旗数未合，先插旗再点数字格';
+      // 这句以前只写进 vm.status，而 HUD 那行是 goal || status —— goal 一直有值，
+      // 所以它从来没露过面。改成浮字，玩家才知道为什么点了没动静。
+      vm.status = '镇符未合';
+      C.flash(vm, '镇符未合 · 先布符再点数字格', 'bad');
       render();
       return;
     }
@@ -347,7 +372,8 @@ function create(ctx) {
     if (revealed[index]) { chord(index); return; }
     if (flags[index] || exposed[index]) return;
     if (sensedSet[index]) {
-      vm.status = '此处已照见禁制，别再点它';
+      vm.status = '此处已照见禁制';
+      C.flash(vm, '此处已照见禁制 · 不必再点', 'bad');
       render();
       return;
     }
