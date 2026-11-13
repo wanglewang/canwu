@@ -299,9 +299,16 @@ if (copy.TERMS.length < 15) errors.push('术语词典覆盖不足');
 else checked += 1;
 
 for (const m of allWxml.matchAll(/<term[^>]*term-key="([^"]+)"/g)) {
+  // {{item.demo}} 这类动态绑定由页面数据给，改读页面里的字面量常量来校验，不在这里放过。
+  if (m[1].indexOf('{{') === 0) continue;
   if (!termKeys.has(m[1])) errors.push('页面引用了不存在的术语：' + m[1]);
   else checked += 1;
 }
+
+const demoTerm = /DEMO_TERM = '([^']+)'/.exec(fs.readFileSync(path.join(ROOT, 'pages/guide/guide.js'), 'utf8'));
+if (!demoTerm || !termKeys.has(demoTerm[1])) {
+  errors.push('指南名词速查的示范术语不存在：' + (demoTerm ? demoTerm[1] : '未声明 DEMO_TERM'));
+} else checked += 1;
 
 // 跨页复用文案若再抄回 WXML，同一句话就会出现两种版本。
 const sharedCopy = [

@@ -369,9 +369,9 @@ check('战力明细收进「说明」真源，首屏只留数值；指南保留�
   assert.ok(!/powerOpen|powerLines|怎么提升战力/.test(index + indexJs), '主页又把长公式印回脸上');
   assert.ok(/ov\.power/.test(index), '主页连战力数值都不显示了');
   const guide = read('pages/guide/guide.js');
-  assert.ok(/title: '二 · 战力从哪来'/.test(guide), '修行指南没有战力专节');
+  assert.ok(/title: '四 · 战力从哪来'/.test(guide), '修行指南没有战力专节');
   assert.ok(/战力 = 属性加权/.test(guide) && /轮着练/.test(guide), '指南没讲公式与轮换练');
-  assert.ok(/title: '十一 · 离线收益的时间'/.test(guide), '插了新专节，后面章节编号没顺延');
+  assert.ok(/title: '二 · 离线挂机收益规则'/.test(guide), '插了新专节，后面章节编号没顺延');
 });
 
 check('照影符按经典扫雷深耕：无猜、首点空白、连开、分数方向', function () {
@@ -462,8 +462,8 @@ check('三连 S 直接晋级：准备页有进度、结算页有回执、指南�
   assert.ok(!/@media\s*\(\s*prefers-color-scheme/.test(css), '参悟页又按系统明暗翻转了，盘面会突然换色');
   assert.ok(/r\.totalGain/.test(js) && /其中直接晋级/.test(js) && /三连圆满 · 晋/.test(js), '结算页没把直接补的那笔讲清');
   assert.ok(/连 S 进度/.test(js) && /sStreakGoal/.test(js), '结算页没写还差几局');
-  assert.ok(/title: '六 · 三连 S 直接晋级'/.test(guide) && /连续完成 3 局 S/.test(guide), '指南没有三连 S 专节');
-  assert.ok(/title: '十一 · 离线收益的时间'/.test(guide), '新增专节后章节编号没顺延');
+  assert.ok(/title: '七 · 三连 S 直接晋级'/.test(guide) && /连续完成 3 局 S/.test(guide), '指南没有三连 S 专节');
+  assert.ok(/title: '二 · 离线挂机收益规则'/.test(guide), '新增专节后章节编号没顺延');
 });
 
 check('页面骨架统一：四 tab + 子页用仙箓皮肤，导航只留原生一层', function () {
@@ -613,10 +613,15 @@ check('术语解释：组件、词典与指南速查读同一份数据', functio
   let used = 0;
   for (const rel of WXML) {
     for (const m of read(rel).matchAll(/<term[^>]*term-key="([^"]+)"/g)) {
+      // 动态绑定（{{item.demo}}）读页面里的字面量常量，见下面单独一条断言。
+      if (m[1].indexOf('{{') === 0) continue;
       assert.ok(keys.has(m[1]), rel + ' 引用了不存在的术语：' + m[1]);
       used += 1;
     }
   }
+  const demoTerm = /DEMO_TERM = '([^']+)'/.exec(read('pages/guide/guide.js'));
+  assert.ok(demoTerm && keys.has(demoTerm[1]),
+    '指南名词速查的示范术语不存在：' + (demoTerm ? demoTerm[1] : '未声明 DEMO_TERM'));
   // 改版后术语角标不再常驻首屏：解释统一进说明页的「名词速查」，
   // 只在局内准备页、人物设置等少数地方保留就地角标。
   assert.ok(used >= 4, '局内 / 设置的就地术语角标被删光了：' + used + ' 处');
@@ -662,13 +667,38 @@ check('信息架构：主页只做导航，说明独立成页，低频内容默�
   assert.ok(/open: false/.test(read('pages/help/help.js')), '说明页没有默认折叠');
   const guide = read('pages/guide/guide.wxml');
   assert.ok(/guide-toc/.test(guide) && /onJump/.test(guide) && /onToggleAll/.test(guide), '指南缺目录或全部展开');
-  assert.ok(/item\.open \|\| showAll/.test(guide), '指南章节不能折叠');
+  // 展开态只有 sections[i].open 一套：再并存一个 showAll，全局展开时点单节标题会「点了没反应」。
+  assert.ok(/wx:if="\{\{item\.open\}\}"/.test(guide), '指南章节不能折叠');
+  assert.ok(!/showAll/.test(guide), '指南又并存了 showAll 与 item.open 两套展开状态');
+  assert.ok(/copy\.actions\.collapseAll/.test(guide) && /copy\.actions\.expandAll/.test(guide),
+    '「全部展开」没有配套的「全部收起」');
+  assert.ok(/onGoAction/.test(guide), '指南章节里没有「前去 XX」的下一步按钮');
+  assert.ok(/guide-demo/.test(guide) && /<term term-key="\{\{item\.demo\}\}" \/>/.test(guide),
+    '名词速查没有真的「?」示范');
   assert.ok(/id="\{\{item\.id\}\}"/.test(guide) && /pageScrollTo/.test(read('pages/guide/guide.js')),
     '目录点了只展开不滚动，不算直达');
   const copy = require('../data/copy.js');
   assert.ok(copy.formatProgress(2, 3) === '2 / 3', '进度写法没留在文案真源');
   assert.ok(/copy\.formatCost/.test(read('pages/skills/skills.js'))
     && /copy\.formatGain/.test(read('pages/index/index.js')), '文案真源的格式化函数没接进页面');
+});
+
+check('指南目录按新手阅读流排：先挂机保底与资源，主动玩法在后', function () {
+  const src = read('pages/guide/guide.js');
+  const names = [];
+  for (const m of src.matchAll(/title: '[一二三四五六七八九十]+ · ([^']+)'/g)) names.push(m[1]);
+  assert.deepStrictEqual(names, [
+    '怎么变强', '离线挂机收益规则', '灵气与灵石', '战力从哪来', '熟练度与境界',
+    '参悟与小游戏', '三连 S 直接晋级', '切磋与战力码', '称号与道牒',
+    '存档与换设备', '成就与榜单',
+  ], '指南目录顺序又变了：新手要先搞懂挂机保底与资源，再学主动玩法');
+  assert.ok(/SECTIONS\.push\(glossarySection\('十二'\)\)/.test(src), '名词速查不在最后一节');
+  const no = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一'];
+  let i = 0;
+  for (const m of src.matchAll(/title: '([一二三四五六七八九十]+) · /g)) {
+    assert.strictEqual(m[1], no[i], '第 ' + (i + 1) + ' 节编号不是「' + no[i] + '」');
+    i += 1;
+  }
 });
 
 check('功法命名统一：类别·三字正名，前缀严格等于类别', function () {

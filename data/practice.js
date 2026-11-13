@@ -173,7 +173,7 @@ function familyOf(type) {
 const TIERS = [
   { key: 'huang', name: '黄', label: '黄阶', stars: 1, reward: 1.00, attr: 1.00, needRealm: 1, maxRealm: 2, color: '#8a8f83', desc: '最常见的外门功课，便宜、够用，前期靠它起步。' },
   { key: 'xuan', name: '玄', label: '玄阶', stars: 2, reward: 1.50, attr: 1.30, needRealm: 2, maxRealm: 3, color: '#3d8c74', desc: '藏经阁里换得到的中阶功法，收益高出一截。' },
-  { key: 'di', name: '地', label: '地阶', stars: 3, reward: 2.20, attr: 1.70, needRealm: 3, maxRealm: 4, color: '#b8893b', desc: '秘境与论道才得的高阶功法，属性加成明显。' },
+  { key: 'di', name: '地', label: '地阶', stars: 3, reward: 2.20, attr: 1.70, needRealm: 3, maxRealm: 4, color: '#b8893b', desc: '秘境与切磋才得的高阶功法，属性加成明显。' },
   { key: 'tian', name: '天', label: '天阶', stars: 4, reward: 3.20, attr: 2.20, needRealm: 4, maxRealm: 9, color: '#b4453c', desc: '压箱底的绝学，收益最高，也最难得到。' },
 ];
 

@@ -43,3 +43,42 @@
     font-size: var(--fs-body-sm);
     line-height: var(--lh-loose);
 }
+
+/* 目录下面那句「点标签直接跳」：只解释交互，不承担规则。 */
+.guide-tip {
+    display: block;
+    margin-top: var(--sp-2);
+    color: var(--c-text-3);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-body);
+}
+
+/* 展开态标识：亮着的那一节，标题与「收起」一起转金，不用再找右边的小字。 */
+.section__head--on .section__title,
+.section__head--on .section__sub {
+    color: var(--c-gold-text);
+}
+
+/* 名词速查里的真「?」示范：放在这一节最前面，说明问号长什么样、点了会怎样。
+   放末尾要翻二十多条术语才看得见，等于没有。 */
+.guide-demo {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: var(--sp-2);
+    padding-bottom: var(--sp-2);
+    border-bottom: 2rpx solid var(--c-divider);
+}
+
+.guide-demo .tiny {
+    margin: 0 var(--sp-1);
+}
+
+/* 「前去 XX」：次操作，右对齐，别和正文抢注意力。 */
+.guide-act {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: var(--sp-3);
+}

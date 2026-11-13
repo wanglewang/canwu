@@ -6,23 +6,32 @@
   <view class="card guide-toc">
     <view class="row--between">
       <text class="eyebrow">{{copy.sections.guideToc}}</text>
-      <text class="text-link text-link--muted" bindtap="onToggleAll">{{showAll ? copy.actions.oneSection : copy.actions.expandAll}}</text>
+      <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onToggleAll">{{allOpen ? copy.actions.collapseAll : copy.actions.expandAll}}</text>
     </view>
-    <view class="row--wrap mt12">
+    <view class="row--wrap mt8">
       <text wx:for="{{sections}}" wx:key="title" class="toc-chip {{item.open ? 'toc-chip--on' : ''}}" data-index="{{index}}" bindtap="onJump">{{item.short}}</text>
     </view>
+    <text class="guide-tip">{{copy.hints.guideToc}}</text>
   </view>
 
   <view class="section" wx:for="{{sections}}" wx:key="title" id="{{item.id}}">
-    <view class="section__head pressable" hover-class="pressable--on" data-index="{{index}}" bindtap="onToggleSection">
+    <view class="section__head pressable {{item.open ? 'section__head--on' : ''}}" hover-class="pressable--on" data-index="{{index}}" bindtap="onToggleSection">
       <text class="section__title">{{item.title}}</text>
-      <text class="section__sub">{{item.open || showAll ? copy.actions.collapse : copy.actions.expand}}</text>
+      <text class="section__sub">{{item.open ? copy.actions.collapse : copy.actions.expand}}</text>
     </view>
     <text class="tiny mt8">{{item.sub}}</text>
-    <view class="card mt12" wx:if="{{item.open || showAll}}">
+    <view class="card mt12" wx:if="{{item.open}}">
+      <view class="guide-demo" wx:if="{{item.demo}}">
+        <text class="tiny">示范：</text>
+        <term term-key="{{item.demo}}" />
+        <text class="tiny">点它就有解释</text>
+      </view>
       <view class="guide-line" wx:for="{{item.lines}}" wx:for-item="line" wx:key="*this">
         <text class="guide-dot">·</text>
         <text class="body grow">{{line}}</text>
+      </view>
+      <view class="guide-act" wx:if="{{item.action}}">
+        <view class="imm-btn imm-btn--ghost imm-btn--sm pressable" hover-class="pressable--on" data-index="{{index}}" bindtap="onGoAction">{{item.action.label}}</view>
       </view>
     </view>
   </view>

@@ -1,9 +1,17 @@
 'use strict';
 
 // 修行指南：所有数值与 data/、utils/game.js 保持一致，改规则时也要同步这里。
+//
+// 目录顺序按「新手要搞懂的顺序」排，不按功能模块排：
+//   挂机保底收益 → 资源是什么 → 战力怎么涨 → 主动玩法 → 收集与存档兜底 → 名词字典。
+// 章节编号写在 title 里（目录 chip 取「·」后半段），插一节要顺延后面全部编号。
+//
+// action 是「看完这节就能去」的下一步，只给三节：给多了按钮反而把正文挤散。
 const store = require('../../utils/store.js');
 const share = require('../../utils/share.js');
 const copy = require('../../data/copy.js');
+
+const A = copy.UI.actions;
 
 const SECTIONS = [
     {
@@ -11,12 +19,32 @@ const SECTIONS = [
         sub: '两条路，一条保底一条加速',
         lines: [
             '挂机：离线也在攒灵气与熟练度，最多累计 8 小时，每分钟 1.2 灵气、每小时 2.5 熟练度。',
-            '参悟：玩一局小游戏换一大笔熟练度，评级越高收益越高。等是保底，练才是加速。',
+            '参悟：玩一局小游戏换一大笔熟练度，评级越高收益越高。挂机是保底，参悟才是提速。',
             '回来先收下「闭关收获」，再看看今日份例有没有攒够。',
         ],
     },
     {
-        title: '二 · 战力从哪来',
+        title: '二 · 离线挂机收益规则',
+        sub: '离开多久算多久，最多攒 8 小时',
+        lines: [
+            '离线收益最多累计 8 小时，按上次记录的时间到现在的差值计算，境界与功法加成照常生效。',
+            '超过 8 小时的部分不累计：与其放着不动，不如回来练一局，参悟比挂机快得多。',
+            '把设备时间调回过去不会重开每日份例，也不会倒着补出收益；但彻底防作弊仍需服务端时间，当前版本未接。',
+        ],
+    },
+    {
+        title: '三 · 灵气与灵石',
+        sub: '获取渠道不同，用途也略有差别',
+        lines: [
+            '灵气来自挂机、参悟、切磋和每日份例；灵石来自高评级参悟、切磋首胜和每日份例。',
+            '参悟评级 S / A / B 分别额外给 3 / 2 / 1 枚灵石，C 与 F 不给。',
+            '每天参悟满 3 次，可在洞府领份例：灵气 +30、灵石 +10。',
+            '两种资源都用来换功法，但同一次兑换两样都要，所以别只顾攒一样；兑换在藏经阁。',
+        ],
+        action: { label: A.openShop, kind: 'page', url: '/pages/shop/shop' },
+    },
+    {
+        title: '四 · 战力从哪来',
         sub: '一个公式，五条提升途径',
         lines: [
             '战力 = 属性加权 × (1 + 境界加成 + 功法特效)。四项属性按体魄 1.0 / 灵力 1.2 / 悟性 0.8 / 身法 1.0 加权求和；洞府页战力数字下面直接写着这三个数，点「战力从哪来」可看明细。',
@@ -29,27 +57,17 @@ const SECTIONS = [
         ],
     },
     {
-        title: '三 · 灵气与灵石',
-        sub: '两种资源都用来换功法',
-        lines: [
-            '灵气来自挂机、参悟、切磋和每日份例；灵石来自高评级参悟、切磋首胜和每日份例。',
-            '参悟评级 S / A / B 分别额外给 3 / 2 / 1 枚灵石，C 与 F 不给。',
-            '每天参悟满 3 次，可在洞府领份例：灵气 +30、灵石 +10。',
-            '功法页里标了价格的，资源够了就能在藏经阁换得；其余功法靠切磋首胜或机缘。',
-        ],
-    },
-    {
-        title: '四 · 熟练度与境界',
+        title: '五 · 熟练度与境界',
         sub: '功法练深了，人也跟着强',
         lines: [
             '每门功法单独算熟练度：未入门 0 → 入门 100 → 小成 400 → 大成 1000 → 圆满 2500 → 大圆满 6000。',
             '熟练度不只涨属性，还决定你能选多硬的难度档：小成开普通、大成开困难、圆满开极难、大圆满开绝境。练到大成还会解锁技能特效，并开始解锁这一门的阶段新法。',
             '境界看总战力：炼气 0、筑基 75、金丹 170、元婴 300。战力达标后还要过一道「蓄力停区」才能突破。',
-            '连着参同一门功法会心浮气躁、收益递减，换一门有触类旁通；但「连 S 晋级」是每门各算各的，轮着练不会互相蹭进度（见下一节）。',
+            '连着参同一门功法会心浮气躁、收益递减，换一门有触类旁通；但「连 S 晋级」是每门各算各的，轮着练不会互相蹭进度（见「七 · 三连 S 直接晋级」）。',
         ],
     },
     {
-        title: '五 · 参悟与小游戏',
+        title: '六 · 参悟与小游戏',
         sub: '十三门功法，十族玩法，五档难度',
         lines: [
             '十三门功法各配一套独立小游戏：顺光扫斩、辨伪择真、记序复现、循纹递推、节律判定、步法连环、阵灯推演、五行相生、数格辨禁、成对翻牌，再加灵纹连线（连连看）、落石垒基（俄罗斯方块）、三秀同收（消消乐）三套看一眼就会玩的经典玩法。这三套都挂黄阶、前期就买得起；突破境界另用「蓄力停区」。',
@@ -64,9 +82,10 @@ const SECTIONS = [
             '每门功法记一个局内最佳分数，结算会显示得分与是否破纪录。高分本身不额外加熟练度，收益仍由评级与倍率构成决定。',
             '阵眼感应与入定照见每局各两次；数格辨禁误触时扣一盏心神并让那处禁制显形（简单到困难三盏、极难与绝境两盏），耗尽才收功；循纹递推采错露石同样扣心神。',
         ],
+        action: { label: A.practice, kind: 'tab', url: '/pages/cultivate/cultivate' },
     },
     {
-        title: '六 · 三连 S 直接晋级',
+        title: '七 · 三连 S 直接晋级',
         sub: '每门各算各的，连着三局 S 就补满一段',
         lines: [
             '所有小游戏都适用：同一门功法连续完成 3 局 S 评级，就直接把熟练度补到下一个段位门槛（未入门 → 入门 → 小成 → 大成 → 圆满 → 大圆满），不用一格格熬。',
@@ -77,16 +96,17 @@ const SECTIONS = [
         ],
     },
     {
-        title: '七 · 切磋与战力码',
+        title: '八 · 切磋与战力码',
         sub: '会一会青云界的高手',
         lines: [
             '七位预设对手、三处秘境；开打时双方各有 ±15% 战力波动，大成以上的技能还会抬高你的波动下限。',
             '首次战胜会掉落功法；就算落败，也还能拿到少量灵气。',
             '道牒页的战力码以 CW1- 开头，复制给朋友，对方粘贴后就能和你的镜像过招。',
         ],
+        action: { label: A.goBattle, kind: 'page', url: '/pages/battle/battle' },
     },
     {
-        title: '八 · 称号与道牒',
+        title: '九 · 称号与道牒',
         sub: '练过的痕迹都记在这儿',
         lines: [
             '达成条件会自动解锁称号，共 13 个，同时只能佩戴一个。',
@@ -94,7 +114,7 @@ const SECTIONS = [
         ],
     },
     {
-        title: '九 · 存档与换设备',
+        title: '十 · 存档与换设备',
         sub: '进度跟着账号走',
         lines: [
             '每次修炼都先写进本机，再同步到云端；断网或切后台时没写完的部分，下次打开会自动补写。',
@@ -105,7 +125,7 @@ const SECTIONS = [
         ],
     },
     {
-        title: '十 · 成就与榜单',
+        title: '十一 · 成就与榜单',
         sub: '给自己留个记号',
         lines: [
             '道牒页的「修行印记」按参悟次数、切磋胜场、评级、称号、境界等实时计算，共 14 项，不用手动领取。',
@@ -114,17 +134,11 @@ const SECTIONS = [
             '头像与昵称由你自己在道牒页点选，微信不会自动给出；不设头像就用默认道相。',
         ],
     },
-    {
-        title: '十一 · 离线收益的时间',
-        sub: '按本机时钟结算',
-        lines: [
-            '离线收益最多累计 8 小时，按上次记录的时间到现在的差值计算，境界与功法加成照常生效。',
-            '把设备时间调回过去不会重开每日份例，也不会倒着补出收益；但彻底防作弊仍需服务端时间，当前版本未接。',
-        ],
-    },
 ];
 
 // 名词速查直接由 data/copy.js 的术语表生成：页面上「?」弹层与这里读的是同一份解释。
+const DEMO_TERM = 'mijing';
+
 function glossarySection(no) {
     const order = [];
     const byGroup = {};
@@ -141,6 +155,8 @@ function glossarySection(no) {
         title: no + ' · ' + copy.UI.sections.glossary,
         sub: '黑话第一次出现时，页面上也有「?」可以点',
         lines: lines,
+        // 示范一个真的「?」：光说「可以点」，玩家不会知道它长什么样。
+        demo: DEMO_TERM,
     };
 }
 SECTIONS.push(glossarySection('十二'));
@@ -154,21 +170,24 @@ Page({
                 open: i === 0,
             });
         }),
-        showAll: false,
+        allOpen: false,
         copy: copy.UI,
     },
 
-    // 十几节长文不该一屏铺到底：目录直达 + 单节展开 + 一键全展开。
+    // 十几节长文不该一屏铺到底：目录直达 + 单节展开 + 一键全展开 / 全收起。
+    // 只有 sections[i].open 这一套状态，不再另设 showAll —— 两套状态并存时，
+    // 全局展开着点某一节标题会「点了没反应」，是改版前的真 bug。
     onToggleSection: function (event) {
         const i = Number(event.currentTarget.dataset.index);
         const patch = {};
         patch['sections[' + i + '].open'] = !this.data.sections[i].open;
+        patch.allOpen = false;
         this.setData(patch);
     },
 
     onJump: function (event) {
         const target = Number(event.currentTarget.dataset.index);
-        const patch = { showAll: false };
+        const patch = { allOpen: false };
         for (let i = 0; i < this.data.sections.length; i += 1) {
             patch['sections[' + i + '].open'] = i === target;
         }
@@ -178,7 +197,20 @@ Page({
     },
 
     onToggleAll: function () {
-        this.setData({ showAll: !this.data.showAll });
+        const next = !this.data.allOpen;
+        const patch = { allOpen: next };
+        for (let i = 0; i < this.data.sections.length; i += 1) {
+            patch['sections[' + i + '].open'] = next;
+        }
+        this.setData(patch);
+    },
+
+    onGoAction: function (event) {
+        const i = Number(event.currentTarget.dataset.index);
+        const act = this.data.sections[i].action;
+        if (!act) return;
+        if (act.kind === 'tab') wx.switchTab({ url: act.url });
+        else wx.navigateTo({ url: act.url });
     },
 
     onGoHelp: function () { wx.navigateTo({ url: '/pages/help/help?topic=guide' }); },
