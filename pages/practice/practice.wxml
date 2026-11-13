@@ -34,8 +34,7 @@
   </view>
 
   <view wx:if="{{!started || showResult}}" class="card card--ink pr-head">
-    <view class="row--between">
-      <text class="eyebrow pr-eyebrow">{{modeLabel}}</text>
+    <view class="pr-head-row">
       <text class="tag tag--dark">{{gameName}}</text>
     </view>
     <view class="pr-title-row">

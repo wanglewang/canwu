@@ -676,15 +676,29 @@ check('全局基础层与常规页样式不写裸色值，尺寸走令牌', func
   assert.ok(/var\(--fs-body\)/.test(css) && /var\(--fs-caption\)/.test(css), '字号没走令牌');
 });
 
-check('导航栏标题简洁统一，配色交给主题变量', function () {
-  const titles = ['主页', '修炼', '功法', '人物', '仙门切磋', '参悟', '登录', '修行指南', '说明', '修行日志',
+check('导航栏标题简洁统一，tab 页不重复 tabBar，配色交给主题变量', function () {
+  const titles = ['仙门切磋', '参悟', '登录', '修行指南', '修行日志',
     '藏经阁', '战力仙榜', '称号簿'];
+  const appCfg = require('../app.json');
+  const tabs = appCfg.tabBar.list.map(function (t) { return t.pagePath; });
+  // 说明页的标题在 onLoad 里按主题动态设置（人物 · 说明），json 里留空。
+  const dynamic = ['pages/help/help'];
   for (const p of pageFiles('.json')) {
     const cfg = JSON.parse(read(p.rel));
-    assert.ok(titles.indexOf(cfg.navigationBarTitleText) >= 0, p.rel + ' 标题不在统一命名表：' + cfg.navigationBarTitleText);
+    const page = p.rel.replace(/\.json$/, '');
+    if (dynamic.indexOf(page) >= 0 || tabs.indexOf(page) >= 0) {
+      assert.ok(!cfg.navigationBarTitleText,
+        p.rel + ' 的标题已交给别处（tabBar / 动态设置），json 里不该再写：' + cfg.navigationBarTitleText);
+    } else {
+      assert.ok(titles.indexOf(cfg.navigationBarTitleText) >= 0, p.rel + ' 标题不在统一命名表：' + cfg.navigationBarTitleText);
+    }
     assert.ok(!cfg.navigationBarBackgroundColor && !cfg.navigationBarTextStyle,
       p.rel + ' 写死了导航栏配色，暗色下会穿帮');
   }
+  // 说明页把「看的是哪一页」写进导航栏，页内就不再画第二个标题。
+  const helpJs = read('pages/help/help.js');
+  assert.ok(/setNavigationBarTitle/.test(helpJs), '说明页没有把主题写进导航栏');
+  assert.ok(!/help-topic/.test(read('pages/help/help.wxml')), '说明页又画了页内标题');
 });
 
 check('设计令牌覆盖色彩 / 字号 / 间距 / 圆角 / 层级 / 触控 / 动效 / 安全区', function () {

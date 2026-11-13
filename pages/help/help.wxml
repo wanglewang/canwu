@@ -1,6 +1,5 @@
 <view class="pg pg--imm">
 
-  <text class="help-topic">{{title}}</text>
   <text class="imm-lead">{{lead}}</text>
 
   <view class="help-sec" wx:for="{{sections}}" wx:key="key">

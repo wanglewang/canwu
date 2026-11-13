@@ -233,12 +233,27 @@ for (const mode of ['light', 'dark']) {
   }
 }
 
-// 导航栏标题统一为「页面名」，配色交给 app.json 的 @变量（页面写死会在暗色下穿帮）。
-const TITLES = ['主页', '修炼', '功法', '人物', '仙门切磋', '参悟', '登录', '修行指南', '说明', '修行日志',
-  '藏经阁', '战力仙榜', '称号簿'];
+// 导航栏标题：tab 页一律留空（页名由底部 tabBar 承担，顶部再写一遍就是同一行字出现两次）；
+// 子页必须用统一命名表里的页面名；配色交给 app.json 的 @变量（页面写死会在暗色下穿帮）。
+const TITLES = ['仙门切磋', '参悟', '登录', '修行指南', '修行日志', '藏经阁', '战力仙榜', '称号簿'];
+// 说明页是共用容器，导航标题在 onLoad 里按主题动态给出「人物 · 说明」，json 里必须留空。
+const DYNAMIC_TITLES = ['pages/help/help'];
+const tabPages = appJson.tabBar.list.map(function (t) { return t.pagePath; });
+if (appJson.window.navigationBarTitleText) {
+  errors.push('app.json window 写了导航标题，tab 页漏写就会回落成它：' + appJson.window.navigationBarTitleText);
+} else checked += 1;
 for (const page of appJson.pages) {
   const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, page + '.json'), 'utf8'));
-  if (TITLES.indexOf(cfg.navigationBarTitleText) < 0) {
+  const isTab = tabPages.indexOf(page) >= 0;
+  if (DYNAMIC_TITLES.indexOf(page) >= 0) {
+    if (cfg.navigationBarTitleText) {
+      errors.push(page + '.json 的标题由页面动态设置，json 里要留空：' + cfg.navigationBarTitleText);
+    } else checked += 1;
+  } else if (isTab) {
+    if (cfg.navigationBarTitleText) {
+      errors.push(page + '.json 是 tab 页，导航标题要与 tabBar 重复了：' + cfg.navigationBarTitleText);
+    } else checked += 1;
+  } else if (TITLES.indexOf(cfg.navigationBarTitleText) < 0) {
     errors.push(page + '.json 的导航标题不符合统一命名：' + cfg.navigationBarTitleText);
   } else checked += 1;
   if (cfg.navigationBarBackgroundColor || cfg.navigationBarTextStyle) {
@@ -349,6 +364,11 @@ for (let i = 0; i < nav.TAB_ORDER.length; i += 1) {
   const expect = 'pages/' + nav.TAB_ORDER[i] + '/' + nav.TAB_ORDER[i];
   if (tabPaths[i] !== expect) errors.push('tabBar 第 ' + (i + 1) + ' 项与导航真源不一致：' + tabPaths[i]);
   else checked += 1;
+  // tab 页导航栏已不写标题，tabBar 文字就是唯一的页面名，必须与真源同字。
+  const label = nav.TAB_LABELS[nav.TAB_ORDER[i]];
+  if (appJson.tabBar.list[i].text !== label) {
+    errors.push('tabBar 第 ' + (i + 1) + ' 项的文案与导航真源不一致：' + appJson.tabBar.list[i].text);
+  } else checked += 1;
 }
 if (nav.TILES.length !== 6) errors.push('主页六宫格不是 6 个入口');
 else checked += 1;

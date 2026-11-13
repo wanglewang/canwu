@@ -1,14 +1,5 @@
-/* 说明页只定义自己的行内排版，折叠分节骨架在 styles/immortal.wxss 全局共用。 */
-
-/* 导航栏只说「说明」，这行补上「说明的是哪一页」；
-   它不是页内标题，不做居中与字距，跟着正文左对齐。 */
-.help-topic {
-    display: block;
-    color: var(--c-imm-gold);
-    font-size: var(--fs-lead);
-    font-weight: 600;
-    margin-top: var(--sp-3);
-}
+/* 说明页只定义自己的行内排版，折叠分节骨架在 styles/immortal.wxss 全局共用。
+   「说明的是哪一页」写在导航栏（人物 · 说明），页内不再画第二个标题。 */
 
 .pg--imm .imm-lead { margin-top: var(--sp-2); }
 

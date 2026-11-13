@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "人物",
+  "navigationBarTitleText": "",
   "usingComponents": {
     "portrait": "../../components/portrait/portrait",
     "term": "../../components/term/term"

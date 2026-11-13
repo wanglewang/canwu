@@ -15,7 +15,7 @@
     "pages/login/login"
   ],
   "window": {
-    "navigationBarTitleText": "参悟",
+    "navigationBarTitleText": "",
     "navigationBarBackgroundColor": "@navBgColor",
     "navigationBarTextStyle": "@navTxtStyle",
     "backgroundColor": "@bgColor",

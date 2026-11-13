@@ -27,7 +27,6 @@ function heartsToFlags(h) {
 Page({
   data: {
     mode: 'practice',
-    modeLabel: '参 悟',
     showDifficulty: true,
     title: '',
     subtitle: '',
@@ -129,7 +128,7 @@ Page({
       setTimeout(function () { wx.navigateBack(); }, 900);
       return;
     }
-    this.setData({ mode: this.mode, modeLabel: this.mode === 'breakthrough' ? '突 破 瓶 颈' : '参 悟', showDifficulty: this.mode === 'practice' });
+    this.setData({ mode: this.mode, showDifficulty: this.mode === 'practice' });
     this.refresh();
     this.buildGame();
   },

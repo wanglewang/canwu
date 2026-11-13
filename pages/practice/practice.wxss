@@ -19,8 +19,11 @@
     box-shadow: none;
 }
 
-.pr-eyebrow {
-    color: var(--c-imm-gold);
+/* 准备页顶部只报「这一局玩什么」：页面名已经写在导航栏（参悟），卡片里再写一遍
+   「参 悟」就是同一行字出现两次。 */
+.pr-head-row {
+    display: flex;
+    justify-content: flex-end;
 }
 
 .pr-title-row {
