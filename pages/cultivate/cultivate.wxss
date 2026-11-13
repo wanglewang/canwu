@@ -1,48 +1,30 @@
-/* 修炼页：一排功法牌 + 修炼台 + 熟练度，页面上没有一句规则说明。 */
-.imm-scroll {
-    width: 100%;
-    white-space: nowrap;
-    margin-top: var(--sp-2);
-}
-
-.imm-book {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    box-sizing: border-box;
-    width: 132rpx;
-    height: 172rpx;
-    margin-right: var(--sp-3);
-    border: 1rpx solid var(--c-imm-line);
-    border-radius: var(--r-md);
-    background: var(--c-imm-panel);
-    vertical-align: top;
-}
-
-.imm-book--on {
-    border-color: var(--c-imm-gold-dim);
-    background: var(--c-imm-gold-soft);
-}
-
-.imm-book__mark {
-    color: var(--c-imm-text-3);
-    font-size: var(--fs-h2);
-    line-height: 1;
-}
-
-.imm-book--on .imm-book__mark { color: var(--c-imm-gold); }
-
-.imm-book__name {
-    color: var(--c-imm-text-2);
-    font-size: var(--fs-note);
-    margin-top: var(--sp-4);
-    max-width: 108rpx;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.imm-book--on .imm-book__name { color: var(--c-imm-gold); }
-
+/* 修炼页 = 练功台：一次只对着门下一门功法，顶部不再平铺全部功法牌——
+   平铺等于把「选功法」这件事又做了一遍，那是功法页的职责。
+   换功法走功法名右侧的「更换 ›」，跳功法页顺手还能看图鉴。 */
 .imm-stage .portrait { margin-top: 0; }
+
+/* 功法名与段位同排：名字靠左，段位小签紧跟其后（基线对齐，不像两块砖并排） */
+.imm-realm-row {
+    display: flex;
+    align-items: baseline;
+    margin-top: var(--sp-3);
+}
+
+.imm-realm-row .imm-realm { margin-top: 0; margin-right: var(--sp-4); }
+
+/* 进度条与功法名之间留一口气，别贴着字 */
+.imm-realm-row + .imm-bar { margin-top: var(--sp-5); }
+
+/* 次操作不铺色块、不用金色：一屏只留「开始参悟」一处金色实心 */
+.imm-swap {
+    flex: none;
+    display: flex;
+    align-items: center;
+    min-height: var(--touch-xs);
+    padding-left: var(--sp-5);
+    color: var(--c-imm-text-3);
+    font-size: var(--fs-note);
+}
+
+/* 主按钮别贴着功法的卡片底边；只补上边距，不碰左右的 auto */
+.imm-panel + .imm-btn--block { margin-top: var(--sp-8); }

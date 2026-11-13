@@ -65,7 +65,7 @@ const TOPICS = {
 
     cultivate: {
         title: '修炼',
-        lead: '选一门功法，开局，收功。',
+        lead: '练功台只对着当前这一门：开局，收功。要换功法，去「功法」页挑。',
         sections: [
             {
                 key: 'prof',
@@ -116,7 +116,7 @@ const TOPICS = {
 
     skills: {
         title: '功法',
-        lead: '已习得练深度，可解锁看路径。',
+        lead: '这里是图鉴：挑功法、看路径、比属性。挑好了去修炼页练。',
         sections: [
             {
                 key: 'rank',

@@ -7,7 +7,6 @@ const nav = require('../../data/navigation.js');
 
 Page({
     data: {
-        skills: [],
         current: null,
         lastText: '',
         portrait: 0,
@@ -25,6 +24,7 @@ Page({
 
     onUnload: function () { store.unsubscribe(this.listener); },
 
+    // 只认一门功法：上次练的那门，其次推荐，再次第一门。没有就空着让人去功法页挑。
     refresh: function () {
         const state = store.get();
         const ov = engine.getOverview(state);
@@ -43,15 +43,6 @@ Page({
         this.setData({
             portrait: ov.portrait,
             realmIndex: ov.realmIndex,
-            skills: all.map(function (s) {
-                const parts = s.name.split('·');
-                return {
-                    id: s.id,
-                    mark: s.type.slice(0, 1),
-                    shortName: parts.length > 1 ? parts[1] : s.name,
-                    on: s.id === id,
-                };
-            }),
             current: picked ? {
                 id: picked.id,
                 name: picked.name,
@@ -65,17 +56,13 @@ Page({
         });
     },
 
-    onSelect: function (event) {
-        getApp().globalData.lastSkillId = event.currentTarget.dataset.id;
-        this.refresh();
-    },
-
     onStart: function () {
         const id = getApp().globalData.lastSkillId;
-        if (!id) return;
+        if (!id) { wx.switchTab({ url: '/pages/skills/skills' }); return; }
         wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
     },
 
+    // 换功法 = 回功法页挑：那里既有列表也有图鉴，不在本页再实现一套选择器
     onGoSkills: function () { wx.switchTab({ url: '/pages/skills/skills' }); },
 
     onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('cultivate') }); },

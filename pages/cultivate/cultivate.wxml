@@ -5,20 +5,12 @@
     <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
   </view>
 
-  <view wx:if="{{skills.length === 0}}" class="imm-panel">
+  <view wx:if="{{!current}}" class="imm-panel">
     <text class="imm-empty">{{copy.emptySkills}}</text>
     <button class="imm-btn imm-btn--block" bindtap="onGoSkills">去功法页看看</button>
   </view>
 
   <block wx:else>
-    <scroll-view class="imm-scroll" scroll-x enable-flex>
-      <view class="imm-book {{item.on ? 'imm-book--on' : ''}} pressable" hover-class="pressable--on"
-            wx:for="{{skills}}" wx:key="id" data-id="{{item.id}}" bindtap="onSelect">
-        <text class="imm-book__mark">{{item.mark}}</text>
-        <text class="imm-book__name">{{item.shortName}}</text>
-      </view>
-    </scroll-view>
-
     <view class="imm-stage">
       <text class="imm-stage__score">{{lastText}}</text>
       <portrait variant="{{portrait}}" realm="{{realmIndex}}" size="normal" />
@@ -27,9 +19,12 @@
     <view class="imm-panel">
       <view class="imm-panel__head">
         <text class="imm-panel__label">当前功法</text>
+        <text class="imm-swap pressable" hover-class="pressable--on" bindtap="onGoSkills">{{copy.actions.swap}}</text>
+      </view>
+      <view class="imm-realm-row">
+        <text class="imm-realm">{{current.name}}</text>
         <text class="imm-chip">{{current.profTierName}}</text>
       </view>
-      <text class="imm-realm">{{current.name}}</text>
       <view class="imm-bar"><view class="imm-bar__fill" style="width:{{current.percent}}%"></view></view>
       <view class="imm-strip">
         <text>熟练度</text>
@@ -40,9 +35,6 @@
       </view>
     </view>
 
-    <view class="imm-btn-row">
-      <button class="imm-btn" bindtap="onStart">开始修炼</button>
-      <button class="imm-btn--ghost" bindtap="onGoSkills">换功法</button>
-    </view>
+    <button class="imm-btn imm-btn--block" bindtap="onStart">{{copy.actions.start}}</button>
   </block>
 </view>

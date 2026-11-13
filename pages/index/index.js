@@ -18,7 +18,7 @@ Page({
     breakPercent: 0,
     hintText: '',
     quickSkillId: '',
-    quickLabel: '开始参悟',
+    quickLabel: '去修炼',
     dailyReady: false,
     dailyGain: '',
     syncLabel: '',
@@ -69,6 +69,8 @@ Page({
     near.sort(function (a, b) { return b.percent - a.percent; });
     if (near.length > 0) hintText = '叮！' + near[0].name + ' 即将升段。';
     else if (bt.available) hintText = '境界已足，可去人物页突破。';
+    // 突破是双条件：战力够 ≠ 能突破，还要求指定功法到大成。别让人白等。
+    else if (!bt.maxed && bt.power >= bt.need) hintText = '战力已足，还差功法条件，去人物页看。';
 
     const dailyReady = !ov.daily.claimed && ov.daily.count >= ov.daily.target;
     const sync = store.getSyncStatus();
@@ -94,7 +96,8 @@ Page({
       dailyReady: dailyReady,
       dailyGain: copy.formatGain(ov.daily.qi, ov.daily.stone),
       quickSkillId: rec.id || (learned.length > 0 ? learned[0].id : ''),
-      quickLabel: rec.id ? '开始参悟 · ' + rec.name : '去看看功法',
+      // 「去修炼」到练功台，「开始参悟」才开一局：两个词分别代表两件事，不再混用。
+      quickLabel: rec.id ? '去修炼 · ' + rec.name : '去看看功法',
     });
   },
 
@@ -120,13 +123,15 @@ Page({
     if (tile) nav.openTile(getApp(), tile);
   },
 
+  // 主页是把人送进练功台，不替人开局：难度档、规则速记、上一局评价都在修炼页。
   onQuickPractice: function () {
     const id = this.data.quickSkillId;
     if (!id) {
       wx.switchTab({ url: '/pages/skills/skills' });
       return;
     }
-    wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
+    getApp().globalData.lastSkillId = id;
+    wx.switchTab({ url: '/pages/cultivate/cultivate' });
   },
 
   onBreakthrough: function () {

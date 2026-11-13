@@ -577,8 +577,13 @@ check('文案真源：跨页复用文案只在 data/copy.js 写一次', function
     assert.ok(/require\('\.\.\/\.\.\/data\/copy\.js'\)/.test(js), name + ' 没有引用文案真源');
     assert.ok(/copy: copy\.UI/.test(js), name + ' 没有把文案挂进 data');
   }
-  assert.ok(copy.UI.actions.start === '开始参悟' && copy.UI.actions.practice === '去参悟',
+  // 参悟 / 修炼 是两个动作，不许当同义词：
+  //   start    = 在练功台打一局（换熟练度）
+  //   practice = 去练功台（挑功法、看进度）
+  assert.ok(copy.UI.actions.start === '开始参悟' && copy.UI.actions.practice === '去修炼',
     '同一动作的按钮说法又被改散了');
+  assert.notStrictEqual(copy.UI.actions.start, copy.UI.actions.practice,
+    '「开始参悟」和「去修炼」变成了同一个词，开局与导流又混在一起');
   for (const bad of ['正在推演气机', '正在翻检藏经阁', '正在整理论道台', '正在展开道牒',
     '就差一点', '参 悟 · 等是保底，练才是加速']) {
     assert.ok(all.indexOf(bad) < 0, '旧文案口径又回来了：' + bad);

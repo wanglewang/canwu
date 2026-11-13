@@ -5,10 +5,6 @@ const engine = require('../../utils/game.js');
 const copy = require('../../data/copy.js');
 const nav = require('../../data/navigation.js');
 
-function toast(title) {
-  wx.showToast({ title: title, icon: 'none', duration: 1800 });
-}
-
 // 图鉴详情统一从引擎出：页面只补「当前资源够不够」这类即时状态。
 function detailOf(state, id) {
   const d = engine.getSkillDetail(state, id);
@@ -22,12 +18,10 @@ function detailOf(state, id) {
 }
 
 // 弹窗右下角永远给一个能点的动作：未习得不等于死路。
+// 已习得 → 去练功台；能换 → 去藏经阁；其余看解锁条件指向哪。
 function primaryOf(d) {
-  if (d.unlocked) return { kind: 'practice', text: copy.UI.actions.practice, disabled: false };
-  if (d.canBuy) {
-    if (!d.realmOk || !d.affordable) return { kind: 'home', text: copy.UI.actions.goHome, disabled: false };
-    return { kind: 'buy', text: '兑换', disabled: false };
-  }
+  if (d.unlocked) return { kind: 'cultivate', text: copy.UI.actions.practice, disabled: false };
+  if (d.canBuy) return { kind: 'shop', text: copy.UI.actions.openShop, disabled: false };
   return { kind: d.unlock.action || 'home', text: d.unlock.actionText || copy.UI.actions.goHome, disabled: false };
 }
 
@@ -79,7 +73,8 @@ Page({
         bonusText: s.bonusText || s.effectText,
         percent: s.percent,
         tierLabel: s.tierLabel,
-        actionText: s.unlocked ? '修炼' : (s.canBuy ? '兑换' : '看详情'),
+        actionText: s.unlocked ? copy.UI.actions.practice
+          : (s.canBuy ? copy.UI.actions.openShop : '看详情'),
         unlocked: s.unlocked,
         canBuy: s.canBuy,
       };
@@ -110,12 +105,20 @@ Page({
     this.showDetailFor(event.currentTarget.dataset.id);
   },
 
-  // 卡片右侧按钮：已习得直接开练，其余先开图鉴看清再决定。
+  // 卡片右侧按钮：
+  //   已习得 → 选定这门并回练功台（不在功法页直接开局，免得跳过难度与规则确认）；
+  //   可兑换 → 去藏经阁（花钱的地方只留一个）；
+  //   其余 → 开图鉴看还差什么。
   onCardAction: function (event) {
     const id = event.currentTarget.dataset.id;
     const card = this.data.cards.filter(function (c) { return c.id === id; })[0];
     if (card && card.unlocked) {
-      wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
+      getApp().globalData.lastSkillId = id;
+      wx.switchTab({ url: '/pages/cultivate/cultivate' });
+      return;
+    }
+    if (card && card.canBuy) {
+      wx.navigateTo({ url: '/pages/shop/shop' });
       return;
     }
     this.showDetailFor(id);
@@ -129,31 +132,22 @@ Page({
     this.setData({ guideOpen: !this.data.guideOpen });
   },
 
-  onBuy: function () {
-    const id = this.data.detail ? this.data.detail.id : '';
-    if (!id) return;
-    const r = store.commitCritical(function (s) { return engine.buySkill(s, id); });
-    toast(r.ok ? '习得《' + r.name + '》' : r.msg);
-    this.refresh();
-  },
-
-  onPractice: function () {
-    const id = this.data.detail ? this.data.detail.id : '';
-    if (!id) return;
-    this.closeDetail();
-    wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
-  },
-
   onPrimary: function () {
     const d = this.data.detail;
     if (!d || !d.primary || d.primary.disabled) return;
     const kind = d.primary.kind;
     const id = d.id;
-    if (kind === 'buy') { this.onBuy(); return; }
     this.closeDetail();
-    if (kind === 'practice') wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
-    else if (kind === 'battle') wx.navigateTo({ url: '/pages/battle/battle' });
-    else wx.switchTab({ url: '/pages/index/index' });
+    if (kind === 'cultivate') {
+      getApp().globalData.lastSkillId = id;
+      wx.switchTab({ url: '/pages/cultivate/cultivate' });
+    } else if (kind === 'shop') {
+      wx.navigateTo({ url: '/pages/shop/shop' });
+    } else if (kind === 'battle') {
+      wx.navigateTo({ url: '/pages/battle/battle' });
+    } else {
+      wx.switchTab({ url: '/pages/index/index' });
+    }
   },
 
   onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('skills') }); },

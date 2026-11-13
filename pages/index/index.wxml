@@ -30,8 +30,8 @@
       <text class="imm-realm">{{ov.realmName}}</text>
       <view class="imm-bar"><view class="imm-bar__fill" style="width:{{breakPercent}}%"></view></view>
       <view class="imm-strip">
-        <text>突破 {{ov.breakthrough.maxed ? '已至大圆满' : '所需战力 ' + ov.breakthrough.need}}</text>
-        <text class="imm-strip__value">{{breakPercent}}%</text>
+        <text>突破 {{ov.breakthrough.maxed ? '已至大圆满' : '战力'}}</text>
+        <text class="imm-strip__value">{{ov.breakthrough.maxed ? '—' : ov.power + ' / ' + ov.breakthrough.need}}</text>
       </view>
       <view class="imm-stats">
         <view class="imm-stat">

@@ -61,9 +61,12 @@ const UI = {
     emptySkills: '尚未习得功法',
 
     // 按钮：同一动作只有一个说法。
+    // 参悟 / 修炼 不是同义词，别混用：
+    //   修炼 = 去练功台（选功法、看进度），参悟 = 在练功台打一局换熟练度。
     actions: {
         start: '开始参悟',
-        practice: '去参悟',
+        practice: '去修炼',
+        swap: '更换 ›',
         back: '回去修炼',
         leave: '先不练了',
         close: '关闭',
@@ -79,6 +82,7 @@ const UI = {
         viewDetail: '看详情 ›',
         goBattle: '去论道',
         goHome: '去攒资源',
+        openShop: '去藏经阁',
         playThis: '就练这门',
         expandTerms: '看盘面符号 ›',
         collapseTerms: '收起盘面符号',

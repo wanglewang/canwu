@@ -312,7 +312,12 @@
     font-size: var(--fs-body);
 }
 
+/* 勾 / 叉都用细线字符，不用 emoji：墨金底上彩色 emoji 会跳出来抢视线 */
 .imm-check__mark--on { color: var(--c-imm-jade); }
+.imm-check__mark--off { color: var(--c-imm-danger); }
+
+/* 未达标的条件文字压暗一档，让「还差哪几项」一眼分得出来 */
+.imm-check--off .imm-check__text { color: var(--c-imm-text-2); }
 
 .imm-check__text {
     color: var(--c-imm-text);

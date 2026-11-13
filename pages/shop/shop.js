@@ -82,7 +82,9 @@ Page({
   onBuy: function (event) {
     const id = event.currentTarget.dataset.id;
     const r = store.commitCritical(function (s) { return engine.buySkill(s, id); });
-    toast(r.ok ? '习得《' + r.name + '》' : r.msg);
+    // 新换来的功法直接成为练功台的当前功法：买完切到修炼页就是它，不用再挑一次
+    if (r.ok) getApp().globalData.lastSkillId = id;
+    toast(r.ok ? '习得《' + r.name + '》，回修炼页就能练' : r.msg);
     this.refresh();
   },
 
