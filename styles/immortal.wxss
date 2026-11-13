@@ -506,7 +506,8 @@
     color: var(--c-imm-text-3);
 }
 
-.pg--imm .text-link--muted { color: var(--c-imm-text-3); }
+/* 次要文字链（「展开」「离开」）用次文字色，既看得见是能点的，又不去抢金色主操作 */
+.pg--imm .text-link.text-link--muted { color: var(--c-imm-text-2); }
 
 /* 旧基础层的按钮在深色里重挂一次语义色，避免绿底 / 绿字混进墨金体系。 */
 .pg--imm .btn--ghost {

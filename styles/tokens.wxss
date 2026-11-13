@@ -91,6 +91,7 @@ page {
     --c-imm-jade:        #8fbfa9;   /* 青玉：只用于进度与「进行中」 */
     --c-imm-track:       rgba(236, 229, 216, 0.10);
     --c-imm-danger:      #e0928a;   /* 警示文字：只用于不可撤销说明 */
+    --c-imm-danger-soft: rgba(224, 146, 138, 0.10);   /* 警示块底 */
     --c-imm-mask:        rgba(4, 8, 7, 0.72);
     --c-imm-shadow:      0 24rpx 80rpx rgba(0, 0, 0, 0.55);
 
@@ -237,6 +238,7 @@ page {
         --c-imm-jade:        #8fbfa9;
         --c-imm-track:       rgba(236, 229, 216, 0.10);
         --c-imm-danger:      #e0928a;
+        --c-imm-danger-soft: rgba(224, 146, 138, 0.10);
         --c-imm-mask:        rgba(4, 8, 7, 0.72);
         --c-imm-shadow:      0 24rpx 80rpx rgba(0, 0, 0, 0.55);
 

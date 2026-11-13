@@ -1,65 +1,69 @@
-/* 准备页与四个主页面同色：深青底、金线卡片，文字全部走语义令牌。
-   局内 .pg--scene 由 styles/scene.wxss 的舞台层铺满，这里只统一通用控件。 */
-.pg {
-    --c-bg: var(--c-imm-bg);
-    --c-surface: var(--c-imm-panel);
-    --c-surface-2: var(--c-imm-panel-2);
-    --c-surface-3: var(--c-imm-tile);
-    --c-border: var(--c-imm-line);
-    --c-border-strong: var(--c-imm-gold-dim);
-    --c-divider: var(--c-imm-line-soft);
-    --c-text: var(--c-imm-text);
-    --c-text-2: var(--c-imm-text-2);
-    --c-text-3: var(--c-imm-text-2);
-    --c-primary-text: var(--c-imm-jade);
-    --c-primary-soft: var(--c-imm-panel-2);
-    --c-gold-text: var(--c-imm-gold);
-    --c-gold-soft: var(--c-imm-gold-soft);
-    --c-link: var(--c-imm-jade);
-    --c-track: var(--c-imm-track);
-    --c-neutral-soft: var(--c-imm-panel-2);
-    background: var(--c-imm-bg);
-}
+/* 参悟页根容器挂 .pg--imm，与四个主页面共用 styles/immortal.wxss 的色板映射，
+   --c-* 不用在本文件重抄一遍。本文件只补「这一页有、别处没有」的东西：
+   功法头、局内 HUD、判定横幅、难度档、结算行。
 
+   边界只有一条：**盘面是纸，其余是墨。**
+   可以摸、可以划的那块（.grid / .cell / .ring-area / .orbit / .scroll / .pad）取
+   minigames/theme.js 注入的 --soft / --ink / --bg / --frame，刻意保持浅色纸面，
+   格子里的字才有落处；页面、HUD、横幅、弹层一律走 --c-imm-*。
+   本页恒定深色，不写系统明暗媒体查询：系统切深色时纸与墨都不变。 */
+
+/* 功法头不做盒子：标题直接落在墨底上，只用一条发丝线收口。
+   原先是一张深卡叠在墨底上，两层深色几乎同值，看不出层次还多一圈圆角。 */
 .pr-head {
-    padding: 32rpx;
+    padding: var(--sp-6) var(--sp-2) var(--sp-6);
+    border: 0;
+    border-bottom: 1rpx solid var(--c-imm-line-soft);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
 .pr-eyebrow {
-    color: #d8b775;
+    color: var(--c-imm-gold);
 }
 
 .pr-title-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: var(--sp-5);
 }
 
+/* 功法名是全页唯一的大字：不写手写空格、不挂衬线，层级交给字号与字重。 */
 .pr-title {
     display: block;
+    min-width: 0;
     margin-top: 18rpx;
-    color: #fffdf7;
+    color: var(--c-imm-text);
+    font-family: inherit;
 }
 
+/* 功法印记：一枚金线方印，唯一装饰，不做浅色块也不铺主题色。 */
 .pr-seal {
     box-sizing: border-box;
     display: flex;
+    flex: none;
     align-items: center;
     justify-content: center;
     width: 88rpx;
     height: 88rpx;
     margin-top: 14rpx;
-    border: 4rpx solid #b8893b;
-    border-radius: 18rpx;
-    font-family: serif;
-    font-size: 46rpx;
+    border: 1rpx solid var(--c-imm-gold-dim);
+    border-radius: var(--r-sm);
     transform: rotate(-6deg);
+}
+
+.pr-seal__glyph {
+    color: var(--c-imm-gold);
+    font-size: 42rpx;
+    line-height: 1;
 }
 
 .pr-desc {
     display: block;
     margin-top: 12rpx;
-    color: #c9d6cd;
+    color: var(--c-imm-text-2);
     font-size: 25rpx;
     line-height: 1.7;
 }
@@ -69,7 +73,13 @@
 }
 
 .pr-tiny {
-    color: #c9d6cd;
+    color: var(--c-imm-text-3);
+}
+
+/* 吸底条：与主页面同一条发丝线收口，不加重阴影（墨底上阴影看不出来，只会脏边）。 */
+.pg .sticky-bar {
+    border-top: 1rpx solid var(--c-imm-line-soft);
+    box-shadow: none;
 }
 
 /* ---------- 局内 HUD ---------- */
@@ -89,13 +99,14 @@
 }
 
 .hud__skill {
-    color: #9a9a8b;
+    color: var(--c-imm-text-3);
     font-size: 20rpx;
     letter-spacing: 2rpx;
 }
 
 .hud__time {
     margin-top: 4rpx;
+    color: var(--c-imm-text);
     font-size: 40rpx;
     line-height: 1.2;
 }
@@ -115,9 +126,9 @@
     min-height: 56rpx;
     margin-left: 14rpx;
     padding: 0 18rpx;
-    border: 2rpx solid rgba(120, 130, 120, 0.3);
+    border: 1rpx solid var(--c-imm-line);
     border-radius: 999rpx;
-    color: #8a8f83;
+    color: var(--c-imm-text-3);
     font-size: 22rpx;
     line-height: 1;
 }
@@ -138,13 +149,13 @@
 .pr-hint__terms {
     margin-top: 10rpx;
     padding: 10rpx 14rpx;
-    border-left: 6rpx solid var(--acc, #3d8c74);
-    border-radius: 0 8rpx 8rpx 0;
-    background: var(--soft, #e9e3d4);
+    border-left: 4rpx solid var(--c-imm-gold-dim);
+    border-radius: 0 var(--r-xs) var(--r-xs) 0;
+    background: var(--c-imm-gold-soft);
 }
 
 .pr-hint__terms .tiny {
-    color: var(--ink, #2f6b5b);
+    color: var(--c-imm-text-2);
     line-height: 1.5;
 }
 
@@ -177,8 +188,8 @@
     width: 36rpx;
     height: 36rpx;
     border-radius: 50%;
-    background: var(--soft, #e9e3d4);
-    color: var(--ink, #2f6b5b);
+    background: var(--c-imm-panel-2);
+    color: var(--c-imm-gold);
     font-size: 20rpx;
 }
 
@@ -202,9 +213,9 @@
 
 .guide__note {
     padding: 14rpx 16rpx;
-    border-left: 5rpx solid var(--acc, #3d8c74);
-    border-radius: 0 8rpx 8rpx 0;
-    background: var(--soft, #e9e3d4);
+    border-left: 4rpx solid var(--c-imm-gold-dim);
+    border-radius: 0 var(--r-xs) var(--r-xs) 0;
+    background: var(--c-imm-gold-soft);
 }
 
 .guide__note .tiny {
@@ -214,12 +225,13 @@
 
 .guide__inline {
     padding: 12rpx 14rpx;
-    border-radius: 8rpx;
-    background: var(--soft, #e9e3d4);
+    border-radius: var(--r-xs);
+    background: var(--c-imm-panel-2);
 }
 
 .combo-chip {
     margin-right: 12rpx;
+    color: var(--c-imm-gold);
     font-size: 26rpx;
     font-weight: 600;
 }
@@ -231,7 +243,7 @@
     width: 52rpx;
     height: 52rpx;
     border-radius: 50%;
-    color: #fffdf7;
+    color: var(--c-imm-text);
     font-size: 30rpx;
     font-weight: 700;
 }
@@ -240,7 +252,7 @@
     overflow: hidden;
     height: 14rpx;
     border-radius: 10rpx;
-    background: var(--soft, #e9e3d4);
+    background: var(--c-imm-track);
 }
 
 .hud__fill {
@@ -256,12 +268,12 @@
 
 .heart {
     margin-right: 8rpx;
-    color: #c9c5b7;
+    color: var(--c-imm-line);
     font-size: 28rpx;
 }
 
 .heart--on {
-    color: var(--acc, #3d8c74);
+    color: var(--c-imm-gold);
 }
 
 .hearts .tiny {
@@ -273,7 +285,7 @@
     height: 10rpx;
     margin-top: 6rpx;
     border-radius: 8rpx;
-    background: var(--soft, #e9e3d4);
+    background: var(--c-imm-track);
 }
 
 .meter__fill {
@@ -282,13 +294,14 @@
     transition: width 0.2s ease;
 }
 
+/* 判定横幅：一条上下金线的口播，不是卡也不是按钮 */
 .banner {
     display: block;
     padding: 12rpx 0;
-    border-top: 2rpx solid #b8893b;
-    border-bottom: 2rpx solid #b8893b;
+    border-top: 1rpx solid var(--c-imm-gold-dim);
+    border-bottom: 1rpx solid var(--c-imm-gold-dim);
+    color: var(--c-imm-gold);
     text-align: center;
-    font-family: serif;
     font-size: 30rpx;
     letter-spacing: 4rpx;
     animation: bannerIn 0.4s ease-out;
@@ -312,9 +325,9 @@
     pointer-events: none;
 }
 
-.fx--good { color: var(--acc, #3d8c74); }
-.fx--bad { color: #b4453c; }
-.fx--gold { color: #b8893b; }
+.fx--good { color: var(--c-imm-jade); }
+.fx--bad { color: var(--c-imm-danger); }
+.fx--gold { color: var(--c-imm-gold); }
 .fx--k0, .fx--k1 { animation: fxFloat 0.9s ease-out forwards; }
 
 /* ---------- 蓄力停区 ---------- */
@@ -902,34 +915,34 @@
     right: 0;
     bottom: 0;
     left: 0;
-    z-index: 60;
+    z-index: var(--z-countdown);
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(20, 26, 24, 0.82);
+    background: var(--c-imm-mask);
 }
 
 .countdown-inner {
     display: flex;
     flex-direction: column;
     align-items: center;
-    color: #fffdf7;
+    color: var(--c-imm-text);
 }
 
 .countdown-seal {
-    font-family: serif;
+    color: var(--c-imm-gold);
     font-size: 72rpx;
     letter-spacing: 10rpx;
 }
 
 .countdown-num {
-    color: #fffdf7;
+    color: var(--c-imm-text);
     font-size: 150rpx;
     line-height: 1.4;
     animation: litPop 0.36s ease-out;
 }
 
-.countdown-inner .tiny { color: #c9d6cd; }
+.countdown-inner .tiny { color: var(--c-imm-text-2); }
 
 /* ---------- 结算 ---------- */
 .modal--reveal { animation: modalReveal 0.42s ease-out; }
@@ -939,12 +952,12 @@
     align-items: center;
     justify-content: space-between;
     padding: 14rpx 0;
-    border-bottom: 2rpx solid #f0ebdd;
+    border-bottom: 1rpx solid var(--c-imm-line-soft);
 }
 
 .res-note { padding: 6rpx 0; }
 
-.res-note .body { color: #5d6358; }
+.res-note .body { color: var(--c-imm-text-2); }
 
 @keyframes litPop {
     0% { transform: scale(0.82); opacity: 0.45; }
@@ -972,9 +985,11 @@
 }
 
 /* ---------- 功法品阶与进阶链 ---------- */
+/* 品阶卡是唯一带金底的块：一行品阶 + 一行进阶链，靠颜色成组，不再叠独立小盒。 */
 .rank-card {
-    border: 1rpx solid rgba(0, 0, 0, 0.08);
-    border-radius: 12rpx;
+    border: 1rpx solid var(--c-imm-gold-dim);
+    border-radius: var(--r-sm);
+    background: var(--c-imm-gold-soft);
     padding: 20rpx 22rpx;
 }
 .rank-badge {
@@ -982,7 +997,7 @@
     height: 46rpx;
     margin-right: 12rpx;
     border-radius: 8rpx;
-    color: #fffdf7;
+    color: var(--c-imm-bg);
     font-size: 26rpx;
     font-weight: 600;
     display: flex;
@@ -994,22 +1009,22 @@
     display: inline-block;
     margin: 0 10rpx 10rpx 0;
     padding: 8rpx 14rpx;
-    border-radius: 8rpx;
-    background: rgba(120, 130, 120, 0.10);
-    color: var(--ink, #4a5a51);
+    border-radius: var(--r-xs);
+    background: var(--c-imm-panel-2);
+    color: var(--c-imm-text-2);
     font-size: 22rpx;
     line-height: 1.5;
 }
-.rank-chain__item--now { background: var(--acc, #3d8c74); color: #fffdf7; }
+.rank-chain__item--now { border: 1rpx solid var(--c-imm-gold-dim); background: var(--c-imm-gold-soft); color: var(--c-imm-gold); font-weight: 600; }
 
 /* ---------- 难度档选择 ---------- */
 .warn-note {
     display: block;
     padding: 12rpx 16rpx;
-    border-left: 4rpx solid #b4453c;
-    border-radius: 0 8rpx 8rpx 0;
-    background: rgba(180, 69, 60, 0.10);
-    color: #8d3229;
+    border-left: 4rpx solid var(--c-imm-danger);
+    border-radius: 0 var(--r-xs) var(--r-xs) 0;
+    background: var(--c-imm-danger-soft);
+    color: var(--c-imm-danger);
     font-size: 22rpx;
     line-height: 1.65;
 }
@@ -1022,65 +1037,27 @@
     width: calc((100% - 20rpx) / 3);
     box-sizing: border-box;
     padding: var(--sp-3) var(--sp-2);
-    border: 2rpx solid var(--c-border);
+    border: 1rpx solid var(--c-border);
     border-radius: var(--r-sm);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2rpx;
-    background: var(--c-surface);
+    background: var(--c-imm-bg-2);
 }
 .diff-chip__name { font-size: var(--fs-body-sm); color: var(--c-text); font-weight: 600; }
 .diff-chip__mult { font-size: var(--fs-caption); color: var(--c-text-2); }
-.diff-chip__need { font-size: var(--fs-caption); color: var(--c-danger-text); }
-.diff-chip--on { background: var(--acc, #3d8c74); border-color: var(--acc, #3d8c74); }
-.diff-chip--on .diff-chip__name, .diff-chip--on .diff-chip__mult { color: var(--c-on-ink); }
+.diff-chip__need { font-size: var(--fs-caption); color: var(--c-imm-gold); }
+/* 选中档只换描边与字色，不铺色块：一屏只允许一处金色实心（开始参悟）。 */
+.diff-chip--on { border-color: var(--c-imm-gold-dim); background: var(--c-imm-gold-soft); }
+.diff-chip--on .diff-chip__name { color: var(--c-imm-gold); }
+.diff-chip--on .diff-chip__mult { color: var(--c-imm-text-2); }
 .diff-chip--lock { opacity: 0.55; }
 
-@media (prefers-color-scheme: dark) {
-    .hud__skill { color: #9aa79f; }
-    .hud__quit { border-color: #3a4a42; color: #9aa79f; }
-    .pr-hint__terms, .guide__no, .guide__note, .guide__inline { background: #26342d; }
-    .pr-hint__terms .tiny, .guide__no { color: #cfd8cf; }
-    .rank-card { border-color: #33403a; }
-    .streak-card { border-color: #33403a; background: rgba(61, 140, 116, 0.14); }
-    .streak-dot { border-color: #4a5a51; }
-    .rank-chain__item { background: #2b3832; color: #cfd8cf; }
-    .rank-chain__item--now { background: var(--acc, #3d8c74); color: #fffdf7; }
-    .warn-note { background: rgba(180, 69, 60, 0.18); color: #f0b4ad; }
-    .cell { border-color: #1e2723; }
-    .cell--off, .cell--hidden { background: #2b3832; color: #9aa79f; }
-    .trail-hint__name { color: #e8eee9; }
-    .cell--path { background: rgba(122, 166, 196, 0.24); color: #cfe0ea; box-shadow: inset 0 0 0 3rpx rgba(122, 166, 196, 0.35); }
-    .cell--pathgold { background: rgba(184, 137, 59, 0.3); color: #e8d3a6; box-shadow: inset 0 0 0 3rpx rgba(184, 137, 59, 0.45); }
-    .cell--pathon { background: #4a6b86; color: #fffdf7; }
-    .cell--pathgold.cell--pathon { background: #b8893b; color: #fffdf7; }
-    .cell--cut { background: #e8eee9; color: #26342d; }
-    .cell--pathfake { background: rgba(122, 166, 196, 0.08); color: rgba(207, 224, 234, 0.46); box-shadow: inset 0 0 0 3rpx rgba(122, 166, 196, 0.14); }
-    .cell--ban { background: rgba(226, 75, 74, 0.14); color: rgba(240, 149, 149, 0.8); box-shadow: inset 0 0 0 3rpx rgba(226, 75, 74, 0.34); }
-    .cell--open { background: #26342d; color: #e8eee9; }
-    .cell--flag, .cell--sensed { background: #3a3a2c; color: #d8c79a; }
-    .grid, .hud__track, .meter__track, .charge__track, .ring-area { background: #26342d; }
-    .ring-orb { background: #1e2723; }
-    .ring-orb--perfect { background: #3a3221; }
-    .ring-orb--good { background: #22392f; }
-    .ring-orb--miss { background: #3a2523; }
-    .heart { color: #4a5a51; }
-    .res-line { border-color: #33403a; }
-    .cell--decoy { background: #4a5048; color: #d8ddd6; }
-    .cell--card { background: #2f3d35; color: #cfd8cf; }
-    .cell--flipped { background: #1e2723; color: #e8eee9; }
-    .cell--matched { background: #2b3832; color: #9aa79f; }
-    .lane-rule, .orbit, .scroll { background: #26342d; }
-    .grid--lane { background: linear-gradient(180deg, #26342d, #1e2723); }
-    .grid--lane .cell--fog { background: rgba(120, 140, 150, 0.1); }
-    .grid--lane .cell--trail { background: #2b3832; }
-    .grid--lane .cell--stone, .orbit__core, .orbit__lamp, .scroll__move, .scroll__key {
-        background: #1e2723;
-        color: #e8eee9;
-    }
-    .scroll__move--active, .orbit__lamp.lamp--current { background: var(--acc, #3d8c74); color: #fffdf7; }
-}
+/* 盘面是纸、页面是墨：本页恒定深色，不再跟系统明暗翻转。
+   纸面取的是注入的 --soft / --ink / --bg，因此格子里的字永远是深墨落在浅纸上；
+   页面本身（准备页、HUD、结算）只认 --c-imm-*。系统切到深色时整页不变，
+   盘面也不会突然变成另一种颜色。 */
 
 /* ---------- 本门新法：熟练度阶段解锁的规则变化 ---------- */
 .stage-rule {
@@ -1095,9 +1072,9 @@
 /* ---------- 三连 S 晋级：准备页常驻进度 ---------- */
 .streak-card {
   padding: 16rpx 20rpx;
-  border: 2rpx solid rgba(61, 140, 116, 0.28);
-  border-radius: 14rpx;
-  background: rgba(61, 140, 116, 0.06);
+  border: 1rpx solid var(--c-imm-gold-dim);
+  border-radius: var(--r-sm);
+  background: var(--c-imm-gold-soft);
 }
 
 .streak-dots { display: flex; gap: 12rpx; }
@@ -1105,13 +1082,13 @@
 .streak-dot {
   width: 28rpx;
   height: 28rpx;
-  border: 3rpx solid #9fb2a8;
+  border: 1rpx solid var(--c-imm-gold-dim);
   border-radius: 50%;
   background: transparent;
   box-sizing: border-box;
 }
 
-.streak-dot--on { background: var(--acc, #3d8c74); border-color: var(--acc, #3d8c74); }
+.streak-dot--on { background: var(--c-imm-gold); border-color: var(--c-imm-gold); }
 
 /* ---------- 三套经典玩法的盘面：矮格 / 灵纹 / 落石 / 方向键 ---------- */
 /* 6 列以上、8 行的盘面要把格子压矮，否则小屏装不下；只在 vm.extras.compact 时启用。 */
@@ -1148,7 +1125,3 @@
   border-radius: var(--r-md);
 }
 
-@media (prefers-color-scheme: dark) {
-  .cell--gone, .cell--void { background: rgba(120, 140, 150, 0.12); }
-  .pad__key { background: #26342d; border-color: #33403a; color: #e8eee9; }
-}

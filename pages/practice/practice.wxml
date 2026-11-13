@@ -1,4 +1,4 @@
-<view class="pg {{barMode ? 'pg--with-bar' : ''}} {{sceneOn && started && !showResult ? 'pg--scene' : ''}}" style="--acc:{{theme.accent}};--soft:{{theme.soft}};--ink:{{theme.ink}};--bg:{{theme.bg}};--frame:{{theme.frame}};--glow:{{stage.glow}};--deep:{{stage.deep}};--well:{{stage.well}}">
+<view class="pg pg--imm {{barMode ? 'pg--with-bar' : ''}} {{sceneOn && started && !showResult ? 'pg--scene' : ''}}" style="--acc:{{theme.accent}};--soft:{{theme.soft}};--ink:{{theme.ink}};--bg:{{theme.bg}};--frame:{{theme.frame}};--glow:{{stage.glow}};--deep:{{stage.deep}};--well:{{stage.well}}">
 
   <!-- 沉浸舞台三层：远层静态 / 中层循环 / 近层判定信息。只在样板玩法开局后出现。 -->
   <view wx:if="{{sceneOn && started && !showResult}}" class="scene">
@@ -39,9 +39,9 @@
       <text class="tag tag--dark">{{gameName}}</text>
     </view>
     <view class="pr-title-row">
-      <text class="h1 serif pr-title">{{title}}</text>
-      <view class="pr-seal" style="border-color:{{theme.accent}};background:{{theme.soft}}">
-        <text style="color:{{theme.ink}}">{{theme.motif}}</text>
+      <text class="h1 pr-title">{{title}}</text>
+      <view class="pr-seal">
+        <text class="pr-seal__glyph">{{theme.motif}}</text>
       </view>
     </view>
     <text class="quote pr-desc">{{subtitle}}</text>
@@ -101,19 +101,19 @@
       </view>
     </view>
 
-    <view wx:if="{{rankLabel}}" class="rank-card mt16" style="border-color:{{theme.accent}};background:{{theme.soft}}">
+    <view wx:if="{{rankLabel}}" class="rank-card mt16">
       <view class="row--between">
         <view class="row">
           <text class="rank-badge" style="background:{{rankColor}}">{{rankChar}}</text>
-          <text class="h3" style="color:{{theme.ink}}">{{rankLabel}} · {{rankStars}}</text>
+          <text class="h3">{{rankLabel}} · {{rankStars}}</text>
         </view>
-        <text class="tiny" style="color:{{theme.ink}}">{{rankRewardText}}</text>
+        <text class="tiny">{{rankRewardText}}</text>
       </view>
       <text wx:if="{{decayTip}}" class="warn-note mt8">{{decayTip}}</text>
       <view class="divider"></view>
-      <text class="tiny" style="color:{{theme.ink}}">{{chainLabel}}</text>
+      <text class="tiny">{{chainLabel}}</text>
       <view class="row--wrap mt8">
-        <text wx:for="{{chainItems}}" wx:key="id" class="rank-chain__item {{item.current ? 'rank-chain__item--now' : ''}}" style="{{item.current ? 'background:' + item.tierColor + ';color:#fffdf7' : ''}}">{{item.name}}</text>
+        <text wx:for="{{chainItems}}" wx:key="id" class="rank-chain__item {{item.current ? 'rank-chain__item--now' : ''}}">{{item.name}}</text>
       </view>
     </view>
 
@@ -150,10 +150,10 @@
       <view class="row--between hud__top">
         <view class="hud__id">
           <text class="eyebrow hud__skill">{{title}}<text wx:if="{{diffName}}"> · {{diffName}}</text></text>
-          <text class="hud__time serif">{{vm.timeText || '正在参悟'}}</text>
+          <text class="hud__time">{{vm.timeText || '正在参悟'}}</text>
         </view>
         <view class="hud__right">
-          <text wx:if="{{vm.comboText}}" class="combo-chip" style="color:{{theme.ink}}">{{vm.comboText}}</text>
+          <text wx:if="{{vm.comboText}}" class="combo-chip">{{vm.comboText}}</text>
           <text class="grade-chip" style="background:{{gradeNowColor}}">{{vm.gradeNow}}</text>
           <view class="hud__quit" bindtap="onAbandon">收功</view>
         </view>
@@ -209,7 +209,7 @@
       </view>
     </view>
 
-    <text wx:if="{{vm.banner}}" class="banner mt12" style="color:{{sceneOn ? stage.glow : theme.ink}};border-color:{{sceneOn ? stage.deep : theme.accent}}">{{vm.banner}}</text>
+    <text wx:if="{{vm.banner}}" class="banner mt12" style="{{sceneOn ? 'color:' + stage.glow + ';border-color:' + stage.deep : ''}}">{{vm.banner}}</text>
 
     <view class="pr-hint">
       <text class="tiny">{{vm.hint}}</text>
@@ -313,8 +313,8 @@
 
   <view wx:if="{{countdown > 0}}" class="countdown-mask" bindtap="onSkipCountdown">
     <view class="countdown-inner">
-      <text class="countdown-seal" style="color:{{theme.accent}}">{{theme.motif}}</text>
-      <text class="countdown-num serif">{{countdown}}</text>
+      <text class="countdown-seal">{{theme.motif}}</text>
+      <text class="countdown-num">{{countdown}}</text>
       <text class="tiny">凝神 · 起手（点一下跳过）</text>
     </view>
   </view>
@@ -356,7 +356,7 @@
   <view class="mask" wx:elif="{{showResult && result}}">
     <view class="modal modal--reveal">
       <view class="grade" style="background:{{result.gradeColor}}">{{result.grade}}</view>
-      <text class="modal__title serif mt16">{{result.headline}}</text>
+      <text class="modal__title mt16">{{result.headline}}</text>
       <text class="modal__sub">{{result.gradeTitle}} · {{result.subline}}</text>
 
       <view class="modal__body" wx:if="{{result.lines.length > 0}}">

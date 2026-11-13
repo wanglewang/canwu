@@ -1,37 +1,42 @@
+/* 登录面板：与全站同一套墨金，不用蓝色（原先是 #3b6ef5 的通用蓝，和墨底放一起最刺眼）。
+   颜色全部取令牌，组件内不写裸色值；深色是唯一一套，系统明暗切换不翻转。 */
 .login {
-    padding: 36rpx 32rpx;
-    background: #ffffff;
-    border-radius: 28rpx;
-    box-shadow: 0 8rpx 28rpx rgba(31, 35, 41, 0.06);
+    padding: var(--sp-6) var(--sp-5);
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-lg);
+    background: var(--c-imm-panel);
 }
 
 .login-title {
     display: block;
-    font-size: 34rpx;
-    font-weight: 700;
-    color: #1f2329;
+    font-size: var(--fs-h3);
+    font-weight: 600;
+    color: var(--c-imm-text);
 }
 
 .login-desc {
     display: block;
-    margin-top: 12rpx;
-    font-size: 24rpx;
-    line-height: 1.6;
-    color: #8a94a6;
+    margin-top: var(--sp-3);
+    font-size: var(--fs-note);
+    line-height: var(--lh-body);
+    color: var(--c-imm-text-3);
 }
 
 .login-input {
-    height: 80rpx;
-    padding: 0 24rpx;
-    margin-top: 28rpx;
-    font-size: 28rpx;
-    color: #1f2329;
-    background: #f4f6fb;
-    border-radius: 18rpx;
+    box-sizing: border-box;
+    width: 100%;
+    height: var(--touch);
+    padding: 0 var(--sp-5);
+    margin-top: var(--sp-6);
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-md);
+    background: var(--c-imm-bg-2);
+    font-size: var(--fs-body-sm);
+    color: var(--c-imm-text);
 }
 
 .login-placeholder {
-    color: #a8b1c0;
+    color: var(--c-imm-text-3);
 }
 
 .login-row {
@@ -41,35 +46,47 @@
 
 .login-code {
     flex: 1;
-    margin-top: 20rpx;
+    margin-top: var(--sp-4);
 }
 
+/* 获取验证码 = 次操作：细描边金字，不铺色块，避免和「登录 / 注册」抢主次 */
 .login-send {
     flex-shrink: 0;
-    margin: 20rpx 0 0 20rpx;
-    padding: 0 24rpx;
-    height: 80rpx;
-    line-height: 80rpx;
-    font-size: 26rpx;
-    color: #3b6ef5;
-    background: #e8efff;
-    border-radius: 18rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--touch);
+    margin: var(--sp-4) 0 0 var(--sp-4);
+    padding: 0 var(--sp-5);
+    border: 1rpx solid var(--c-imm-gold-dim);
+    border-radius: var(--r-md);
+    color: var(--c-imm-gold);
+    font-size: var(--fs-note);
+    line-height: 1;
 }
 
 .login-send-disabled {
-    color: #a8b1c0;
-    background: #f4f6fb;
+    border-color: var(--c-imm-line);
+    color: var(--c-imm-text-3);
 }
 
 .login-button {
-    margin-top: 28rpx;
-    height: 84rpx;
-    line-height: 84rpx;
-    font-size: 30rpx;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: var(--touch);
+    margin-top: var(--sp-5);
+    padding: 0 var(--sp-6);
+    border: 0;
+    border-radius: var(--r-md);
+    background: linear-gradient(to bottom, var(--c-imm-gold), var(--c-imm-gold-dim));
+    color: var(--c-imm-bg);
+    font-size: var(--fs-h3);
     font-weight: 600;
-    color: #ffffff;
-    background: #3b6ef5;
-    border-radius: 18rpx;
+    line-height: 1;
+    letter-spacing: var(--sp-1);
 }
 
 .login-button::after {
@@ -78,14 +95,14 @@
 
 .login-tip {
     display: block;
-    margin-top: 20rpx;
-    font-size: 24rpx;
-    color: #17a673;
+    margin-top: var(--sp-4);
+    font-size: var(--fs-caption);
+    color: var(--c-imm-jade);
 }
 
 .login-error {
     display: block;
-    margin-top: 20rpx;
-    font-size: 24rpx;
-    color: #e5484d;
+    margin-top: var(--sp-4);
+    font-size: var(--fs-caption);
+    color: var(--c-imm-danger);
 }

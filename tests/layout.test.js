@@ -148,7 +148,7 @@ check('参悟局内隐藏功法头卡，盘面优先', function () {
 check('参悟吸底条只在有操作时出现', function () {
   const s = read('pages/practice/practice.wxml');
   const js = read('pages/practice/practice.js');
-  assert.ok(/class="pg \{\{barMode \? 'pg--with-bar' : ''\}\}[^"]*"/.test(s), '页面未按 barMode 留底部空间');
+  assert.ok(/class="pg pg--imm \{\{barMode \? 'pg--with-bar' : ''\}\}[^"]*"/.test(s), '页面未按 barMode 留底部空间');
   assert.ok(/sceneOn && started && !showResult \? 'pg--scene' : ''/.test(s), '沉浸舞台没有按样板开关与局内状态挂载');
   assert.ok(/barMode === 'start'/.test(s) && /barMode === 'tools'/.test(s), '吸底条缺少开始/工具两种形态');
   assert.ok(/syncBar: function/.test(js), '缺少吸底条状态同步');
@@ -451,7 +451,9 @@ check('三连 S 直接晋级：准备页有进度、结算页有回执、指南�
   assert.ok(/S_STREAK_GOAL = 3/.test(engine) && /sStreakGoal/.test(engine), '内核没有连 S 计数');
   assert.ok(/streakDots/.test(js) && /streakText/.test(js), '准备页没算连 S 进度');
   assert.ok(/class="streak-card/.test(wxml) && /streak-dot--on/.test(wxml), '准备页没画连 S 圆点');
-  assert.ok(/\.streak-card/.test(css) && /prefers-color-scheme: dark[\s\S]*\.streak-card/.test(css), '连 S 卡片没有暗色适配');
+  // 参悟页与四个主页面同色：恒定额色，不再做明暗两套，所以这里断言的是「有没有落在墨金令牌上」。
+  assert.ok(/\.streak-card\s*\{[^}]*var\(--c-imm-gold-soft\)/.test(css), '连 S 卡片没有落在墨金体系里');
+  assert.ok(!/@media\s*\(\s*prefers-color-scheme/.test(css), '参悟页又按系统明暗翻转了，盘面会突然换色');
   assert.ok(/r\.totalGain/.test(js) && /其中直接晋级/.test(js) && /三连圆满 · 晋/.test(js), '结算页没把直接补的那笔讲清');
   assert.ok(/连 S 进度/.test(js) && /sStreakGoal/.test(js), '结算页没写还差几局');
   assert.ok(/title: '六 · 三连 S 直接晋级'/.test(guide) && /连续完成 3 局 S/.test(guide), '指南没有三连 S 专节');
@@ -482,8 +484,9 @@ check('页面骨架统一：四 tab + 子页用仙箓皮肤，右上角唯一「
     assert.ok(!/copy\.footHint/.test(wxml), name + ' 还留着重复页脚口号');
   }
   assert.ok(/\{\{copy\.footGuide\}\}/.test(read('pages/guide/guide.wxml')), '指南页页脚品牌行丢了');
-  assert.ok(/class="login-page"/.test(read('pages/login/login.wxml')), '登录页根节点不是品牌页容器');
-  assert.ok(/class="pg \{\{barMode/.test(read('pages/practice/practice.wxml')), '参悟页丢了 .pg 根容器');
+  assert.ok(/class="pg--imm login-page"/.test(read('pages/login/login.wxml')), '登录页根节点没接上墨金映射');
+  // 参悟页也进仙箓皮肤：根容器同时是 .pg（页面骨架）与 .pg--imm（墨金映射）。
+  assert.ok(/^<view class="pg pg--imm/.test(read('pages/practice/practice.wxml')), '参悟页根节点不是 .pg--imm');
 });
 
 check('加载 / 空 / 错误状态统一用 .state 占位，不再白屏', function () {

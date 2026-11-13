@@ -1,4 +1,4 @@
-<view class="login-page">
+<view class="pg--imm login-page">
     <view class="login-brand">
         <text class="login-brand-name">参悟</text>
         <text class="login-brand-sub">登录后接续你的修行</text>
