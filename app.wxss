@@ -27,8 +27,9 @@ button::after {
     padding: var(--page-top) var(--page-x) calc(var(--page-bottom) + env(safe-area-inset-bottom));
 }
 
-/* 页头统一走 styles/immortal.wxss 的 .imm-head（标题交给原生导航栏，页内只留右上「说明」）；
-   旧版 .pg__head 三件套是双层导航的来源，已随改版删除。 */
+/* 页面骨架：标题交给原生导航栏，页内不再画标题与返回；
+   「说明」这类低频入口沉到页尾 .pg__foot 一行小字，首屏不再为它留一条空行。
+   旧版 .pg__head（眉标 + 标题 + 说明）与 .imm-head（右上角单字动作）都已删除。 */
 
 .pg__foot {
     margin-top: var(--sp-8);
@@ -36,6 +37,11 @@ button::after {
     color: var(--c-text-3);
     font-size: var(--fs-caption);
     letter-spacing: var(--sp-1);
+}
+
+/* 页尾两条同类链接之间的分隔点，颜色跟页脚走，不另设色值。 */
+.pg__foot__sep {
+    margin: 0 var(--sp-2);
 }
 
 /* ---------- 卡片与分隔 ---------- */

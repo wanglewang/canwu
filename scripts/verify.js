@@ -379,7 +379,7 @@ for (const tile of nav.TILES) {
   if (!tile.label || !tile.glyph || !tile.mode || !tile.key) errors.push('六宫格条目字段不全：' + JSON.stringify(tile));
   else checked += 1;
 }
-// 每个页面右上角的「说明」都要有对应主题，且主题里有可展开的分节。
+// 每个页面页尾的「说明」都要有对应主题，且主题里有可展开的分节。
 for (const pageKey of Object.keys(nav.HELP_TOPICS)) {
   const topic = helpData.TOPICS[nav.HELP_TOPICS[pageKey]];
   if (!topic) errors.push('说明真源缺少主题：' + pageKey);
@@ -407,6 +407,9 @@ for (const page of tabPaths) {
   if (!/class="pg pg--imm/.test(src)) errors.push(page + '.wxml 没用仙箓皮肤');
   else checked += 1;
   if (!/bindtap="onGoHelp"/.test(src)) errors.push(page + '.wxml 缺少「说明」入口');
+  else checked += 1;
+  // 「说明」沉到页尾一行小字：顶部再给它单独一条空行，首屏上方就是一整条留白。
+  if (/class="imm-head"/.test(src)) errors.push(page + '.wxml 又把「说明」单独占了一行');
   else checked += 1;
   if (/怎么提升战力|powerLines|copy\.hints\.|class="muted mt8"/.test(src)) {
     errors.push(page + '.wxml 又把解释性文字印回首屏');

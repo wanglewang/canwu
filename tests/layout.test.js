@@ -602,12 +602,11 @@ check('页面骨架统一：四 tab + 子页用仙箓皮肤，导航只留原生
     assert.ok(/^<view class="pg pg--imm/m.test(wxml), name + ' 根节点不是 .pg--imm');
     // 返回箭头与标题都由小程序原生导航栏承担。
     // 页面里再画一遍就是两层导航：用户看到两个返回，点哪个、回到哪一层都说不清。
-    assert.ok(!/imm-head__back/.test(wxml), name + ' 又画了一个页内返回箭头');
-    assert.ok(!/imm-head__title/.test(wxml), name + ' 又画了一个页内标题');
+    assert.ok(!/imm-head/.test(wxml), name + ' 又在顶部留了一条只放「说明」的空行');
     // 说明页自己就是解释，不需要再嵌一个说明入口。
     if (name !== 'help') {
-      assert.ok(/class="imm-head"/.test(wxml), name + ' 缺右上角说明位');
-      assert.ok(/bindtap="onGoHelp"/.test(wxml), name + ' 缺右上角「说明」入口');
+      assert.ok(/class="pg__foot"[\s\S]*本页说明/.test(wxml), name + ' 页尾缺「说明」入口');
+      assert.ok(/bindtap="onGoHelp"/.test(wxml), name + ' 缺「说明」入口');
     }
     assert.ok(!/class="pg__head"|class="muted mt8"/.test(wxml),
       name + ' 又把「大标题 + 说明句」印回首屏');

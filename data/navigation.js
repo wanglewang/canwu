@@ -7,7 +7,7 @@
 // 还有 switchTab / navigateTo 两种写法。这里把导航收成纯数据：
 //   - TAB_ORDER 与 app.json 的 tabBar.list 一一对应，verify.js 会核对；
 //   - TILES 决定主页六宫格，六格**各自进自己的页面**，不再借道别的 tab；
-//   - HELP_TOPICS 让每页右上角只有一个「说明」，点进去按主题展开。
+//   - HELP_TOPICS 让每页页尾只有一个「说明」，点进去按主题展开。
 // 低频信息（日志、仙榜）不占首屏，从六宫格进子页。
 
 const TAB_ORDER = ['index', 'cultivate', 'skills', 'profile'];

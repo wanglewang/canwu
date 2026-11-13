@@ -59,26 +59,10 @@
     padding-bottom: calc(var(--page-bottom) + var(--safe-bottom));
 }
 
-/* ---------- 页头：只剩右上角一个动作，不再有返回与标题 ----------
-   返回箭头与标题都由小程序原生导航栏承担。页面里再画一遍就是两层导航：
-   玩家看到两个返回，点哪个、回到哪一层都说不清。 */
-.imm-head {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    height: auto;
-    margin: var(--sp-1) 0 var(--sp-1);
-}
-
-.imm-head__action {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    min-height: var(--touch-sm);
-    color: var(--c-imm-text-2);
-    font-size: var(--fs-body);
-    letter-spacing: 2rpx;
-}
+/* ---------- 页头：不再有返回、标题，也没有单独一行动作 ----------
+   返回箭头与标题都由小程序原生导航栏承担，页面里再画一遍就是两层导航；
+   「说明」原本占着顶部一行、右边一个字，把首屏上方整条留白——
+   现在沉到页尾（.pg__foot），首屏直接接第一块面板。 */
 
 /* 页头下一句引导：只有真需要一句的时候才用，默认不出现。 */
 .imm-lead {

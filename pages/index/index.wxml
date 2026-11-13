@@ -1,8 +1,4 @@
 <view class="pg pg--imm pg--with-bar">
-  <view class="imm-head">
-    <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
-  </view>
-
   <!-- 只在同步出问题时出现，正常状态不占任何文字。 -->
   <view wx:if="{{syncTone !== 'ok'}}" class="alert-bar alert-bar--{{syncTone}} pressable" hover-class="pressable--on" bindtap="onRetrySync">
     <text class="alert-bar__text">{{syncLabel}}</text>
@@ -94,5 +90,9 @@
         <button class="imm-btn imm-btn--block" bindtap="closeOffline">{{copy.actions.confirm}}</button>
       </view>
     </view>
+  </view>
+
+  <view class="pg__foot">
+    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">本页说明 ›</text>
   </view>
 </view>

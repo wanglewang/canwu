@@ -1,8 +1,4 @@
 <view class="pg pg--imm">
-  <view class="imm-head">
-    <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
-  </view>
-
   <view wx:if="{{logs.length > 0}}" class="imm-panel">
     <view class="imm-panel__label">近期动静</view>
     <view class="log-line" wx:for="{{logs}}" wx:key="at">
@@ -26,5 +22,9 @@
         <text class="world-row__state">{{item.enabled ? '进行中' : '敬请期待'}}</text>
       </view>
     </view>
+  </view>
+
+  <view class="pg__foot">
+    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">本页说明 ›</text>
   </view>
 </view>
