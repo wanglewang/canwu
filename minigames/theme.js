@@ -37,6 +37,8 @@ const THEMES = {
     key: 'combo', name: '步法', accent: '#b4453c', soft: '#f7ded9', ink: '#782b25',
     bg: '#f3e2dd', frame: '#fff4f1', glyph: '步', motif: '步',
     hit: '步位合拍', miss: '踏错了', banner: '踏云连环', praise: '一气呵成',
+    // 连击的说法跟着题材走：刀法叫「连招」，步法叫「连踏」。
+    comboLabel: '连踏',
   },
   arrayEye: {
     key: 'arrayEye', name: '阵灯', accent: '#6f5b9e', soft: '#e9e3f5', ink: '#453771',

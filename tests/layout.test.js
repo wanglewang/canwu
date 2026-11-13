@@ -345,6 +345,30 @@ check('局内提示明确禁止反向，不再写「反着划也算」', functio
   assert.ok(/箭头/.test(guides) && /不能反/.test(guides), '玩法说明没讲箭头与禁反向');
 });
 
+check('步法盘面用形状指方向：卷轴与四个键都不写汉字', function () {
+  const s = read('minigames/sword.js');
+  const wxml = read('pages/practice/practice.wxml');
+  // 汉字只作内部真值（glyph 用于判定与存档），盘面画的是 dir 图形。
+  assert.ok(/STEP = \{/.test(s) && /dir: 'up'/.test(s) && /name: '前踏'/.test(s),
+    '步法动作没有「方向 + 名称」映射，盘面只能退回写汉字');
+  const at = wxml.indexOf("vm.stage === 'scroll'");
+  assert.ok(at > 0, '练习页没有步法卷轴区');
+  const scroll = wxml.slice(at, at + 1600);
+  assert.ok(!/\{\{item\.glyph\}\}/.test(scroll), '卷轴与步法键又把汉字画回盘面了');
+  assert.ok(/step--\{\{item\.dir\}\}/.test(scroll), '步法符号没按方向切换');
+  assert.ok(/step__arrow/.test(scroll) && /step__ring/.test(scroll), '缺方向箭头或旋身圆环');
+  assert.ok(/scroll__key--press/.test(scroll), '步法键按下没有反馈');
+  assert.ok(/stage === 'scroll'/.test(read('pages/practice/practice.js')), '步法键没有触感反馈');
+
+  // 「圆满」是段位名，不能拿来讲本局还剩几段；评级只按走完的段数算，与用时无关。
+  const goalLine = (s.match(/vm\.goal = [^\n]+/) || [''])[0];
+  assert.ok(goalLine && !/圆满/.test(goalLine), '又用段位名「圆满」讲本局进度了');
+  const g = require('../data/guides.js').GUIDES.sword;
+  assert.ok(!/用时评级/.test(g.scoring), '评级规则写错了：只看走完的段数，不看用时');
+  assert.ok(/就是 S/.test(g.steps.join('')), '说明里没讲清「走完段数就是 S」');
+  assert.ok(/前踏/.test(g.terms.map(function (t) { return t.name; }).join('')), '术语表还在按汉字讲步法键');
+});
+
 check('兵器语言收在 data/weapons.js，玩法模块不硬编码招式名与称谓', function () {
   const click = read('minigames/click.js');
   const w = read('data/weapons.js');

@@ -236,16 +236,27 @@
     font-weight: 600;
 }
 
+/* 评级徽章：只画一个字母 C，玩家会当成按钮去找它点。
+   加「评级」二字并改成 pill，代价是两个多字的宽度，换的是不再猜。 */
 .grade-chip {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 52rpx;
-    height: 52rpx;
-    border-radius: 50%;
+    box-sizing: border-box;
+    min-width: 52rpx;
+    height: 44rpx;
+    padding: 0 12rpx;
+    border-radius: 22rpx;
     color: var(--c-imm-text);
-    font-size: 30rpx;
+    font-size: 28rpx;
     font-weight: 700;
+}
+
+.grade-chip__label {
+    margin-right: 6rpx;
+    font-size: 18rpx;
+    font-weight: 500;
+    opacity: 0.72;
 }
 
 .hud__track {
@@ -860,30 +871,54 @@
     margin-top: 16rpx;
 }
 
+/* 卷轴是一串步点，不是一行字：节点画成圆，走过的描边、当前那颗实心起光——
+   一眼能看出流光在往前推，而不是在读一串文字。 */
 .scroll__move {
+    position: relative;
     box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 76rpx;
-    height: 76rpx;
-    margin: 0 10rpx 10rpx 0;
-    border: 4rpx solid var(--frame, #fffdf7);
-    border-radius: 12rpx;
+    width: 72rpx;
+    height: 72rpx;
+    margin: 0 12rpx 12rpx 0;
+    border: 3rpx solid var(--frame, #fffdf7);
+    border-radius: 50%;
     background: var(--bg, #efe9db);
     color: var(--ink, #5d6358);
-    font-family: serif;
-    font-size: 34rpx;
 }
+
+/* 步点之间连一小段线：一串圆点看上去才像「一条要走的路径」，
+   而不是一排待点的按钮。走过的那些线更实。 */
+.scroll__move::after {
+    position: absolute;
+    top: 50%;
+    right: -12rpx;
+    width: 12rpx;
+    height: 2rpx;
+    background: var(--acc, #3d8c74);
+    opacity: 0.3;
+    content: '';
+    transform: translateY(-50%);
+}
+
+.scroll__move--done::after { opacity: 0.75; }
+.scroll__move:last-child::after { display: none; }
 
 .scroll__move--active {
     border-color: var(--acc, #3d8c74);
     background: var(--acc, #3d8c74);
     color: #fffdf7;
+    box-shadow: 0 0 14rpx var(--acc, #3d8c74);
     animation: litPop 0.35s ease-out;
 }
 
-.scroll__move--done { opacity: 0.42; }
+.scroll__move--done {
+    border-color: var(--acc, #3d8c74);
+    background: transparent;
+    color: var(--acc, #3d8c74);
+    opacity: 0.55;
+}
 
 .scroll__keys {
     display: flex;
@@ -902,11 +937,113 @@
     border-radius: 16rpx;
     background: var(--bg, #efe9db);
     color: var(--ink, #5d6358);
-    font-family: serif;
-    font-size: 44rpx;
+}
+
+/* 按下就整块翻成步色：连按同一个方向时，手指能立刻确认「这一下点上了」。 */
+.scroll__key--press {
+    background: var(--acc, #3d8c74);
+    color: #fffdf7;
 }
 
 .scroll__key:last-child { margin-right: 0; }
+
+/* ---------- 步法符号 ----------
+   盘面不写汉字：进 / 退 / 侧 / 转 只作内部真值，画出来的是方向图形。
+   箭头默认朝右，up = -90° / down = 90° / side = -45°；「旋身」没有方向，
+   改用缺口圆环（四周皆可转，缺口表示还在转）。 */
+.step {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34rpx;
+    height: 34rpx;
+}
+
+.step__arrow {
+    position: absolute;
+    width: 26rpx;
+    height: 5rpx;
+    border-radius: 3rpx;
+    background: currentColor;
+}
+
+.step__arrow::after {
+    position: absolute;
+    top: 50%;
+    right: -1rpx;
+    width: 0;
+    height: 0;
+    border-top: 9rpx solid transparent;
+    border-bottom: 9rpx solid transparent;
+    border-left: 12rpx solid currentColor;
+    content: '';
+    transform: translateY(-50%);
+}
+
+.step--up .step__arrow { transform: rotate(-90deg); }
+.step--down .step__arrow { transform: rotate(90deg); }
+.step--side .step__arrow { transform: rotate(-45deg); }
+
+/* 旋身：缺口圆环只是「一圈」，加一枚切向的小箭头才是「在转」。
+   不加箭头时这个图形读起来像字母 C，和评级徽章的 C 撞了。 */
+.step__ring {
+    position: relative;
+    display: none;
+    box-sizing: border-box;
+    width: 27rpx;
+    height: 27rpx;
+    border: 5rpx solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+}
+
+.step__ring::after {
+    position: absolute;
+    top: -6rpx;
+    right: -7rpx;
+    width: 0;
+    height: 0;
+    border-right: 13rpx solid currentColor;
+    border-top: 8rpx solid transparent;
+    border-bottom: 8rpx solid transparent;
+    content: '';
+    transform: rotate(-38deg);
+}
+
+.step--turn .step__arrow { display: none; }
+.step--turn .step__ring { display: block; }
+
+.step--lg {
+    width: 48rpx;
+    height: 48rpx;
+}
+
+.step--lg .step__arrow {
+    width: 36rpx;
+    height: 7rpx;
+    border-radius: 4rpx;
+}
+
+.step--lg .step__arrow::after {
+    border-top-width: 12rpx;
+    border-bottom-width: 12rpx;
+    border-left-width: 17rpx;
+}
+
+.step--lg .step__ring {
+    width: 38rpx;
+    height: 38rpx;
+    border-width: 7rpx;
+}
+
+.step--lg .step__ring::after {
+    top: -8rpx;
+    right: -9rpx;
+    border-right-width: 17rpx;
+    border-top-width: 10rpx;
+    border-bottom-width: 10rpx;
+}
 
 /* ---------- 起手式 ---------- */
 .countdown-mask {

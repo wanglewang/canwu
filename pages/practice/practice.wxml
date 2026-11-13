@@ -154,7 +154,7 @@
         </view>
         <view class="hud__right">
           <text wx:if="{{vm.comboText}}" class="combo-chip">{{vm.comboText}}</text>
-          <text class="grade-chip" style="background:{{gradeNowColor}}">{{vm.gradeNow}}</text>
+          <text class="grade-chip" style="background:{{gradeNowColor}}"><text class="grade-chip__label">评级</text>{{vm.gradeNow}}</text>
           <view class="hud__quit" bindtap="onAbandon">收功</view>
         </view>
       </view>
@@ -186,7 +186,7 @@
           <view class="scene-hud__lamps">
             <view wx:for="{{sceneLamps}}" wx:key="id" class="scene-hud__lamp {{item.on ? 'scene-hud__lamp--on' : ''}}"></view>
           </view>
-          <text class="scene-hud__grade" style="background:{{gradeNowColor}}">{{vm.gradeNow}}</text>
+          <text class="scene-hud__grade" style="background:{{gradeNowColor}}"><text class="grade-chip__label">评级</text>{{vm.gradeNow}}</text>
           <view class="scene-hud__quit" bindtap="onAbandon">收功</view>
         </view>
       </view>
@@ -278,15 +278,21 @@
       </view>
 
       <view wx:if="{{vm.stage === 'scroll' && vm.scroll}}" class="scroll">
-        <text class="tiny">第 {{vm.scroll.segment}} / {{vm.scroll.total}} 段 · 照卷轴依次出招</text>
+        <text class="tiny">第 {{vm.scroll.segment}} / {{vm.scroll.total}} 段 · 照卷轴依次踏位</text>
         <view class="scroll__ribbon">
           <view wx:for="{{vm.scroll.moves}}" wx:key="id" class="scroll__move scroll__move--{{item.state}}">
-            <text>{{item.glyph}}</text>
+            <view class="step step--{{item.dir}}">
+              <view class="step__arrow"></view>
+              <view class="step__ring"></view>
+            </view>
           </view>
         </view>
         <view class="scroll__keys">
-          <view wx:for="{{vm.scroll.keys}}" wx:key="id" class="scroll__key" data-index="{{item.index}}" bindtap="onCellTap">
-            <text>{{item.glyph}}</text>
+          <view wx:for="{{vm.scroll.keys}}" wx:key="id" class="scroll__key scroll__key--{{item.dir}}" hover-class="scroll__key--press" data-index="{{item.index}}" bindtap="onCellTap">
+            <view class="step step--{{item.dir}} step--lg">
+              <view class="step__arrow"></view>
+              <view class="step__ring"></view>
+            </view>
           </view>
         </view>
       </view>

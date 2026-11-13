@@ -530,6 +530,10 @@ Page({
     this.controller.tap(Number(event.currentTarget.dataset.index || 0));
     // 玩法没给浮字（点空、翻已开的格子）就补一声轻响，让每次触碰都有回应。
     if (this.lastFxKey === before) sfx.play('tap');
+    // 步法键连按同一个方向时，光看画面容易怀疑「这一下点上没有」，补一次极轻的触感。
+    if (this.data.vm && this.data.vm.stage === 'scroll' && wx.vibrateShort) {
+      try { wx.vibrateShort({ type: 'light' }); } catch (e) { /* 部分环境不支持震动 */ }
+    }
   },
 
   onCellLongPress: function (event) {

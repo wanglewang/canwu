@@ -513,6 +513,24 @@ check('剑招连段：卷轴 + 四个招式键，打错退这一招', function (
     const before = ctx.st.vm.scroll.cursor;
     ctx.c.tap(wrong.index);
     assert.strictEqual(ctx.st.vm.scroll.cursor, before, '打错不该推进招式');
+
+    // 盘面靠形状：每一步都必须能映射到某个键的方向，四个键的方向互不相同。
+    const dirs = ctx.st.vm.scroll.keys.map(function (k) { return k.dir; });
+    assert.strictEqual(new Set(dirs).size, 4, '四个步法键的方向不互异，图形就分不开');
+    // 同一方向最多连着两个：三个以上就是无脑连点，记卷轴被绕过去了（两个必须允许）。
+    for (let round = 0; round < 30; round += 1) {
+      const g = makeCtx(data.getMethod('combo'));
+      g.c.start();
+      let last = '';
+      let same = 0;
+      for (const mv of g.st.vm.scroll.moves) {
+        assert.ok(dirs.indexOf(mv.dir) >= 0, '卷轴出现了没有对应键的方向');
+        same = mv.dir === last ? same + 1 : 1;
+        last = mv.dir;
+        assert.ok(same <= 2, '同一方向连出三个，这一串会变成无脑连点');
+      }
+      g.c.destroy();
+    }
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
