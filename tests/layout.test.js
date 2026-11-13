@@ -219,14 +219,20 @@ check('局内音效有资源、有开关、跟着判定浮字走', function () {
   assert.ok(/onToggleSfx/.test(profile), '道牒页缺少音效开关');
 });
 
-check('论道页对手按钮改为卡片右侧紧凑按钮', function () {
+check('论道页对手按钮是行内紧凑按钮，且战斗与探索分得开', function () {
   const s = read('pages/battle/battle.wxml');
+  let fights = 0;
   for (const line of s.split('\n')) {
     if (/bindtap="onFight"/.test(line)) {
-      assert.ok(!/btn--block/.test(line), '仍有整宽重复按钮：' + line.trim());
-      assert.ok(/btn--compact/.test(line), '未使用紧凑按钮：' + line.trim());
+      fights += 1;
+      assert.ok(!/imm-btn--block/.test(line), '仍有整宽重复按钮：' + line.trim());
+      assert.ok(/imm-btn--sm/.test(line), '未使用行内紧凑按钮：' + line.trim());
     }
   }
+  assert.ok(fights >= 2, '对手与秘境的动作按钮不见了');
+  // 秘境行必须是细描边的次操作，不能和「挑战」同为金色实心。
+  const secretLine = s.split('\n').filter(function (l) { return /入秘境/.test(l); })[0] || '';
+  assert.ok(/imm-btn--ghost/.test(secretLine), '秘境按钮没和战斗按钮拉开层级');
 });
 
 check('不再使用会被 .btn-row 覆盖的 mt12 / mt16 组合', function () {
@@ -460,19 +466,20 @@ check('三连 S 直接晋级：准备页有进度、结算页有回执、指南�
   assert.ok(/title: '十一 · 离线收益的时间'/.test(guide), '新增专节后章节编号没顺延');
 });
 
-check('页面骨架统一：四 tab + 子页用仙箓皮肤，右上角唯一「说明」入口', function () {
+check('页面骨架统一：四 tab + 子页用仙箓皮肤，导航只留原生一层', function () {
   const main = ['index', 'cultivate', 'skills', 'profile', 'battle', 'shop', 'board', 'titles', 'guide', 'help', 'log'];
   for (const name of main) {
     const wxml = read('pages/' + name + '/' + name + '.wxml');
     assert.ok(/^<view class="pg pg--imm/m.test(wxml), name + ' 根节点不是 .pg--imm');
-    assert.ok(/class="imm-head"/.test(wxml) && /class="imm-head__title"/.test(wxml),
-      name + ' 缺统一页头');
-    // 标题不做手写空格、不挂衬线体：层级交给字号与字重。
-    const head = (wxml.match(/class="imm-head__title"[^>]*>([^<]*)</) || [])[1] || '';
-    assert.ok(head.indexOf(' ') < 0 || head.indexOf('{{') >= 0, name + ' 的标题里还塞着空格');
-    assert.ok(!/imm-head__title serif/.test(wxml), name + ' 的标题又挂回了衬线体');
+    // 返回箭头与标题都由小程序原生导航栏承担。
+    // 页面里再画一遍就是两层导航：用户看到两个返回，点哪个、回到哪一层都说不清。
+    assert.ok(!/imm-head__back/.test(wxml), name + ' 又画了一个页内返回箭头');
+    assert.ok(!/imm-head__title/.test(wxml), name + ' 又画了一个页内标题');
     // 说明页自己就是解释，不需要再嵌一个说明入口。
-    if (name !== 'help') assert.ok(/bindtap="onGoHelp"/.test(wxml), name + ' 缺右上角「说明」入口');
+    if (name !== 'help') {
+      assert.ok(/class="imm-head"/.test(wxml), name + ' 缺右上角说明位');
+      assert.ok(/bindtap="onGoHelp"/.test(wxml), name + ' 缺右上角「说明」入口');
+    }
     assert.ok(!/class="pg__head"|class="muted mt8"/.test(wxml),
       name + ' 又把「大标题 + 说明句」印回首屏');
   }
@@ -498,7 +505,8 @@ check('加载 / 空 / 错误状态统一用 .state 占位，不再白屏', funct
   }
   // 修炼页的空态是真「还没习得功法」，用面板内的一句空态，不是加载中。
   assert.ok(/imm-empty/.test(read('pages/cultivate/cultivate.wxml')), '修炼页空态没有文案占位');
-  assert.ok(/class="state state--inline"/.test(read('pages/battle/battle.wxml')), '榜单错误没有用内嵌状态');
+  // 榜单的内联错误态跟着榜单走，现在它在战力仙榜页。
+  assert.ok(/class="state state--inline"/.test(read('pages/board/board.wxml')), '榜单错误没有用内嵌状态');
   const css = read('app.wxss');
   for (const cls of ['.state {', '.state--inline', '.state__title', '.state__desc', '.state__action']) {
     assert.ok(css.indexOf(cls) >= 0, '全局基础层缺少 ' + cls);
@@ -540,7 +548,7 @@ check('全局基础层与常规页样式不写裸色值，尺寸走令牌', func
 });
 
 check('导航栏标题简洁统一，配色交给主题变量', function () {
-  const titles = ['主页', '修炼', '功法', '人物', '论道', '参悟', '登录', '修行指南', '说明', '修行日志',
+  const titles = ['主页', '修炼', '功法', '人物', '仙门切磋', '参悟', '登录', '修行指南', '说明', '修行日志',
     '藏经阁', '战力仙榜', '称号簿'];
   for (const p of pageFiles('.json')) {
     const cfg = JSON.parse(read(p.rel));
@@ -747,13 +755,18 @@ check('主页六宫格各进各的子页，不再借道别的 tab', function () 
     // 关键：不能一格「看着是子页、点进去跳到别的 tab」。
     assert.ok(tabs.indexOf(rel) < 0, t.label + ' 仍然跳去 tab 页 ' + rel);
   }
-  // 三个新子页都是独立四件套，且带返回。
+  // 三个新子页都是独立四件套，且页面里不再自绘返回。
   for (const name of ['shop', 'board', 'titles']) {
     for (const ext of ['.js', '.json', '.wxml', '.wxss']) {
       assert.ok(fs.existsSync(path.join(ROOT, 'pages/' + name + '/' + name + ext)), name + ' 缺 ' + ext);
     }
-    assert.ok(/class="imm-head__back/.test(read('pages/' + name + '/' + name + '.wxml')), name + ' 没有返回入口');
+    assert.ok(!/imm-head__back/.test(read('pages/' + name + '/' + name + '.wxml')), name + ' 又画了页内返回');
+    assert.ok(!/onBack/.test(read('pages/' + name + '/' + name + '.js')), name + ' 还留着没人调用的 onBack');
   }
+  // 榜单只在一个页面里出现：论道页不再复述前十，否则两处都能打、两处都要刷新。
+  assert.ok(!/refreshBoard|onFightRival/.test(read('pages/battle/battle.js')),
+    '论道页又接回了榜单（榜单只在战力仙榜页）');
+  assert.ok(/onGoBoard/.test(read('pages/battle/battle.js')), '论道页缺少去仙榜的指路');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

@@ -1,12 +1,50 @@
 /* 论道页私有样式。code-box / code-input / code-ph 用全局基础层，不在这里重复定义。 */
-.hero-num { color: var(--c-on-ink); }
 
-.fight-card { margin-bottom: var(--sp-4); }
-
-.fight-card .btn {
-    flex-shrink: 0;
-    margin-left: var(--sp-3);
+/* 对手行：名字与身份标记同行，下面是风味句、数值行、掉落行。
+   桌面端卡片堆叠改成分组列表后，行内必须自己撑住四行信息的间距。 */
+.riv-head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
 }
+
+.riv-desc {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* 风味句退到注脚色，战力与状态词提亮一档：
+   两行同色同号时，四行字会糊成一段，看不出哪行是能决策的信息。 */
+.riv-meta {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-5);
+    margin-top: var(--sp-3);
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-caption);
+}
+
+.riv-tone--good { color: var(--c-imm-jade); }
+.riv-tone--warn { color: var(--c-imm-gold); }
+
+.riv-drop {
+    display: block;
+    margin-top: var(--sp-2);
+    color: var(--c-imm-gold);
+    font-size: var(--fs-caption);
+}
+
+.riv-note {
+    display: block;
+    margin-top: var(--sp-2);
+    color: var(--c-imm-text-3);
+    font-size: var(--fs-caption);
+}
+
+/* 行内按钮不参与压缩，也不让名字把按钮挤成两行 */
+.imm-row > .imm-btn { flex: none; }
 
 .battle-score {
     display: flex;
@@ -40,21 +78,4 @@
 @keyframes riseIn {
     from { opacity: 0; transform: translateY(var(--sp-4)); }
     to { opacity: 1; transform: translateY(0); }
-}
-
-.board-row { padding: var(--sp-4) var(--sp-6); }
-
-.board-rank {
-    display: inline-block;
-    min-width: 46rpx;
-    margin-right: var(--sp-3);
-    font-size: var(--fs-body-sm);
-    color: var(--c-gold-text);
-    font-weight: 500;
-}
-
-.board-power {
-    font-size: var(--fs-subhead);
-    color: var(--c-primary-text);
-    font-weight: 500;
 }

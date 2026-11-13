@@ -12,9 +12,9 @@ const ACHIEVEMENTS = [
   { id: 'tier_up', name: '登堂入室', desc: '功法档位提升 1 次', glyph: '进', group: '修行', key: 'tierUps', goal: 1 },
   { id: 'daily_3', name: '晨课不缺', desc: '累计领取 3 天份例', glyph: '勤', group: '修行', key: 'dailyClaimed', goal: 3 },
 
-  { id: 'first_win', name: '初战告捷', desc: '论道取胜 1 次', glyph: '胜', group: '论道', key: 'wins', goal: 1 },
-  { id: 'wins_10', name: '少有敌手', desc: '论道取胜 10 次', glyph: '战', group: '论道', key: 'wins', goal: 10 },
-  { id: 'defeat_3', name: '遍访高手', desc: '首胜 3 位预设对手', glyph: '访', group: '论道', key: 'defeated', goal: 3 },
+  { id: 'first_win', name: '初战告捷', desc: '切磋取胜 1 次', glyph: '胜', group: '切磋', key: 'wins', goal: 1 },
+  { id: 'wins_10', name: '少有敌手', desc: '切磋取胜 10 次', glyph: '战', group: '切磋', key: 'wins', goal: 10 },
+  { id: 'defeat_3', name: '遍访高手', desc: '首胜 3 位预设对手', glyph: '访', group: '切磋', key: 'defeated', goal: 3 },
 
   { id: 'skills_5', name: '小有藏书', desc: '习得 5 门功法', glyph: '藏', group: '收藏', key: 'unlockedSkills', goal: 5 },
   { id: 'titles_3', name: '名动一方', desc: '解锁 3 个称号', glyph: '名', group: '收藏', key: 'titles', goal: 3 },

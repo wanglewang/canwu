@@ -59,41 +59,25 @@
     padding-bottom: calc(var(--page-bottom) + var(--safe-bottom));
 }
 
-/* ---------- 页头：左返回 / 中标题 / 右动作，不用胶囊描边 ---------- */
+/* ---------- 页头：只剩右上角一个动作，不再有返回与标题 ----------
+   返回箭头与标题都由小程序原生导航栏承担。页面里再画一遍就是两层导航：
+   玩家看到两个返回，点哪个、回到哪一层都说不清。 */
 .imm-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    height: var(--touch);
-    margin-bottom: var(--sp-6);
+    justify-content: flex-end;
+    height: auto;
+    margin: var(--sp-1) 0 var(--sp-1);
 }
 
-.imm-head__back,
 .imm-head__action {
     display: flex;
     align-items: center;
-    min-width: 96rpx;
+    justify-content: flex-end;
     min-height: var(--touch-sm);
     color: var(--c-imm-text-2);
     font-size: var(--fs-body);
-}
-
-.imm-head__back { color: var(--c-imm-gold); font-size: var(--fs-h3); }
-
-.imm-head__action {
-    justify-content: flex-end;
     letter-spacing: 2rpx;
-}
-
-.imm-head__slot { min-width: 96rpx; }
-
-.imm-head__title {
-    flex: 1;
-    text-align: center;
-    color: var(--c-imm-text);
-    font-size: var(--fs-subhead);
-    font-weight: 600;
-    letter-spacing: 4rpx;
 }
 
 /* 页头下一句引导：只有真需要一句的时候才用，默认不出现。 */

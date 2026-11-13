@@ -1,7 +1,5 @@
 <view class="pg pg--imm">
   <view class="imm-head">
-    <text class="imm-head__slot"></text>
-    <text class="imm-head__title">修炼</text>
     <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
   </view>
 

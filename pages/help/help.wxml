@@ -1,10 +1,6 @@
 <view class="pg pg--imm">
-  <view class="imm-head">
-    <text class="imm-head__back pressable" hover-class="pressable--on" bindtap="onBack">‹</text>
-    <text class="imm-head__title">说明·{{title}}</text>
-    <text class="imm-head__slot"></text>
-  </view>
 
+  <text class="help-topic">{{title}}</text>
   <text class="imm-lead">{{lead}}</text>
 
   <view class="help-sec" wx:for="{{sections}}" wx:key="key">

@@ -2,7 +2,6 @@
 
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
-const social = require('../../utils/cloud-social.js');
 const share = require('../../utils/share.js');
 const copy = require('../../data/copy.js');
 const nav = require('../../data/navigation.js');
@@ -33,6 +32,8 @@ function buildResult(r) {
   };
 }
 
+// 仙门切磋：一个页面只做一件事——挑一个对手，打一场。
+// 榜单在「战力仙榜」页，这里只留一行指路，不再重复一份前十。
 Page({
   data: {
     ov: null,
@@ -42,32 +43,17 @@ Page({
     inputCode: '',
     showResult: false,
     result: null,
-    board: [],
-    boardError: '',
-    boardLoading: false,
-    rival: null,
     copy: copy.UI,
     codeOpen: false,
   },
 
-  onLoad: function (query) {
+  onLoad: function () {
     this.listener = this.refresh.bind(this);
     store.subscribe(this.listener);
-    this.focusBoard = !!(query && query.focus === 'board');
     this.refresh();
   },
 
-  onReady: function () {
-    // 六宫格「战力仙榜」直达榜单，不用自己往下翻。
-    if (!this.focusBoard) return;
-    this.focusBoard = false;
-    wx.pageScrollTo({ selector: '#board', duration: 240 });
-  },
-
-  onShow: function () {
-    this.refresh();
-    this.refreshBoard(false);
-  },
+  onShow: function () { this.refresh(); },
 
   onUnload: function () { store.unsubscribe(this.listener); },
 
@@ -88,37 +74,16 @@ Page({
     });
   },
 
-  // 榜单读公开、写仅本人；进来时顺手把自己的战绩更一次（30 秒内不重复写）。
-  refreshBoard: async function (force) {
-    if (this.data.boardLoading) return;
-    this.setData({ boardLoading: true });
-    const result = await social.refreshBoard(store.get(), !!force);
-    const rows = result.board.ok ? result.board.rows : [];
-    const rival = social.pickRival(rows, '', engine.computePower(store.get()));
-    this.setData({
-      board: rows.slice(0, 10),
-      boardError: result.board.ok ? '' : (result.board.message || '榜单暂不可用'),
-      rival: rival,
-      boardLoading: false,
-    });
-  },
-
-  onRefreshBoard: function () { this.refreshBoard(true); },
-
   // 战力码是低频操作，收起来让首屏先解决「打谁」。
   onToggleCode: function () {
     this.setData({ codeOpen: !this.data.codeOpen });
   },
 
+  onGoBoard: function () { wx.navigateTo({ url: '/pages/board/board' }); },
+
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
 
   onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('battle') }); },
-
-  onBack: function () {
-    const pages = getCurrentPages();
-    if (pages.length > 1) wx.navigateBack();
-    else wx.switchTab({ url: '/pages/index/index' });
-  },
 
   onFight: function (event) {
     const id = event.currentTarget.dataset.id;
@@ -126,18 +91,6 @@ Page({
     if (!r.ok) { toast(r.msg); return; }
     this.setData({ showResult: true, result: buildResult(r) });
     this.refresh();
-    this.refreshBoard(true);
-  },
-
-  // 与榜单里战力最接近的真实玩家打一场镜像，不再只是本地预设 NPC。
-  onFightRival: function () {
-    const rival = this.data.rival;
-    if (!rival) { toast('榜单上暂时只有你一人，先邀个道友'); return; }
-    const r = store.commitCritical(function (s) { return engine.battleRival(s, rival); });
-    if (!r.ok) { toast(r.msg); return; }
-    this.setData({ showResult: true, result: buildResult(r) });
-    this.refresh();
-    this.refreshBoard(true);
   },
 
   onCopyCode: function () {

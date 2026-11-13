@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "论道",
+  "navigationBarTitleText": "仙门切磋",
   "usingComponents": {
     "term": "../../components/term/term"
   }

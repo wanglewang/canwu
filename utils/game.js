@@ -743,7 +743,7 @@ function battleMirror(state, code) {
   if (win) state.stats.wins += 1;
   addLog(state, '与镜像道友论道，' + (win ? '胜' : '负') + '，' + rolls.playerRoll + ' : ' + rolls.enemyRoll, 'battle');
   return {
-    ok: true, win: win, challengeName: '镜像道友', challengeTitle: '战力码论道',
+    ok: true, win: win, challengeName: '镜像道友', challengeTitle: '战力码切磋',
     power: power, enemyPower: mirror.power,
     playerRoll: rolls.playerRoll, enemyRoll: rolls.enemyRoll,
     effects: effects, qi: qi, stone: stone, dropName: '',
@@ -875,7 +875,7 @@ function battleRival(state, rival) {
   const name = typeof rival.name === 'string' && rival.name ? rival.name.slice(0, 12) : '榜单道友';
   addLog(state, '与「' + name + '」论道，' + (win ? '胜' : '负') + '，' + rolls.playerRoll + ' : ' + rolls.enemyRoll, 'battle');
   return {
-    ok: true, win: win, challengeName: name, challengeTitle: '实录论道',
+    ok: true, win: win, challengeName: name, challengeTitle: '实录切磋',
     power: power, enemyPower: enemyPower,
     playerRoll: rolls.playerRoll, enemyRoll: rolls.enemyRoll,
     effects: effects, qi: qi, stone: stone, dropName: '',
@@ -967,11 +967,11 @@ function unlockInfo(state, skill) {
     const power = computePower(state);
     return {
       kind: 'battle',
-      label: '论道首胜掉落',
+      label: '切磋首胜掉落',
       text: '首次战胜「' + (c ? c.name : '某位对手') + '」',
       hint: cleared ? '已战胜，再打一场即可取回' : (c ? '对手战力 ' + c.power + ' · 你当前 ' + power : ''),
       action: 'battle',
-      actionText: '去论道',
+      actionText: '去切磋',
       percent: c ? Math.min(100, Math.round(power / c.power * 100)) : 0,
       cleared: cleared,
     };
@@ -1164,7 +1164,7 @@ function getSkillDetail(state, id) {
   let statusText = '';
   if (base.unlocked) statusText = '已习得';
   else if (base.unlock.kind === 'shop') statusText = '藏经阁可换';
-  else if (base.unlock.kind === 'battle') statusText = '论道首胜可得';
+  else if (base.unlock.kind === 'battle') statusText = '切磋首胜可得';
   else statusText = base.unlock.label;
 
   return Object.assign({}, base, {
@@ -1215,7 +1215,7 @@ function recommend(state) {
       profTierName: '大圆满', profTierColor: worldData.TIERS[worldData.TIERS.length - 1].color,
       gap: 0, percent: 100, maxed: true,
       reason: '十门功法都练到了大圆满',
-      next: '去论道台试试秘境，那里还有没打过的对手。',
+      next: '去仙门切磋试试秘境，那里还有没打过的对手。',
     };
   }
 
@@ -1308,9 +1308,12 @@ function getChallengeList(state) {
   const out = [];
   for (let i = 0; i < opponentData.ALL_CHALLENGES.length; i += 1) {
     const c = opponentData.ALL_CHALLENGES[i];
+    // 五个词对应五档胜算。中间那档原本被 else 吃掉了，
+    // 「势均力敌」永远显示不出来——战力与对手几乎持平时最该看到的恰恰是它。
     let hint = '势均力敌';
     if (power >= c.power * 1.2) hint = '胜算在握';
-    else if (power >= c.power * 0.95) hint = '略占上风';
+    else if (power >= c.power * 1.05) hint = '略占上风';
+    else if (power >= c.power * 0.95) hint = '势均力敌';
     else if (power < c.power * 0.7) hint = '尚需苦修';
     else hint = '略有不及';
     out.push({

@@ -234,7 +234,7 @@ for (const mode of ['light', 'dark']) {
 }
 
 // 导航栏标题统一为「页面名」，配色交给 app.json 的 @变量（页面写死会在暗色下穿帮）。
-const TITLES = ['主页', '修炼', '功法', '人物', '论道', '参悟', '登录', '修行指南', '说明', '修行日志',
+const TITLES = ['主页', '修炼', '功法', '人物', '仙门切磋', '参悟', '登录', '修行指南', '说明', '修行日志',
   '藏经阁', '战力仙榜', '称号簿'];
 for (const page of appJson.pages) {
   const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, page + '.json'), 'utf8'));

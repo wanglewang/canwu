@@ -62,11 +62,5 @@ Page({
     this.refresh();
   },
 
-  onBack: function () {
-    const pages = getCurrentPages();
-    if (pages.length > 1) wx.navigateBack();
-    else wx.switchTab({ url: '/pages/index/index' });
-  },
-
   onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('titles') }); },
 });

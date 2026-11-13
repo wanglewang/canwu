@@ -1,18 +1,17 @@
 <view class="pg pg--imm">
   <view class="imm-head">
-    <text class="imm-head__back pressable" hover-class="pressable--on" bindtap="onBack">‹</text>
-    <text class="imm-head__title">论道</text>
     <text class="imm-head__action pressable" hover-class="pressable--on" bindtap="onGoHelp">说明</text>
   </view>
 
-  <view wx:if="{{ov}}" class="card card--ink">
-    <view class="row--between">
-      <text class="tiny pr-tiny">{{ov.realmName}} · {{ov.roleName}}</text>
-      <text class="tag tag--dark">{{ov.equippedTitleName}}</text>
+  <view wx:if="{{ov}}" class="imm-panel">
+    <view class="imm-panel__head">
+      <text class="imm-panel__label">我的战力</text>
+      <text class="imm-chip">{{ov.equippedTitleName}}</text>
     </view>
-    <view class="row--between mt16">
-      <text class="tiny pr-tiny">战 力</text>
-      <text class="big-number hero-num">{{ov.power}}</text>
+    <text class="imm-realm">{{ov.power}}</text>
+    <view class="imm-strip">
+      <text>{{ov.realmName}} · {{ov.roleName}}</text>
+      <text class="text-link" bindtap="onGoBoard">战力仙榜 ›</text>
     </view>
   </view>
   <view wx:else class="state">
@@ -20,104 +19,75 @@
     <text class="state__desc">{{copy.loading}}</text>
   </view>
 
-  <view class="section">
-    <view class="section__head">
-      <text class="section__title">同门与来客</text>
-    </view>
-    <view class="card card--tight fight-card" wx:for="{{npcs}}" wx:key="id">
-      <view class="row--between">
-        <text class="h3">{{item.name}}</text>
-        <text class="tag {{item.cleared ? 'tag--jade' : 'tag--grey'}}">{{item.cleared ? '已首胜' : item.title}}</text>
-      </view>
-      <text class="tiny mt8">{{item.desc}}</text>
-      <view class="row--between mt12">
-        <text class="tiny">战力 {{item.power}} · <text class="{{item.hintTone === 'good' ? 'jade' : 'gold'}}">{{item.hint}}</text></text>
-        <button class="btn {{item.cleared ? 'btn--plain' : 'btn--primary'}} btn--compact" data-id="{{item.id}}" bindtap="onFight">{{item.cleared ? '再打一场' : '挑战'}}</button>
-      </view>
-      <view class="row--between mt8">
-        <text class="tiny">灵气 +{{item.qi}} / 灵石 +{{item.stone}}</text>
-        <text wx:if="{{item.dropName}}" class="tiny gold">首胜掉落《{{item.dropName}}》</text>
-      </view>
-    </view>
-  </view>
-
-  <view class="section">
-    <view class="section__head">
-      <view class="row"><text class="section__title">秘境探索</text><term term-key="mijing" /></view>
-    </view>
-    <view class="card card--tight fight-card" wx:for="{{secrets}}" wx:key="id">
-      <view class="row--between">
-        <text class="h3">{{item.name}}</text>
-        <text class="tag {{item.hintTone === 'good' ? 'tag--jade' : 'tag--grey'}}">{{item.hint}}</text>
-      </view>
-      <text class="tiny mt8">{{item.desc}}</text>
-      <view class="row--between mt12">
-        <text class="tiny">战力 {{item.power}} · 灵气 +{{item.qi}} / 灵石 +{{item.stone}}</text>
-        <button class="btn btn--ghost btn--compact" data-id="{{item.id}}" bindtap="onFight">入秘境</button>
-      </view>
-    </view>
-  </view>
-
-  <view class="section" id="board">
-    <view class="section__head">
-      <text class="section__title">论道榜单 · 真实道友</text>
-      <text class="section__sub">{{board.length}} 位在榜</text>
-    </view>
-    <view class="state state--inline" wx:if="{{boardError}}">
-      <text class="state__desc">{{boardError}}</text>
-      <button class="btn btn--plain btn--small state__action" bindtap="onRefreshBoard">{{copy.actions.refresh}}</button>
-    </view>
-    <block wx:else>
-      <view class="card card--tight board-row" wx:for="{{board}}" wx:key="uid">
-        <view class="row--between">
-          <view class="row">
-            <text class="board-rank">{{item.rank}}</text>
-            <text class="h3">{{item.name}}</text>
-            <text wx:if="{{item.isMe}}" class="tag tag--jade">我</text>
-          </view>
-          <text class="board-power">{{item.power}}</text>
+  <view class="imm-sec-title">同门与来客</view>
+  <view class="imm-list">
+    <view class="imm-row" wx:for="{{npcs}}" wx:key="id">
+      <view class="imm-row__body">
+        <view class="riv-head">
+          <text class="imm-row__name">{{item.name}}</text>
+          <text class="imm-chip {{item.cleared ? 'imm-chip--jade' : ''}}">{{item.cleared ? '已首胜' : item.title}}</text>
         </view>
-        <text class="tiny mt8">{{item.realmName}} · 道相 {{item.portrait}}</text>
+        <text class="imm-row__sub riv-desc">{{item.desc}}</text>
+        <view class="riv-meta">
+          <text>战力 {{item.power}}</text>
+          <text class="riv-tone--{{item.hintTone}}">{{item.hint}}</text>
+        </view>
+        <text wx:if="{{item.dropName && !item.cleared}}" class="riv-drop">首胜掉落《{{item.dropName}}》</text>
+        <text wx:elif="{{item.dropName}}" class="riv-note">首胜功法已得，再战只给灵气与灵石</text>
+        <text wx:else class="riv-note">灵气 +{{item.qi}} · 灵石 +{{item.stone}}</text>
       </view>
-      <view wx:if="{{board.length === 0}}" class="card card--tight">
-        <text class="tiny">{{copy.emptyBoard}}</text>
-      </view>
-      <view class="card" wx:if="{{rival}}">
-        <text class="h3">与你最接近的道友</text>
-        <text class="tiny mt8">{{rival.name}} · {{rival.realmName}} · 战力 {{rival.power}}</text>
-        <button class="btn btn--primary btn--small btn--block mt12" bindtap="onFightRival">与之论道</button>
-      </view>
-      <view class="btn-row btn-row--tight">
-        <button class="btn btn--plain" bindtap="onRefreshBoard">{{boardLoading ? '正在刷新…' : '刷新榜单'}}</button>
-        <button class="btn btn--ghost" open-type="share">邀道友上榜</button>
-      </view>
-    </block>
+      <button class="imm-btn imm-btn--sm {{item.cleared ? 'imm-btn--ghost' : ''}}" data-id="{{item.id}}" bindtap="onFight">{{item.cleared ? '再战' : '挑战'}}</button>
+    </view>
   </view>
 
-  <view class="section">
-    <view class="section__head">
-      <view class="row"><text class="section__title">{{copy.sections.battleCode}}</text><term term-key="code" /></view>
-      <text class="section__sub text-link" bindtap="onToggleCode">{{codeOpen ? copy.actions.collapse : copy.actions.expand}}</text>
-    </view>
-    <block wx:if="{{codeOpen}}">
-      <view class="card">
-        <text class="h3">我的战力码</text>
-        <view class="code-box mt12">{{myCode}}</view>
-        <button class="btn btn--primary btn--small btn--block mt12" bindtap="onCopyCode">复制我的战力码</button>
-        <view class="divider"></view>
-        <view class="row"><text class="h3">挑战朋友的镜像</text><term term-key="mirror" /></view>
-        <input class="code-input mt12" value="{{inputCode}}" bindinput="onInputCode" placeholder="粘贴 CW1- 开头的战力码" placeholder-class="code-ph" />
-        <view class="btn-row">
-          <button class="btn btn--plain btn--small" bindtap="onPasteCode">从剪贴板读取</button>
-          <button class="btn btn--gold btn--small" bindtap="onMirrorFight">打镜像</button>
+  <view class="imm-sec-title">秘境探索</view>
+  <view class="imm-list">
+    <view class="imm-row" wx:for="{{secrets}}" wx:key="id">
+      <view class="imm-row__body">
+        <view class="riv-head">
+          <text class="imm-row__name">{{item.name}}</text>
+          <text class="imm-chip {{item.cleared ? 'imm-chip--jade' : ''}}">{{item.cleared ? '已走过' : item.title}}</text>
         </view>
+        <text class="imm-row__sub riv-desc">{{item.desc}}</text>
+        <view class="riv-meta">
+          <text>战力 {{item.power}}</text>
+          <text class="riv-tone--{{item.hintTone}}">{{item.hint}}</text>
+        </view>
+        <text class="riv-note">只产灵气与灵石 · 灵气 +{{item.qi}} / 灵石 +{{item.stone}}</text>
       </view>
-    </block>
+      <button class="imm-btn imm-btn--sm imm-btn--ghost" data-id="{{item.id}}" bindtap="onFight">入秘境</button>
+    </view>
+  </view>
+
+  <view class="imm-sec-title">约战</view>
+  <view class="imm-list">
+    <view class="imm-row pressable" hover-class="pressable--on" bindtap="onToggleCode">
+      <view class="imm-row__body">
+        <text class="imm-row__name">{{copy.sections.battleCode}}</text>
+        <text class="imm-row__sub">不用同时在线：给对方一个码，打的是他的镜像</text>
+      </view>
+      <text class="imm-row__value">{{codeOpen ? '收起' : '展开'}}</text>
+    </view>
+  </view>
+
+  <view wx:if="{{codeOpen}}" class="imm-panel">
+    <text class="imm-panel__label">我的战力码</text>
+    <view class="code-box mt12">{{myCode}}</view>
+    <button class="imm-btn imm-btn--block mt12" bindtap="onCopyCode">复制我的战力码</button>
+    <view class="imm-strip mt16">
+      <text>打朋友的镜像</text>
+      <text class="imm-strip__value">粘贴对方发来的码</text>
+    </view>
+    <input class="code-input mt12" value="{{inputCode}}" bindinput="onInputCode" placeholder="CW1- 开头的战力码" placeholder-class="code-ph" />
+    <view class="imm-btn-row">
+      <button class="imm-btn imm-btn--ghost imm-btn--sm" bindtap="onPasteCode">读剪贴板</button>
+      <button class="imm-btn imm-btn--sm" bindtap="onMirrorFight">打镜像</button>
+    </view>
   </view>
 
   <view class="mask" wx:if="{{showResult && result}}" bindtap="closeResult">
     <view class="modal" catchtap="noop">
-      <text class="modal__title serif">{{result.headline}}</text>
+      <text class="modal__title">{{result.headline}}</text>
       <text class="modal__sub">{{result.subline}}</text>
 
       <view class="battle-score mt24">
@@ -155,9 +125,12 @@
       </view>
 
       <view class="modal__actions">
-        <button class="btn btn--primary btn--block" bindtap="closeResult">{{copy.actions.confirm}}</button>
+        <button class="imm-btn imm-btn--block" bindtap="closeResult">{{copy.actions.confirm}}</button>
       </view>
     </view>
   </view>
 
+  <view class="pg__foot">
+    <text class="text-link text-link--muted" bindtap="onGoGuide">看对手与奖励的完整规则 ›</text>
+  </view>
 </view>
