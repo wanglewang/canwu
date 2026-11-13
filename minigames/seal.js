@@ -28,7 +28,7 @@ function create(ctx) {
   vm.extras.showHint = true;
   vm.extras.showMeter = true;
   vm.extras.showGradeNow = false;
-  vm.hint = '入定照见剩 ' + hintsLeft + ' 次';
+  vm.hint = vm.costText + ' · 入定照见剩 ' + hintsLeft + ' 次';
 
   const bag = C.TimerBag();
   const deck = [];
@@ -68,7 +68,7 @@ function create(ctx) {
     // 还剩几对已经在进度里，不必在目标句里再说一遍。
     vm.goal = C.paceGoal(elapsed, GRADE_LINE, '牌 ≤ ' + pairs * 4);
     vm.meter = { label: '已通气窍', value: pairsDone, max: pairs };
-    vm.hint = '翻牌 ' + flips + ' 次 · 入定照见剩 ' + hints + ' 次';
+    vm.hint = vm.costText + ' · 翻牌 ' + flips + ' 次 · 入定照见剩 ' + hints + ' 次';
     vm.pair = { locked: locked, first: first, matched: pairsDone, flips: flips };
   }
 

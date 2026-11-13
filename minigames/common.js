@@ -146,6 +146,9 @@ function makeVm(cols, cellCount, status, hint) {
   return {
     cols: cols,
     cells: makeCells(cellCount),
+    // 代价句真源：准备页的 method.tip 由第 4 个参数送进来。玩法层若拿 vm.hint
+    // 显示动态状态，必须把这一句拼回去，不许整行覆盖（三秀同收 / 阵灯推演都踩过这个坑）。
+    costText: hint,
     stage: 'board',
     lane: null,
     orbit: null,

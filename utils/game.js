@@ -10,6 +10,7 @@ const guideData = require('../data/guides.js');
 const opponentData = require('../data/opponents.js');
 const titleData = require('../data/titles.js');
 const achievementData = require('../data/achievements.js');
+const copy = require('../data/copy.js');
 
 const STORAGE_KEY = 'canwu_save_v1';
 const SAVE_PREFIX = 'CANWU1:';
@@ -619,7 +620,7 @@ function applyPractice(state, skillId, grade, options) {
   return {
     ok: true,
     grade: grade,
-    gradeTitle: worldData.GRADE_TITLE[grade] || '粗浅',
+    gradeTitle: copy.GRADE_TITLE[grade] || '粗浅',
     gradeColor: worldData.GRADE_COLOR[grade] || '#8a8f83',
     skillName: skill.name,
     methodName: method.name,
@@ -1165,11 +1166,10 @@ function getSkillList(state) {
       maxRealm: tier.maxRealm,
       maxRealmName: realmNameOf(state, tier.maxRealm),
       decayed: !realmOk,
-      decayText: realmOk
-        ? ''
-        : (realmNow < tier.needRealm
-          ? '未到「' + realmNameOf(state, tier.needRealm) + '」门槛，收益仅剩 30%'
-          : '境界已超本门上限（' + realmNameOf(state, tier.maxRealm) + '），收益仅剩 30%'),
+      decayText: realmOk ? '' : copy.decayText(
+        realmNow < tier.needRealm ? 'below' : 'above',
+        realmNameOf(state, realmNow < tier.needRealm ? tier.needRealm : tier.maxRealm)
+      ),
       needRealm: tier.needRealm,
       needRealmName: realmNameOf(state, tier.needRealm),
       realmOk: realmOk,

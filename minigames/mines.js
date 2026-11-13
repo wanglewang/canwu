@@ -43,7 +43,9 @@ function create(ctx) {
   const sensedCount = tier >= 5 ? 5 : (tier >= 3 || perks.easy ? 3 : 0);
   const maxHearts = HEARTS_BY_DEPTH[depth];
   // 提示区只留规则，操作速记交给 guides 的 inline（两行都在讲「长按布镇符」是重复的）。
-  const vm = C.makeVm(cols, n, '点开第一格，禁制才会显形', '误触禁制折一盏心神；此盘已验过，不必靠猜');
+  // 代价句来自准备页的 method.tip；「此盘已验过」是无猜保证，两者都是规则，一起留在提示区。
+  const costText = ctx.tip || '误触折 1 盏心神，耗尽即收功';
+  const vm = C.makeVm(cols, n, '点开第一格，禁制才会显形', costText + ' · 此盘已验过，不必靠猜');
   vm.timeText = '00:00';
   vm.scoreText = '已探 0 / ' + (n - mineCount);
   vm.extras.showHearts = true;

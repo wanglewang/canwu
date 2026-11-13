@@ -81,7 +81,7 @@ function create(ctx) {
     vm.meter = { label: '本段步位', value: vm.scroll.cursor, max: vm.scroll.moves.length };
     // 评级只按走完的段数算，与用时、失误无关；时间耗尽按走火收场。原来的「踏错只需重走这一步」
     // 与 guides 的局内速记重复了半句，换成玩家真正缺的那条规则。
-    vm.hint = '段数决定评级，时间耗尽按走火收场。';
+    vm.hint = vm.costText + ' · 段数决定评级';
   }
 
   function finishOnce(grade, summary) {

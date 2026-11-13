@@ -42,7 +42,8 @@ const THEMES = {
   },
   arrayEye: {
     key: 'arrayEye', name: '阵灯', accent: '#6f5b9e', soft: '#e9e3f5', ink: '#453771',
-    bg: '#ece7f6', frame: '#faf7ff', glyph: '阵', motif: '眼',
+    // 亮起的阵灯画成实心圆点，不再往盘面写「阵」字：二元状态只靠形状与颜色分。
+    bg: '#ece7f6', frame: '#faf7ff', glyph: '●', motif: '眼',
     hit: '阵灯转明', miss: '推演偏了', banner: '阵眼已现', praise: '一眼破阵',
   },
   wuxing: {

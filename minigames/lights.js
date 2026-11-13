@@ -24,6 +24,13 @@ const DEAD_COST = 3000;   // 触死门：罚三秒
 const RESET_PAUSE = 160;  // 解完一盘到下一盘之间的顿挫（要短，别把节奏切断）
 const BASE_STEPS = 2;     // 参数里没写 steps 时的简单档步数
 
+// 盘面不放汉字：亮 / 灭靠实心与空心圆点 + 底色，死门用叉号与暗红底，三重状态不靠读字。
+// 以前亮格写「阵」、暗格写「暗」、死门写「忌」，玩家会把「阵」当成亮 / 灭之外的第三种状态。
+const OFF_GLYPH = '○';
+const DEAD_GLYPH = '✕';
+const HINT_GLYPH = '◎';
+const HINT_COST_TEXT = '阵眼感应花 3 秒';
+
 // 达标盘数：[S, A, B]，下标是 depth（0 简单 … 4 绝境）。
 // 步数越多每盘越慢，所以档位越高要求的盘数越少。
 // 按假时钟标定：机器人（读盘 0.4s / 每步 0.4s）能解 12 / 11 / 10 / 10 / 9 盘，
@@ -92,7 +99,12 @@ function create(ctx) {
 
   const duration = Math.round((p.duration || 36) * 1000) + (perks.easy ? 8000 : 0);
 
-  const vm = C.makeVm(size, n, '让所有阵灯同时亮起', ctx.tip || '点一格会翻转它和上下左右');
+  // 代价句由准备页的 method.tip 传进来，局内一直挂在 hint 上。以前 syncHud() 每帧
+  // 把它冲成纯计数，玩家整局看不到「触死门要罚 3 秒」；阵眼感应的三秒更是只在按下
+  // 之后才补一句。死门未解锁时不提前讲它——那阶段的代价只有阵眼感应。
+  const deadCost = ctx.tip || '触死门复位并罚 3 秒';
+
+  const vm = C.makeVm(size, n, '让所有阵灯同时亮起', HINT_COST_TEXT);
   vm.extras.showHint = true;
   vm.scoreText = '已解 0 盘';
 
@@ -128,9 +140,10 @@ function create(ctx) {
     vm.progress = C.pct(solved, target[0]);
     vm.progressText = '已解 ' + solved + ' 盘 · 达标 ' + target[0] + ' 盘';
     vm.gradeNow = gradeOf();
-    vm.hint = deadCount > 0
-      ? '阵眼感应剩 ' + hintsLeft + ' 次 · 死门 ' + deadCount + ' 处'
-      : '阵眼感应剩 ' + hintsLeft + ' 次';
+    // 代价常驻：阵眼感应的三秒所有档都讲，死门只有解锁后才讲，计数跟在后面。
+    const counts = '可用 ' + hintsLeft + ' 次'
+      + (deadCount > 0 ? ' · 死门 ' + deadCount + ' 处' : '');
+    vm.hint = vm.costText + (deadCount > 0 ? ' · ' + deadCost : '') + ' · ' + counts;
     syncTime();
   }
 
@@ -138,12 +151,12 @@ function create(ctx) {
     for (let i = 0; i < n; i += 1) {
       if (dead.indexOf(i) >= 0) {
         vm.cells[i].cls = board[i] ? 'cell cell--dead cell--dead-lit' : 'cell cell--dead';
-        vm.cells[i].label = '忌';
+        vm.cells[i].label = DEAD_GLYPH;
         vm.cells[i].tone = 0;
         continue;
       }
       vm.cells[i].cls = board[i] ? 'cell cell--lit' : 'cell cell--off';
-      vm.cells[i].label = board[i] ? (theme.glyph || '明') : '暗';
+      vm.cells[i].label = board[i] ? (theme.glyph || '●') : OFF_GLYPH;
       vm.cells[i].tone = 0;
     }
   }
@@ -282,7 +295,7 @@ function create(ctx) {
     const prevCls = vm.cells[k].cls;
     const prevLabel = vm.cells[k].label;
     vm.cells[k].cls = 'cell cell--hint';
-    vm.cells[k].label = theme.glyph || '明';
+    vm.cells[k].label = HINT_GLYPH;
     vm.status = '阵眼感应：这一格该点 · 花去 3 秒';
     syncHud();
     render();

@@ -39,7 +39,7 @@ function create(ctx) {
   vm.timeText = '第 1 / ' + total + ' 拍';
   vm.scoreText = '圆满 0';
   vm.goal = C.goalFor('C', total - 1, '个圆满');
-  vm.hint = '光环收进朱圈时点下；越贴近圈心越是圆满。';
+  vm.hint = vm.costText;
 
   const bag = C.TimerBag();
   let beat = 1;

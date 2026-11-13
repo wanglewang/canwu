@@ -109,7 +109,7 @@ function create(ctx) {
     vm.meter = { label: '循纹目标', value: target, max: toneMax };
     vm.lane.activeRow = activeRow;
     vm.lane.target = target;
-    vm.hint = '只点当前这一层，采过的会留痕。';
+    vm.hint = vm.costText;
   }
 
   function finishOnce(grade, summary) {

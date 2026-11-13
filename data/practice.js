@@ -67,8 +67,8 @@ const PRACTICE_METHODS = [
   },
   {
     id: 'arrayEye', name: '参悟阵眼', game: 'lights', theme: 'arrayEye', twist: 'arrayEye',
-    desc: '点亮一处，四面随之翻转。要让整座阵法同时亮起，阵眼只在一处。',
-    tip: '点中死门阵盘复位，罚 3 秒',
+    desc: '点一格翻转它与上下左右四格，让九盏阵灯同时亮起；解亮一盘立刻换下一盘。',
+    tip: '触死门复位并罚 3 秒',
     base: 42,
     params: { size: 3, steps: 2, duration: 36 },
   },
@@ -392,8 +392,8 @@ const STAGE_RULES = {
     { at: 4, name: '叠印', short: '同一格连点两下', hard: true, desc: '第 5 轮起，口诀里会出现重复的格子' },
   ],
   arrayEye: [
-    { at: 3, name: '死门', short: '忌格点不得', hard: true, desc: '盘上多一格死门，点到整盘复位并罚 3 秒' },
-    { at: 4, name: '双门', short: '忌格两处', hard: true, desc: '死门增至两格' },
+    { at: 3, name: '死门', short: '✕ 格点不得', hard: true, desc: '盘上多一格暗红 ✕ 死门，点到整盘复位并罚 3 秒' },
+    { at: 4, name: '双门', short: '死门两处', hard: true, desc: '死门增至两格；想专心推演可在准备页关掉' },
   ],
   forge: [
     { at: 3, name: '收势', short: '到靶心停一拍', hard: true, desc: '扫到靶心要停一拍再抬手；抢着抬算收势未成，只给半分并断刀势' },

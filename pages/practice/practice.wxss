@@ -468,7 +468,7 @@
     color: #fffdf7;
     animation: litPop 0.35s ease-out;
 }
-.cell--off { background: #ded7c6; color: #a09e8f; }
+.cell--off { background: #ded7c6; color: #a09e8f; transition: background 0.25s ease, color 0.25s ease; }
 .cell--ok { background: var(--acc, #b8893b); color: #fffdf7; }
 .cell--bad { background: #b4453c; color: #fffdf7; animation: badShake 0.22s ease-out; }
 .cell--hidden { background: #d5cdb9; color: #9a9a8b; }
@@ -484,8 +484,9 @@
 .cell--trail { background: var(--soft, #dcecf1); color: var(--ink, #22505f); }
 .cell--gold { background: #b8893b; color: #fffdf7; }
 .cell--hot { box-shadow: inset 0 0 0 6rpx rgba(255, 243, 205, 0.55); }
-.cell--dead { background: #e6ddd0; color: #9b8f7f; box-shadow: inset 0 0 0 4rpx #b4453c; }
-.cell--dead-lit { background: #efe6d8; }
+/* 死门：暗红底 + 叉号，和米色的暗格拉开一整档；亮着的死门提一档亮度，轮廓不变。 */
+.cell--dead { background: #8d3b32; color: #fff3e6; box-shadow: inset 0 0 0 4rpx #5c231d; }
+.cell--dead-lit { background: #a84a3e; }
 
 /* ---------- 循光斩桩：刀路（划） ---------- */
 .trail-hint {

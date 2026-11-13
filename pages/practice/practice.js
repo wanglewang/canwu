@@ -248,9 +248,9 @@ Page({
     const needRealmName = realms[Math.min(realms.length - 1, tier.needRealm - 1)].name;
     let decayTip = '';
     if (realmNow < tier.needRealm) {
-      decayTip = '宜在「' + needRealmName + '」后修习，当前境界不足，收益只剩三成。';
+      decayTip = copy.decayText('below', needRealmName);
     } else if (realmNow > tier.maxRealm) {
-      decayTip = '已超本门可修上限「' + maxRealmName + '」，收益只剩三成，该换更高阶的功法了。';
+      decayTip = copy.decayText('above', maxRealmName);
     }
 
     const offTwists = engine.twistsOff(state, this.skillId);
@@ -368,11 +368,11 @@ Page({
         if (vm.fx && vm.fx.key !== self.lastFxKey) {
           self.lastFxKey = vm.fx.key;
           sfx.tone(vm.fx.tone);
-          // 触感分两档：金招（重斩 / 连锁）中量，三秀同收的无效互换只给轻震。
-          // 灵植这一门要温润舒缓，别跟着刀法一起猛震；其余玩法的 bad 仍不加触感。
+          // 触感分两档：金招（重斩 / 连锁）中量；误判只给轻震——三秀同收的无效互换、
+          // 阵灯推演触了死门或提示用尽都算。灵植与阵法要温润沉敛，别跟着刀法猛震。
           if (typeof wx !== 'undefined' && wx.vibrateShort) {
             const strong = vm.fx.tone === 'gold';
-            const gentle = vm.fx.tone === 'bad' && self.gameId === 'match';
+            const gentle = vm.fx.tone === 'bad' && (self.gameId === 'match' || self.gameId === 'lights');
             if (strong || gentle) {
               try { wx.vibrateShort({ type: strong ? 'medium' : 'light' }); } catch (e) { /* 部分环境不支持震动 */ }
             }
@@ -757,7 +757,7 @@ Page({
     const diffKey = this.data.difficulty;
     const grade = res.grade || 'C';
     const color = worldData.GRADE_COLOR[grade] || '#8a8f83';
-    const gradeTitle = worldData.GRADE_TITLE[grade] || '';
+    const gradeTitle = copy.GRADE_TITLE[grade] || '';
     let rv;
 
     if (grade === 'F') {
@@ -768,7 +768,7 @@ Page({
         kind: 'abandon',
         grade: '收',
         gradeColor: '#8a8f83',
-        gradeTitle: '未成',
+        gradeTitle: copy.GRADE_TITLE.F,
         headline: this.mode === 'breakthrough' ? '气机一乱' : '中途收功',
         subline: this.mode === 'breakthrough' ? '气机散了，未伤根基，再来一次就好。' : '这回不算数，随时可以重新起手。',
         summary: res.summary,

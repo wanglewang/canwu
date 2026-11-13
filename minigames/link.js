@@ -111,7 +111,7 @@ function create(ctx) {
   vm.scoreText = '得分 0';
   vm.extras.showHint = true;
   vm.extras.compact = true;
-  vm.hint = '照纹：照见一对能连上的灵石';
+  vm.hint = vm.costText;
 
   // 门槛按「一盘收干净能拿多少」标：满收 pairs×100 + 剩余息数×4，
   // 简单档满收基本是 S，漏几对或错配多了自然掉档。
@@ -191,7 +191,7 @@ function create(ctx) {
     vm.gradeNow = C.gradeBy(score, sLimit, aLimit, bLimit);
     vm.goal = C.goalFor(vm.gradeNow, Math.max(0, sLimit - score), '分');
     vm.meter = { label: '已收灵契', value: pairsDone, max: pairs };
-    vm.hint = '照纹 · 剩 ' + (pairs - pairsDone) + ' 对 · 重排 ' + shuffles + ' 次';
+    vm.hint = vm.costText + ' · 照纹 · 剩 ' + (pairs - pairsDone) + ' 对 · 重排 ' + shuffles + ' 次';
   }
 
   function finishOnce(grade, summary) {

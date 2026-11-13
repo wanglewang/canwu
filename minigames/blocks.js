@@ -151,7 +151,7 @@ function create(ctx) {
     vm.gradeNow = C.gradeBy(score, sLimit, aLimit, bLimit);
     vm.goal = C.goalFor(vm.gradeNow, Math.max(0, sLimit - score), '分');
     vm.meter = { label: '已化层', value: lines, max: Math.max(4, 2 + depth) };
-    vm.hint = '← → 挪石 · ⟳ 转石 · ⇓ 速降 · 垒满一层即消';
+    vm.hint = vm.costText;
   }
 
   function finishOnce(grade, summary) {

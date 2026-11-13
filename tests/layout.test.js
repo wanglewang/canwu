@@ -1100,4 +1100,114 @@ check('三秀同收：S 线与提示按钮名各只有一份真源', function ()
     '页面又把提示按钮名硬编码成三元');
 });
 
+check('局内代价句不再被覆盖：所有玩法的 vm.hint 都要带着它', function () {
+  const methods = require('../data/practice.js').PRACTICE_METHODS;
+  let covered = 0;
+  for (const m of methods) {
+    const src = read('minigames/' + m.game + '.js');
+    const lines = src.split('\n').filter(function (l) { return /vm\.hint\s*=/.test(l); });
+    for (const line of lines) {
+      covered += 1;
+      assert.ok(/vm\.costText|costText|deadCost/.test(line),
+        'minigames/' + m.game + '.js 的 hint 又把代价句冲掉了：' + line.trim());
+    }
+  }
+  assert.ok(covered >= 9, '覆盖点数量不对，断言可能没扫全：' + covered);
+  assert.ok(/costText: hint/.test(read('minigames/common.js')), 'makeVm 没把代价句存成 vm.costText');
+});
+
+check('阵灯推演：代价句按阶段出现，盘面只画图形不写汉字', function () {
+  const L = require('../minigames/lights.js');
+  const pd = require('../data/practice.js');
+  const method = pd.getMethod('arrayEye');
+  function boot(perks) {
+    let vm = null;
+    const c = L.create({
+      params: pd.buildParams(method, 'easy'), perks: perks, theme: { glyph: '●' },
+      tip: method.tip, render: function (v) { vm = v; }, finish: function () { },
+    });
+    c.destroy();
+    return vm;
+  }
+  const base = boot({ tier: 0 });
+  assert.ok(/阵眼感应花 3 秒/.test(base.hint), '简单档没讲阵眼感应的代价：' + base.hint);
+  assert.ok(!/死门/.test(base.hint), '未解锁死门就提前讲死门了：' + base.hint);
+  const high = boot({ tier: 4 });
+  assert.ok(/触死门复位并罚 3 秒/.test(high.hint), '大成档没讲死门代价：' + high.hint);
+  assert.ok(/阵眼感应花 3 秒/.test(high.hint), '大成档把阵眼感应的代价丢了');
+
+  const src = read('minigames/lights.js');
+  assert.ok(/OFF_GLYPH = '○'/.test(src) && /DEAD_GLYPH = '✕'/.test(src), '盘面符号没换成图形');
+  assert.ok(!/label = '忌'|label = '暗'|\(theme\.glyph \|\| '明'\)/.test(src), '盘面又写回汉字了');
+  for (const cell of high.cells) {
+    assert.ok(!/[一-龥]/.test(cell.label), '盘面格子里还有汉字：' + cell.label);
+  }
+  const css = read('pages/practice/practice.wxss');
+  assert.ok(/\.cell--dead \{[^}]*background: #8d3b32/.test(css), '死门没和暗格拉开颜色');
+  const gd = require('../data/guides.js').guideOf('lights');
+  assert.ok(/● \/ ○/.test(gd.terms.map(function (t) { return t.name; }).join('')), '名词速查没讲图形');
+  assert.ok(gd.inline.indexOf('忌') < 0, '速记又提前写死门');
+  assert.ok(/只看解开的盘数/.test(gd.scoring), '评级口径没写清只看盘数');
+});
+
+check('燃灯诀：简介对齐熄灯谜题，死门误触有独立触感', function () {
+  const sk = require('../data/skills.js').SKILLS.filter(function (s) { return s.method === 'arrayEye'; })[0];
+  assert.ok(/上下左右四格/.test(sk.desc), '功法简介没讲清翻转四格');
+  assert.ok(/上下左右四格/.test(read('data/practice.js')), '准备页副标题没讲清翻转四格');
+  const page = read('pages/practice/practice.js');
+  assert.ok(/gameId === 'lights'/.test(page), '触了死门没有轻震反馈');
+  assert.ok(/触了死门/.test(read('minigames/lights.js')), '死门没有独立浮字');
+  assert.ok(/HINT_LABELS[\s\S]{0,120}lights: '阵眼感应'/.test(read('data/practice.js')),
+    '提示按钮名没和 HUD 统一');
+});
+
+check('境界衰减：文案只从 copy.js 出，讲清人物境界与三成落在哪', function () {
+  const copy = require('../data/copy.js');
+  const page = read('pages/practice/practice.js');
+  const eng = read('utils/game.js');
+  assert.ok(/copy\.decayText\('below'/.test(page) && /copy\.decayText\('above'/.test(page),
+    '准备页又自己拼衰减文案');
+  assert.ok(/copy\.decayText\(/.test(eng), '图鉴又自己拼衰减文案');
+  assert.ok(!/收益只剩三成/.test(page) && !/收益仅剩 30%/.test(eng), '还有硬编码的衰减句');
+  const below = copy.decayText('below', '金丹');
+  assert.ok(/人物境界/.test(below) && /熟练度收益仅剩 30%/.test(below), '没说清衰减的是熟练度');
+  assert.ok(/属性加成照拿/.test(below) && /评级门槛不变/.test(below), '没排除属性与评级的误解');
+  assert.ok(/已超/.test(copy.decayText('above', '元婴')), '超过上限那条没区分');
+});
+
+check('评级中文名只有一份真源，且避开段位词', function () {
+  const copy = require('../data/copy.js');
+  const titles = copy.GRADE_TITLE;
+  const tierNames = ['未入门', '入门', '小成', '大成', '圆满', '大圆满'];
+  for (const g of ['S', 'A', 'B', 'C', 'F']) {
+    assert.ok(titles[g], '缺 ' + g + ' 的评级名');
+    for (const t of tierNames) {
+      assert.notStrictEqual(titles[g], t, g + ' 的评级名撞了段位名「' + t + '」');
+    }
+  }
+  assert.ok(!/const GRADE_TITLE|GRADE_TITLE: GRADE_TITLE/.test(read('data/world.js')),
+    'world.js 还留着第二份评级名');
+  assert.ok(!/gradeName = \{/.test(read('pages/cultivate/cultivate.js')), '修炼页还自写一套评级名');
+  for (const f of ['pages/cultivate/cultivate.js', 'pages/practice/practice.js', 'utils/game.js']) {
+    assert.ok(/copy\.GRADE_TITLE/.test(read(f)), f + ' 没走评级名真源');
+  }
+});
+
+check('13 套玩法的代价句在局内真的看得见（运行时探针）', function () {
+  const pd = require('../data/practice.js');
+  for (const m of pd.PRACTICE_METHODS) {
+    const M = require('../minigames/' + m.game + '.js');
+    let vm = null;
+    const c = M.create({
+      params: pd.buildParams(m, 'easy'), perks: { tier: 0 }, theme: {},
+      tip: m.tip, render: function (v) { vm = v; }, finish: function () { },
+    });
+    // 死门是大成才解锁的进阶规则，未解锁时阵灯推演只讲阵眼感应的代价，不提前讲死门。
+    const expected = m.game === 'lights' ? '阵眼感应花 3 秒' : m.tip;
+    assert.ok(vm.hint.indexOf(expected) >= 0,
+      m.game + ' 开局后代价句不见了：' + vm.hint);
+    c.destroy();
+  }
+});
+
 console.log('\n布局断言全部通过：' + passed + ' 项');

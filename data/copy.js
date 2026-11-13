@@ -49,6 +49,11 @@ const TERMS = [
     { key: 'xi', name: '息', group: '玩法', desc: '计时单位，一息即一秒。局内那一炷香、倒计时与「扣一息」都按息算。' },
 ];
 
+// 评级中文名只此一份。以前 world.js 写「S=圆满」、修炼页写「S=绝佳」，
+// 两套叫法并存，而且「圆满」还是段位名——结算页显示「圆满」会让人以为晋了段。
+// 一律避开段位词（未入门 / 入门 / 小成 / 大成 / 圆满 / 大圆满）。
+const GRADE_TITLE = { S: '绝佳', A: '上乘', B: '中平', C: '粗浅', F: '走火' };
+
 // 跨页复用文案。WXML 只能写 {{copy.xxx}}，不许再抄一遍字面量。
 const UI = {
     brand: BRAND,
@@ -146,6 +151,15 @@ function termOf(key) {
     return null;
 }
 
+// 境界衰减：两条分支都讲清「人物境界 / 熟练度 / 属性 / 评级」各是什么，
+// 免得玩家把「三成」误当成评级门槛被抬高。
+function decayText(kind, realmName) {
+    const head = kind === 'above'
+        ? '人物境界已超本门可修上限「' + realmName + '」'
+        : '人物境界未到「' + realmName + '」门槛';
+    return head + '，熟练度收益仅剩 30%；属性加成照拿，评级门槛不变。';
+}
+
 // 资源 / 进度统一写法：数字与单位之间留空格，不混用「+3 / 3 / 3 枚」。
 function formatCost(qi, stone) {
     return '灵气 ' + qi + ' · 灵石 ' + stone;
@@ -164,7 +178,9 @@ module.exports = {
     BRAND: BRAND,
     TERMS: TERMS,
     UI: UI,
+    GRADE_TITLE: GRADE_TITLE,
     termOf: termOf,
+    decayText: decayText,
     formatCost: formatCost,
     formatGain: formatGain,
 };

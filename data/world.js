@@ -18,7 +18,7 @@ const TIERS = [
 // S 刻意压到 1.5 —— 与难度档连乘后仍受 MAX_MULTIPLIER 约束，避免总收益失控。
 const GRADE_FACTOR = { S: 1.5, A: 1.2, B: 1.0, C: 0.6, F: 0.2 };
 const GRADE_COLOR = { S: '#b4453c', A: '#b8893b', B: '#3d8c74', C: '#8a8f83', F: '#8a8f83' };
-const GRADE_TITLE = { S: '圆满', A: '上乘', B: '中平', C: '粗浅', F: '走火' };
+// 评级中文名是玩家文案，归 data/copy.js 管；这里只留数值与颜色。
 
 // 品阶 × 难度 × 评级 × 衰减 四个系数连乘的封顶，防止极端组合把熟练度曲线打穿。
 const MAX_MULTIPLIER = 8.0;
@@ -89,7 +89,6 @@ module.exports = {
   TIERS: TIERS,
   GRADE_FACTOR: GRADE_FACTOR,
   GRADE_COLOR: GRADE_COLOR,
-  GRADE_TITLE: GRADE_TITLE,
   MAX_MULTIPLIER: MAX_MULTIPLIER,
   REALM_DECAY: REALM_DECAY,
   WORLDS: WORLDS,

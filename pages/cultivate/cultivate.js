@@ -39,7 +39,6 @@ Page({
         app.globalData.lastSkillId = id;
         const picked = all.filter(function (s) { return s.id === id; })[0];
         const rec = state.records ? state.records[id] : null;
-        const gradeName = { S: '绝佳', A: '优秀', B: '良好', C: '尚可', F: '未成' };
         this.setData({
             portrait: ov.portrait,
             realmIndex: ov.realmIndex,
@@ -52,7 +51,7 @@ Page({
                 nextThreshold: picked.maxed ? picked.prof : picked.nextThreshold,
                 nextText: picked.maxed ? '已至大圆满' : '距 ' + picked.nextName + ' 还差 ' + (picked.nextThreshold - picked.prof),
             } : null,
-            lastText: rec ? '上局 ' + rec.score + ' · 评价 ' + (gradeName[rec.grade] || rec.grade) : '尚无战绩 · 开局试试',
+            lastText: rec ? '上局 ' + rec.score + ' · 评价 ' + (copy.GRADE_TITLE[rec.grade] || rec.grade) : '尚无战绩 · 开局试试',
         });
     },
 
