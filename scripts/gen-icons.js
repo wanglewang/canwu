@@ -2,7 +2,7 @@
 
 // 零依赖生成 tabBar 图标：81x81 RGBA PNG，2 倍超采样降采样获得平滑边缘。
 // 用法：node scripts/gen-icons.js
-// 输出：assets/tab/{home,cultivate,book,seal,sword}[-on].png
+// 输出：assets/tab/{home,cultivate,book,seal}[-on].png（四个 tab 各一对）
 
 const fs = require('fs');
 const path = require('path');
@@ -19,7 +19,7 @@ const ICONS = {
     ['rect', 36, 76, 90, 62, 11],
     ['rect', 70, 102, 22, 36, 9],
   ],
-  // 修炼：丹鼎三足 + 一缕上升的灵气，与「功法 / 论道」的图形语言区分开。
+  // 修炼：丹鼎三足 + 一缕上升的灵气，与「功法 / 仙门切磋」的图形语言区分开。
   cultivate: [
     ['rect', 40, 62, 82, 54, 11],
     ['line', 30, 62, 132, 62, 11],
@@ -37,14 +37,6 @@ const ICONS = {
     ['line', 38, 84, 68, 84, 8],
     ['line', 94, 60, 124, 60, 8],
     ['line', 94, 84, 124, 84, 8],
-  ],
-  sword: [
-    ['line', 81, 16, 66, 44, 11],
-    ['line', 81, 16, 96, 44, 11],
-    ['line', 81, 38, 81, 112, 13],
-    ['line', 50, 112, 112, 112, 11],
-    ['line', 81, 112, 81, 142, 11],
-    ['line', 70, 146, 92, 146, 9],
   ],
   seal: [
     ['rect', 26, 26, 110, 110, 11],

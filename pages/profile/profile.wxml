@@ -48,8 +48,8 @@
         <text class="imm-panel__label">境界突破</text>
         <text class="imm-chip">{{ov.realmName}} → {{ov.breakthrough.nextName}}</text>
       </view>
-      <view class="imm-check {{item.ok ? '' : 'imm-check--off'}}" wx:for="{{breakList}}" wx:key="text">
-        <text class="imm-check__mark {{item.ok ? 'imm-check__mark--on' : 'imm-check__mark--off'}}">{{item.ok ? '✓' : '✕'}}</text>
+      <view class="imm-check {{item.off ? 'imm-check--off' : ''}}" wx:for="{{breakList}}" wx:key="text">
+        <text class="imm-check__mark {{item.markCls}}">{{item.mark}}</text>
         <text class="imm-check__text grow">{{item.text}}</text>
       </view>
       <view class="imm-btn-row">

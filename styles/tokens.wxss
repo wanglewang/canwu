@@ -2,18 +2,18 @@
    《参悟》设计令牌 · Design Tokens · 唯一真源
    --------------------------------------------------------------------------
    所有页面的颜色、字号、间距、圆角、阴影、层级都从这里取，不要在页面 wxss
-   里再写裸色值。明暗两套只在下方 @media 里重定义一次，页面无需各写一遍
-   @media (prefers-color-scheme: dark)。
+   里再写裸色值。改版后全站恒定深色：页面一律挂 .pg--imm，把 --c-* 映到
+   --c-imm-*，不随系统翻色；下方暗色段只服务没挂 .pg--imm 的基础层。
 
    【页面规范】
-   1. 结构：一级页 / 二级页根节点统一 .pg（登录页 .login-page 例外），
-      页头 .pg__head = 眉标 .eyebrow + 标题 .h1 + 说明 .muted，
-      区块 .section = .section__head + 若干 .card，页尾 .pg__foot。
+   1. 结构：一级页 / 二级页根节点统一 .pg（登录页 .login-page、参悟页 .pg--scene），
+      页头交给原生导航栏（标题 + 返回箭头），页内只在右上角留一个 .imm-head「说明」，
+      不再画第二层标题；区块 .section = .section__head + 若干 .card，页尾 .pg__foot。
    2. 栅格：以 4rpx 为基准，只用 --sp-*；页面左右留白 --page-x（28rpx）。
    3. 排版：只用 --fs-* 阶梯；caption 只用于角标 / 注脚，正文不小于 body。
    4. 触控：主操作高度 --touch（88rpx）；卡片内次操作可以降到 --touch-sm，
       但必须靠 .btn-row 或父行留白补足热区，两个可点元素间距 ≥ --sp-2。
-   5. 反馈：可点 view 统一挂 hover-class="pressable"；危险操作用 .btn--warn。
+   5. 反馈：可点 view 统一挂 hover-class="pressable"；危险操作只有 .imm-btn--danger。
    6. 层级：内容 0 / 吸底条 40 / 倒计时 80 / 遮罩 90 / 结算 100，
       只用 --z-*，禁止随手写 z-index: 999。
    7. 安全区：所有吸底元素与页面底部留白必须带 env(safe-area-inset-bottom)。
@@ -52,10 +52,8 @@ page {
     --c-gold-soft:       #f5ead2;
     --c-gold-text:       #a2762d;
     --c-danger:          #b4453c;
-    --c-danger-soft:     #f5e2de;
     --c-danger-text:     #b4453c;
     --c-success:         #3d8c74;
-    --c-success-soft:    #dff0e7;
     --c-success-text:    #2f6b5b;
     --c-neutral:         #8a8f83;
     --c-neutral-soft:    #ece9df;
@@ -67,8 +65,6 @@ page {
     --c-ink-track:       rgba(255, 253, 247, 0.18);  /* 深色卡上的进度轨 / 标签底 */
     --c-ink-divider:     rgba(255, 253, 247, 0.16);  /* 深色卡上的分隔线 */
     --c-gold-bright:     #d8b775;               /* 金色高光，明暗通用 */
-    --c-idcard:          #2f4a41;               /* 道牒卡纸：明暗都保持深绿金边 */
-    --c-idcard-edge:     #b8893b;
 
     /* ---------- 颜色：仙箓皮肤（四个主页面恒定深色，不随系统明暗翻转） ----------- */
     /* 只有四支色相：墨（底）、暖白（字）、旧金（唯一强调）、青玉（只标进度）。      */
@@ -166,11 +162,9 @@ page {
     --touch:             88rpx;     /* 主操作最小高度 */
     --touch-sm:          76rpx;     /* 次操作 */
     --touch-xs:          68rpx;     /* 卡片内紧凑操作 / 文字链 */
-    --touch-icon:        68rpx;     /* 图标按钮 */
 
     /* ---------- 动效 ---------- */
     --dur-fast:          120ms;
-    --dur:               200ms;
     --dur-slow:          320ms;
     --ease:              cubic-bezier(0.2, 0.8, 0.2, 1);
 
@@ -204,10 +198,8 @@ page {
         --c-gold-soft:       #3a3020;
         --c-gold-text:       #e0bb72;
         --c-danger:          #8f3b34;
-        --c-danger-soft:     #3a2523;
         --c-danger-text:     #e89b92;
         --c-success:         #3d8c74;
-        --c-success-soft:    #263a30;
         --c-success-text:    #9fd7bd;
         --c-neutral:         #9aa79f;
         --c-neutral-soft:    #2b3832;
@@ -219,8 +211,6 @@ page {
         --c-ink-track:       rgba(255, 253, 247, 0.18);
         --c-ink-divider:     rgba(255, 253, 247, 0.16);
         --c-gold-bright:     #d8b775;
-        --c-idcard:          #2f4a41;
-        --c-idcard-edge:     #b8893b;
 
         /* 仙箓皮肤恒定深色：暗色模式下也保持同一套墨底金线，不做二次翻转。 */
         --c-imm-bg:          #0c1311;

@@ -201,15 +201,10 @@ function getVersion() {
   return rowVersion;
 }
 
-function getUpdatedAt() {
-  return rowUpdatedAt;
-}
-
 module.exports = {
   load: load,
   save: save,
   forceOverwrite: forceOverwrite,
   resetRow: resetRow,
   getVersion: getVersion,
-  getUpdatedAt: getUpdatedAt,
 };

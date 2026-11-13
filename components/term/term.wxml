@@ -1,4 +1,4 @@
-<view class="term term--{{tone}}" bindtap="onTap">
+<view class="term" bindtap="onTap">
   <text class="term__text">{{text}}</text>
   <text class="term__mark">?</text>
 </view>

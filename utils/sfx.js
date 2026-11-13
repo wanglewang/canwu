@@ -6,7 +6,7 @@
 // 用法：
 //   sfx.play('hit')            // 直接点名
 //   sfx.tone('gold')           // good / bad / gold 三种浮字语气 → hit / miss / gold
-//   sfx.setEnabled(false)      // 开关，落本地存储
+//   sfx.setLevel('off')        // 轻 / 中 / 关，落本地存储
 //   sfx.stopAll()              // 页面隐藏时收声
 
 const KEY = 'canwu.sfx.on';          // 旧版开关，保留兼容
@@ -14,7 +14,6 @@ const LEVEL_KEY = 'canwu.sfx.level';
 
 // 轻 / 中 / 关：默认「轻」。觉得吵可以再降一档或关掉，不用改代码。
 const LEVELS = { low: 0.75, mid: 1, off: 0 };
-const LEVEL_ORDER = ['low', 'mid', 'off'];
 
 // 音量宁小勿大：wav 峰值只有 0.52，这里再压一档。
 // pool 一律 1：连击时不允许同一个音叠三路（第一版「脑子嗡嗡」的主因）。
@@ -42,7 +41,6 @@ const WARM = ['tap', 'hit', 'miss', 'gold', 'tick', 'go'];
 
 const TONE = { good: 'hit', bad: 'miss', gold: 'gold' };
 
-let enabledCache = null;
 let levelCache = null;
 const pools = {};
 const lastAt = {};
@@ -68,8 +66,7 @@ function level() {
 }
 
 function isEnabled() {
-  enabledCache = level() !== 'off';
-  return enabledCache;
+  return level() !== 'off';
 }
 
 // 已经在响的池也要跟着改音量，不能只对新生成的生效。
@@ -89,7 +86,6 @@ function applyVolume() {
 function setLevel(next) {
   if (!Object.prototype.hasOwnProperty.call(LEVELS, next)) return level();
   levelCache = next;
-  enabledCache = next !== 'off';
   try {
     wx.setStorageSync(LEVEL_KEY, next);
     wx.setStorageSync(KEY, next === 'off' ? 0 : 1);
@@ -97,20 +93,6 @@ function setLevel(next) {
   if (next === 'off') stopAll();
   else applyVolume();
   return next;
-}
-
-function setEnabled(on) {
-  setLevel(on ? 'low' : 'off');
-  return on;
-}
-
-function cycle() {
-  const i = LEVEL_ORDER.indexOf(level());
-  return setLevel(LEVEL_ORDER[(i + 1) % LEVEL_ORDER.length]);
-}
-
-function toggle() {
-  return setEnabled(!isEnabled()) ? 'low' : 'off';
 }
 
 function makePool(name) {
@@ -192,32 +174,11 @@ function stopAll() {
   }
 }
 
-function destroy() {
-  stopAll();
-  const keys = Object.keys(pools);
-  for (let i = 0; i < keys.length; i += 1) {
-    const list = pools[keys[i]].list;
-    for (let j = 0; j < list.length; j += 1) {
-      try { list[j].destroy(); } catch (e) { /* 忽略 */ }
-    }
-    delete pools[keys[i]];
-  }
-  warmed = false;
-}
-
 module.exports = {
-  ASSETS: ASSETS,
-  TONE: TONE,
-  supported: supported,
-  isEnabled: isEnabled,
   level: level,
   setLevel: setLevel,
-  setEnabled: setEnabled,
-  toggle: toggle,
-  cycle: cycle,
   warm: warm,
   play: play,
   tone: tone,
   stopAll: stopAll,
-  destroy: destroy,
 };

@@ -14,13 +14,6 @@
     line-height: var(--lh-tight);
 }
 
-.term--ink .term__text {
-    color: var(--c-on-ink-2);
-    border-bottom-color: var(--c-ink-divider);
-}
-
-.term--ink .term__mark { background: var(--c-gold-bright); color: var(--c-ink-track); }
-
 .term__mark {
     width: 26rpx;
     height: 26rpx;

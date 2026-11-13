@@ -173,6 +173,25 @@ function create(ctx) {
     return zone;
   }
 
+  // 首点会翻开多少格：用来挡掉「一落手就全开」的退化盘——那等于 0 秒拿 S，
+  // 玩家一局什么都没推演。与 revealFrom 同一套扩散规则，只数不写。
+  function floodCount(startIdx) {
+    const seen = {};
+    const stack = [startIdx];
+    let k = 0;
+    while (stack.length > 0) {
+      const i = stack.pop();
+      if (seen[i] || mineSet[i]) continue;
+      seen[i] = true;
+      k += 1;
+      if (numbers[i] === 0) {
+        const nb = neighbors(i);
+        for (let j = 0; j < nb.length; j += 1) if (!seen[nb[j]]) stack.push(nb[j]);
+      }
+    }
+    return k;
+  }
+
   function tryLayout(startIdx) {
     const zone = firstZone(startIdx);
     const candidates = [];
@@ -185,7 +204,12 @@ function create(ctx) {
 
   function generate(startIdx) {
     for (let t = 0; t < LAYOUT_TRIES; t += 1) {
-      if (tryLayout(startIdx)) { noGuess = true; break; }
+      // 除了「能纯推理推完」，还要挡掉「首点就把整盘开完」的退化盘：
+      // 那种盘一落手就判胜、0 秒拿 S，玩家什么都没推演过。
+      if (tryLayout(startIdx) && floodCount(startIdx) < n - mineCount) {
+        noGuess = true;
+        break;
+      }
     }
     generated = true;
     vm.extras.noGuess = noGuess;
@@ -210,13 +234,7 @@ function create(ctx) {
 
   // 局内的目标句：只讲「下一档还差几秒」，不讲「还剩几格」——还剩几格和上面那个
   // 「已探 X / Y」是同一个数的两种说法，讲两遍只是让 HUD 更挤。
-  function paceGoal(t) {
-    const grade = ['S', 'A', 'B'];
-    for (let i = 0; i < GRADE_LINE.length; i += 1) {
-      if (t <= GRADE_LINE[i]) return grade[i] + ' 线 ' + GRADE_LINE[i] + ' 秒 · 已用 ' + t + ' 秒';
-    }
-    return '已过 B 线 · 探完只算 C';
-  }
+  // 三条线是共用规则，落在 common.paceGoal 里；这里只丢参数，别再造一份。
 
   // 越大越好：探明格数 ×10，扣用时与误触。与 engine 的破纪录比较方向一致。
   function scoreOf() {
@@ -231,7 +249,7 @@ function create(ctx) {
     vm.progressText = opened + ' / ' + safeTotal + ' 格';
     vm.scoreText = '已探 ' + opened + ' / ' + safeTotal;
     vm.hearts = { value: hearts, max: maxHearts };
-    vm.goal = paceGoal(elapsed);
+    vm.goal = C.paceGoal(elapsed, GRADE_LINE);
   }
 
   function paint() {

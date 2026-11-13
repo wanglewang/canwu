@@ -10,6 +10,7 @@
 const store = require('../../utils/store.js');
 const share = require('../../utils/share.js');
 const copy = require('../../data/copy.js');
+const nav = require('../../data/navigation.js');
 
 const A = copy.UI.actions;
 
@@ -213,7 +214,7 @@ Page({
         else wx.navigateTo({ url: act.url });
     },
 
-    onGoHelp: function () { wx.navigateTo({ url: '/pages/help/help?topic=guide' }); },
+    onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('guide') }); },
 
     onShareAppMessage: function () { return share.appMessage(store.get()); },
     onShareTimeline: function () { return share.timeline(store.get()); },

@@ -8,7 +8,7 @@
 // 也没法回归。这里把「跨页复用」的文案、区块标题、页头与术语词典收成一份纯数据：
 //   - UI 是纯数据对象，可直接放进各页 data，由 WXML 用 {{copy.xxx}} 绑定；
 //   - TERMS 同时驱动 components/term 的弹层与「修行指南 · 名词速查」，解释只写一遍；
-//   - formatCost / formatProgress 统一单位与数字写法。
+//   - formatCost / formatGain 统一资源与收益的单位写法；进度在 WXML 里统一写成 {{a}} / {{b}}。
 // 页面专属的叙事文案（功法描述、对手台词、玩法说明）仍留在各自的数据文件里，不搬到这里。
 // scripts/verify.js 会断言：UI 里的跨页文案不得再出现在任何 WXML 硬编码里。
 
@@ -72,7 +72,6 @@ const UI = {
         start: '开始参悟',
         practice: '去修炼',
         swap: '更换 ›',
-        back: '回去修炼',
         leave: '先不练了',
         close: '关闭',
         cancel: '取消',
@@ -88,9 +87,6 @@ const UI = {
         goBattle: '去切磋',
         goHome: '去攒资源',
         openShop: '去藏经阁',
-        playThis: '就练这门',
-        expandTerms: '看盘面符号 ›',
-        collapseTerms: '收起盘面符号',
     },
 
     // 页面标题：主页面只显示金线标题，不再有眉标与说明句。
@@ -110,7 +106,6 @@ const UI = {
     sections: {
         today: '今日份例',
         realm: '境界突破',
-        nearTier: '快升段的功法',
         more: '更多 · 修行记录与诸界',
         log: '修行记录',
         worlds: '诸界',
@@ -122,27 +117,21 @@ const UI = {
         codexPlay: '这一门练什么',
         codexGain: '练成之后',
         codexUnlock: '如何习得',
-        codexTerms: '盘面符号速查',
-        codexStage: '本门新法',
     },
 
     // 功法图鉴：未习得也能看全本功法。状态与按钮只说明「现在能不能做什么」，不写黑话。
+    // 状态词只留页面真会用到的那几个；解锁路径本身由引擎给 label（见 utils/game.js
+    // 的 unlockInfo），这里不再维护第二份同义说法。
     states: {
         learned: '已习得',
         buyable: '藏经阁可换',
-        dropped: '切磋首胜可得',
         fortune: '机缘可得',
-        lockedRealm: '境界未到',
         enough: '资源已足',
-        lacking: '资源不足',
         cleared: '已战胜',
-        notCleared: '尚未战胜',
     },
 
     hints: {
-        quickPractice: '推荐练这一门；底部按钮可直接开始。',
         guideToc: '点标签直接跳到那一节，不用往下翻。',
-        skillCard: '点开任意一张卡片看详情；未习得的也能看全玩法与习得路径。',
         codex: '锁的是开练，不是查阅：玩法规则、练成收益与习得路径都写在这里，先看清再决定要不要解开。',
         chain: '按类型看功法分布在哪些品阶。',
         battleCode: '低频操作收在这里，首屏先挑对手。',
@@ -168,9 +157,8 @@ function formatGain(qi, stone) {
     return s;
 }
 
-function formatProgress(current, target) {
-    return current + ' / ' + target;
-}
+// 进度不在这里再包一层：它只有「当前 / 目标」两个数字、没有单位要拼，
+// WXML 直接写 {{a}} / {{b}}，tests/layout.test.js 会挡住无空格写法。
 
 module.exports = {
     BRAND: BRAND,
@@ -179,5 +167,4 @@ module.exports = {
     termOf: termOf,
     formatCost: formatCost,
     formatGain: formatGain,
-    formatProgress: formatProgress,
 };

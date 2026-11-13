@@ -22,7 +22,7 @@
         </view>
         <view class="imm-stat">
           <text class="imm-stat__label">已 藏</text>
-          <text class="imm-stat__value">{{learnedCount}}/{{totalCount}}</text>
+          <text class="imm-stat__value">{{learnedCount}} / {{totalCount}}</text>
         </view>
       </view>
     </view>

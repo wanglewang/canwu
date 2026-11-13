@@ -120,14 +120,21 @@ Page({
     const sorted = achievements.slice().sort(function (a, b) {
       return Number(a.unlocked) - Number(b.unlocked);
     });
-    // 突破条件清单：三门代表功法是否大成 + 战力是否够下一境，只给勾，不讲原理。
-    const breakList = top.map(function (s) {
-      return { text: s.name + ' · ' + s.tierName, ok: s.prof >= 1000 };
-    });
-    breakList.push({
+    // 真正的门槛只有战力（world.realms[].power 是唯一判据），所以只有这一行打勾叉；
+    // 主修三门只报当前段位、用中性点标，勾不满也能突破——写成条件会让人白练。
+    const breakList = [{
       text: '战力 ' + ov.power + ' / ' + (ov.breakthrough.need || ov.power),
-      ok: !!ov.breakthrough.available,
-    });
+      mark: ov.breakthrough.available ? '✓' : '✕',
+      markCls: ov.breakthrough.available ? 'imm-check__mark--on' : 'imm-check__mark--off',
+      off: !ov.breakthrough.available,
+    }].concat(top.map(function (s) {
+      return {
+        text: '主修 · ' + s.name + ' ' + s.tierName,
+        mark: '·',
+        markCls: 'imm-check__mark--ref',
+        off: false,
+      };
+    }));
     this.setData({
       breakList: breakList,
       ov: ov,

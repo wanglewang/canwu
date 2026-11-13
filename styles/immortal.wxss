@@ -216,8 +216,6 @@
     height: 176rpx;
 }
 
-.imm-tile__inner--on { background: var(--c-imm-gold-soft); }
-
 .imm-tile__glyph {
     color: var(--c-imm-gold);
     font-size: 44rpx;
@@ -342,7 +340,6 @@
     line-height: 1.6;
 }
 
-.imm-chip--gold { border-color: var(--c-imm-gold-dim); color: var(--c-imm-gold); }
 .imm-chip--jade { border-color: var(--c-imm-line); color: var(--c-imm-jade); }
 
 /* ---------- 属性格：2×2 细线格，与宫格同一套语言 ---------- */
@@ -578,7 +575,6 @@
 
 .pg--imm .tag--gold { border-color: var(--c-imm-gold-dim); color: var(--c-imm-gold); }
 .pg--imm .tag--jade { border-color: var(--c-imm-line); color: var(--c-imm-jade); }
-.pg--imm .tag--red { border-color: var(--c-imm-gold-dim); color: var(--c-danger-text); }
 
 .pg--imm .divider { background: var(--c-imm-line-soft); }
 

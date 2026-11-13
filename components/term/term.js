@@ -9,8 +9,6 @@ Component({
     properties: {
         termKey: { type: String, value: '' },
         label: { type: String, value: '' },
-        // 深色卡（.card--ink）里要换一套文字色，否则浅色主题的次要文字会看不清。
-        tone: { type: String, value: 'normal' },
     },
 
     data: {

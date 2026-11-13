@@ -976,7 +976,9 @@ function unlockInfo(state, skill) {
       cleared: cleared,
     };
   }
-  return { kind: 'chance', label: '机缘可得', text: '参悟时小概率拾得残卷', hint: '多练几局，缘分到了自然来', action: 'practice', actionText: '去参悟', percent: 0 };
+  // 机缘不可控，能做的就是「去练」。旧版给的是 action: 'practice'，页面没有这个分支，
+  // 点了落到主页，等于按钮是死的；统一成去练功台。
+  return { kind: 'chance', label: '机缘可得', text: '参悟时小概率拾得残卷', hint: '多练几局，缘分到了自然来', action: 'cultivate', actionText: '去修炼', percent: 0 };
 }
 
 function getOverview(state) {

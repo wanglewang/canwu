@@ -80,6 +80,21 @@ function goalFor(grade, remain, unit) {
   return '再 ' + remain + ' ' + unit + '可入 S';
 }
 
+// 按用时评级的玩法（探禁 / 搭桥 / 翻牌）不能摆「当前档位」：0 秒时按当前用时反推必然是 S，
+// 玩家会以为 S 已经到手，之后只能看它往下掉。局内改报下一条线的时限，档位只在结算出现。
+// 不写「已用几秒」——HUD 顶上那个计时就是它，写两遍只是换个说法重复同一个数。
+// extra 是拿到 S 的附加条件（如「牌 ≤ 24」），只挂在 S 线上。
+function paceGoal(elapsed, lines, extra) {
+  const grade = ['S', 'A', 'B'];
+  for (let i = 0; i < lines.length; i += 1) {
+    if (elapsed <= lines[i]) {
+      const tail = i === 0 && extra ? ' · ' + extra : '';
+      return grade[i] + ' 线 ' + lines[i] + ' 秒' + tail;
+    }
+  }
+  return '已过 B 线 · 收场只算 C';
+}
+
 function TimerBag() {
   const intervals = [];
   const timeouts = [];
@@ -200,13 +215,13 @@ function fillController(obj) {
 module.exports = {
   randInt: randInt,
   shuffle: shuffle,
-  makeCells: makeCells,
   clearCells: clearCells,
   gradeBy: gradeBy,
   mmss: mmss,
   pct: pct,
   flash: flash,
   goalFor: goalFor,
+  paceGoal: paceGoal,
   TimerBag: TimerBag,
   makeVm: makeVm,
   fillController: fillController,

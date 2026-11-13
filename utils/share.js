@@ -7,7 +7,7 @@ const engine = require('./game.js');
 
 function titleOf(state) {
   const ov = engine.getOverview(state);
-  return '我在《参悟》修到「' + ov.realmName + '」，战力 ' + ov.power + '，来论道吗？';
+  return '我在《参悟》修到「' + ov.realmName + '」，战力 ' + ov.power + '，来切磋吗？';
 }
 
 function appMessage(state) {
@@ -25,7 +25,6 @@ function timeline(state) {
 }
 
 module.exports = {
-  titleOf: titleOf,
   appMessage: appMessage,
   timeline: timeline,
 };

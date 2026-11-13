@@ -314,7 +314,7 @@ if (!demoTerm || !termKeys.has(demoTerm[1])) {
 const sharedCopy = [
   copy.UI.footHint, copy.UI.loading, copy.UI.errorTitle, copy.UI.errorDesc,
   copy.UI.emptyLog, copy.UI.emptyBoard, copy.UI.emptySkills,
-  copy.UI.sections.today, copy.UI.sections.more, copy.UI.sections.nearTier,
+  copy.UI.sections.today, copy.UI.sections.more,
   copy.UI.sections.settings, copy.UI.sections.battleCode,
 ];
 for (const text of sharedCopy) {

@@ -69,8 +69,8 @@ Page({
     near.sort(function (a, b) { return b.percent - a.percent; });
     if (near.length > 0) hintText = '叮！' + near[0].name + ' 即将升段。';
     else if (bt.available) hintText = '境界已足，可去人物页突破。';
-    // 突破是双条件：战力够 ≠ 能突破，还要求指定功法到大成。别让人白等。
-    else if (!bt.maxed && bt.power >= bt.need) hintText = '战力已足，还差功法条件，去人物页看。';
+    // 门槛只有战力（world.realms[].power）：到这条线就够，不必再列第二个条件。
+    else if (!bt.maxed && bt.need > 0) hintText = '距「' + bt.nextName + '」还差 ' + Math.max(0, bt.need - bt.power) + ' 战力。';
 
     const dailyReady = !ov.daily.claimed && ov.daily.count >= ov.daily.target;
     const sync = store.getSyncStatus();

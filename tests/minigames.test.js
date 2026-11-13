@@ -880,6 +880,19 @@ check('照影符：无猜布局能纯靠数字零失误翻完全盘', function (
   } finally { restoreClock(); }
 });
 
+check('照影符：首点不会把整盘开完（否则 0 秒拿 S，等于没参悟）', function () {
+  installClock();
+  try {
+    for (let round = 0; round < 30; round += 1) {
+      const ctx = makeCtx(data.getMethod('tanlei'));
+      ctx.c.start();
+      ctx.c.tap(14);
+      assert.ok(!ctx.st.finished, '第 ' + (round + 1) + ' 盘首点就全开：布阵挡掉了退化盘');
+      ctx.c.destroy();
+    }
+  } finally { restoreClock(); }
+});
+
 check('照影符：镇符数对上点数字格可连开，压错位置照样踩禁制', function () {
   installClock();
   try {

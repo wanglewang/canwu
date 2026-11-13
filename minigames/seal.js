@@ -8,6 +8,9 @@ const C = require('./common.js');
 
 const SIGNS = ['乾', '坤', '震', '巽', '坎', '离', '艮', '兑'];
 
+// 按用时评级的玩法：档位只在结算出现（局内反推 0 秒必是 S），局内报下一条线。
+const GRADE_LINE = [18, 30, 46];
+
 function create(ctx) {
   const p = ctx.params || {};
   const hard = ctx.difficulty === 'hard';
@@ -24,6 +27,7 @@ function create(ctx) {
   vm.scoreText = '气窍 0 / ' + pairs;
   vm.extras.showHint = true;
   vm.extras.showMeter = true;
+  vm.extras.showGradeNow = false;
   vm.hint = '入定照见剩 ' + hintsLeft + ' 次';
 
   const bag = C.TimerBag();
@@ -60,7 +64,9 @@ function create(ctx) {
     vm.progressText = pairsDone + ' / ' + pairs + ' 对';
     vm.scoreText = '气窍 ' + pairsDone + ' / ' + pairs;
     vm.gradeNow = gradeNow();
-    vm.goal = pairsDone >= pairs ? '诸窍皆通' : '还剩 ' + (pairs - pairsDone) + ' 对 · 翻牌 ' + flips + ' 次';
+    // 这一关的 S 还多一条「翻牌要少」，所以只把附加条件挂在 S 线上；
+    // 还剩几对已经在进度里，不必在目标句里再说一遍。
+    vm.goal = C.paceGoal(elapsed, GRADE_LINE, '牌 ≤ ' + pairs * 4);
     vm.meter = { label: '已通气窍', value: pairsDone, max: pairs };
     vm.hint = '翻牌 ' + flips + ' 次 · 入定照见剩 ' + hints + ' 次';
     vm.pair = { locked: locked, first: first, matched: pairsDone, flips: flips };

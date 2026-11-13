@@ -9,6 +9,9 @@ const C = require('./common.js');
 
 const NUM = ['', '一', '二', '三', '四', '五'];
 
+// 按用时评级的玩法：档位只在结算出现（局内反推 0 秒必是 S），局内报下一条线。
+const GRADE_LINE = [14, 22, 34];
+
 function create(ctx) {
   const p = ctx.params || {};
   const hard = ctx.difficulty === 'hard';
@@ -27,6 +30,7 @@ function create(ctx) {
   vm.scoreText = '已采 0 / ' + rows + ' 层';
   vm.extras.showHearts = true;
   vm.extras.showMeter = true;
+  vm.extras.showGradeNow = false;
   vm.hearts = { value: maxHearts, max: maxHearts };
   vm.lane = { rows: rows, cols: cols, activeRow: 0, target: 1, toneMax: toneMax, rule: '循纹：上层纹数 +1，过 ' + toneMax + ' 回到一' };
 
@@ -99,7 +103,9 @@ function create(ctx) {
     vm.combo = combo;
     vm.comboText = combo >= 2 ? '连采 ×' + combo : '';
     vm.gradeNow = gradeNow();
-    vm.goal = '第 ' + (activeRow + 1) + ' 层 · 该采「' + (NUM[target] || target) + '」纹';
+    // 「该采第几层、哪道纹」已经在进度与循纹目标里给了，目标句留给评级线：
+    // 评级看用时且要求心神不折，这两条都是玩家在局内需要主动守的。
+    vm.goal = C.paceGoal(elapsed, GRADE_LINE, '心神不折');
     vm.meter = { label: '循纹目标', value: target, max: toneMax };
     vm.lane.activeRow = activeRow;
     vm.lane.target = target;

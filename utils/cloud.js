@@ -19,5 +19,4 @@ const cloud = createMiniProgramWorkBuddyCloud({
 
 module.exports = {
   cloud: cloud,
-  publicConfig: publicConfig,
 };

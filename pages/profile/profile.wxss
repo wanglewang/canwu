@@ -1,111 +1,5 @@
-/* 道牒页：道牒卡是一张「名片」，明暗都保持深绿金边（--c-idcard / --c-idcard-edge），
-   其余面板与列表一律走语义变量，暗色下不再出现浅底浅字。 */
-.idcard {
-    box-sizing: border-box;
-    padding: var(--sp-4);
-    margin-bottom: var(--card-gap);
-    border-radius: var(--r-xl);
-    background: var(--c-bg);
-    border: 2rpx solid var(--c-border);
-}
-
-.idcard__inner {
-    box-sizing: border-box;
-    min-height: 780rpx;
-    padding: var(--sp-12) var(--sp-8);
-    border: 3rpx solid var(--c-idcard-edge);
-    border-radius: var(--r-md);
-    background: var(--c-idcard);
-    display: flex;
-    flex-direction: column;
-}
-
-.idcard__eyebrow {
-    color: var(--c-gold-bright);
-    font-size: var(--fs-caption);
-    letter-spacing: var(--sp-1);
-}
-
-.idcard__name {
-    font-size: var(--fs-h1);
-    font-weight: 700;
-    color: var(--c-on-ink);
-    margin-right: var(--sp-4);
-}
-
-.idcard__title {
-    margin-top: var(--sp-2);
-    color: var(--c-on-ink-2);
-    font-size: var(--fs-note);
-}
-
-.idcard__label {
-    margin-top: var(--sp-8);
-    color: var(--c-gold-bright);
-    font-size: var(--fs-caption);
-    letter-spacing: var(--sp-1);
-}
-
-.idcard__power {
-    color: var(--c-on-ink);
-    font-family: "Songti SC", "SimSun", serif;
-    font-size: 104rpx;
-    font-weight: 700;
-    line-height: 1.1;
-}
-
-.idcard__rule {
-    height: 2rpx;
-    background: var(--c-ink-divider);
-    margin: var(--sp-5) 0;
-}
-
-.idcard__attrs {
-    color: var(--c-on-ink-2);
-    font-size: var(--fs-note);
-}
-
-.idcard__skill {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--sp-3) 0;
-    border-bottom: 2rpx solid var(--c-ink-divider);
-}
-
-.idcard__skill-name {
-    color: var(--c-on-ink);
-    font-size: var(--fs-body-sm);
-    font-weight: 600;
-}
-
-.idcard__skill-tier { font-size: var(--fs-caption); }
-
-.idcard__empty {
-    color: var(--c-on-ink-2);
-    font-size: var(--fs-note);
-    padding: var(--sp-4) 0;
-}
-
-.idcard__stats {
-    color: var(--c-on-ink-2);
-    font-size: var(--fs-caption);
-}
-
-.idcard__code {
-    margin-top: var(--sp-3);
-    color: var(--c-on-ink-2);
-    font-size: var(--fs-caption);
-    word-break: break-all;
-}
-
-.idcard__slogan {
-    margin-top: auto;
-    padding-top: var(--sp-8);
-    color: var(--c-on-ink-2);
-    font-size: var(--fs-caption);
-    letter-spacing: var(--sp-1);
-}
+/* 道牒页：身份卡走 .imm-idcard（墨底 + 细金线，见 styles/immortal.wxss 的语义变量），
+   旧版浅底道牒卡的 .idcard 一族已随改版删掉。 */
 
 .share-canvas {
     position: fixed;
@@ -113,32 +7,6 @@
     left: 0;
     width: 600px;
     height: 880px;
-}
-
-.title-card,
-.world-card { margin-bottom: var(--sp-4); }
-
-.idcard__hero {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-}
-
-.idcard__hero-text {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-.idcard__edit {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--touch-xs);
-    padding: 0 var(--sp-2);
-    margin-top: var(--sp-2);
-    color: var(--c-gold-bright);
-    font-size: var(--fs-caption);
 }
 
 .role-editor__preview {
@@ -165,15 +33,6 @@
     border-radius: var(--r-sm);
     font-size: var(--fs-body);
     color: var(--c-text);
-}
-
-.idcard__avatar {
-    width: 192rpx;
-    height: 218rpx;
-    border-radius: var(--r-md);
-    border: 3rpx solid var(--c-gold-bright);
-    background: var(--c-surface-ink);
-    flex-shrink: 0;
 }
 
 .role-editor__avatar {
@@ -217,12 +76,6 @@
 
 .sync-bar--error .sync-bar__text { color: var(--c-danger-text); }
 
-.sync-bar__action {
-    font-size: var(--fs-caption);
-    color: var(--c-link);
-    margin-left: var(--sp-3);
-}
-
 .ach__glyph {
     display: inline-block;
     width: 44rpx;
@@ -246,12 +99,6 @@
     color: var(--c-text-2);
     margin-left: var(--sp-4);
     flex-shrink: 0;
-}
-
-/* 音效开关：文字竖排，按钮靠右，和「账号·存档」区的双按钮区分开 */
-.sfx-text {
-    display: flex;
-    flex-direction: column;
 }
 
 /* ---------- 人物页改版：身份卡 + 属性格 + 突破清单，低频区块折叠 ---------- */
@@ -315,6 +162,9 @@
 /* 勾 / 叉都用细线字符，不用 emoji：墨金底上彩色 emoji 会跳出来抢视线 */
 .imm-check__mark--on { color: var(--c-imm-jade); }
 .imm-check__mark--off { color: var(--c-imm-danger); }
+
+/* 主修三门只是参考项，用中性点；只有战力那一行才是勾叉 */
+.imm-check__mark--ref { color: var(--c-imm-text-3); }
 
 /* 未达标的条件文字压暗一档，让「还差哪几项」一眼分得出来 */
 .imm-check--off .imm-check__text { color: var(--c-imm-text-2); }

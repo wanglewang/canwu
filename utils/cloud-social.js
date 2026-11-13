@@ -109,7 +109,7 @@ async function listScores(limit) {
   };
 }
 
-// 一次拿到「我的战绩已上榜 + 完整榜单」，供论道页调用。
+// 一次拿到「我的战绩已上榜 + 完整榜单」，供仙门切磋页与仙榜页调用。
 async function refreshBoard(state, force) {
   const published = await publishScore(state, force);
   const board = await listScores(20);

@@ -27,25 +27,8 @@ button::after {
     padding: var(--page-top) var(--page-x) calc(var(--page-bottom) + env(safe-area-inset-bottom));
 }
 
-/* 页头：眉标 / 标题 / 一句说明；右上角可选挂一个文字动作，结构各页一致。 */
-.pg__head {
-    display: flex;
-    flex-direction: column;
-    margin: var(--sp-2) 0 var(--sp-6);
-}
-
-.pg__head-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--sp-4);
-    min-height: var(--sp-8);   /* 有右上动作时由 .text-link 的热区撑开 */
-}
-
-.pg__head-action {
-    margin-top: 0;
-    flex-shrink: 0;
-}
+/* 页头统一走 styles/immortal.wxss 的 .imm-head（标题交给原生导航栏，页内只留右上「说明」）；
+   旧版 .pg__head 三件套是双层导航的来源，已随改版删除。 */
 
 .pg__foot {
     margin-top: var(--sp-8);
@@ -64,12 +47,6 @@ button::after {
     border-radius: var(--r-lg);
     background: var(--c-surface);
     box-shadow: var(--sh-card);
-}
-
-.card--flat { box-shadow: var(--sh-none); }
-
-.card--tight {
-    padding: var(--sp-5) var(--sp-6);
 }
 
 .card--ink {
@@ -101,12 +78,6 @@ button::after {
     font-weight: 700;
     line-height: var(--lh-tight);
     letter-spacing: var(--sp-1);
-}
-
-.h2 {
-    font-size: var(--fs-h2);
-    font-weight: 600;
-    line-height: var(--lh-head);
 }
 
 .h3 {
@@ -145,21 +116,14 @@ button::after {
 /* ---------- 行与间距工具（只用栅格值，禁止随手写 13rpx / 18rpx） ---------- */
 .row { display: flex; align-items: center; }
 .row--between { display: flex; align-items: center; justify-content: space-between; }
-.row--center { display: flex; align-items: center; justify-content: center; }
 .row--wrap { display: flex; flex-wrap: wrap; }
 
 .grow { flex: 1; min-width: 0; }
 .gap { margin-right: var(--sp-3); }
-.mt4 { margin-top: var(--sp-1); }
 .mt8 { margin-top: var(--sp-2); }
 .mt12 { margin-top: var(--sp-3); }
 .mt16 { margin-top: var(--sp-4); }
-.mt20 { margin-top: var(--sp-5); }
 .mt24 { margin-top: var(--sp-6); }
-.mt32 { margin-top: var(--sp-8); }
-.mb8 { margin-bottom: var(--sp-2); }
-.mb12 { margin-bottom: var(--sp-3); }
-.mb16 { margin-bottom: var(--sp-4); }
 
 /* ---------- 区块 ---------- */
 .section { margin-top: var(--section-gap); }
@@ -204,13 +168,10 @@ button::after {
 
 .btn--primary { background: var(--c-primary); color: var(--c-primary-on); }
 .btn--gold { background: var(--c-gold); color: var(--c-primary-on); }
-.btn--red { background: var(--c-danger); color: var(--c-primary-on); }
 .btn--ghost { background: transparent; color: var(--c-primary-text); border-color: var(--c-border-strong); }
 .btn--plain { background: var(--c-surface-2); color: var(--c-text); }
-.btn--warn { background: var(--c-danger-soft); color: var(--c-danger-text); border-color: var(--c-danger); }
 .btn--block { width: 100%; }
 .btn--small { min-height: var(--touch-sm); padding: 0 var(--sp-5); font-size: var(--fs-body-sm); }
-.btn--compact { min-height: var(--touch-xs); padding: 0 var(--sp-5); font-size: var(--fs-note); }
 .btn[disabled] { opacity: 0.45; }
 
 .btn-row {
@@ -221,8 +182,6 @@ button::after {
 
 /* .btn-row 自身带 20rpx 上边距，会覆盖 .mt12/.mt16，用修饰类显式指定 */
 .btn-row--tight { margin-top: var(--sp-3); }
-.btn-row--mid { margin-top: var(--sp-4); }
-.btn-row--flush { margin-top: 0; }
 
 .btn-row > .btn { flex: 1; }
 
@@ -247,21 +206,6 @@ button::after {
 }
 
 .text-link--muted { color: var(--c-text-2); }
-
-.icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    min-height: var(--touch-icon);
-    padding: 0 var(--sp-5);
-    border: 2rpx solid var(--c-border-strong);
-    border-radius: var(--r-pill);
-    background: transparent;
-    color: var(--c-text-2);
-    font-size: var(--fs-caption);
-    line-height: 1;
-}
 
 /* ---------- 按压反馈：可点 view 统一 hover-class="pressable--on" ---------- */
 .pressable {
@@ -313,11 +257,6 @@ button::after {
     line-height: var(--lh-body);
 }
 
-.state__action {
-    margin-top: var(--sp-6);
-    min-width: 240rpx;
-}
-
 /* ---------- 吸底主操作条 ---------- */
 .sticky-bar {
     position: fixed;
@@ -348,12 +287,6 @@ button::after {
     min-width: 208rpx;
 }
 
-.sticky-bar__side {
-    font-size: var(--fs-caption);
-    color: var(--c-text-2);
-    text-align: right;
-}
-
 /* 提高优先级，避免被文件末尾的 .pg 安全区规则覆盖 */
 .pg.pg--with-bar {
     padding-bottom: calc(var(--bar-height) + env(safe-area-inset-bottom));
@@ -373,7 +306,6 @@ button::after {
 
 .tag--jade { background: var(--c-primary-soft); color: var(--c-primary-text); }
 .tag--gold { background: var(--c-gold-soft); color: var(--c-gold-text); }
-.tag--red { background: var(--c-danger-soft); color: var(--c-danger-text); }
 .tag--grey { background: var(--c-neutral-soft); color: var(--c-text-2); }
 .tag--dark { background: var(--c-ink-track); color: var(--c-on-ink); }
 
@@ -397,8 +329,6 @@ button::after {
 .bar--dark .bar__fill { background: var(--c-gold-bright); }
 
 /* ---------- 数值 ---------- */
-.stat-grid { display: flex; flex-wrap: wrap; }
-
 .stat {
     box-sizing: border-box;
     width: 25%;
@@ -410,13 +340,6 @@ button::after {
 
 .stat__label { color: var(--c-text-2); font-size: var(--fs-caption); }
 .stat__value { margin-top: var(--sp-2); font-size: var(--fs-h3); font-weight: 700; }
-
-.big-number {
-    font-size: var(--fs-display);
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: var(--sp-1);
-}
 
 /* ---------- 弹层 ---------- */
 .mask {
@@ -484,13 +407,6 @@ button::after {
     color: var(--c-on-ink);
 }
 
-.empty-state {
-    padding: var(--sp-16) var(--sp-5);
-    text-align: center;
-    color: var(--c-text-3);
-    font-size: var(--fs-body-sm);
-}
-
 .res-line {
     display: flex;
     align-items: center;
@@ -533,10 +449,6 @@ button::after {
     color: var(--c-placeholder);
     font-size: var(--fs-note);
 }
-
-/* ---------- 深色卡内部：显式工具类，不用通配覆盖，保住文字层次 ---------- */
-.on-ink { color: var(--c-on-ink); }
-.on-ink-2 { color: var(--c-on-ink-2); }
 
 .card--ink .divider { background: var(--c-ink-divider); }
 

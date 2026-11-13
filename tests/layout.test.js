@@ -72,7 +72,7 @@ check('洞府页有常驻吸底主按钮，且不再重复 tabBar 的跳转', fu
   assert.ok(/class="sticky-bar"/.test(s), '缺少吸底操作条');
   assert.ok(/bindtap="onQuickPractice"/.test(s), '主按钮未绑定 onQuickPractice');
   assert.ok(/pg--with-bar/.test(s), '未给吸底条预留页面底部空间');
-  assert.ok(!/bindtap="onGoBattle"/.test(s), '仍保留与 tabBar 重复的「去论道」');
+  assert.ok(!/bindtap="onGoBattle"/.test(s), '仍保留与 tabBar 重复的「去切磋」');
   assert.ok(!/>看道牒</.test(s), '仍保留与 tabBar 重复的「看道牒」');
 });
 
@@ -123,10 +123,11 @@ check('不可撤销操作使用警示样式并与常规操作分区', function (
   const s = read('pages/profile/profile.wxml');
   const reset = (s.match(/<button[^>]*bindtap="onReset"[^>]*>/) || [])[0] || '';
   const signOut = (s.match(/<button[^>]*bindtap="onSignOut"[^>]*>/) || [])[0] || '';
-  assert.ok(/btn--warn|imm-btn--danger/.test(reset), '重置存档未用警示样式');
-  assert.ok(/btn--warn|imm-btn--danger/.test(signOut), '退出登录未用警示样式');
+  assert.ok(/imm-btn--danger/.test(reset), '重置存档未用警示样式');
+  assert.ok(/imm-btn--danger/.test(signOut), '退出登录未用警示样式');
   assert.ok(/以下操作不可撤销/.test(s), '缺少危险操作提示');
-  assert.ok(/btn--warn/.test(read('app.wxss')), 'app.wxss 未定义 .btn--warn');
+  // 危险按钮只有一支：immortal.wxss 的 .imm-btn--danger。旧通用按钮族的 .btn--warn 已随改版删除。
+  assert.ok(/\.imm-btn--danger\s*\{/.test(read('styles/immortal.wxss')), 'immortal.wxss 未定义 .imm-btn--danger');
 });
 
 check('参悟局内收功放在屏幕上方且带二次确认', function () {
@@ -219,7 +220,7 @@ check('局内音效有资源、有开关、跟着判定浮字走', function () {
   assert.ok(/onToggleSfx/.test(profile), '道牒页缺少音效开关');
 });
 
-check('论道页对手按钮是行内紧凑按钮，且战斗与探索分得开', function () {
+check('仙门切磋页对手按钮是行内紧凑按钮，且战斗与探索分得开', function () {
   const s = read('pages/battle/battle.wxml');
   let fights = 0;
   for (const line of s.split('\n')) {
@@ -251,7 +252,6 @@ check('按钮与文字链尺寸取自令牌，且令牌满足最小触控高度'
   assert.ok(size('touch') >= 84, '--touch 低于 84rpx 主操作下限');
   assert.ok(size('touch-sm') >= 72, '--touch-sm 低于 72rpx 次操作下限');
   assert.ok(size('touch-xs') >= 64, '--touch-xs 低于 64rpx 紧凑操作下限');
-  assert.ok(size('touch-icon') >= 64, '--touch-icon 低于 64rpx 图标按钮下限');
   const btn = (css.match(/\.btn \{[\s\S]*?\}/) || [])[0] || '';
   assert.ok(/min-height:\s*var\(--touch\)/.test(btn), '.btn 没有取主操作令牌');
   const small = (css.match(/\.btn--small \{[^}]*\}/) || [])[0] || '';
@@ -419,7 +419,13 @@ check('照影符局内只讲「在追哪一档」：不摆当前评级，HUD 不
   // 评级只看用时，按当前用时反推出来的档，开局那一刻必是 S。摆进 HUD 等于告诉玩家
   // 「已经拿到 S 了」，之后只能看它一路往下掉。局内改成只报下一档的时限。
   assert.ok(/showGradeNow = false/.test(m), '照影符又把「当前评级」摆回 HUD 了');
-  assert.ok(/function paceGoal/.test(m), '局内没给「下一档还差几秒」');
+  assert.ok(/C\.paceGoal\(elapsed, GRADE_LINE\)/.test(m), '局内没给「下一档还差几秒」');
+  // 同样的反推逻辑不止探禁一家：搭桥、翻牌也按用时评级。凡是这类玩法都不许摆当前档位。
+  for (const name of ['bridge', 'seal']) {
+    const src = read('minigames/' + name + '.js');
+    assert.ok(/showGradeNow = false/.test(src), 'minigames/' + name + '.js 还在 HUD 上摆按用时反推的档位');
+    assert.ok(/C\.paceGoal\(elapsed, GRADE_LINE/.test(src), 'minigames/' + name + '.js 没给「下一档还差几秒」');
+  }
   assert.ok(m.indexOf("'还剩 '") < 0, 'HUD 又用「还剩 N 格」重复「已探 X / Y」');
   assert.ok(/不必靠猜/.test(m), '提示区没讲「此盘不必猜」');
   // 扫雷原生词一律换题材词：旗 → 镇符（盘面上的 ⚑ 只是个记号，不落汉字）。
@@ -427,6 +433,39 @@ check('照影符局内只讲「在追哪一档」：不摆当前评级，HUD 不
   assert.ok(/镇符/.test(m) && /镇符/.test(g), '镇符没进玩法与说明');
   // 玩法名一屏只写一处：页头那一处，其余卡片的 tag 都该收掉。
   assert.strictEqual((w.match(/\{\{gameName\}\}/g) || []).length, 1, '同一屏上写了两遍玩法名');
+});
+
+check('突破只有战力一个门槛：文案不许再讲「功法条件」', function () {
+  // world.realms[].power 是唯一判据，「主修三门大成」只是面板上的参考项。
+  // 上一版把参考项写成了条件，主页还会提示「还差功法条件」——那是永远不会出现的状态
+  //（战力够了就已经 available），属于死分支 + 误导文案。
+  const index = read('pages/index/index.js');
+  const help = read('data/help.js');
+  const profile = read('pages/profile/profile.js');
+  assert.ok(!/功法条件/.test(index + help), '又把「功法条件」当成突破门槛了');
+  assert.ok(/imm-check__mark--ref/.test(profile), '主修三门又被当成条件打了勾叉');
+});
+
+check('局内两行不说同一句话：tip 讲代价，inline 讲操作', function () {
+  const practice = require('../data/practice.js');
+  const guides = require('../data/guides.js');
+  for (const m of practice.PRACTICE_METHODS) {
+    const gd = guides.guideOf(m.game);
+    assert.ok(gd && gd.inline, m.id + ' 没有局内速记');
+    // 中文里连续 6 个字一模一样，读起来就是同一句话说了两遍；两行的分工是
+    // 「这一局的代价」vs「手怎么动」，不该有长段落重合。
+    const a = m.tip;
+    const b = gd.inline;
+    let best = 0;
+    for (let i = 0; i < a.length; i += 1) {
+      for (let j = 0; j < b.length; j += 1) {
+        let k = 0;
+        while (a[i + k] && b[j + k] && a[i + k] === b[j + k]) k += 1;
+        if (k > best) best = k;
+      }
+    }
+    assert.ok(best < 6, m.id + ' 的提示与速记重合了 ' + best + ' 个字：' + a + ' / ' + b);
+  }
 });
 
 check('斜向擦角：插值只认中心内圈，抬手仍用整格命中补定', function () {
@@ -598,7 +637,7 @@ check('加载 / 空 / 错误状态统一用 .state 占位，不再白屏', funct
   // 榜单的内联错误态跟着榜单走，现在它在战力仙榜页。
   assert.ok(/class="state state--inline"/.test(read('pages/board/board.wxml')), '榜单错误没有用内嵌状态');
   const css = read('app.wxss');
-  for (const cls of ['.state {', '.state--inline', '.state__title', '.state__desc', '.state__action']) {
+  for (const cls of ['.state {', '.state--inline', '.state__glyph', '.state__title', '.state__desc']) {
     assert.ok(css.indexOf(cls) >= 0, '全局基础层缺少 ' + cls);
   }
 });
@@ -664,7 +703,7 @@ check('文案真源：跨页复用文案只在 data/copy.js 写一次', function
   const shared = [
     copy.UI.footHint, copy.UI.loading, copy.UI.errorTitle, copy.UI.errorDesc,
     copy.UI.emptyLog, copy.UI.emptyBoard, copy.UI.emptySkills,
-    copy.UI.sections.today, copy.UI.sections.more, copy.UI.sections.nearTier,
+    copy.UI.sections.today, copy.UI.sections.more,
     copy.UI.sections.settings, copy.UI.sections.battleCode,
   ];
   for (const text of shared) {
@@ -767,8 +806,16 @@ check('信息架构：主页只做导航，说明独立成页，低频内容默�
     '名词速查没有真的「?」示范');
   assert.ok(/id="\{\{item\.id\}\}"/.test(guide) && /pageScrollTo/.test(read('pages/guide/guide.js')),
     '目录点了只展开不滚动，不算直达');
-  const copy = require('../data/copy.js');
-  assert.ok(copy.formatProgress(2, 3) === '2 / 3', '进度写法没留在文案真源');
+  // 进度只有「X / Y」一种写法：斜杠两侧留空格，不写成 a/b，也不在 WXML 里拼中文单位。
+  let progress = 0;
+  for (const rel of WXML) {
+    const s = read(rel);
+    const pairs = s.match(/\}\}[ \t]*\/[ \t]*\{\{/g) || [];
+    const bad = pairs.filter(function (x) { return x !== '}} / {{'; });
+    assert.deepStrictEqual(bad, [], rel + ' 的进度写成了无空格的 a/b');
+    progress += pairs.length;
+  }
+  assert.ok(progress >= 5, '进度写法疑似被改散：只找到 ' + progress + ' 处「X / Y」');
   assert.ok(/copy\.formatCost/.test(read('pages/skills/skills.js'))
     && /copy\.formatGain/.test(read('pages/index/index.js')), '文案真源的格式化函数没接进页面');
 });
@@ -833,7 +880,7 @@ check('功法图鉴：未习得也能看全玩法、收益与习得路径', func
   assert.ok(!d.unlocked, '天阶功法初始不该是已习得');
   assert.ok(d.guide && d.guide.steps.length >= 2 && d.guide.terms.length >= 2, '锁定功法看不到玩法说明');
   assert.ok(d.gainLines.length >= 3 && d.stageRules !== undefined, '锁定功法看不到练成收益');
-  assert.ok(d.unlock.kind === 'battle' && d.unlock.action === 'battle', '掉落功法没给去论道的路径');
+  assert.ok(d.unlock.kind === 'battle' && d.unlock.action === 'battle', '掉落功法没给去切磋的路径');
   assert.ok(d.statusText && d.effectNote, '缺状态或特效生效说明');
   for (const sk of skills.SKILLS) {
     const item = game.getSkillDetail(s, sk.id);
@@ -883,10 +930,10 @@ check('主页六宫格各进各的子页，不再借道别的 tab', function () 
     assert.ok(!/imm-head__back/.test(read('pages/' + name + '/' + name + '.wxml')), name + ' 又画了页内返回');
     assert.ok(!/onBack/.test(read('pages/' + name + '/' + name + '.js')), name + ' 还留着没人调用的 onBack');
   }
-  // 榜单只在一个页面里出现：论道页不再复述前十，否则两处都能打、两处都要刷新。
+  // 榜单只在一个页面里出现：仙门切磋页不再复述前十，否则两处都能打、两处都要刷新。
   assert.ok(!/refreshBoard|onFightRival/.test(read('pages/battle/battle.js')),
-    '论道页又接回了榜单（榜单只在战力仙榜页）');
-  assert.ok(/onGoBoard/.test(read('pages/battle/battle.js')), '论道页缺少去仙榜的指路');
+    '仙门切磋页又接回了榜单（榜单只在战力仙榜页）');
+  assert.ok(/onGoBoard/.test(read('pages/battle/battle.js')), '仙门切磋页缺少去仙榜的指路');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');
