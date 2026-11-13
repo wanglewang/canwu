@@ -37,7 +37,7 @@ const TERMS = [
     { key: 'daohao', name: '道号与道相', group: '页面', desc: '自己起的称呼与挑的头像；不设头像就用默认道相。' },
     { key: 'cangjingge', name: '藏经阁', group: '页面', desc: '功法页里花灵气、灵石兑换功法的地方。' },
     { key: 'jiyuan', name: '机缘', group: '页面', desc: '切磋首胜掉落一类的功法获取方式，不花资源。' },
-    { key: 'codex', name: '功法图鉴', group: '页面', desc: '功法页里点开任意一张卡片看到的详情：玩法规则、练成收益与习得路径。未习得也能看全，锁的只是开练。' },
+    { key: 'codex', name: '功法图鉴', group: '页面', desc: '功法页里点开任意一张卡片展开的详情：玩法规则、练成收益与习得路径。未习得也能查全本，锁的只是开练。' },
     { key: 'worlds', name: '此界之外', group: '页面', desc: '尚未开放的后续世界；当前只有青云界可玩。' },
     { key: 'code', name: '战力码', group: '对战', desc: '以 CW1- 开头的一串码。复制给朋友，对方粘贴后就能和你的镜像过招。' },
     { key: 'mirror', name: '镜像', group: '对战', desc: '按战力码还原出的「另一个人」，不用同时在线也能打一场。' },
@@ -88,10 +88,12 @@ const UI = {
         collapseAll: '全部收起',
         refresh: '重新加载',
         copy: '复制',
-        viewDetail: '看详情 ›',
+        viewDetail: '详情 ›',
+        goSkills: '去功法页',
         goBattle: '去切磋',
         goHome: '去攒资源',
         openShop: '去藏经阁',
+        allAchievements: '全部成就',
     },
 
     // 功法页两态：locked 里混着藏经阁兑换、切磋首胜与境界前置，统称「未习得」才准确。
@@ -130,7 +132,7 @@ const UI = {
         codexUnlock: '如何习得',
     },
 
-    // 功法图鉴：未习得也能看全本功法。状态与按钮只说明「现在能不能做什么」，不写黑话。
+    // 功法图鉴：未习得也能查全本功法。状态与按钮只说明「现在能不能做什么」，不写黑话。
     // 状态词只留页面真会用到的那几个；解锁路径本身由引擎给 label（见 utils/game.js
     // 的 unlockInfo），这里不再维护第二份同义说法。
     states: {

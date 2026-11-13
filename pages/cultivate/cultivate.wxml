@@ -1,7 +1,7 @@
 <view class="pg pg--imm">
   <view wx:if="{{!current}}" class="imm-panel">
     <text class="imm-empty">{{copy.emptySkills}}</text>
-    <button class="imm-btn imm-btn--block" bindtap="onGoSkills">去功法页看看</button>
+    <button class="imm-btn imm-btn--block" bindtap="onGoSkills">{{copy.actions.goSkills}}</button>
   </view>
 
   <block wx:else>

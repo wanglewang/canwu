@@ -4,6 +4,7 @@ const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const copy = require('../../data/copy.js');
 const nav = require('../../data/navigation.js');
+const skillsData = require('../../data/skills.js');
 
 // 图鉴详情统一从引擎出：页面只补「当前资源够不够」这类即时状态。
 function detailOf(state, id) {
@@ -72,19 +73,22 @@ Page({
     });
     const source = this.data.tab === 'learned' ? learned : locked;
     const cards = source.map(function (s) {
+      const stageText = s.unlocked ? s.profTierName + ' ' + s.percent + '%'
+        : (s.canBuy ? '藏经阁可换' : '未修炼');
+      const bonusText = s.bonusText || s.effectText;
+      // 一行元信息只放段位与属性。玩法名与整段规则都在图鉴里，列表不塞第四样东西，
+      // 免得小屏把最该看见的属性截掉，或又把名字挤成一字一行。
+      const metaText = stageText + ' · ' + bonusText;
       return {
         id: s.id,
-        name: s.name,
+        // 左侧方标已写出类别，列表只留三字正名，不再重复一遍「心法 ·」。
+        cardName: s.name.split(skillsData.NAME_RULE.sep)[1] || s.name,
         mark: s.type.slice(0, 1),
-        // 一个词点出这套功法玩什么，不用整句说明；长文只留在图鉴弹窗里。
-        gameName: s.gameName,
-        stageText: s.unlocked ? s.profTierName + ' ' + s.percent + '%' : (s.canBuy ? '藏经阁可换' : '未修炼'),
-        bonusText: s.bonusText || s.effectText,
-        percent: s.percent,
         tierLabel: s.tierLabel,
+        metaText: metaText,
+        percent: s.percent,
         // 阶段只分三档、颜色全走 tokens：未入门弱化 / 常规青玉 / 大成以上旧金。
         barTone: s.tierIndex === 0 ? 'imm-bar--dim' : (s.tierIndex >= 3 ? 'imm-bar--gold' : ''),
-        detailText: copy.UI.actions.viewDetail,
         actionText: s.unlocked ? copy.UI.actions.practice
           : (s.canBuy ? copy.UI.actions.openShop : copy.UI.actions.viewDetail),
         unlocked: s.unlocked,

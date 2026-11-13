@@ -1,30 +1,48 @@
-/* 功法页：一张列表 + 一个图鉴弹窗。列表每行只有名字、进度、品阶与一个动作。 */
-.skill-name {
+/* 功法页：一张紧凑列表 + 一个图鉴弹窗。
+   每张卡片固定三行：正名 + 品阶 / 一行元信息 / 进度条，右侧动作按钮宽度锁死。
+   名字与元信息一律 nowrap + ellipsis：中文一旦被 flex 压到一字宽就会竖排，
+   真机上整张卡片会被撑成半屏高，这里从根上挡住。 */
+.imm-row > .imm-row__body {
+    flex: 1 1 0;
+    width: 0;
+    min-width: 0;
+}
+
+.imm-row > .sk-act {
+    flex: none;
+    width: 160rpx;
+    padding: 0 var(--sp-2);
+    white-space: nowrap;
+}
+
+.sk-line {
     display: flex;
     align-items: center;
-    gap: var(--sp-3);
+    min-width: 0;
 }
 
-.skill-name .imm-chip { flex: none; }
+.sk-name {
+    flex: 1 1 0;
+    min-width: 0;
+    display: block;
+    color: var(--c-imm-text);
+    font-size: var(--fs-h3);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
-/* 玩法名只用一个词，帮玩家想起这门练的是哪套小游戏；整句说明只留在图鉴里。 */
-.skill-game {
+.sk-tier {
     flex: none;
-    color: var(--c-imm-text-3);
-    font-size: var(--fs-caption);
+    margin-left: var(--sp-3);
 }
 
-/* 整行本来就能点，这里补一个看得见的「看详情」入口，别让玩家猜。 */
-.skill-sub {
-    display: flex;
-    align-items: baseline;
-    gap: var(--sp-3);
-}
-
-.skill-sub__link {
-    flex: none;
-    color: var(--c-imm-gold);
-    font-size: var(--fs-caption);
+.sk-meta {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* 阶段只分三档，颜色全由语义令牌给：未入门弱化、大成以上旧金，常规仍是青玉。 */

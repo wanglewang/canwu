@@ -980,7 +980,7 @@ check('功法命名统一：类别·三字正名，前缀严格等于类别', fu
   assert.ok(names.indexOf('刀法·开锋诀') >= 0 && names.indexOf('剑法·断岳诀') >= 0, '刀 / 剑两门没按规范统一');
 });
 
-check('功法图鉴：未习得也能看全玩法、收益与习得路径', function () {
+check('功法图鉴：未习得也能查全玩法、收益与习得路径', function () {
   const game = require('../utils/game.js');
   const skills = require('../data/skills.js');
   const js = read('pages/skills/skills.js');
@@ -1024,7 +1024,7 @@ check('图鉴文案走文案真源，解释统一收进「说明」页', functio
   }
   // 「锁的是开练不是查阅」这句话从列表移到说明真源，列表只留数值与按钮。
   const codex = help.topicOf('skills').sections.filter(function (s) { return s.key === 'codex'; })[0];
-  assert.ok(codex && /未习得也能看全/.test(codex.lines.join('')), '说明真源没讲清图鉴的锁与不锁');
+  assert.ok(codex && /未习得也能查全本/.test(codex.lines.join('')), '说明真源没讲清图鉴的锁与不锁');
   assert.ok(!/copy\.hints\./.test(wxml), '功法页又把提示长句印回列表');
   assert.ok(copy.UI.states.learned && copy.UI.states.buyable, '状态文案没进真源');
   assert.ok(copy.UI.actions.viewDetail && copy.UI.actions.goBattle, '动作文案没进真源');
@@ -1237,13 +1237,23 @@ check('功法页默认排序与主页推荐同一份口径', function () {
   assert.strictEqual((js.match(/\.sort\(/g) || []).length, 1, '功法页又写了第二套排序规则');
 });
 
-check('功法卡片落地玩法名、阶段色与详情入口，颜色全走令牌', function () {
+check('功法卡片紧凑单行：名字不竖排、按钮不抢宽度、阶段色走令牌', function () {
   const js = read('pages/skills/skills.js');
   const wxml = read('pages/skills/skills.wxml');
   const wxss = read('pages/skills/skills.wxss');
-  assert.ok(/gameName: s\.gameName/.test(js) && /item\.gameName/.test(wxml), '卡片没标玩法名');
-  assert.ok(/detailText/.test(js) && /item\.detailText/.test(wxml), '卡片没给看得见的详情入口');
-  assert.ok(/catchtap="openDetail"/.test(wxml), '详情链接没挡住冒泡，会开两层');
+  // 真机上出现过「名字被 flex 压到一字宽、整张卡片竖排撑成半屏高」，从根上守住。
+  assert.ok(/\.sk-name[\s\S]*?white-space:\s*nowrap/.test(wxss), '功法名没有强制单行，会被压成竖排');
+  assert.ok(/\.sk-name[\s\S]*?min-width:\s*0/.test(wxss), '功法名缺 min-width:0');
+  assert.ok(/\.sk-meta[\s\S]*?text-overflow:\s*ellipsis/.test(wxss), '元信息没有单行截断兜底');
+  assert.ok(/\.imm-row\s*>\s*\.sk-act[\s\S]*?flex:\s*none/.test(wxss), '右侧按钮没锁宽，会抢走文字宽度');
+  assert.ok(/width:\s*160rpx/.test(wxss), '右侧按钮没有固定宽度');
+  assert.ok(/\.imm-row\s*>\s*\.imm-row__body[\s\S]*?width:\s*0/.test(wxss), '文字区没有弹性基准宽度');
+  assert.ok(!/skill-name|skill-game|skill-sub|detailText|catchtap="openDetail"/.test(wxml + js),
+    '又回到「一行塞名字 + 玩法名 + 品阶 + 详情链接」的挤压布局');
+  assert.ok(/item\.cardName/.test(wxml) && /item\.metaText/.test(wxml), '卡片没用重排后的字段');
+  assert.ok(/metaText: metaText/.test(js) && /stageText \+ ' · ' \+ bonusText/.test(js),
+    '元信息没收敛成「段位 · 属性」一行');
+  assert.ok(!/s\.gameName/.test(js), '列表又把玩法名塞回来，小屏会截掉属性');
   assert.ok(/barTone/.test(js) && /item\.barTone/.test(wxml), '进度条没按阶段分档');
   assert.ok(/imm-bar--gold/.test(wxss) && /imm-bar--dim/.test(wxss), '阶段色类名没落地');
   assert.ok(!/#[0-9a-fA-F]{3,8}/.test(wxss), '功法页 wxss 又写了裸色值');
@@ -1256,6 +1266,23 @@ check('功法页两态用「未习得」，不再含糊地叫「可解锁」', f
   assert.strictEqual(copy.UI.skillsTabs.locked, '未习得');
   assert.ok(/copy\.skillsTabs\.(learned|locked)/.test(wxml), '两态文案没走真源');
   assert.ok(!/可解锁/.test(wxml), '功法页 tab 还写着「可解锁」');
+});
+
+check('玩家可见文案不写「看详情 / 去看看」这类口语前缀', function () {
+  const copy = require('../data/copy.js');
+  assert.strictEqual(copy.UI.actions.viewDetail, '详情 ›', '详情按钮仍带「看」字');
+  const files = [
+    'pages/cultivate/cultivate.wxml', 'pages/profile/profile.wxml',
+    'pages/skills/skills.wxml', 'pages/skills/skills.js',
+    'pages/index/index.js', 'data/copy.js', 'data/help.js',
+  ];
+  for (const f of files) {
+    assert.ok(!/看详情|去看看|去功法页看看|查看全部成就|看全本/.test(read(f)),
+      f + ' 还残留口语化的「看」字措辞');
+  }
+  assert.ok(/copy\.actions\.goSkills/.test(read('pages/cultivate/cultivate.wxml')), '功法页入口没走文案真源');
+  assert.ok(/copy\.UI\.actions\.goSkills/.test(read('pages/index/index.js')), '主页无推荐时没走文案真源');
+  assert.ok(/copy\.actions\.allAchievements/.test(read('pages/profile/profile.wxml')), '成就入口没走文案真源');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

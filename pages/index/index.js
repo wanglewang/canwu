@@ -101,7 +101,7 @@ Page({
       dailyGain: copy.formatGain(ov.daily.qi, ov.daily.stone),
       quickSkillId: rec.id || (learned.length > 0 ? learned[0].id : ''),
       // 「去修炼」到练功台，「开始参悟」才开一局：两个词分别代表两件事，不再混用。
-      quickLabel: rec.id ? '去修炼 · ' + rec.name : '去看看功法',
+      quickLabel: rec.id ? '去修炼 · ' + rec.name : copy.UI.actions.goSkills,
     });
   },
 

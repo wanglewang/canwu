@@ -17,24 +17,20 @@
     <view class="imm-row pressable" hover-class="pressable--on" wx:for="{{cards}}" wx:key="id" data-id="{{item.id}}" bindtap="openDetail">
       <view class="imm-row__mark">{{item.mark}}</view>
       <view class="imm-row__body">
-        <view class="skill-name">
-          <text class="imm-row__name grow">{{item.name}}</text>
-          <text class="skill-game">{{item.gameName}}</text>
-          <text class="imm-chip">{{item.tierLabel}}</text>
+        <view class="sk-line">
+          <text class="sk-name">{{item.cardName}}</text>
+          <text class="imm-chip sk-tier">{{item.tierLabel}}</text>
         </view>
-        <view class="imm-row__sub skill-sub">
-          <text class="grow">{{item.stageText}} · {{item.bonusText}}</text>
-          <text class="skill-sub__link" data-id="{{item.id}}" catchtap="openDetail">{{item.detailText}}</text>
-        </view>
+        <text class="imm-row__sub sk-meta">{{item.metaText}}</text>
         <view wx:if="{{item.percent > 0}}" class="imm-bar imm-bar--thin {{item.barTone}}">
           <view class="imm-bar__fill" style="width:{{item.percent}}%"></view>
         </view>
       </view>
-      <button class="imm-btn--ghost imm-btn--sm" data-id="{{item.id}}" catchtap="onCardAction">{{item.actionText}}</button>
+      <button class="imm-btn--ghost imm-btn--sm sk-act" data-id="{{item.id}}" catchtap="onCardAction">{{item.actionText}}</button>
     </view>
   </view>
 
-  <!-- 图鉴：未习得也看全本，锁的只有开练。分节短、可展开，不再一口气堆全文。 -->
+  <!-- 图鉴：未习得也能查全本，锁的只有开练。分节短、可展开，不再一口气堆全文。 -->
   <view class="mask" wx:if="{{showDetail && detail}}" bindtap="closeDetail">
     <view class="modal modal--codex" catchtap="noop">
       <view class="row--between">

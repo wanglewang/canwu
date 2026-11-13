@@ -69,7 +69,7 @@
           </view>
           <text class="ach__progress">{{item.current}} / {{item.goal}}</text>
         </view>
-        <button class="imm-btn--ghost imm-btn--block imm-btn--sm" bindtap="onToggleAchievements">{{showAllAchievements ? '收起' : '查看全部成就'}}</button>
+        <button class="imm-btn--ghost imm-btn--block imm-btn--sm" bindtap="onToggleAchievements">{{showAllAchievements ? copy.actions.collapse : copy.actions.allAchievements}}</button>
       </view>
     </view>
 
