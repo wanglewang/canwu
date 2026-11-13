@@ -468,6 +468,49 @@ check('局内两行不说同一句话：tip 讲代价，inline 讲操作', funct
   }
 });
 
+check('准备页交代「下一段给什么」与「这一档收紧了什么」', function () {
+  const wxml = read('pages/practice/practice.wxml');
+  const js = read('pages/practice/practice.js');
+  const world = require('../data/world.js');
+  const practice = require('../data/practice.js');
+  // 只写「距小成还差 114」等于只给数字：练到那一步能拿什么，得从 world.TIERS 里搬出来。
+  assert.ok(/nextBenefit/.test(wxml) && /nextTier\.desc/.test(js), '准备页没交代下一段给什么');
+  for (const t of world.TIERS) assert.ok(t.desc && t.desc.length >= 4, t.name + ' 没写收益');
+  // 难度档：倍率之外实际收紧了哪几处，diffDetail.brief 早就算好了，以前没渲染。
+  assert.ok(/diffBrief/.test(wxml) && /diff\.brief/.test(js), '难度档只摆了倍率，没摆收紧了什么');
+  const d = practice.diffDetail(practice.getMethod('recite'), 'normal');
+  assert.ok(d.brief.indexOf('→') >= 0, '难度对比没算出任何变化：' + d.brief);
+});
+
+check('局内速记只列已解锁的进阶机制，收起态不吓新手', function () {
+  const wxml = read('pages/practice/practice.wxml');
+  const guides = require('../data/guides.js');
+  const practice = require('../data/practice.js');
+  // 逆诵（大成）与死门（大成）都是后面才有的规则，收起态里不该先出现。
+  assert.ok(guides.guideOf('memory').inline.indexOf('逆诵') < 0, '记序复现的速记又提前写了逆诵');
+  assert.ok(guides.guideOf('lights').inline.indexOf('忌') < 0, '阵灯推演的速记又提前写了死门');
+  // 收起态把「已解锁」的阶段新法接在基础操作后面，未解锁的不列。
+  assert.ok(/stageRules[\s\S]{0,160}item\.on[\s\S]{0,80}item\.short/.test(wxml),
+    '收起态没接已解锁的阶段新法');
+  for (const id of Object.keys(practice.STAGE_RULES)) {
+    for (const r of practice.STAGE_RULES[id]) {
+      assert.ok(r.short && r.short.length >= 2, id + '/' + r.name + ' 缺速记写法 short');
+    }
+  }
+});
+
+check('局内代价句用阿拉伯数字，与 HUD 的「余 12.3 息」同一套写法', function () {
+  const practice = require('../data/practice.js');
+  const bad = [];
+  for (const m of practice.PRACTICE_METHODS) {
+    // 局内是实时读的，「罚一息半」要在脑子里换算，「罚 1.5 息」不用。
+    if (/[一二两三四五六七八九十][息盏秒]/.test(m.tip)) bad.push(m.id + ': ' + m.tip);
+  }
+  assert.deepStrictEqual(bad, [], '代价句里还有中文数词：' + bad.join(' / '));
+  assert.ok(/折 1 盏心神/.test(read('minigames/memory.js')), '记序复现的浮字又写成「一盏」');
+  assert.ok(/罚 3 秒/.test(read('minigames/lights.js')), '阵灯推演的浮字又写成「三秒」');
+});
+
 check('斜向擦角：插值只认中心内圈，抬手仍用整格命中补定', function () {
   const swipeInput = require('../utils/swipe.js');
   const rects = [];

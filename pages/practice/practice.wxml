@@ -52,6 +52,8 @@
       <view class="bar bar--dark mt8">
         <view class="bar__fill" style="width:{{percent}}%;background:{{tierColor}}"></view>
       </view>
+      <!-- 下一段给什么：只写「还差 114」等于只给了个数字，练到头才发现没好处。 -->
+      <text wx:if="{{nextBenefit}}" class="tiny pr-tier-next">{{nextBenefit}}</text>
     </view>
   </view>
 
@@ -81,7 +83,12 @@
         <text class="tiny mt8">诀窍 · {{guide.tip}}</text>
       </view>
     </block>
-    <view wx:else class="guide__inline mt12"><text class="tiny">{{guide.inline}}</text></view>
+    <!-- 收起态只给已经会玩的人扫一眼：基础操作 + 本门已解锁的进阶机制。
+         没解锁的不列——新手第一眼要看到的是「怎么点」，不是三条规则硬拼在一行。 -->
+    <view wx:else class="guide__inline mt12">
+      <text class="tiny">{{guide.inline}}</text>
+      <text wx:for="{{stageRules}}" wx:key="name" wx:if="{{item.on}}" class="tiny guide__inline-more"> · {{item.name}}＝{{item.short}}</text>
+    </view>
   </view>
 
   <view wx:if="{{!started && !showResult}}" class="card">
@@ -148,6 +155,8 @@
           <text wx:if="{{!item.unlocked}}" class="diff-chip__need">{{item.lockedText}}</text>
         </view>
       </view>
+      <!-- 高档位不只有倍率：这一档实际收紧了哪几处（亮起时长 / 口诀轮数…），一一摆出来。 -->
+      <text wx:if="{{diffBrief}}" class="tiny diff-brief">{{diffBrief}}</text>
     </block>
   </view>
 

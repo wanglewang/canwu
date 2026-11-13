@@ -240,7 +240,7 @@ function create(ctx) {
     }
     vm.status = theme.miss || '气机一乱';
     vm.banner = '';
-    C.flash(vm, '折一盏心神 · 还剩 ' + lives, 'bad');
+    C.flash(vm, '折 1 盏心神 · 还剩 ' + lives, 'bad');
     syncHud();
     render();
     bag.after(function () {

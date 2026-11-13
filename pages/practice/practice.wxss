@@ -79,6 +79,13 @@
     color: var(--c-imm-text-3);
 }
 
+/* 下一段能拿到什么：跟进度条同一块，比正文再轻一档。 */
+.pr-tier-next {
+    display: block;
+    margin-top: var(--sp-2);
+    color: var(--c-imm-text-2);
+}
+
 /* 吸底条：与主页面同一条发丝线收口，不加重阴影（墨底上阴影看不出来，只会脏边）。 */
 .pg .sticky-bar {
     border-top: 1rpx solid var(--c-imm-line-soft);
@@ -230,6 +237,11 @@
     padding: 12rpx 14rpx;
     border-radius: var(--r-xs);
     background: var(--c-imm-panel-2);
+}
+
+/* 已解锁的进阶机制接在基础操作后面，同一条速记里不换行分段。 */
+.guide__inline-more {
+    color: var(--c-imm-gold);
 }
 
 .combo-chip {
@@ -1180,6 +1192,13 @@
 .diff-chip__name { font-size: var(--fs-body-sm); color: var(--c-text); font-weight: 600; }
 .diff-chip__mult { font-size: var(--fs-caption); color: var(--c-text-2); }
 .diff-chip__need { font-size: var(--fs-caption); color: var(--c-imm-gold); }
+/* 选中这一档实际收紧了什么：一行小字，跟在档位下面，不占一格。 */
+.diff-brief {
+    display: block;
+    margin-top: var(--sp-3);
+    color: var(--c-imm-text-3);
+    line-height: 1.6;
+}
 /* 选中档只换描边与字色，不铺色块：一屏只允许一处金色实心（开始参悟）。 */
 .diff-chip--on { border-color: var(--c-imm-gold-dim); background: var(--c-imm-gold-soft); }
 .diff-chip--on .diff-chip__name { color: var(--c-imm-gold); }

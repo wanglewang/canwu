@@ -733,7 +733,7 @@ check('阵灯推演：阵眼感应花三秒', function () {
     const before = ctx.st.vm.timeText;
     ctx.c.hint();
     advance(200);
-    assert.ok(ctx.st.vm.status.indexOf('三秒') >= 0, '提示没有说明代价：' + ctx.st.vm.status);
+    assert.ok(ctx.st.vm.status.indexOf('3 秒') >= 0, '提示没有说明代价：' + ctx.st.vm.status);
     assert.notStrictEqual(ctx.st.vm.timeText, before, '提示没有扣时间');
     ctx.c.destroy();
   } finally { restoreClock(); }

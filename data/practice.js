@@ -24,7 +24,7 @@ const PRACTICE_METHODS = [
   {
     id: 'forge', name: '循光斩桩', game: 'click', theme: 'forge', twist: 'forge',
     desc: '刀光沿刀桩连成一道刀路，每桩箭头指向下一桩，顺箭头一刀扫到靶心才算斩中。反向或劈空一记，少一息。',
-    tip: '反向、跳桩、绕圈都算劈空：扣一息、断刀势',
+    tip: '反向、跳桩、绕圈都算劈空：扣 1 息、断刀势',
     base: 32,
     // weapon 是兵器轴：click 引擎读它分剑 / 刀，其余引擎目前忽略。
     params: { duration: 15, life: 700, grid: 9, cols: 3, weapon: 'dao' },
@@ -33,21 +33,21 @@ const PRACTICE_METHODS = [
     id: 'snatch', name: '辨锋截击', game: 'hunt', theme: 'snatch', twist: 'snatch',
     desc: '几道剑光同时亮，只有一道是真招。认准了抢先截，慢了会被反制。',
     // 局内两行分工：tip 讲代价（截错会怎样），guides.inline 讲操作速记。
-    tip: '截错扣分、少一息，连夺也断',
+    tip: '截错扣分、少 1 息，连夺也断',
     base: 36,
     params: { duration: 16, interval: 1000, grid: 12, cols: 4, decoys: 2, weapon: 'sword' },
   },
   {
     id: 'recite', name: '背功法口诀', game: 'memory', theme: 'recite', twist: 'recite',
     desc: '口诀次第闪过，按原序点回。看漏了可以抢记，赌自己记住了多少。',
-    tip: '点错罚一息半、连断；整轮记岔折一盏心神',
+    tip: '点错罚 1.5 息、连断；整轮记岔折 1 盏心神',
     base: 38,
     params: { grid: 9, cols: 3, startLen: 2, maxRound: 7, flashMs: 560, gapMs: 260, msPerNote: 480 },
   },
   {
     id: 'stones', name: '循纹采露', game: 'bridge', theme: 'stones', twist: 'stones',
     desc: '灵露凝在河石上，每层只一道纹对得上方子。水流一转，石位就换。',
-    tip: '采错折一盏心神，人留在原层',
+    tip: '采错折 1 盏心神，人留在原层',
     base: 36,
     params: { rows: 5, cols: 3, shuffleMs: 3200, timeLimit: 45 },
   },
@@ -61,28 +61,28 @@ const PRACTICE_METHODS = [
   {
     id: 'combo', name: '照卷踏位', game: 'sword', theme: 'combo', twist: 'combo',
     desc: '卷轴铺开一串步位，落脚之处皆有次序。一步踏错，整套就散。',
-    tip: '踏错要重走这一步，另扣一息',
+    tip: '踏错要重走这一步，另扣 1 息',
     base: 40,
     params: { duration: 20, segments: 4, baseLen: 3, moves: ['进', '退', '侧', '转'] },
   },
   {
     id: 'arrayEye', name: '参悟阵眼', game: 'lights', theme: 'arrayEye', twist: 'arrayEye',
     desc: '点亮一处，四面随之翻转。要让整座阵法同时亮起，阵眼只在一处。',
-    tip: '点中死门阵盘复位，罚三秒',
+    tip: '点中死门阵盘复位，罚 3 秒',
     base: 42,
     params: { size: 3, steps: 2, duration: 36 },
   },
   {
     id: 'wuxing', name: '排布阵灯', game: 'wuxing', theme: 'wuxing', twist: 'wuxing',
     desc: '五盏阵灯围成一环，相生之位次第轮转。连得越长，留给你的一息越短。',
-    tip: '相生一断少一息，得从木重新起链',
+    tip: '相生一断少 1 息，得从木重新起链',
     base: 48,
     params: { duration: 20, chainGoal: 10, windowMs: 2600 },
   },
   {
     id: 'tanlei', name: '持符探禁', game: 'mines', theme: 'tanlei', twist: 'tanlei',
     desc: '照影符照出石格下的禁制。看数字推位置、布镇符连开，把安全石格一处处翻明。',
-    tip: '误触折一盏心神，耗尽即收功',
+    tip: '误触折 1 盏心神，耗尽即收功',
     base: 50,
     params: { cols: 6, rows: 6, mines: 6 },
   },
@@ -98,7 +98,7 @@ const PRACTICE_METHODS = [
   {
     id: 'linkpair', name: '牵灵引线', game: 'link', theme: 'linkpair', twist: 'linkpair',
     desc: '同纹灵石两两相契，牵一条不过两折的灵线把这一对收回来。',
-    tip: '错配或连不上都少两息，息尽收功',
+    tip: '错配或连不上都少 2 息，息尽收功',
     base: 34,
     params: { duration: 55, cols: 6, rows: 4, kinds: 6, flashMs: 900 },
   },
@@ -112,7 +112,7 @@ const PRACTICE_METHODS = [
   {
     id: 'harvest', name: '换苗引秀', game: 'match', theme: 'harvest', twist: 'harvest',
     desc: '灵畦里换两株相邻灵苗，凑齐三株同色便收；落苗补位还能再连一层。',
-    tip: '换不出三连少两息',
+    tip: '换不出三连少 2 息',
     base: 34,
     params: { duration: 60, cols: 6, rows: 6, kinds: 5, flashMs: 760 },
   },
@@ -259,7 +259,7 @@ const GOAL_KEYS = ['chainGoal', 'maxRound', 'segments', 'beats', 'scramble', 'mi
 const SPEED_KEY = 'speed';
 
 const FIELD_LABELS = {
-  interval: '灵光间隔', life: '刀光停留', flashMs: '亮起时长', gapMs: '闪烁间隔', windowMs: '相生之窗', msPerNote: '每字息数',
+  interval: '灵光间隔', life: '刀光停留', flashMs: '亮起时长', gapMs: '闪烁间隔', windowMs: '相生之窗', msPerNote: '每字限时',
   shuffleMs: '水流变阵', flipMs: '翻牌停留', dropMs: '落石间隔', window: '判定窗', speed: '气机收敛',
   chainGoal: '连生目标', maxRound: '口诀轮数', segments: '步法段数', beats: '息数',
   scramble: '打乱步数', mines: '禁制数', pairs: '符对数', decoys: '影子数',
@@ -307,9 +307,14 @@ function buildParams(method, diffKey) {
   return out;
 }
 
+// 这一行是给玩家读的：毫秒一律折成秒（660.8ms 这种数字没人会去比），
+// 计数保持整数；判定窗 / 气机收敛是内部倍率，读不出意义，干脆不摆。
+const MS_FIELDS = ['interval', 'life', 'flashMs', 'gapMs', 'windowMs', 'shuffleMs', 'flipMs', 'dropMs', 'msPerNote'];
+const HIDDEN_FIELDS = ['window', 'speed'];
+
 function fmtField(key, value) {
-  const ms = key === 'interval' || key === 'life' || key === 'flashMs' || key === 'gapMs' || key === 'windowMs' || key === 'shuffleMs' || key === 'flipMs' || key === 'dropMs' || key === 'msPerNote';
-  return value + (ms ? 'ms' : '');
+  if (MS_FIELDS.indexOf(key) >= 0) return (value / 1000).toFixed(2) + ' 秒';
+  return String(Math.round(value));
 }
 
 // 给参悟准备页看的难度说明：与最简单档对比，列出这一档实际收紧了哪几处。
@@ -318,7 +323,9 @@ function diffDetail(method, diffKey) {
   const base = buildParams(method, 'easy');
   const now = buildParams(method, diffKey);
   const changes = [];
-  const ordered = PACE_KEYS.concat(WINDOW_KEYS, GOAL_KEYS, ['steps', SPEED_KEY]);
+  const ordered = PACE_KEYS.concat(WINDOW_KEYS, GOAL_KEYS, ['steps', SPEED_KEY]).filter(function (k) {
+    return HIDDEN_FIELDS.indexOf(k) < 0;
+  });
   for (let i = 0; i < ordered.length && changes.length < 3; i += 1) {
     const k = ordered[i];
     if (typeof now[k] !== 'number' || typeof base[k] !== 'number') continue;
@@ -348,38 +355,40 @@ function diffDetail(method, diffKey) {
 // at 用的是熟练度阶段下标（world.TIERS）：0 未入门 / 1 入门 / 2 小成 / 3 大成 / 4 圆满 / 5 大圆满。
 // 与难度档分工：档位只拧数值（多长、多快、门槛多高），阶段才换规则。
 // 玩法层读 perks.tier 落地；这里同时供准备页列出「本门新法」。
+// short 是给「怎么玩」收起时那一行速记用的：只写动作，不写第几轮起——
+// 收起态是给已经会玩的人看一眼的，展开态才讲条件与代价。
 const STAGE_RULES = {
   recite: [
-    { at: 3, name: '逆诵', desc: '第 3 轮起，奇轮要从未字往前点回' },
-    { at: 4, name: '叠印', desc: '第 5 轮起，口诀里会出现重复的格子' },
+    { at: 3, name: '逆诵', short: '倒着点', desc: '第 3 轮起，奇轮要从未字往前点回' },
+    { at: 4, name: '叠印', short: '同一格连点两下', desc: '第 5 轮起，口诀里会出现重复的格子' },
   ],
   arrayEye: [
-    { at: 3, name: '死门', desc: '盘上多一格死门，点到整盘复位并罚三秒' },
-    { at: 4, name: '双门', desc: '死门增至两格' },
+    { at: 3, name: '死门', short: '忌格点不得', desc: '盘上多一格死门，点到整盘复位并罚 3 秒' },
+    { at: 4, name: '双门', short: '忌格两处', desc: '死门增至两格' },
   ],
   forge: [
-    { at: 3, name: '收势', desc: '扫到靶心要停一拍再抬手；抢着抬算收势未成，只给半分并断刀势' },
-    { at: 4, name: '禁桩', desc: '盘上多出红叉禁桩，划到即断刀势；绕开它把刀路走完才算数' },
-    { at: 5, name: '双锋', desc: '同时亮两道刀路，只有靶心在呼吸的那道是真招，划错断势' },
+    { at: 3, name: '收势', short: '到靶心停一拍', desc: '扫到靶心要停一拍再抬手；抢着抬算收势未成，只给半分并断刀势' },
+    { at: 4, name: '禁桩', short: '绕开红叉', desc: '盘上多出红叉禁桩，划到即断刀势；绕开它把刀路走完才算数' },
+    { at: 5, name: '双锋', short: '双刀路挑呼吸的', desc: '同时亮两道刀路，只有靶心在呼吸的那道是真招，划错断势' },
   ],
   // 照影符是黄阶入门功法，阶段新法只给「看得更清」的便利，不往经典扫雷里加新规则。
   tanlei: [
-    { at: 3, name: '照影', desc: '大成起每局开局照见 3 处禁制并标出' },
-    { at: 5, name: '圆照', desc: '大圆满起每局开局照见 5 处禁制' },
+    { at: 3, name: '照影', short: '开局标 3 处', desc: '大成起每局开局照见 3 处禁制并标出' },
+    { at: 5, name: '圆照', short: '开局标 5 处', desc: '大圆满起每局开局照见 5 处禁制' },
   ],
   // 三套经典玩法是黄阶里的入门功课，阶段新法只给「看得更清 / 手更稳」的便利，
   // 不往经典规则里塞新花样——看一眼就会玩，才配叫简单。
   linkpair: [
-    { at: 3, name: '照纹', desc: '大成起「照纹」提示不再扣息' },
-    { at: 5, name: '自移', desc: '大圆满起死局重排不再扣息' },
+    { at: 3, name: '照纹', short: '提示不扣息', desc: '大成起「照纹」提示不再扣息' },
+    { at: 5, name: '自移', short: '死局重排不扣息', desc: '大圆满起死局重排不再扣息' },
   ],
   stackstone: [
-    { at: 3, name: '稳基', desc: '大成起落石间隔放宽一拍，留出转石的时间' },
-    { at: 5, name: '层叠', desc: '大圆满起每化一层的得分再高一成' },
+    { at: 3, name: '稳基', short: '落石放慢一拍', desc: '大成起落石间隔放宽一拍，留出转石的时间' },
+    { at: 5, name: '层叠', short: '化层多一成', desc: '大圆满起每化一层的得分再高一成' },
   ],
   harvest: [
-    { at: 3, name: '照畦', desc: '大成起「照畦」提示不再扣息' },
-    { at: 5, name: '连收', desc: '大圆满起连锁加成提高，死局重排不扣息' },
+    { at: 3, name: '照畦', short: '提示不扣息', desc: '大成起「照畦」提示不再扣息' },
+    { at: 5, name: '连收', short: '连锁加成提高', desc: '大圆满起连锁加成提高，死局重排不扣息' },
   ],
 };
 

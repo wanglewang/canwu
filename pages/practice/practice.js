@@ -37,6 +37,8 @@ Page({
     prof: 0,
     percent: 0,
     nextText: '',
+    nextBenefit: '',
+    diffBrief: '',
     difficulty: 'easy',
     diffList: [],
     diffName: '简单',
@@ -181,6 +183,8 @@ Page({
         prof: info.power,
         percent: 100,
         nextText: '目标 ' + info.nextName,
+        nextBenefit: '',
+        diffBrief: '',
         diffList: [],
         diffName: '',
         diffMultText: '',
@@ -251,11 +255,15 @@ Page({
     const stageRules = practiceData.stageRulesOf(method.id).map(function (r) {
       return {
         name: r.name,
+        short: r.short || '',
         desc: r.desc,
         on: rec.prof >= worldData.TIERS[r.at].threshold,
         atName: worldData.TIERS[r.at].name,
       };
     });
+    // 下一段给什么：现在只写「还差 114」，玩家不知道练到那一步能得到什么。
+    // 收益就在 world.TIERS[].desc 里（解锁难度 / 属性 / 阶段新法），原样搬一句，不另编。
+    const nextTier = info.maxed ? null : worldData.TIERS[info.index + 1];
 
     this.theme = theme;
     this.twist = method.twist;
@@ -269,10 +277,14 @@ Page({
       prof: rec.prof,
       percent: info.percent,
       nextText: info.maxed ? '已至大圆满' : '距 ' + info.nextName + ' 还差 ' + (info.nextThreshold - rec.prof),
+      nextBenefit: nextTier ? '到「' + nextTier.name + '」：' + nextTier.desc : '',
       difficulty: diffKey,
       diffList: diffList,
       diffName: diff.name,
       diffMultText: diff.multText,
+      // 高难度除了倍率还收紧了什么：diffDetail 已经算好了（亮起时长、口诀轮数…），
+      // 以前只在数据里躺着没渲染，玩家只能看到「×1.70」。
+      diffBrief: diff.brief,
       rankLabel: tier.label,
       rankChar: tier.name,
       rankStars: engine.starsOf(tier.stars),

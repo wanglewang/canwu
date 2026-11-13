@@ -220,7 +220,7 @@ function create(ctx) {
     board = startBoard.slice();
     moves = 0;
     timeLeft = Math.max(0, timeLeft - DEAD_COST);
-    C.flash(vm, '触了死门 · 阵盘复位，罚三秒', 'bad');
+    C.flash(vm, '触了死门 · 阵盘复位，罚 3 秒', 'bad');
     vm.status = '死门反噬，这一盘从头再来';
     paint();
     syncHud();
@@ -276,7 +276,7 @@ function create(ctx) {
     const prevLabel = vm.cells[k].label;
     vm.cells[k].cls = 'cell cell--hint';
     vm.cells[k].label = theme.glyph || '明';
-    vm.status = '阵眼感应：这一格该点 · 花去三秒';
+    vm.status = '阵眼感应：这一格该点 · 花去 3 秒';
     syncHud();
     render();
     bag.after(function () {
