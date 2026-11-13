@@ -131,17 +131,20 @@ function create(ctx) {
   const freeHint = stage >= 3;
   const freeShuffle = stage >= 5;
   const chainBonus = stage >= 5 ? 0.5 : 0;
+  // 代价句由准备页的 method.tip 传进来，局内一直挂在 hint 上。以前 syncHud()
+  // 每帧都把它冲成纯计数，玩家整局都看不到「换不出要少 2 息」，等于规则只在准备页写着。
+  const costText = ctx.tip || '换不出三连少 2 息';
 
-  const vm = C.makeVm(cols, n, '换两株相邻灵草，三株同色连成一线就收走', ctx.tip || '点相邻两株换位，连成三株即收');
+  const vm = C.makeVm(cols, n, '换两株相邻灵草，三株同色连成一线就收走', costText);
   vm.timeText = C.mmss(duration);
   vm.scoreText = '得分 0';
   vm.extras.showHint = true;
   vm.extras.showCombo = true;
   vm.extras.compact = true;
-  vm.hint = '照畦：找出一处能收的换位';
 
   // 一格三连 12 分，连锁每层 ×(1 + 0.5×(层数-1))；一局打得顺能收十几次。
-  const sLimit = 620 + depth * 150;
+  // S 线的基数与每档增量由 data/practice.js 的 params 同源送入，准备页照同一份数写给玩家看。
+  const sLimit = (p.sBase || 620) + depth * (p.sStep || 150);
   const aLimit = Math.ceil(sLimit * 0.68);
   const bLimit = Math.ceil(sLimit * 0.40);
 
@@ -185,7 +188,7 @@ function create(ctx) {
     vm.gradeNow = C.gradeBy(score, sLimit, aLimit, bLimit);
     vm.goal = C.goalFor(vm.gradeNow, Math.max(0, sLimit - score), '分');
     vm.meter = { label: '已收灵草', value: Math.min(100, harvested), max: 100 };
-    vm.hint = '照畦 · 错换 ' + mistakes + ' · 重排 ' + shuffles;
+    vm.hint = costText + ' · 无效互换 ' + mistakes + ' · 重排 ' + shuffles;
   }
 
   function finishOnce(grade, summary) {
@@ -202,7 +205,7 @@ function create(ctx) {
 
   function finish() {
     const grade = C.gradeBy(score, sLimit, aLimit, bLimit);
-    finishOnce(grade, '收 ' + harvested + ' 株 · 最高连锁 ' + maxChain + ' · 错换 ' + mistakes);
+    finishOnce(grade, '收 ' + harvested + ' 株 · 最高连锁 ' + maxChain + ' · 无效互换 ' + mistakes);
   }
 
   function clearHint() {
@@ -237,7 +240,12 @@ function create(ctx) {
       score += gain;
       for (let i = 0; i < hits.length; i += 1) board[hits[i]] = 0;
       board = collapse(board, cols, rows, kinds);
-      C.flash(vm, chain > 1 ? '连锁 ' + chain + ' · +' + gain : '三秀同收 +' + gain, chain > 1 ? 'gold' : 'good');
+      // 递进反馈只分三档：普通三连淡光、一次收四株以上提亮、连锁逐层再提亮。
+      // 不新增常驻循环动画，也不往盘面里塞汉字——浮字只落在 HUD 那一层。
+      const bright = chain > 1 || hits.length >= 4;
+      const label = chain > 1 ? '连锁 ' + chain + ' 层'
+        : (hits.length >= 4 ? hits.length + ' 株齐收' : '三秀同收');
+      C.flash(vm, label + ' +' + gain, bright ? 'gold' : 'good');
     }
     if (chain > maxChain) maxChain = chain;
     if (!findMove(board, cols, rows)) reshuffle();

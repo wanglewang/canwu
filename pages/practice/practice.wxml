@@ -163,6 +163,8 @@
       </view>
       <!-- 高档位不只有倍率：这一档实际收紧了哪几处（亮起时长 / 口诀轮数…），一一摆出来。 -->
       <text wx:if="{{diffBrief}}" class="tiny diff-brief">{{diffBrief}}</text>
+      <!-- S 线随难度档变：局内只报「还差几分」，这一行给出本档总分门槛与评级口径。 -->
+      <text wx:if="{{goalText}}" class="tiny diff-brief">{{goalText}}</text>
     </block>
   </view>
 

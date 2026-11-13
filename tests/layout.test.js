@@ -1056,4 +1056,48 @@ check('主页六宫格各进各的子页，不再借道别的 tab', function () 
   assert.ok(/onGoBoard/.test(read('pages/battle/battle.js')), '仙门切磋页缺少去仙榜的指路');
 });
 
+check('三秀同收：局内 hint 必须留住代价句，不许被纯计数覆盖', function () {
+  const m = read('minigames/match.js');
+  const pd = require('../data/practice.js');
+  const tip = pd.getMethod('harvest').tip;
+  assert.ok(/少 2 息/.test(tip), '准备页代价句没写清罚多少：' + tip);
+  assert.ok(/const costText = ctx\.tip \|\|/.test(m), '局内没接住准备页的代价句');
+  assert.ok(/vm\.hint = costText \+/.test(m), 'syncHud 又把 hint 冲成纯计数了');
+  assert.ok(!/vm\.hint = '照畦/.test(m), 'hint 又变回提示按钮的说明');
+  const page = read('pages/practice/practice.js');
+  assert.ok(/tip = method\.tip/.test(page), '准备页没把代价句传给玩法');
+});
+
+check('「错换」已统一为「无效互换」：玩家可见文件不留旧词', function () {
+  const files = [
+    'minigames/match.js', 'data/guides.js', 'data/skills.js', 'data/practice.js',
+    'data/help.js', 'pages/practice/practice.js', 'pages/practice/practice.wxml',
+    'README.md',
+  ];
+  for (const f of files) {
+    assert.ok(!/错换/.test(read(f)), f + ' 还留着旧词「错换」');
+  }
+  assert.ok(/无效互换/.test(read('data/guides.js')), '玩法说明没定义「无效互换」');
+  assert.ok(/无效互换/.test(read('minigames/match.js')), '局内 HUD 没用新词');
+});
+
+check('三秀同收：S 线与提示按钮名各只有一份真源', function () {
+  const pd = require('../data/practice.js');
+  const method = pd.getMethod('harvest');
+  assert.strictEqual(pd.sLineOf(method, 'easy'), 620, '简单档 S 线变了');
+  assert.strictEqual(pd.sLineOf(method, 'hard'), 920, '困难档 S 线没跟着 depth 抬');
+  assert.strictEqual(pd.sLineOf(pd.getMethod('linkpair'), 'easy'), 0, '非三消玩法不该有 S 线');
+  assert.strictEqual(pd.buildParams(method, 'hard').sBase, pd.MATCH_S.base, '玩法层没拿到同源 S 线');
+  assert.ok(/sLimit = \(p\.sBase/.test(read('minigames/match.js')), 'match.js 又把 S 线写死在玩法层');
+  assert.ok(/goalText/.test(read('pages/practice/practice.wxml')), '准备页没显示本档 S 线');
+  assert.ok(/goalText: sLine/.test(read('pages/practice/practice.js')), '准备页没从同源数生成 S 线文案');
+  const gd = require('../data/guides.js').guideOf('match');
+  const rules = gd.scoring + gd.steps.join('');
+  assert.ok(/只看分数/.test(rules), '评级口径没写清只看总分');
+  assert.ok(!/控制无效互换次数|同时控制/.test(rules), '把无效互换错写成 S 档附加条件');
+  assert.strictEqual(pd.hintLabelOf('match'), '照畦', '提示按钮名没和局内、名词速查统一');
+  assert.ok(/hintLabel: practiceData\.hintLabelOf\(gameId\)/.test(read('pages/practice/practice.js')),
+    '页面又把提示按钮名硬编码成三元');
+});
+
 console.log('\n布局断言全部通过：' + passed + ' 项');

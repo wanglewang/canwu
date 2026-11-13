@@ -176,7 +176,7 @@ const SKILLS = [
   },
   {
     id: 'sanxiu', name: '灵植·三秀诀', type: '灵植', kind: 'skill', tier: 'huang', method: 'harvest',
-    desc: '灵畦换苗，三株同色连成一线便可收，落苗补位还能再连一层。',
+    desc: '灵畦植苗：互换相邻两株灵苗，三株同色连成一线即可采收；采收后新苗落下，还能再连锁。',
     flavor: '一畦三秀，收完又长，长得比你收得还快。',
     bonus: { wu: 3, ti: 2 },
     effect: { type: 'offline', value: 0.12, text: '三秀：离线灵气 +12%' },

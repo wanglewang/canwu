@@ -111,7 +111,7 @@ const PRACTICE_METHODS = [
   },
   {
     id: 'harvest', name: '换苗引秀', game: 'match', theme: 'harvest', twist: 'harvest',
-    desc: '灵畦里换两株相邻灵苗，凑齐三株同色便收；落苗补位还能再连一层。',
+    desc: '在灵畦里互换相邻两株，凑齐三株同色即采收；新苗落下还能再连锁。',
     tip: '换不出三连少 2 息',
     base: 34,
     params: { duration: 60, cols: 6, rows: 6, kinds: 5, flashMs: 760 },
@@ -136,6 +136,18 @@ const GAME_LABELS = {
   match: '三秀同收',
 };
 
+// 提示按钮各门叫法不同：跟着玩法名走，别在页面 JS 里散着写三元。
+// 三秀同收的「照畦」必须和局内 HUD、名词速查同名叫法，不许一处写「提示」一处写「照畦」。
+const HINT_LABELS = {
+  match: '照畦',
+  lights: '阵眼感应',
+  seal: '符箓照纹',
+};
+
+function hintLabelOf(gameId) {
+  return HINT_LABELS[gameId] || '提示';
+}
+
 // 游戏族：同类功法共用一套手感内核，族内按品阶递进出变体。
 // 只有新增「族」或新增变体才需要写代码，加功法只填数据。
 const FAMILIES = {
@@ -148,7 +160,7 @@ const FAMILIES = {
   身法: { core: '步法连环', note: '照卷轴踏位，只有一门', kind: 'skill' },
   御灵: { core: '灵纹连线', note: '牵两枚同纹灵石，找一条不超过两折的通路', kind: 'skill' },
   土术: { core: '落石垒基', note: '挪石转石垒满一层，是唯一持续下落的盘面', kind: 'skill' },
-  灵植: { core: '三秀同收', note: '换相邻两株凑三连，落苗还能再连锁', kind: 'skill' },
+  灵植: { core: '三秀同收', note: '互换相邻两株凑三连，采收后新苗落下还能连锁', kind: 'skill' },
 };
 
 const METHOD_MAP = {};
@@ -247,6 +259,15 @@ function difficultyList(prof, current) {
   });
 }
 
+// 三秀同收的评级线：基数 + 每档增量。玩法层（match.js 的 sLimit）与准备页
+// 都从这一份数取，不许一边算 620 + depth×150、另一边照着再抄一遍。
+const MATCH_S = { base: 620, step: 150 };
+
+function sLineOf(method, diffKey) {
+  if (!method || method.game !== 'match') return 0;
+  return MATCH_S.base + difficultyOf(diffKey).depth * MATCH_S.step;
+}
+
 // ---------------------------------------------------------------- 参数缩放
 // 时间 / 判定窗类：pace 越小越难。window 是 0~1 的小数，保留三位。
 const PACE_KEYS = ['interval', 'flashMs', 'gapMs', 'windowMs', 'shuffleMs', 'flipMs', 'dropMs', 'window', 'msPerNote'];
@@ -301,6 +322,11 @@ function buildParams(method, diffKey) {
   // depth 是「第几档」（0–4），不做任何缩放，直接透传。
   // gear 只有 normal / hard 两值，玩法拿它分不出困难与绝境，容易一档一个样。
   out.depth = d.depth;
+  // 评级线只在三秀同收这一门用得上，由同一份常量注入 params，玩法层不再自己写死。
+  if (method && method.game === 'match') {
+    out.sBase = MATCH_S.base;
+    out.sStep = MATCH_S.step;
+  }
   // steps 是「这盘最少几步」这类按档递增的量：params 里写的是简单档的值，每档 +1。
   if (typeof out.steps === 'number') out.steps += d.depth;
   if (typeof out[SPEED_KEY] === 'number') out[SPEED_KEY] = Math.round(out[SPEED_KEY] / d.pace * 10000) / 10000;
@@ -390,8 +416,8 @@ const STAGE_RULES = {
     { at: 5, name: '层叠', short: '化层多一成', desc: '大圆满起每化一层的得分再高一成' },
   ],
   harvest: [
-    { at: 3, name: '照畦', short: '提示不扣息', desc: '大成起「照畦」提示不再扣息' },
-    { at: 5, name: '连收', short: '连锁加成提高', desc: '大圆满起连锁加成提高，死局重排不扣息' },
+    { at: 3, name: '照畦', short: '提示不扣息', desc: '大成起「照畦」提示不再扣息，卡局时不必再省这两息' },
+    { at: 5, name: '连收', short: '连锁加成提高', desc: '大圆满起连锁加成提高、死局重排不扣息，一局能滚出更长的连锁' },
   ],
 };
 
@@ -403,6 +429,8 @@ module.exports = {
   PRACTICE_METHODS: PRACTICE_METHODS,
   METHOD_MAP: METHOD_MAP,
   GAME_LABELS: GAME_LABELS,
+  HINT_LABELS: HINT_LABELS,
+  MATCH_S: MATCH_S,
   FAMILIES: FAMILIES,
   TIERS: TIERS,
   DIFFICULTIES: DIFFICULTIES,
@@ -418,5 +446,7 @@ module.exports = {
   difficultyList: difficultyList,
   buildParams: buildParams,
   diffDetail: diffDetail,
+  sLineOf: sLineOf,
+  hintLabelOf: hintLabelOf,
   stageRulesOf: stageRulesOf,
 };

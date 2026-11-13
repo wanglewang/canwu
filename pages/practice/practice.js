@@ -39,6 +39,7 @@ Page({
     nextText: '',
     nextBenefit: '',
     diffBrief: '',
+    goalText: '',
     difficulty: 'easy',
     diffList: [],
     diffName: '简单',
@@ -273,6 +274,9 @@ Page({
     // 下一段给什么：现在只写「还差 114」，玩家不知道练到那一步能得到什么。
     // 收益就在 world.TIERS[].desc 里（解锁难度 / 属性 / 阶段新法），原样搬一句，不另编。
     const nextTier = info.maxed ? null : worldData.TIERS[info.index + 1];
+    // S 线只写在准备页：局内只报「还差几分」，这里给出本档总分门槛与评级口径。
+    // 数字与玩法层同源（practiceData.MATCH_S），换难度档会跟着变。
+    const sLine = practiceData.sLineOf(method, diffKey);
 
     this.theme = theme;
     this.twist = method.twist;
@@ -294,6 +298,7 @@ Page({
       // 高难度除了倍率还收紧了什么：diffDetail 已经算好了（亮起时长、口诀轮数…），
       // 以前只在数据里躺着没渲染，玩家只能看到「×1.70」。
       diffBrief: diff.brief,
+      goalText: sLine ? '本档 S 线 ' + sLine + ' 分 · 评级只看总分，无效互换只少息、不扣分' : '',
       rankLabel: tier.label,
       rankChar: tier.name,
       rankStars: engine.starsOf(tier.stars),
@@ -336,6 +341,8 @@ Page({
       // 关掉的阶段新法跟着这一局走：玩家在准备页关掉逆诵，进局就该真的不逆诵。
       : { easy: tier >= 3, tier: tier, offTwists: engine.twistsOff(state, this.skillId) };
 
+    // 反馈调性按玩法分档（刀法凌厉 / 心法沉静 / 灵植温润），render 里读它决定震动强度。
+    this.gameId = gameId;
     const self = this;
     this.controller = minigames.createGame(gameId, {
       params: params,
@@ -361,10 +368,14 @@ Page({
         if (vm.fx && vm.fx.key !== self.lastFxKey) {
           self.lastFxKey = vm.fx.key;
           sfx.tone(vm.fx.tone);
-          // 金招（重斩）是这一局最值钱的一下，光有音效不够：补一次中量触感，
-          // 手指还按在屏幕上时也能确认「这一刀真的斩中了」。其余判定不加，免得麻木。
-          if (vm.fx.tone === 'gold' && wx.vibrateShort) {
-            try { wx.vibrateShort({ type: 'medium' }); } catch (e) { /* 部分环境不支持震动 */ }
+          // 触感分两档：金招（重斩 / 连锁）中量，三秀同收的无效互换只给轻震。
+          // 灵植这一门要温润舒缓，别跟着刀法一起猛震；其余玩法的 bad 仍不加触感。
+          if (typeof wx !== 'undefined' && wx.vibrateShort) {
+            const strong = vm.fx.tone === 'gold';
+            const gentle = vm.fx.tone === 'bad' && self.gameId === 'match';
+            if (strong || gentle) {
+              try { wx.vibrateShort({ type: strong ? 'medium' : 'light' }); } catch (e) { /* 部分环境不支持震动 */ }
+            }
           }
           if (self.data.sceneOn) {
             const tone = vm.fx.tone;
@@ -404,7 +415,7 @@ Page({
       showResult: false,
       result: null,
       guide: guides.guideOf(gameId),
-      hintLabel: gameId === 'lights' ? '阵眼感应' : gameId === 'seal' ? '符箓照纹' : '提示',
+      hintLabel: practiceData.hintLabelOf(gameId),
       sceneOn: stage.on,
       stage: stage,
       burstList: [],
