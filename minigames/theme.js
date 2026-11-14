@@ -103,7 +103,7 @@ const THEMES = {
     hit: '推了一格', miss: '推不动', banner: '石箱待位', praise: '处处入位',
   },
   zeda: {
-    key: 'zeda', name: '择大', accent: '#8a4560', soft: '#f2dee6', ink: '#5c2c40',
+    key: 'zeda', name: '摘魁', accent: '#8a4560', soft: '#f2dee6', ink: '#5c2c40',
     bg: '#f2e4ea', frame: '#fdf6f8', glyph: '辨', motif: '择',
     hit: '就是这个', miss: '不是最大', banner: '辨数择大', praise: '一眼取大',
   },

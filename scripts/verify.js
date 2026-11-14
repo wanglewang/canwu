@@ -159,6 +159,18 @@ for (const f of files.filter(function (x) { return (x.endsWith('.js') || x.endsW
   }
 }
 
+// 8b-2. effect.text 的前缀是这门功法的门面（'九宫：参悟熟练度 +9%'），改名时最易漏。
+// 不硬性要求「等于正名前二字」——刀意 / 灯势是刻意的意象词——只挡住已废弃的旧正名：
+// 它一旦留在文案里，玩家就会在同一门功法上看到两个名字。
+const staleEffectWords = ['择大'];
+for (const s of skillMod.SKILLS) {
+  const effectText = (s.effect && s.effect.text) || '';
+  for (const word of staleEffectWords) {
+    if (effectText.indexOf(word) >= 0) errors.push('功法效果文案还写着旧名「' + word + '」：' + s.id + ' → ' + effectText);
+    else checked += 1;
+  }
+}
+
 // 8c. 图鉴详情：未习得功法也必须能取到完整玩法与习得路径。
 const engineMod = require('../utils/game.js');
 const freshState = engineMod.createNewState();

@@ -237,7 +237,7 @@ const SKILLS = [
     desc: '一批数散在盘上，只挑最大的那一个；一批接一批，越往后数越长。',
     flavor: '一眼看出谁最强，剩下的就不必看了。',
     bonus: { shen: 3, wu: 1 },
-    effect: { type: 'offline', value: 0.10, text: '择大：离线灵气 +10%' },
+    effect: { type: 'offline', value: 0.10, text: '摘魁：离线灵气 +10%' },
     source: { kind: 'shop', cost: { qi: 40, stone: 12 } },
   },
 ];

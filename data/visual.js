@@ -53,7 +53,7 @@ const FAMILY_OF = {
   // 勘禁诀练的是格盘推演，不是画符，色板归阵法；太虚诀是心法，归心法。
   tanlei: 'array', seal: 'mind',
   arrayEye: 'array', wuxing: 'array',
-  // 六门经典盘面：填数 / 让路 / 推箱是盘上推演，归阵法；逐数 / 择大是眼力，归心法；
+  // 六门经典盘面：填数 / 让路 / 推箱是盘上推演，归阵法；逐数 / 摘魁是眼力，归心法；
   // 叠元是「合」的功课，归丹道那一支暖色（丹道门类暂时空缺，色板先留着）。
   shudu: 'array', rongdao: 'array', tuisuo: 'array',
   shumu: 'mind', zeda: 'mind', heyuan: 'alchemy',
