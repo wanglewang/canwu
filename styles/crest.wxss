@@ -25,6 +25,20 @@
 .crest--7 { background-position-x: 85.7143%; }
 .crest--8 { background-position-x: 100%; }
 
+/* 选中：纹样轻轻跳一下再落定，像从盘面上被「拿起来」。
+   只动 .cell__crest 自己的 transform —— 格子的 transform 归按压反馈所有
+   （.cell--press 的 scale），两个类写同一个属性会互相顶掉，按下就没有反馈了。 */
+.cell--chip.cell--sel .cell__crest {
+    animation: crestPick 340ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes crestPick {
+    0% { transform: scale(1) translateY(0); }
+    42% { transform: scale(1.22) translateY(-6rpx); }
+    72% { transform: scale(1.05) translateY(-1rpx); }
+    100% { transform: scale(1.12) translateY(-3rpx); }
+}
+
 /* 矮盘（6×6 消消乐）里图案跟着收一档，别顶到牌边。 */
 .grid--compact .cell__crest {
     width: 60rpx;

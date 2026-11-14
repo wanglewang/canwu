@@ -291,6 +291,14 @@
           <view wx:if="{{item.crest}}" class="cell__crest crest--{{item.crest}}"></view>
           <text wx:else>{{item.label}}</text>
         </view>
+        <!-- 收牌迸溅：收走的那一格在原位炸开一小把，颜色跟着那张牌的纹样走。
+             做成盘面上的独立浮层而不是格子自己的伪元素：消消乐收完立刻掉落重排，
+             格子当场换了内容，没法自己演「我被收走了」。 -->
+        <view wx:for="{{sparkList}}" wx:key="id" class="spark" style="left:{{item.x}}%;top:{{item.y}}%">
+          <view class="spark__core"></view>
+          <view class="spark__ring" style="border-color:{{item.color}}"></view>
+          <view wx:for="{{item.dots}}" wx:key="id" wx:for-item="dot" class="spark__dot" style="background:{{item.color}};width:{{dot.size}}rpx;height:{{dot.size}}rpx;margin:{{dot.mt}}rpx 0 0 {{dot.mt}}rpx;--a:{{dot.a}}deg;--d:{{dot.d}}rpx;animation-delay:{{dot.delay}}ms"></view>
+        </view>
         <!-- 划刀玩法的透明触摸层：盖住静态格子，用手势坐标还原一条连续轨迹 -->
         <view wx:if="{{vm.extras.showSwipe && started}}" class="swipe-layer" bindtouchstart="onBoardTouchStart" catchtouchmove="onBoardTouchMove" bindtouchend="onBoardTouchEnd" bindtouchcancel="onBoardTouchEnd"></view>
       </view>

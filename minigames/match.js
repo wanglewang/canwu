@@ -242,6 +242,8 @@ function create(ctx) {
       const gain = Math.round(hits.length * 12 * mult);
       score += gain;
       for (let i = 0; i < hits.length; i += 1) board[hits[i]] = 0;
+      // 抹零之前先把「收在哪几格」交出去：抹完再 collapse，盘面上就找不到这些位置了。
+      C.markCleared(vm, hits);
       board = collapse(board, cols, rows, kinds);
       // 递进反馈只分三档：普通三连淡光、一次收四株以上提亮、连锁逐层再提亮。
       // 不新增常驻循环动画，也不往盘面里塞汉字——浮字只落在 HUD 那一层。

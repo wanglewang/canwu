@@ -1580,4 +1580,42 @@ check('阵灯推演：结算说清「为什么不是 S」，用了辅助如实�
   assert.ok(/Array\.isArray\(res\.notes\)/.test(js), '结算没接玩法层的说明');
 });
 
+check('收牌迸溅与选中跳动：只动 transform / opacity，都是一次性动画', function () {
+  const wxml = read('pages/practice/practice.wxml');
+  const css = read('pages/practice/practice.wxss');
+  const crest = read('styles/crest.wxss');
+  const js = read('pages/practice/practice.js');
+  const v = require('../data/visual.js');
+
+  // 「这一手收走了哪几格」必须由玩法交出来。让页面去 diff 盘面是不成立的：
+  // 消消乐收完立刻掉落重排，前后两帧每格都「有牌」，分不出「收走」和「换了一张」。
+  assert.ok(/function markCleared/.test(read('minigames/common.js')), 'vm 协议里没有「刚收走哪几格」');
+  assert.ok(/C\.markCleared\(vm, \[a, b\]\)/.test(read('minigames/link.js')), '连连看收牌没上报格位');
+  assert.ok(/C\.markCleared\(vm, hits\)/.test(read('minigames/match.js')), '消消乐消除没上报格位');
+
+  assert.ok(/class="spark"/.test(wxml) && /class="spark__ring"/.test(wxml) && /class="spark__dot"/.test(wxml),
+    '盘面没有迸溅节点');
+  assert.ok(/@keyframes sparkFly/.test(css) && /@keyframes sparkRing/.test(css), '迸溅没画关键帧');
+  const blocks = css.match(/@keyframes\s+(sparkFly|sparkRing)\s*\{[\s\S]*?\n\}/g) || [];
+  assert.strictEqual(blocks.length, 2, '迸溅关键帧数量不对');
+  for (const b of blocks) {
+    assert.ok(!/\b(left|top|right|bottom|width|height|background|box-shadow|filter)\s*:/.test(b),
+      '迸溅关键帧里有会触发重排 / 重绘的属性：' + b.slice(0, 40));
+  }
+  const dotRule = (css.match(/\.spark__dot \{[\s\S]*?\n\}/) || [''])[0];
+  assert.ok(dotRule && !/infinite/.test(dotRule), '迸溅成了常驻循环动画');
+  assert.ok(dotRule.indexOf(v.MOTION.sparkMs + 'ms') >= 0, '迸溅时长与 MOTION.sparkMs 不一致');
+
+  // 颜色取真源：图案是图片，取不到色，只能在 visual.CREST_HUE 登记一次。
+  assert.ok(/visual\.CREST_HUE/.test(js), '迸溅颜色没走 visual.CREST_HUE');
+  assert.strictEqual(v.CREST_HUE.length, 8, '纹样色表要与八个图案一一对应');
+
+  // 选中跳动只动纹样自己的 transform。格子的 transform 归按压反馈（.cell--press），
+  // 两处写同一个属性会互相顶掉，按下就没反馈了。
+  assert.ok(/@keyframes crestPick/.test(crest), '选中没有跳动');
+  assert.ok(/\.cell--chip\.cell--sel \.cell__crest \{/.test(crest), '选中跳动没挂在纹样上');
+  const selRule = (css.match(/\.cell--chip\.cell--sel \{[^}]*\}/) || [''])[0];
+  assert.ok(selRule && !/transform/.test(selRule), '选中态动了格子本身的 transform，会和按压反馈打架');
+});
+
 console.log('\n布局断言全部通过：' + passed + ' 项');

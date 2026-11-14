@@ -107,6 +107,7 @@ Page({
     incensePercent: 100,
     scoreNum: 0,
     burstList: [],
+    sparkList: [],
     settlePhase: 0,
     settleFull: false,
     settleGain: '+0',
@@ -124,6 +125,11 @@ Page({
     this.settleTimers = [];
     this.burstId = 0;
     this.lastCombo = 0;
+    // 收牌迸溅要读「上一帧每格是第几号纹」：牌一被收走 tone 就归零，
+    // 等这一帧再读只剩 0，取不到颜色。所以页面自己留一份上一帧的快照。
+    this.lastTones = [];
+    this.lastClearKey = 0;
+    this.sparkTimer = null;
     this.cellRects = [];
     this.swipePath = null;
     // 最后一次「进入新格」的时间：抬手时用它算在靶心停住多久，供收势判定。
@@ -188,6 +194,7 @@ Page({
     this.pageAlive = false;
     this.clearCountdown();
     this.clearSettleTimers();
+    if (this.sparkTimer) { clearTimeout(this.sparkTimer); this.sparkTimer = null; }
     this.stopTeach();
     if (this.controller) this.controller.destroy();
     this.controller = null;
@@ -475,6 +482,9 @@ Page({
         }
         self.lastCombo = combo;
 
+        // 迸溅要在 setData 之前算：它读的是上一帧的纹样快照。
+        const sparks = self.sparksFrom(vm);
+
         self.setData({
           vm: vm,
           chargeWidth: vm.charge ? Math.max(0, vm.charge.end - vm.charge.start) : 0,
@@ -487,7 +497,14 @@ Page({
           incensePercent: incense,
           scoreNum: Number(String(vm.scoreText || '').replace(/\D/g, '')) || 0,
           burstList: burstList,
+          sparkList: sparks || self.data.sparkList,
         });
+        // 留一份「这一帧每格是第几号纹」给下一帧取色。vm.cells 是同一个对象，
+        // 下一帧玩法会把它改写成收走后的样子，到那时就读不到被收走那张牌的颜色了。
+        const cells = vm.cells || [];
+        const tones = [];
+        for (let i = 0; i < cells.length; i += 1) tones.push(cells[i].tone);
+        self.lastTones = tones;
         self.syncBar();
       },
       finish: function (res) { self.onFinish(res); },
@@ -505,8 +522,13 @@ Page({
       sceneOn: stage.on,
       stage: stage,
       burstList: [],
+      sparkList: [],
       settlePhase: 0,
     });
+    // 换局 / 重开：上一局的迸溅游标必须归零，否则新局第一次收牌
+    // 可能正好撞上旧 key，页面会以为「已经演过了」而不迸。
+    this.lastClearKey = 0;
+    this.lastTones = [];
     this.syncBar();
   },
 
@@ -538,6 +560,69 @@ Page({
     const list = this.settleTimers || [];
     for (let i = 0; i < list.length; i += 1) clearTimeout(list[i]);
     this.settleTimers = [];
+  },
+
+  // 收牌迸溅：玩法把「这一手收走了哪几格」交上来（vm.cleared），这里按格位算坐标，
+  // 在原位炸一小把，颜色取被收走那张牌的纹样色。
+  // 为什么不在盘面上做「格子自己炸开」：连连看收完留空格（格子可以演），
+  // 消消乐收完立刻掉落重排（格子当场就换了内容，演不出来）。做成独立的浮层，
+  // 两门功课才能共用一套；也不会被格子的 overflow 与状态色牵制。
+  // 返回 null 表示这一帧没有新迸溅（保持现状）。
+  sparksFrom: function (vm) {
+    const c = vm && vm.cleared;
+    if (!c || !c.key || c.key === this.lastClearKey) return null;
+    this.lastClearKey = c.key;
+    const n = vm.cells ? vm.cells.length : 0;
+    if (!n || !c.cells || !c.cells.length) return null;
+    const cols = vm.cols || 6;
+    const rows = Math.max(1, Math.round(n / cols));
+    const tones = this.lastTones || [];
+    const hue = visual.CREST_HUE;
+    const dots = [];
+    const count = visual.MOTION.sparkDots;
+    for (let d = 0; d < count; d += 1) {
+      dots.push({
+        id: d,
+        // 角度错开、距离与大小各不相同：等分角度 + 等大会被读成「一圈珠子挂在环上」，
+        // 尺寸差一点点就散成了碎屑。偏移量写死（不用随机），同一次收牌每次呈现都一样。
+        a: Math.round(360 * d / count + 12 + (d % 2 ? 9 : -6)),
+        d: visual.MOTION.sparkDist - (d % 3) * 18,
+        size: 16 + (d % 3) * 3,
+        mt: -(16 + (d % 3) * 3) / 2,
+        delay: (d % 3) * 22,
+      });
+    }
+    const list = [];
+    // 一次最多画 2 处、每处 6 粒 = 12 枚，正好用满动效预算（MOTION.particleCap）。
+    // 消消乐一把能收十几格，全画就是满屏烟花，既盖住盘面也顶不住低端机的帧；
+    // 相邻格本来就会重叠，取前两处已经够表达「刚刚收了一把」。
+    for (let k = 0; k < c.cells.length && list.length < 2; k += 1) {
+      const i = c.cells[k];
+      if (i < 0 || i >= n) continue;
+      const tone = tones[i] || 1;
+      list.push({
+        // key 里带 clearSeq：相邻两次收牌的下标完全可能相同，靠 id 区分才会重播动画。
+        id: c.key + '-' + i,
+        x: ((i % cols + 0.5) / cols * 100).toFixed(2),
+        y: ((Math.floor(i / cols) + 0.5) / rows * 100).toFixed(2),
+        color: hue[(tone - 1 + hue.length) % hue.length] || hue[0],
+        dots: dots,
+      });
+    }
+    if (!list.length) return null;
+    this.scheduleSparkClear();
+    return list;
+  },
+
+  // 动画走完就把节点撤掉：这些粒子是绝对定位的浮层，留着不撤会一直在盘面上堆节点。
+  scheduleSparkClear: function () {
+    const self = this;
+    if (this.sparkTimer) clearTimeout(this.sparkTimer);
+    this.sparkTimer = setTimeout(function () {
+      self.sparkTimer = null;
+      if (!self.pageAlive) return;
+      self.setData({ sparkList: [] });
+    }, visual.MOTION.sparkMs + 80);
   },
 
   // 结算五段演出：S/A 满 1.8 秒，B/C/F 压到 900ms；全程不用逐帧 setData。
@@ -635,7 +720,7 @@ Page({
     const self = this;
     this.stopTeach();
     store.commitCritical(function (s) { return engine.markOnboarded(s, self.skillId); });
-    this.setData({ tutorial: false, started: false, vm: null, burstList: [] });
+    this.setData({ tutorial: false, started: false, vm: null, burstList: [], sparkList: [] });
     this.buildGame();
     if (skipped) sfx.play('tap');
     this.onStart();

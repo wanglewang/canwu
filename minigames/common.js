@@ -76,6 +76,16 @@ function flash(vm, text, tone) {
   vm.fx = { key: vm.fxSeq, n: vm.fxSeq % 2, text: text, tone: tone || 'good' };
 }
 
+// 「这一手收走了哪几格」由玩法自己交出来，页面据此在原位迸一小把粒子。
+// 为什么不让页面去 diff 盘面：消消乐收完立刻掉落重排，前后两帧的格子都「有牌」，
+// 光看盘面分不出「收走了」和「换了一张」，只能猜；连连看收完则留空格。
+// 只有玩法自己知道这一手真正消掉了哪几格，所以信号必须从这里出。
+// 带自增 key：页面靠 key 变化才知道要重播动画（相邻两次收牌的下标完全可能相同）。
+function markCleared(vm, cells) {
+  vm.clearSeq = (vm.clearSeq || 0) + 1;
+  vm.cleared = { key: vm.clearSeq, cells: cells.slice() };
+}
+
 // 目标句只讲「这一局还差什么」。「圆满」是段位名（未入门→入门→小成→大成→圆满），
 // 拿它来形容已经拿到 S，玩家会当场以为自己晋了段；这里一律只说评级。
 function goalFor(grade, remain, unit) {
@@ -176,6 +186,9 @@ function makeVm(cols, cellCount, status, hint) {
     banner: '',
     fx: null,
     fxSeq: 0,
+    // 刚刚收走的格子：{ key, cells: [下标] }，由 markCleared 填。其余玩法恒为 null。
+    cleared: null,
+    clearSeq: 0,
     hearts: null,
     meter: null,
     extras: {
@@ -229,6 +242,7 @@ module.exports = {
   mmss: mmss,
   pct: pct,
   flash: flash,
+  markCleared: markCleared,
   goalFor: goalFor,
   paceGoal: paceGoal,
   TimerBag: TimerBag,

@@ -79,7 +79,25 @@ const MOTION = {
   blurMax: 12,
   cloudSec: 18,
   qiSec: 12,
+  // 收牌迸溅：一处几粒、飞多远、活多久。颜色跟着「被收走的那张牌」走，
+  // 所以同色只收同色，盘面上不会混出一团杂色。
+  sparkDots: 6,
+  sparkDist: 148,
+  sparkMs: 500,
 };
+
+// 八种灵纹的主色（顺序 = crest--N 的顺序）。盘面迸溅取这一张表：
+// 图案是图片，颜色取不到，只能在这里登记一次；改图时跟着改这里。
+const CREST_HUE = [
+  '#c8483c', // 灵果
+  '#a8bf5a', // 灵梨
+  '#7a5aa8', // 灵珠
+  '#e08a8a', // 灵桃
+  '#e08a3c', // 灵橘
+  '#5a8fa8', // 茶盏
+  '#c9a24a', // 灵葫
+  '#a86a4a', // 灵芝
+];
 
 // 结算五段：暗场 → 评级落定 → 熟练度条 → 奖励逐条 → 按钮淡入。
 // S/A 满演出；B/C/F 压到 900ms，一局才十几秒，不让人天天等演出。
@@ -117,6 +135,7 @@ module.exports = {
   FAMILY_OF: FAMILY_OF,
   ENABLED: ENABLED,
   MOTION: MOTION,
+  CREST_HUE: CREST_HUE,
   SETTLE: SETTLE,
   isOn: isOn,
   stageOf: stageOf,

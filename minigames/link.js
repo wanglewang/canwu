@@ -262,6 +262,7 @@ function create(ctx) {
       combo += 1;
       const gain = addScore(100);
       C.flash(vm, '灵契相合 +' + gain, 'good');
+      C.markCleared(vm, [a, b]);
       if (pairsDone >= pairs) {
         score += Math.max(0, left) * 4;
         paint();

@@ -1336,6 +1336,78 @@
 .cell--set { opacity: 0.86; }
 .cell--live { box-shadow: 0 0 16rpx rgba(255, 253, 247, 0.8); }
 
+/* ---------- 收牌迸溅：在收走的那一格原地炸开一小把 ----------
+   挂在 .grid 里的独立浮层（.spark），不是格子的伪元素：消消乐收完立刻掉落重排，
+   那一格当场就换了内容，格子演不出「我被收走了」。浮层则与盘面状态无关。
+   坐标由页面按「第几列第几行」算成百分比，所以只管摆位，不管格子尺寸档。
+   时长 520ms 与 data/visual.js 的 MOTION.sparkMs 对齐（页面按它撤节点）。 */
+.spark {
+    position: absolute;
+    z-index: 3;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+/* 一圈细环荡开：给「这一格空了」一个边界。直径压到一格左右，再大就成了罩子。
+   它比粒子先淡出——环留到最后一帧，就成了「呼啦圈」，收尾要脆。 */
+.spark__ring {
+    position: absolute;
+    left: -42rpx;
+    top: -42rpx;
+    box-sizing: border-box;
+    width: 84rpx;
+    height: 84rpx;
+    border-width: 5rpx;
+    border-style: solid;
+    border-radius: 50%;
+    opacity: 0;
+    animation: sparkRing 500ms ease-out forwards;
+}
+
+/* 起手一下白光：没有它，粒子从静止开始飞，读起来像「撒了一把」而不是「崩开」。 */
+.spark__core {
+    position: absolute;
+    left: -17rpx;
+    top: -17rpx;
+    width: 34rpx;
+    height: 34rpx;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255, 250, 236, 0.92), rgba(255, 250, 236, 0));
+    opacity: 0;
+    animation: sparkCore 200ms ease-out forwards;
+}
+
+/* 尺寸与位置由页面按粒子的序号给（14 / 17 / 20rpx），这里只管形状与动画。 */
+.spark__dot {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0;
+    animation: sparkFly 500ms ease-out forwards;
+}
+
+@keyframes sparkRing {
+    0% { opacity: 0; transform: scale(0.5); }
+    12% { opacity: 0.95; }
+    44% { opacity: 0.6; }
+    100% { opacity: 0; transform: scale(1.2); }
+}
+
+@keyframes sparkCore {
+    0% { opacity: 0; transform: scale(0.35); }
+    26% { opacity: 0.9; }
+    100% { opacity: 0; transform: scale(1.2); }
+}
+
+/* 起点留 20rpx：八粒从同一个点出发会挤成一团花，起步就该散开。
+   透明度压到 38% 才开始掉：一过 130ms 就淡成半透明，碎屑还没飞到位就没了。 */
+@keyframes sparkFly {
+    0% { opacity: 0; transform: rotate(var(--a, 0deg)) translateX(20rpx) scale(1); }
+    8% { opacity: 1; }
+    62% { opacity: 0.9; }
+    100% { opacity: 0; transform: rotate(var(--a, 0deg)) translateX(var(--d, 148rpx)) scale(0.55); }
+}
+
 /* ---------- 灵纹牌：盘面上摆的是图案，不是字形（牵灵引线 / 灵植三秀） ----------
    牌面从深色块退回瓷白：深底上摆彩色的果子看不清，图案要有纸底才立得住。
    八种图案的 sprite 与切位在 styles/crest.wxss，由本文件顶部那条导入语句引进。 */
