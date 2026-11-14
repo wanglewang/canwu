@@ -1235,6 +1235,17 @@ check('境界衰减：文案只从 copy.js 出，讲清人物境界与三成落�
   assert.ok(/人物境界/.test(below) && /熟练度收益仅剩 30%/.test(below), '没说清衰减的是熟练度');
   assert.ok(/属性加成照拿/.test(below) && /评级门槛不变/.test(below), '没排除属性与评级的误解');
   assert.ok(/已超/.test(copy.decayText('above', '元婴')), '超过上限那条没区分');
+  assert.ok(/照样能练/.test(copy.decayText('above', '元婴')), '超过上限那条没写明「还能练」，会被读成这门作废了');
+});
+
+check('「练不了」只由学习门槛决定：收益上限不许拿去拦人', function () {
+  // 金丹期练黄阶是这条的活样本：黄阶上限只到筑基，把上限当门槛就会说「需炼气境界方能修习」。
+  const wxml = read('pages/skills/skills.wxml');
+  const shop = read('pages/shop/shop.js');
+  assert.ok(/wx:if="\{\{!detail\.realmReady\}\}"[^>]*>需「/.test(wxml),
+    '功法图鉴的门槛句没挂 realmReady');
+  assert.ok(!/realmOk/.test(wxml) && !/realmOk/.test(shop), '又把门槛与收益合成一个布尔了');
+  assert.ok(/realmReady/.test(shop), '藏经阁没按学习门槛判断能不能换');
 });
 
 check('评级中文名只有一份真源，且避开段位词', function () {

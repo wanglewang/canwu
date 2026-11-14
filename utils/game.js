@@ -509,10 +509,14 @@ function applyPractice(state, skillId, grade, options) {
   const realmNow = state.realmIndex + 1;
   const maxRealmName = w.realms[Math.min(w.realms.length - 1, tier.maxRealm - 1)].name;
   const needRealmName = w.realms[Math.min(w.realms.length - 1, tier.needRealm - 1)].name;
-  // 境界两头都管：没到门槛修不动（机缘/掉落提前拿到也一样），超过可修上限则收益衰减。
-  // 衰减不为 0：还能练，但该换功法了。
-  const realmOk = realmNow >= tier.needRealm && realmNow <= tier.maxRealm;
-  const realmDecay = realmOk ? 1 : worldData.REALM_DECAY;
+  // 境界只回答两个问题，绝不合成一个布尔：
+  //   ① realmReady：到没到这门功法的学习门槛 —— 唯一的硬门槛，没到就开不了练；
+  //   ② realmAbove：超没超过「收益不衰减」的上限 —— 只影响这一局拿多少，不影响能不能练。
+  // 合成一个 realmOk 就会让「金丹期练不了黄阶」这种误判从页面层冒出来（金丹 3 > 黄阶上限 2）。
+  // 衰减不为 0：超过上限还能练，但该换功法了。
+  const realmReady = realmNow >= tier.needRealm;
+  const realmAbove = realmNow > tier.maxRealm;
+  const realmDecay = realmReady && !realmAbove ? 1 : worldData.REALM_DECAY;
 
   // 难度档只认这门功法自己的熟练度；越权选高档（例如改页面参数）自动回落到已解锁的最高档。
   // 没传难度就按「本门最高已解锁档」结算：老默认是 easy，会让没带参数的调用在高段位被静默折半。
@@ -692,7 +696,10 @@ function applyPractice(state, skillId, grade, options) {
     diffMaxName: practiceData.DIFFICULTIES[maxIdx].name,
     realmDecay: realmDecay,
     decayed: realmDecay < 1,
-    realmReason: realmOk ? '' : (realmNow < tier.needRealm ? '未到「' + needRealmName + '」门槛' : '已超「' + maxRealmName + '」上限'),
+    // 结算卡只说「掉了多少」，不说「练不了」：这两件事在数据层已经分开。
+    realmReady: realmReady,
+    realmAbove: realmAbove,
+    realmReason: realmDecay === 1 ? '' : (realmReady ? '已超「' + maxRealmName + '」上限' : '未到「' + needRealmName + '」门槛'),
     maxRealmName: maxRealmName,
     needRealmName: needRealmName,
     coreRaw: Math.round(coreRaw * 100) / 100,
@@ -1165,7 +1172,11 @@ function getSkillList(state) {
     const method = practiceData.getMethod(s.method);
     const tier = practiceData.tierOf(s.tier);
     const diffNow = practiceData.difficultyOf(practiceData.bestDifficulty(rec.prof));
-    const realmOk = realmNow >= tier.needRealm && realmNow <= tier.maxRealm;
+    // 与 applyPractice 同一根尺子：门槛决定「能不能开练」，上限只决定「收益衰不衰减」。
+    // 金丹期（3）看黄阶（上限 2）是「能练但只剩三成」，不是「练不了」。
+    const realmReady = realmNow >= tier.needRealm;
+    const realmAbove = realmNow > tier.maxRealm;
+    const decayed = !realmReady || realmAbove;
     const best = state.records ? state.records[s.id] : null;
     const guide = guideData.guideOf(method.game);
     const unlock = unlockInfo(state, s);
@@ -1199,16 +1210,18 @@ function getSkillList(state) {
       tierReward: tier.reward,
       rewardText: '熟练度 ×' + tier.reward.toFixed(2),
       // 可修境界：未达门槛或超过上限，收益都衰减到 30%，熟练度仍可涨。
+      // realmReady 才是「能不能修习」；页面不许拿 decayed 去当门槛用。
       maxRealm: tier.maxRealm,
       maxRealmName: realmNameOf(state, tier.maxRealm),
-      decayed: !realmOk,
-      decayText: realmOk ? '' : copy.decayText(
-        realmNow < tier.needRealm ? 'below' : 'above',
-        realmNameOf(state, realmNow < tier.needRealm ? tier.needRealm : tier.maxRealm)
-      ),
+      decayed: decayed,
+      decayText: decayed ? copy.decayText(
+        realmReady ? 'above' : 'below',
+        realmNameOf(state, realmReady ? tier.maxRealm : tier.needRealm)
+      ) : '',
       needRealm: tier.needRealm,
       needRealmName: realmNameOf(state, tier.needRealm),
-      realmOk: realmOk,
+      realmReady: realmReady,
+      realmAbove: realmAbove,
       // 难度档：只看本门熟练度，与品阶无关。
       diffName: diffNow.name,
       diffMult: diffNow.mult,
@@ -1286,9 +1299,9 @@ function recommendScore(s) {
   const floor = worldData.TIERS[s.tierIndex] ? worldData.TIERS[s.tierIndex].threshold : 0;
   const span = Math.max(1, s.nextThreshold - floor);
   const ratio = Math.max(0, s.nextThreshold - s.prof) / span;
-  // 三段分明：能拿全额收益的在前，境界不符（只剩三成）的整段压后，已圆满的最后。
+  // 三段分明：能拿全额收益的在前，境界吃亏（只剩三成）的整段压后，已圆满的最后。
   // 列表不隐藏任何一门，只靠分段表达「现在该练谁」；主页推荐再从第一段里挑一个。
-  const bias = (s.realmOk ? 0 : 1) - (s.prof === 0 ? 0.05 : 0) + (s.maxed ? 2 : 0);
+  const bias = (s.decayed ? 1 : 0) - (s.prof === 0 ? 0.05 : 0) + (s.maxed ? 2 : 0);
   return { ratio: ratio, score: ratio + bias };
 }
 
@@ -1296,7 +1309,9 @@ function recommendScore(s) {
 function recommend(state) {
   const list = getSkillList(state);
   const pool = list.filter(function (s) { return s.unlocked; });
-  const usable = pool.filter(function (s) { return !s.maxed && s.realmOk; });
+  // 能开练就算可用：超过上限只是收益打折，不能因此把它从「今天练哪门」里剔除，
+  // 否则金丹期没换到地阶时，手上那一批黄阶会被整批滤掉、首页推不出任何一门。
+  const usable = pool.filter(function (s) { return !s.maxed && s.realmReady; });
   const cand = usable.length ? usable : pool.filter(function (s) { return !s.maxed; });
 
   let pick = null;
@@ -1307,11 +1322,12 @@ function recommend(state) {
   }
 
   if (!pick) {
+    // 不写死门数：加一门功法就要回来改一次文案，等于给下次漏改埋雷。
     return {
-      id: '', name: '十门皆已圆满', methodName: '本门无新课',
+      id: '', name: '诸门皆已圆满', methodName: '本门无新课',
       profTierName: '大圆满', profTierColor: worldData.TIERS[worldData.TIERS.length - 1].color,
       gap: 0, percent: 100, maxed: true,
-      reason: '十门功法都练到了大圆满',
+      reason: '手上的 ' + skillData.SKILLS.length + ' 门功法都练到了大圆满',
       next: '去仙门切磋试试秘境，那里还有没打过的对手。',
     };
   }
@@ -1321,7 +1337,7 @@ function recommend(state) {
   const idx = practiceData.diffIndexOf(s.prof);
   const nextDiff = practiceData.DIFFICULTIES[idx + 1];
   let next;
-  if (!s.realmOk) next = s.decayText + '，这门先放一放。';
+  if (s.decayed) next = s.decayText + '，这门先放一放。';
   else if (nextDiff && nextDiff.need - s.prof <= gap) next = '先到 ' + nextDiff.need + ' 熟练度解锁「' + nextDiff.name + '」档，倍率 ×' + nextDiff.mult.toFixed(1) + '。';
   else if (nextDiff) next = '本门现可选到「' + s.diffName + '」，往上一档是「' + nextDiff.name + '」。';
   else next = '本门已开到最高一档，练的是手上的稳。';

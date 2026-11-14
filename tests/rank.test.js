@@ -116,7 +116,7 @@ check('阵法难，挂地阶；扫雷轻，挂黄阶', function () {
   const zhen = skills.getSkill('zhen');
   const wuxing = skills.getSkill('wuxingzhen');
   const leifu = skills.getSkill('leifu');
-  assert.strictEqual(zhen.tier, 'di', '阵灯推演是十门里最费脑的一门，不该留在低阶');
+  assert.strictEqual(zhen.tier, 'di', '阵灯推演是十九门里最费脑的一门，不该留在低阶');
   assert.strictEqual(wuxing.tier, 'xuan', '五行相生与燃灯诀要排成玄 → 地，撞阶会让谱系丢门');
   assert.strictEqual(leifu.tier, 'huang', '数格辨禁难度低于阵法，应挂黄阶');
   // 改名不动 id：存档、纪录、参悟进度都按 id 索引。

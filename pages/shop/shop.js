@@ -13,7 +13,7 @@ function toast(title) {
 // 排序固定为「现在就能换 → 已经习得 → 境界没到」，玩家一眼知道下一个目标。
 function orderOf(item) {
   if (item.unlocked) return 1;
-  if (item.canAfford && item.realmOk) return 0;
+  if (item.canAfford && item.realmReady) return 0;
   return 2;
 }
 
@@ -58,11 +58,11 @@ Page({
         sub: s.methodName + ' · ' + s.rewardText,
         costText: copy.formatCost(cost.qi, cost.stone),
         unlocked: s.unlocked,
-        realmOk: s.realmOk,
+        realmReady: s.realmReady,
         canAfford: affordable,
-        actionText: s.unlocked ? '已习得' : (s.realmOk ? (affordable ? '兑换' : '不足') : s.needRealmName),
+        actionText: s.unlocked ? '已习得' : (s.realmReady ? (affordable ? '兑换' : '不足') : s.needRealmName),
         // 只有真能点的那一行才画按钮，其余只给状态字，避免满屏灰按钮。
-        buttonKind: s.unlocked ? 'none' : (s.realmOk && affordable ? 'buy' : 'none'),
+        buttonKind: s.unlocked ? 'none' : (s.realmReady && affordable ? 'buy' : 'none'),
       });
     }
     items.sort(function (a, b) {

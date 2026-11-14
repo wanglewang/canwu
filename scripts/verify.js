@@ -171,6 +171,31 @@ for (const s of skillMod.SKILLS) {
   }
 }
 
+// 8b-2b. 境界只回答两件事，必须是两个字段：realmReady（到没到学习门槛，管能不能开练）
+// 与 decayed（超没超收益上限，只管打几折）。合成一个 realmOk 管两件事，就会出现
+// 「金丹期练不了黄阶」——金丹 3 大于黄阶上限 2，被当成门槛未到。
+// 这条断言挡两手：字段名不许回头，门槛判定不许把上界掺进去。
+{
+  const errsBeforeRealm = errors.length;
+  const gameSrc = fs.readFileSync(path.join(ROOT, 'utils/game.js'), 'utf8');
+  if (/\.realmOk\b/.test(gameSrc)) errors.push('utils/game.js 又用回 realmOk：境界门槛与收益衰减必须分成两个字段');
+  else checked += 1;
+  // realmReady 的定义里不许出现 maxRealm：那会把「收益上限」重新变成「能不能练」。
+  const readyLines = gameSrc.split('\n').filter(function (l) { return /const realmReady =/.test(l); });
+  if (readyLines.length < 2) errors.push('realmReady 的定义不见了：applyPractice 与 getSkillList 都要各自算一次');
+  else checked += 1;
+  for (const l of readyLines) {
+    if (/maxRealm/.test(l)) errors.push('realmReady 掺进了 maxRealm：' + l.trim());
+    else checked += 1;
+  }
+  for (const f of files.filter(function (x) { return (x.endsWith('.js') || x.endsWith('.wxml')) && rel(x) !== 'scripts/verify.js'; })) {
+    const src = fs.readFileSync(f, 'utf8');
+    if (/\.realmOk\b/.test(src)) errors.push(rel(f) + ' 又用回 realmOk 判断能不能修习');
+  }
+  // 整体只记一项：按文件记会让项数随文件数上涨，读者看不出这一条到底查了什么。
+  if (errors.length === errsBeforeRealm) checked += 1;
+}
+
 // 8b-3. C / F 的门数口径：文档写「有失败态的十二门 / 没有失败态的七门」，这个数必须现算。
 // 加一门玩法、或给某门补上去掉 fail 线，都该让文档同步——分组错了，读者就会把「时辰到」
 // 当成「还能拿 C」，判负的语义立刻失真。

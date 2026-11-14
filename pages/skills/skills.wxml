@@ -89,7 +89,8 @@
           <view wx:if="{{detail.unlock.percent > 0}}" class="imm-bar imm-bar--thin">
             <view class="imm-bar__fill" style="width:{{detail.unlock.percent}}%"></view>
           </view>
-          <text wx:if="{{!detail.realmOk}}" class="codex__note codex__warn">需「{{detail.needRealmName}}」境界方能修习</text>
+          <!-- 门槛只挡「还没到」：已到门槛但超了收益上限的（金丹练黄阶），照样能修习，只是收益打折。 -->
+          <text wx:if="{{!detail.realmReady}}" class="codex__note codex__warn">需「{{detail.needRealmName}}」境界方能修习</text>
         </block>
         <block wx:else>
           <view class="codex__kv">
@@ -101,6 +102,8 @@
           </view>
           <text class="codex__note">连 {{detail.sStreakGoal}} 局 S 直接晋一段 · 已连 {{detail.sStreak}} 局</text>
           <text wx:if="{{detail.bestText}}" class="codex__note">最佳 {{detail.bestText}}</text>
+          <!-- 已习得的门如果境界吃亏，说清「还能练，只是只剩三成」，不要让人以为这门作废了。 -->
+          <text wx:if="{{detail.decayed}}" class="codex__note codex__warn">{{detail.decayText}}</text>
         </block>
       </view>
 

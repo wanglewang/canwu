@@ -318,7 +318,7 @@ check('旧存档的连练计数字段被丢弃，上一门记录仍在', functio
   assert.strictEqual(n.lastPractice.skillId, 'jian', '换门加成要用的上一门记录仍在');
 });
 
-check('功法页排序与主页推荐同源，境界不符的整段压后', function () {
+check('功法页排序与主页推荐同源，境界吃亏的整段压后', function () {
   const s = game.createNewState();
   for (const id of Object.keys(s.skills)) s.skills[id].unlocked = true;
   s.skills.jingxin.prof = 392; // 距小成很近，但玄阶在炼气期只有三成收益
@@ -327,9 +327,40 @@ check('功法页排序与主页推荐同源，境界不符的整段压后', func
     return game.recommendScore(a).score - game.recommendScore(b).score;
   });
   assert.strictEqual(scored[0].id, game.recommend(s).id, '列表首位与主页推荐不一致');
-  const firstDecayed = scored.findIndex(function (x) { return !x.realmOk; });
-  const lastFull = scored.map(function (x) { return x.realmOk; }).lastIndexOf(true);
-  assert.ok(firstDecayed > lastFull, '境界不符的功法没被整段压到后面');
+  const firstDecayed = scored.findIndex(function (x) { return x.decayed; });
+  const lastFull = scored.map(function (x) { return x.decayed; }).lastIndexOf(false);
+  assert.ok(firstDecayed > lastFull, '境界吃亏的功法没被整段压到后面');
+});
+
+check('金丹期练得了黄阶：门槛管能不能开练，上限只管收益打几折', function () {
+  const s = game.createNewState();
+  s.realmIndex = 2; // 金丹，此时已是黄阶「收益不衰减上限（筑基）」之外
+  const list = game.getSkillList(s);
+  const huang = list.filter(function (x) { return x.tierKey === 'huang'; });
+  assert.ok(huang.length > 0, '没有黄阶功法可测');
+  for (const x of huang) {
+    assert.strictEqual(x.realmReady, true, '金丹期被判成练不了黄阶：' + x.id);
+    assert.strictEqual(x.realmAbove, true, '金丹期没被判成超出黄阶上限：' + x.id);
+    assert.strictEqual(x.decayed, true, '金丹期练黄阶该是打折，不是不打折：' + x.id);
+    assert.ok(x.decayText.indexOf('还能') >= 0 || x.decayText.indexOf('仅剩 30%') >= 0,
+      '衰减文案没说清「还能练」：' + x.id);
+  }
+  // 真的结算一局：能进、有收益，只是按 0.3 折。
+  const r = game.applyPractice(s, huang[0].id, 'S', { difficulty: 'easy' });
+  assert.strictEqual(r.ok, true, '金丹期开不了黄阶的局');
+  assert.ok(r.gain >= 1, '金丹期练黄阶拿不到熟练度');
+  assert.strictEqual(r.realmReady, true, '结算把金丹期黄阶判成门槛未到');
+  assert.strictEqual(r.realmAbove, true, '结算没认出已超上限');
+  assert.strictEqual(r.realmDecay, 0.3, '超上限该按三成结算');
+  // 首页推荐不能因为「黄阶都打折」就把整批滤掉、推不出任何一门。
+  const rec = game.recommend(s);
+  assert.ok(rec.id, '金丹期推不出该练哪门');
+  // 反过来：没到门槛才是硬门槛（炼气期拿不到天阶的开练资格）。
+  const low = game.createNewState();
+  const tian = game.getSkillList(low).filter(function (x) { return x.tierKey === 'tian'; })[0];
+  assert.ok(tian, '没有天阶功法可测');
+  assert.strictEqual(tian.realmReady, false, '炼气期不该能开天阶');
+  assert.strictEqual(tian.decayed, true, '未达门槛同样该标成收益受损');
 });
 
 check('首局引导标记：与技能同级存，老档读出来是「没看过」', function () {
