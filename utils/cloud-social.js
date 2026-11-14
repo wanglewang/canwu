@@ -130,55 +130,11 @@ function pickRival(rows, myUid, myPower) {
   return best;
 }
 
-// 微信 chooseAvatar 给的是临时文件路径，必须上传才能跨设备保留。
-async function uploadAvatar(tempPath) {
-  const user = await sessionUser();
-  if (!user || !user.id) return { ok: false, message: '请先登录' };
-  if (typeof wx === 'undefined' || !wx.getFileSystemManager) {
-    return { ok: false, message: '当前环境不支持读取头像文件' };
-  }
-  let body;
-  try {
-    body = wx.getFileSystemManager().readFileSync(tempPath);
-  } catch (e) {
-    return { ok: false, message: '头像文件读取失败' };
-  }
-  const isJpeg = /\.jpe?g$/i.test(tempPath);
-  const path = cloud.storage.userPath(user.id, 'avatars/avatar.' + (isJpeg ? 'jpg' : 'png'));
-  try {
-    const result = await cloud.storage.upload(path, body, {
-      contentType: isJpeg ? 'image/jpeg' : 'image/png',
-      upsert: true,
-      metadata: { purpose: 'avatar' },
-    });
-    if (result && result.error) return { ok: false, message: result.error.message || '头像上传失败' };
-    return { ok: true, path: path, message: '' };
-  } catch (e) {
-    return { ok: false, message: '头像上传失败，请检查网络' };
-  }
-}
-
-// 签名 URL 有效期 1 小时；拿不到时页面自动回退到 CSS 道相。
-async function getAvatarUrl(path) {
-  if (!path || typeof path !== 'string' || path.indexOf('users/') !== 0) {
-    return { ok: false, url: '' };
-  }
-  try {
-    const result = await cloud.storage.createSignedUrl(path, 3600);
-    if (result && !result.error && result.data && result.data.signedUrl) {
-      return { ok: true, url: result.data.signedUrl };
-    }
-  } catch (e) { /* 回退到道相 */ }
-  return { ok: false, url: '' };
-}
-
 module.exports = {
   sessionUser: sessionUser,
   publishScore: publishScore,
   listScores: listScores,
   refreshBoard: refreshBoard,
   pickRival: pickRival,
-  uploadAvatar: uploadAvatar,
-  getAvatarUrl: getAvatarUrl,
   realmNameOf: realmNameOf,
 };

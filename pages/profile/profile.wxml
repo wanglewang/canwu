@@ -11,8 +11,7 @@
     </view>
 
     <view class="imm-idcard">
-      <image wx:if="{{avatarUrl}}" class="imm-idcard__avatar" src="{{avatarUrl}}" mode="aspectFill" />
-      <portrait wx:else variant="{{ov.portrait}}" realm="{{ov.realmIndex}}" size="normal" />
+      <portrait variant="{{ov.portrait}}" realm="{{ov.realmIndex}}" size="normal" />
       <view class="imm-idcard__text">
         <text class="imm-idcard__name">{{ov.roleName}}</text>
         <text class="imm-idcard__line">{{ov.realmName}} · 战力 {{ov.power}}</text>
@@ -145,16 +144,11 @@
       <text class="modal__title">立道号 · 塑道相</text>
       <text class="modal__sub">给自己一个称呼，挑一尊随身道相</text>
       <view class="role-editor__preview">
-        <image wx:if="{{draftAvatarTemp}}" class="role-editor__avatar" src="{{draftAvatarTemp}}" mode="aspectFill" />
-        <portrait wx:else variant="{{draftPortrait}}" realm="{{ov ? ov.realmIndex : 0}}" size="small" />
+        <portrait variant="{{draftPortrait}}" realm="{{ov ? ov.realmIndex : 0}}" size="small" />
         <text class="role-editor__name">{{draftName || '未命名'}}</text>
       </view>
       <input class="role-editor__input mt16" type="nickname" value="{{draftName}}" bindinput="onRoleNameInput" maxlength="12" placeholder="点这里用微信昵称，或自己起道号" placeholder-class="code-ph" />
-      <view class="btn-row btn-row--tight">
-        <button class="imm-btn--ghost imm-btn--sm" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">用微信头像</button>
-        <button class="imm-btn--ghost imm-btn--sm" bindtap="onNextPortrait">换道相</button>
-      </view>
-      <button wx:if="{{draftAvatarTemp}}" class="imm-btn--ghost imm-btn--block imm-btn--sm mt12" bindtap="onClearAvatar">换回道相</button>
+      <button class="imm-btn--ghost imm-btn--block imm-btn--sm mt16" bindtap="onNextPortrait">换一尊道相</button>
       <view class="modal__actions">
         <button class="imm-btn--ghost" bindtap="closeRoleEditor">{{copy.actions.cancel}}</button>
         <button class="imm-btn" bindtap="onSaveRole">定下</button>

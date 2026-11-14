@@ -69,7 +69,6 @@ function createNewState() {
     worldId: 'xian',
     roleName: w.roleName,
     portrait: 0,
-    avatar: '',
     realmIndex: 0,
     skills: skills,
     resources: { qi: 0, stone: 20 },
@@ -107,10 +106,8 @@ function migrateState(raw) {
   if (!raw || typeof raw !== 'object') return raw;
   const v = Math.floor(num(raw.version, 1));
   let next = raw;
-  if (v < 2) {
-    // v1 -> v2：引入微信头像云存储路径，缺省为空即用 CSS 道相。
-    next = Object.assign({}, next, { version: 2, avatar: '' });
-  }
+  // v1 -> v2 当年只为补一个头像路径；头像已下线（道相是唯一形象），这一步没有可补的键。
+  // 不必单独占一格版本号：下游 v3/v4/v5 都按原始版本号判断，v1 老档照旧一路升到 5。
   if (v < 3) {
     // v2 -> v3：引入各门功法的局内最佳纪录。
     next = Object.assign({}, next, { version: 3, records: {} });
@@ -134,7 +131,6 @@ function normalizeState(input) {
   base.worldId = worldData.getWorld(raw.worldId).id;
   base.roleName = typeof raw.roleName === 'string' ? raw.roleName.slice(0, 12) : base.roleName;
   base.portrait = Math.floor(num(raw.portrait, 0)) % 6;
-  base.avatar = typeof raw.avatar === 'string' ? raw.avatar.slice(0, 200) : '';
   base.realmIndex = Math.floor(num(raw.realmIndex, 0));
   const maxRealm = worldData.getWorld(base.worldId).realms.length - 1;
   if (base.realmIndex > maxRealm) base.realmIndex = maxRealm;
@@ -946,13 +942,6 @@ function updateRole(state, patch) {
   if (patch.portrait !== undefined) {
     const p = Math.floor(Number(patch.portrait));
     if (isFinite(p)) state.portrait = ((p % 6) + 6) % 6;
-  }
-  if (patch.avatar !== undefined) {
-    const a = typeof patch.avatar === 'string' ? patch.avatar.trim() : '';
-    if (a && (a.indexOf('users/') !== 0 || a.indexOf('..') >= 0)) {
-      return { ok: false, msg: '头像路径不合法' };
-    }
-    state.avatar = a.slice(0, 200);
   }
   return { ok: true };
 }

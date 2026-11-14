@@ -52,6 +52,25 @@ for (const f of privacy) {
   }
 }
 
+// 1b. 微信头像能力已下线：人物形象只走 CSS 道相（components/portrait）。
+//     chooseAvatar 要用户信息隐私声明、头像进云存储要内容安全检测、签名 URL 还要
+//     downloadFile 合法域名——三样维护成本换一个小圆头像不划算，形象后续交给自制皮肤。
+//     这两条断言是防复发的：以后谁再引回 open-type="chooseAvatar"，静态校验当场红。
+const appSources = files.filter(function (x) {
+  const r = rel(x);
+  return /\.(js|wxml)$/.test(r) && /^(pages|components|utils|data)\//.test(r);
+});
+const avatarHits = appSources.filter(function (x) {
+  return /chooseAvatar|avatars\//.test(fs.readFileSync(x, 'utf8'));
+}).map(rel);
+if (avatarHits.length) errors.push('微信头像能力又回来了（形象只用道相）: ' + avatarHits.join(', '));
+else checked += 1;
+
+const profileTpl = fs.readFileSync(path.join(ROOT, 'pages/profile/profile.wxml'), 'utf8');
+if (!/<portrait/.test(profileTpl) || /__avatar/.test(profileTpl)) {
+  errors.push('人物页形象不再只走道相组件：__avatar 又出现了');
+} else checked += 1;
+
 // 2. 所有 JS 通过 node --check
 for (const f of files.filter(function (x) { return x.endsWith('.js'); })) {
   const r = spawnSync(process.execPath, ['--check', f], { encoding: 'utf8' });

@@ -35,15 +35,6 @@
     color: var(--c-text);
 }
 
-.role-editor__avatar {
-    width: 108rpx;
-    height: 122rpx;
-    border-radius: var(--r-md);
-    border: 2rpx solid var(--c-gold);
-    background: var(--c-bg);
-    flex-shrink: 0;
-}
-
 .sync-bar {
     display: flex;
     flex-direction: row;
@@ -111,14 +102,6 @@
     border-radius: var(--r-lg);
     background-color: var(--c-imm-panel);
     background-image: linear-gradient(to bottom, var(--c-imm-panel-2), transparent 240rpx);
-}
-
-.imm-idcard__avatar {
-    width: 132rpx;
-    height: 132rpx;
-    flex: none;
-    border-radius: var(--r-pill);
-    border: 1rpx solid var(--c-imm-line);
 }
 
 .imm-idcard__text {

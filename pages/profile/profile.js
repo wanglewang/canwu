@@ -46,7 +46,6 @@ Page({
     attrsLine: '',
     statsLine: '',
     accountLabel: '',
-    avatarUrl: '',
     syncLabel: '',
     syncTone: 'ok',
     achievements: [],
@@ -61,7 +60,6 @@ Page({
     showRoleEditor: false,
     draftName: '',
     draftPortrait: 0,
-    draftAvatarTemp: '',
     sfxLabel: '轻',
     breakList: [],
     achOpen: false,
@@ -81,7 +79,6 @@ Page({
   onShow: function () {
     this.refresh();
     this.loadAccount();
-    this.loadAvatar();
     social.publishScore(store.get());
   },
 
@@ -96,15 +93,6 @@ Page({
     } catch (e) {
       this.setData({ accountLabel: '已登录' });
     }
-  },
-
-  // 头像存在云存储私有路径下，显示时换一个 1 小时的签名 URL；
-  // 小程序运行时下载接口不可用，拿不到 URL 就静默回退到 CSS 道相。
-  loadAvatar: async function () {
-    const path = store.get().avatar;
-    if (!path) { this.setData({ avatarUrl: '' }); return; }
-    const r = await social.getAvatarUrl(path);
-    this.setData({ avatarUrl: r.ok ? r.url : '' });
   },
 
   refresh: function () {
@@ -187,7 +175,6 @@ Page({
       showRoleEditor: true,
       draftName: s.roleName || '',
       draftPortrait: s.portrait || 0,
-      draftAvatarTemp: this.data.avatarUrl || '',
     });
   },
 
@@ -197,28 +184,6 @@ Page({
 
   onNextPortrait: function () {
     this.setData({ draftPortrait: (this.data.draftPortrait + 1) % 6 });
-  },
-
-  // chooseAvatar 给的是临时文件路径，必须上传到云存储才能跨设备保留。
-  onChooseAvatar: async function (event) {
-    const temp = event.detail && event.detail.avatarUrl;
-    if (!temp) return;
-    this.setData({ draftAvatarTemp: temp });
-    toast('正在上传头像…');
-    const r = await social.uploadAvatar(temp);
-    if (!r.ok) { toast(r.message || '头像上传失败'); return; }
-    const saved = store.commitCritical(function (s) {
-      return engine.updateRole(s, { avatar: r.path });
-    });
-    if (!saved.ok) { toast(saved.msg); return; }
-    this.setData({ avatarUrl: temp });
-    toast('头像已保存到账号');
-  },
-
-  onClearAvatar: function () {
-    store.commitCritical(function (s) { return engine.updateRole(s, { avatar: '' }); });
-    this.setData({ avatarUrl: '', draftAvatarTemp: '' });
-    toast('已换回道相');
   },
 
   onSaveRole: function () {

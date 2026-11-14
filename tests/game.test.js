@@ -11,10 +11,10 @@ function check(name, fn) {
   console.log('OK  ' + name);
 }
 
-check('新档版本为 5，带头像、纪录与连 S 计数', function () {
+check('新档版本为 5，带纪录与连 S 计数，不再有头像字段', function () {
   const s = game.createNewState();
   assert.strictEqual(s.version, 5);
-  assert.strictEqual(s.avatar, '');
+  assert.strictEqual('avatar' in s, false, '头像已下线，存档里不该再留空字段');
   assert.deepStrictEqual(s.records, {});
   assert.deepStrictEqual(s.sStreak, {});
   assert.strictEqual(game.S_STREAK_GOAL, 3);
@@ -22,12 +22,11 @@ check('新档版本为 5，带头像、纪录与连 S 计数', function () {
 
 check('v1 存档可迁移到 v5', function () {
   const old = game.createNewState();
-  delete old.avatar;
   delete old.records;
   old.version = 1;
   const n = game.normalizeState(old);
   assert.strictEqual(n.version, 5);
-  assert.strictEqual(n.avatar, '');
+  assert.strictEqual('avatar' in n, false);
   assert.deepStrictEqual(n.records, {});
   assert.ok(n.skills && Object.keys(n.skills).length > 0);
 });
@@ -121,14 +120,17 @@ check('参悟次数达标后对应成就解锁', function () {
   assert.strictEqual(list.find(function (a) { return a.id === 'practice_50'; }).unlocked, false);
 });
 
-check('道号与道相可改，非法头像路径被拒', function () {
+check('道号与道相可改，头像补丁不再生效', function () {
   const s = game.createNewState();
   assert.strictEqual(game.updateRole(s, { name: '小道', portrait: 4 }).ok, true);
   assert.strictEqual(s.roleName, '小道');
   assert.strictEqual(s.portrait, 4);
-  assert.strictEqual(game.updateRole(s, { avatar: '../evil' }).ok, false);
+  // 头像下线后 updateRole 忽略这个键：既不写档，也不报错（老存档只有读没有写）。
   assert.strictEqual(game.updateRole(s, { avatar: 'users/abc/avatars/a.png' }).ok, true);
-  assert.strictEqual(s.avatar, 'users/abc/avatars/a.png');
+  assert.strictEqual('avatar' in s, false);
+  // 道相编号仍然归一化到 0–5。
+  game.updateRole(s, { portrait: 9 });
+  assert.strictEqual(s.portrait, 3);
 });
 
 check('战力码可解析且能打镜像', function () {
