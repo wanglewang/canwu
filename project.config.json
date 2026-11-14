@@ -6,7 +6,11 @@
       { "type": "folder", "value": "node_modules" },
       { "type": "folder", "value": "tests" },
       { "type": "folder", "value": "scripts" },
-      { "type": "folder", "value": ".github" }
+      { "type": "folder", "value": "docs" },
+      { "type": "folder", "value": ".github" },
+      { "type": "suffix", "value": ".md" },
+      { "type": "file", "value": "eslint.config.js" },
+      { "type": "file", "value": "package-lock.json" }
     ],
     "include": []
   },

@@ -2,6 +2,7 @@
 
 const helpData = require('../../data/help.js');
 const copy = require('../../data/copy.js');
+const share = require('../../utils/share.js');
 
 Page({
     data: {
@@ -16,6 +17,8 @@ Page({
     onLoad: function (query) {
         // 参悟页的说明是「一门一册」，要按功法现拼；其余主题是静态表。
         const q = query || {};
+        // 分享要落回同一册：主题 key 记在实例上（不放进 data，WXML 用不到）。
+        this.topicKey = q.topic || '';
         const topic = q.topic === 'practice'
             ? helpData.practiceTopic({ method: q.method, game: q.game, diff: q.diff })
             : helpData.topicOf(q.topic);
@@ -52,4 +55,16 @@ Page({
     },
 
     onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
+
+    // 分享落回同一册说明，而不是首页：转给道友的那一节，点开就是那一节。
+    // 隐私与协议自己就是一个完整标题，不再套「修行指南」那句。
+    onShareAppMessage: function () {
+        const text = this.topicKey === 'privacy' ? this.data.title : copy.SHARE.help;
+        const q = this.topicKey ? '?topic=' + this.topicKey : '';
+        return share.page(text, '/pages/help/help' + q);
+    },
+    onShareTimeline: function () {
+        return share.pageTimeline(this.topicKey === 'privacy' ? this.data.title : copy.SHARE.help,
+            this.topicKey ? 'topic=' + this.topicKey : 'from=timeline');
+    },
 });

@@ -34,7 +34,7 @@ const TERMS = [
     { key: 'offline', name: '闭关收获', group: '成长', desc: '离开期间照常攒的灵气与熟练度，最多累计 8 小时，回来时弹给你。' },
     { key: 'breakthrough', name: '蓄力停区', group: '成长', desc: '突破境界时的一局小游戏：长按蓄力，松手停在朱线区间内才算过关。' },
     { key: 'daodie', name: '道牒', group: '页面', desc: '记录身份、战力、称号、成就与存档的个人页。' },
-    { key: 'daohao', name: '道号与道相', group: '页面', desc: '自己起的称呼与挑的头像；不设头像就用默认道相。' },
+    { key: 'daohao', name: '道号与道相', group: '页面', desc: '自己起的称呼与自动生成的道相：道相按编号换配色与法印，境界越高多一道光环。' },
     { key: 'cangjingge', name: '藏经阁', group: '页面', desc: '功法页里花灵气、灵石兑换功法的地方。' },
     { key: 'jiyuan', name: '机缘', group: '页面', desc: '切磋首胜掉落一类的功法获取方式，不花资源。' },
     { key: 'codex', name: '功法图鉴', group: '页面', desc: '功法页里点开任意一张卡片展开的详情：玩法规则、练成收益与习得路径。未习得也能查全本，锁的只是开练。' },
@@ -193,6 +193,18 @@ const UI = {
     },
 };
 
+// 分享卡文案。一份一句，说清「点进来能玩到什么」：标题只写这一页的价值，
+// 不写「快来看」这类空话（微信好友列表里一屏十几张卡，空话没人点）。
+// 参悟页的动态标题（带功法名）由页面自己拼，这里只给那句骨架。
+const SHARE = {
+    skills: '十六门功法，每一门都是一套玩法',
+    board: '战力仙榜，来看看你排第几',
+    titles: '称号簿：修行路上攒下的名号',
+    log: '修行日志，一局一记',
+    help: '修行指南：规则与术语都写在这一页',
+    practice: '我在练《{skill}》，这一门练的是「{game}」',
+};
+
 function termOf(key) {
     for (let i = 0; i < TERMS.length; i += 1) if (TERMS[i].key === key) return TERMS[i];
     return null;
@@ -236,6 +248,7 @@ module.exports = {
     BRAND: BRAND,
     TERMS: TERMS,
     UI: UI,
+    SHARE: SHARE,
     GRADE_TITLE: GRADE_TITLE,
     termOf: termOf,
     decayText: decayText,

@@ -13,6 +13,7 @@ const sfx = require('../../utils/sfx.js');
 const swipeInput = require('../../utils/swipe.js');
 const copy = require('../../data/copy.js');
 const nav = require('../../data/navigation.js');
+const share = require('../../utils/share.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -1186,6 +1187,25 @@ Page({
       return;
     }
     this.onBack();
+  },
+
+  // 分享落回同一门静室：带上 skillId，点开就是这一门（未习得会提示并退回功法页）。
+  // 冲关局没有功法、也没有「练哪一门」可讲，退回主页那张通用卡。
+  onShareAppMessage: function () {
+    if (this.mode !== 'practice' || !this.skillId) return share.appMessage(store.get());
+    return share.page(this.shareText(), '/pages/practice/practice?skillId=' + this.skillId);
+  },
+
+  onShareTimeline: function () {
+    if (this.mode !== 'practice' || !this.skillId) return share.timeline(store.get());
+    return share.pageTimeline(this.shareText(), 'skillId=' + this.skillId);
+  },
+
+  // 标题骨架在 copy.SHARE.practice，功法和玩法名由本页填。
+  shareText: function () {
+    return copy.SHARE.practice
+      .replace('{skill}', this.data.title)
+      .replace('{game}', this.data.gameName);
   },
 
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },

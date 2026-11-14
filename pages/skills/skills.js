@@ -5,6 +5,7 @@ const engine = require('../../utils/game.js');
 const copy = require('../../data/copy.js');
 const nav = require('../../data/navigation.js');
 const skillsData = require('../../data/skills.js');
+const share = require('../../utils/share.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -209,5 +210,10 @@ Page({
 
   onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('skills') }); },
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
+
+  // 分享落在功法页本身：接住的人第一眼看到的就是「有哪些功法、锁的是哪几门」。
+  onShareAppMessage: function () { return share.page(copy.SHARE.skills, '/pages/skills/skills'); },
+  onShareTimeline: function () { return share.pageTimeline(copy.SHARE.skills); },
+
   noop: function () {},
 });

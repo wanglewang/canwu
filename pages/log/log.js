@@ -4,6 +4,7 @@ const store = require('../../utils/store.js');
 const worldData = require('../../data/world.js');
 const nav = require('../../data/navigation.js');
 const copy = require('../../data/copy.js');
+const share = require('../../utils/share.js');
 
 Page({
     data: {
@@ -36,4 +37,7 @@ Page({
     onToggleWorld: function () { this.setData({ worldOpen: !this.data.worldOpen }); },
 
     onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('log') }); },
+
+    onShareAppMessage: function () { return share.page(copy.SHARE.log, '/pages/log/log'); },
+    onShareTimeline: function () { return share.pageTimeline(copy.SHARE.log); },
 });

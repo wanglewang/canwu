@@ -111,6 +111,56 @@ if (!/onGuest/.test(fs.readFileSync(path.join(ROOT, 'pages/login/login.js'), 'ut
   errors.push('登录页没有「先不登录」入口');
 } else checked += 1;
 
+// 1d. 发布兜底的四件：分享、更新、错误、打包。
+// 这四样都不影响开发时能跑，只在「发出去之后」显形：
+//   - 子页没接 onShareAppMessage，右上角「转发」是灰的（玩家想发给自己都发不了）；
+//   - 没有 getUpdateManager，审过的新版本玩家可能长期停在旧版；
+//   - 没有 onError / onUnhandledRejection，真机上的异常线索当场蒸发；
+//   - 打包不排除 docs 与 *.md，安装包白带一堆文档。
+// 登录页是唯一例外：它是被 reLaunch 打开的入口页，分享它等于把登录框发给别人。
+const SHARE_SKIP = ['pages/login/login'];
+for (const page of appJsonEarly.pages) {
+  if (SHARE_SKIP.indexOf(page) >= 0) continue;
+  const src = fs.readFileSync(path.join(ROOT, page + '.js'), 'utf8');
+  if (!/onShareAppMessage/.test(src)) errors.push(page + ' 没接 onShareAppMessage：右上角「转发」是灰的');
+  else checked += 1;
+  if (!/onShareTimeline/.test(src)) errors.push(page + ' 没接 onShareTimeline：朋友圈入口缺失');
+  else checked += 1;
+}
+
+// 参悟页的分享必须带 skillId：不带就落在一门都没选的空静室上。
+const practiceShare = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.js'), 'utf8');
+if (!/pages\/practice\/practice\?skillId=/.test(practiceShare)) {
+  errors.push('参悟页分享没带 skillId：点开的人不知道自己要看哪一门');
+} else checked += 1;
+
+const APP_HOOKS = [
+  ['getUpdateManager', '没有检查新版本：审核通过后玩家可能一直用旧版'],
+  ['onError', '没有 onError：真机异常线索当场蒸发'],
+  ['onUnhandledRejection', '没有 onUnhandledRejection：Promise 失败默认没人接'],
+  ['onPageNotFound', '没有 onPageNotFound：旧链接跳空页时只剩一片空白'],
+];
+for (const hook of APP_HOOKS) {
+  if (!new RegExp('\\b' + hook[0] + '\\s*\\(').test(appSrc)) errors.push('app.js 缺 ' + hook[0] + '：' + hook[1]);
+  else checked += 1;
+}
+
+// 打包排除项：文档与工具链不该进安装包体积。
+const projCfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'project.config.json'), 'utf8'));
+const ignores = (projCfg.packOptions && projCfg.packOptions.ignore) || [];
+const hasIgnore = function (type, value) {
+  return ignores.some(function (x) { return x.type === type && x.value === value; });
+};
+if (!hasIgnore('folder', 'docs')) errors.push('project.config.json 没排除 docs/：自检清单会一起打进安装包');
+else checked += 1;
+if (!hasIgnore('suffix', '.md')) errors.push('project.config.json 没排除 *.md：README 会一起打进安装包');
+else checked += 1;
+
+// 站点地图还是模板文案就等于没写：审核不看它，但它会出现在搜索结果里。
+const sitemap = JSON.parse(fs.readFileSync(path.join(ROOT, 'sitemap.json'), 'utf8'));
+if (!sitemap.desc || /WorkBuddy|模板/.test(sitemap.desc)) errors.push('sitemap.json 还是模板文案：' + sitemap.desc);
+else checked += 1;
+
 // 2. 所有 JS 通过 node --check
 for (const f of files.filter(function (x) { return x.endsWith('.js'); })) {
   const r = spawnSync(process.execPath, ['--check', f], { encoding: 'utf8' });

@@ -27,6 +27,11 @@ function writeGuest(on) {
   } catch (e) { /* 存不进去就本次会话有效，不影响开局 */ }
 }
 
+// 错误记录：开发者工具与真机 vConsole 都能看到的最后一道线索。
+// 小程序里未捕获异常不会崩进程，只会安静地少做一件事——症状与「点了没反应」一样，
+// 没有这条前缀日志，真机排查时只能靠猜。只留最近 20 条，不落盘、不上报。
+const ERROR_KEEP = 20;
+
 App({
     globalData: {
         appName: '参悟',
@@ -38,6 +43,8 @@ App({
         lastSkillId: '',
         // 游客：没有账号，只玩本机进度。云端这一层在 store 里整体停用。
         guest: false,
+        // 最近几条未捕获异常 / 丢页记录（环形，仅内存）。
+        errors: [],
     },
 
     onLaunch() {
@@ -49,6 +56,56 @@ App({
         this.awaitingLogin = false;
         this.bootstrapPromise = null;
         this.watchNetwork();
+        this.checkUpdate();
+    },
+
+    // 新版下载完只弹一次「重开」，不自动重启：自动重启会打断正在打的一局。
+    // 审核通过后玩家不会立刻拿到新版本，没这段代码可能长期停在旧版上。
+    checkUpdate() {
+        if (typeof wx === 'undefined' || !wx.getUpdateManager) return;
+        const um = wx.getUpdateManager();
+        if (!um) return;
+        um.onUpdateReady(function () {
+            wx.showModal({
+                title: '新版本已备好',
+                content: '重开一次就能用上新版本，本机进度不会丢。',
+                confirmText: '重开',
+                cancelText: '稍后',
+                success: function (res) { if (res.confirm) um.applyUpdate(); },
+            });
+        });
+        um.onUpdateFailed(function () {
+            // 下载失败不打扰玩家：下次冷启动会再检查一次。
+        });
+    },
+
+    onError(error) {
+        this.recordError('error', error);
+    },
+
+    // Promise 里的失败默认没有任何人接：云同步、登录、音频都走这一路，
+    // 不在这里记一笔，线上就只剩「功能偶尔不生效」。
+    onUnhandledRejection(res) {
+        const reason = res && (res.reason || res);
+        this.recordError('promise', reason && (reason.message || reason));
+    },
+
+    // 跳到不存在的页面时默认是一片空白 / 停住（旧版分享卡、改名的手滑链接）。
+    // 静态校验已经守住「跳转目标必须是注册页」，这里只兜线上已经发生的那一种。
+    onPageNotFound(res) {
+        const p = (res && res.path) || '';
+        this.recordError('route', p);
+        if (p.indexOf('pages/index/index') === 0) return;
+        wx.reLaunch({ url: '/pages/index/index' });
+    },
+
+    recordError(kind, detail) {
+        const item = { kind: kind, detail: String(detail || '').slice(0, 300), at: Date.now() };
+        this.globalData.errors.push(item);
+        if (this.globalData.errors.length > ERROR_KEEP) this.globalData.errors.shift();
+        try {
+            if (typeof console !== 'undefined' && console.error) console.error('[参悟][' + kind + ']', detail);
+        } catch (e) { /* 控制台不可用就算了，绝不能因为记日志再抛一次 */ }
     },
 
     onShow() {

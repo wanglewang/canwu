@@ -5,6 +5,7 @@ const engine = require('../../utils/game.js');
 const social = require('../../utils/cloud-social.js');
 const copy = require('../../data/copy.js');
 const nav = require('../../data/navigation.js');
+const share = require('../../utils/share.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -68,4 +69,7 @@ Page({
   },
 
   onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('board') }); },
+
+  onShareAppMessage: function () { return share.page(copy.SHARE.board, '/pages/board/board'); },
+  onShareTimeline: function () { return share.pageTimeline(copy.SHARE.board); },
 });
