@@ -160,7 +160,7 @@ check('参悟吸底条只在有操作时出现', function () {
 
 check('两种 F 分开处置：收功作废，走火照常结算', function () {
   // 同一条 grade === 'F' 有两个来历，处置必须不同：
-  //   ① 玩家点「收功」→ 整局作废，不进 applyPractice，连 S 不动；
+  //   ① 玩家点「收功」→ 整局作废，不进 applyPractice，由 breakCombo 把连 S 归零；
   //   ② 玩法判负（阵溃 / 心神尽 / 时辰到）→ 一局打完的结果，进结算、断连，但零收益。
   // 旧写法把所有 F 都当 ①，于是「蓄力偏离」「阵溃」也被显示成「中途收功 · 这回不算数」，
   // 玩家既看不到自己栽在哪，也拿不到结算卡。
@@ -171,7 +171,8 @@ check('两种 F 分开处置：收功作废，走火照常结算', function () {
     '所有 F 都被当成收功，走火拿不到结算');
   assert.ok(/没走完，按「走火」不计收益/.test(js), '走火结算没写清「一分不给」');
   assert.ok(/r\.wiped/.test(js), '结算卡没把走火与正常局分开，会显示一排 +0');
-  assert.ok(!/连 S 进度也会断/.test(js), '收功确认框还在说连 S 会断（实际原样保留）');
+  assert.ok(/engine\.breakCombo\(/.test(js), '收功没把连 S 归零，能靠中途退出保住连击');
+  assert.ok(/连 S 归零/.test(js), '收功确认框没写明连 S 会断');
 });
 
 check('说明页写清本档四条线：C / B / A / S 各自要什么', function () {
@@ -757,24 +758,27 @@ check('九套经典玩法落地：注册、黄阶定位、盘面与方向键都�
   assert.ok(/showPad/.test(wxml) && /grid--compact/.test(wxml), '盘面没接矮格与按键台');
 });
 
-check('三连 S 直接晋级：准备页有进度、结算页有回执、指南有专节', function () {
+check('连 S 叠倍率：准备页有十格点数、结算页有回执、指南有专节', function () {
   const js = read('pages/practice/practice.js');
   const wxml = read('pages/practice/practice.wxml');
   const css = read('pages/practice/practice.wxss');
   const guide = read('pages/guide/guide.js');
   const engine = read('utils/game.js');
-  assert.ok(/S_STREAK_GOAL = 3/.test(engine) && /sStreakGoal/.test(engine), '内核没有连 S 计数');
-  assert.ok(/streakDots/.test(js) && /streakText/.test(js), '准备页没算连 S 进度');
-  // 从整张卡收成一行：圆点还在（形状比数字快），句子直接写「晋哪一段 · 开哪一档」。
-  assert.ok(/class="row streak-line/.test(wxml) && /streak-dot--on/.test(wxml), '准备页没画连 S 圆点');
-  assert.ok(/晋「/.test(js) && /开「/.test(js), '连 S 文案没写清晋到哪一段、开哪一档');
-  // 参悟页与四个主页面同色：恒定额色，不再做明暗两套，所以这里断言的是「有没有落在墨金令牌上」。
-  assert.ok(/\.streak-dot--on\s*\{[^}]*var\(--c-imm-gold\)/.test(css), '连 S 圆点没有落在墨金体系里');
+  const world = require('../data/world.js');
+  assert.ok(/COMBO_MAX/.test(engine) && /comboNextGain/.test(engine), '内核没有连 S 层数');
+  assert.ok(/comboDots/.test(js) && /comboText/.test(js), '准备页没算连 S 层数');
+  // 十格小圆点看层数，句子只写「下一局 S 值多少点」，整条曲线留给说明页。
+  assert.ok(/class="row combo-line/.test(wxml) && /combo-dot--on/.test(wxml), '准备页没画十格连 S 圆点');
+  assert.ok(/\.combo-dot--on\s*\{[^}]*var\(--c-imm-gold\)/.test(css), '连 S 圆点没有落在墨金体系里');
   assert.ok(!/@media\s*\(\s*prefers-color-scheme/.test(css), '参悟页又按系统明暗翻转了，盘面会突然换色');
-  assert.ok(/r\.totalGain/.test(js) && /其中直接晋级/.test(js) && /三连圆满 · 晋/.test(js), '结算页没把直接补的那笔讲清');
-  assert.ok(/连 S 进度/.test(js) && /sStreakGoal/.test(js), '结算页没写还差几局');
-  assert.ok(/title: '七 · 三连 S 直接晋级'/.test(guide) && /连续完成 3 局 S/.test(guide), '指南没有三连 S 专节');
+  assert.ok(/r\.gain > 0/.test(js), '结算卡没用本局实得点数');
+  assert.ok(/r\.comboActive/.test(js) && /r\.comboNextGain/.test(js), '结算页没写连 S 回执');
+  assert.ok(/title: '七 · 连 S 叠倍率'/.test(guide) && /1307/.test(guide), '指南没有连 S 专节');
   assert.ok(/title: '二 · 离线挂机收益规则'/.test(guide), '新增专节后章节编号没顺延');
+  assert.ok(!/三连 S 直接晋级|promotionGain|sStreakGoal|r\.totalGain/.test(js),
+    '三连晋级的旧口径还留在参悟页');
+  assert.strictEqual(world.COMBO_MAX, 10);
+  assert.strictEqual(world.PROF_S_RUNS, 84);
 });
 
 check('页面骨架统一：三 tab + 子页用仙箓皮肤，导航只留原生一层', function () {
@@ -1031,7 +1035,7 @@ check('指南目录按新手阅读流排：先挂机保底与资源，主动玩�
   for (const m of src.matchAll(/title: '[一二三四五六七八九十]+ · ([^']+)'/g)) names.push(m[1]);
   assert.deepStrictEqual(names, [
     '怎么变强', '离线挂机收益规则', '灵气与灵石', '战力从哪来', '熟练度与境界',
-    '参悟与小游戏', '三连 S 直接晋级', '切磋与战力码', '称号与道牒',
+    '参悟与小游戏', '连 S 叠倍率', '切磋与战力码', '称号与道牒',
     '存档与换设备', '成就与榜单',
   ], '指南目录顺序又变了：新手要先搞懂挂机保底与资源，再学主动玩法');
   assert.ok(/SECTIONS\.push\(glossarySection\('十二'\)\)/.test(src), '名词速查不在最后一节');
@@ -1345,7 +1349,7 @@ check('收益只奖不罚：连练递减全站清零，换门倍率有单一真�
   assert.ok(/copy\.practiceNote/.test(read('pages/practice/practice.js'))
     && /repeatNote/.test(read('pages/practice/practice.wxml')),
     '准备页没把「连练不减收益」写在开局前');
-  // 只刷简单反超逐档升的坑：先修了「简单档在小成后不计连 S」，再补上收益折半。
+  // 只刷简单反超逐档升的坑：收益按档差折半，连 S 又只在最高档叠。
   // 现在既要它别再出现，也要有断言把它钉住。
   assert.ok(!/WARN 只刷简单的熟练度反超/.test(read('scripts/simulate.js')),
     '反超问题已修，模拟里不该还挂着这条 WARN');

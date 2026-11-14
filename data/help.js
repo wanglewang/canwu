@@ -477,21 +477,29 @@ function practiceTopic(opts) {
             diffLines.push(d.name + ' · 门槛 ' + d.need + ' · 收益 ×' + d.mult.toFixed(2));
         });
         diffLines.push('默认打本门最高已解锁档：门槛到了就说明这一门的本事到了，不必再手动挑。');
-        diffLines.push('刻意退回低档也能练，但每低一档熟练度与资源就再折半：'
+        diffLines.push('刻意退回低档也能练，但每低一档资源与低档基础熟练度就再折半：'
             + [1, 2, 3, 4].map(function (n) {
                 return '低 ' + n + ' 档 ' + practiceData.factorText(Math.pow(practiceData.DIFF_BELOW_CAP, n));
               }).join('、')
-            + '；S 也不计连晋——低档是练手，不是刷分。');
+            + '；低档不叠连 S，但已有层数原样保留——低档是练手，不是刷分。');
         diffLines.push('熟练度是整数点，折半要逐档算：每低一档就除以 2 再四舍五入，拿这个整数接着除，'
-            + '不是先乘总系数最后取整一次。以 S（' + worldData.PROF_GRADE.S + ' 点）/ C（'
-            + worldData.PROF_GRADE.C + ' 点）为例，低 0～4 档依次是 '
-            + practiceData.profLadder(worldData.PROF_GRADE.S).join(' / ') + ' 与 '
-            + practiceData.profLadder(worldData.PROF_GRADE.C).join(' / ')
+            + '不是先乘总系数最后取整一次。以 S（' + worldData.PROF_BASE.S + ' 点）/ C（'
+            + worldData.PROF_BASE.C + ' 点）为例，低 0～4 档依次是 '
+            + practiceData.profLadder(worldData.PROF_BASE.S).join(' / ') + ' 与 '
+            + practiceData.profLadder(worldData.PROF_BASE.C).join(' / ')
             + ' 点；资源是倍率，按上面的系数一次折完。');
         diffLines.push('比如刚解锁普通时打简单是 ×0.5；再解锁困难，简单变 ×0.25、普通变 ×0.5。'
             + '只有本门最高已解锁档才算全额。');
-        diffLines.push('连 3 局 S 直接把熟练度补到下一段位门槛。段位门槛与难度门槛同源，'
-            + '所以看起来就像「3 局 S 开一档」；下一档早开了，它就只是往下一段补。');
+        diffLines.push('单局基础：C ' + worldData.PROF_BASE.C + ' / B ' + worldData.PROF_BASE.B
+            + ' / A ' + worldData.PROF_BASE.A + ' / S ' + worldData.PROF_BASE.S
+            + ' 点，走火 F 是 0。只有连续的 S 才叠倍率，C / B / A 不叠层且会让连 S 归零。');
+        diffLines.push('第 1～' + worldData.COMBO_MAX + ' 连 S 每局依次是 '
+            + worldData.COMBO_TABLE.join(' / ') + ' 点：每局独立算 34 × 1.5^(连数-1) 后四舍五入，'
+            + '不拿上一局的整数接着乘。第 ' + (worldData.COMBO_MAX + 1) + ' 连起锁死 '
+            + worldData.COMBO_CAP_GAIN + ' 点，一轮十连共 ' + worldData.COMBO_ROUND + ' 点。');
+        diffLines.push('全程不断 S、都打最高档，' + worldData.PROF_S_RUNS + ' 局到大圆满；全 C 则是 '
+            + (worldData.PROF_C_RUNS + 1) + ' 局。走火、主动收功与非 S 都会让连 S 归零；'
+            + '换一门各算各的，不互蹭；低档局既不叠也不清。');
         sections.push({ key: 'difficulty', title: '难度与收益', lines: diffLines });
 
         // 品阶与一脉：图鉴页也有，但玩家是在准备页起念「这门值不值得练」的，就地给一句。

@@ -4,19 +4,46 @@
 // 所有可调数值集中在此文件与 skills.js / practice.js，加内容不改业务代码。
 
 // 熟练度：玩家在这门功法上的进度，决定能选哪几档难度（难度跟人走）。
-// 六段按「前密后疏」拉开，段间跨度约 ×4：入门 300 约六局 S 就能升，给新手留够手感；
-// 大圆满取九数之极 99999，是熟练度的硬顶，只能靠绝境档一局局实打出来。
+// 六段按「前密后疏」拉开，段间跨度约 ×4；大圆满取九数之极 99999，是熟练度硬顶。
 // 难度 need 取 TIERS 前五（0/300/1500/6000/24000），一段一档，不再有空级。
-// 熟练度是「打了多少局、打得多好」的干净刻度：只吃「退回低档」这一个惩罚
-// （每低一档除以 2 后四舍五入，见 practice.profBelowCap），不乘品阶、不乘难度倍率、不乘境界、不乘属性。
+// 熟练度只由「本局评级 + 连 S 层数」决定：不乘品阶、不乘难度倍率、不乘境界、不乘属性。
 // 品阶 / 境界 / 悟性 / 触类旁通这些倍率全部只作用灵气灵石（见 utils/game.js 的 resMult）。
 const PROF_MAX = 99999;
-// 标定的基准局数：一个每局只拿 C 的人，9999 局累计 99990 点，第 10000 局补满 99999。
+// 全 C 基准：一个每局只拿 C 的人，9999 局累计 99990 点，第 10000 局补满 99999。
 const PROF_C_RUNS = 9999;
-// 评级定额：C 统一 10 点/局，是整套数值的锚；其余按评级依次加码。
-// F 是走火，整局作废，0 点。没有连乘，所以打「本门最高已解锁档」时任何档位都是 10 点；
-// 只有刻意退回低档才逐档折半取整。难度档的价值由资源、纪录与连晋资格承担。
-const PROF_GRADE = { S: 25, A: 20, B: 17, C: 10, F: 0 };
+
+// 单局基础（连 S 层数 0 时）：C 10 是整套数值的锚，B 15、A 22.5→23、S 33.75→34。
+// F 是走火，整局作废，0 点。C/B/A 固定不叠层，且会把连 S 归零。
+const PROF_BASE = { S: 34, A: 23, B: 15, C: 10, F: 0 };
+// 连 S：只有「本门最高已解锁档」的 S 才叠层，每局独立从 34 起算 ×1.5^(k-1) 后四舍五入，
+// 不是拿上一局的整数接着乘，也不是最后总和再取整。第 10 层封顶，第 11 局起锁死 1307。
+// 低档局与连 S 完全解耦：不叠层、不砍连击收益、连击层数原样保留（见 utils/game.js）。
+const COMBO_STEP = 1.5;
+const COMBO_MAX = 10;
+
+function comboGain(k) {
+  const n = Math.max(1, Math.min(COMBO_MAX, Math.floor(Number(k) || 1)));
+  return Math.round(PROF_BASE.S * Math.pow(COMBO_STEP, n - 1));
+}
+
+const COMBO_TABLE = (function () {
+  const out = [];
+  for (let i = 1; i <= COMBO_MAX; i += 1) out.push(comboGain(i));
+  return out;
+}());
+// 34 / 51 / 77 / 115 / 172 / 258 / 387 / 581 / 871 / 1307，一轮 3853 点。
+const COMBO_ROUND = COMBO_TABLE.reduce(function (a, b) { return a + b; }, 0);
+const COMBO_CAP_GAIN = COMBO_TABLE[COMBO_MAX - 1];
+// 全程不断 S、都打最高档的理论最少局数：前 10 局走曲线，之后每局都是封顶的 1307。
+const PROF_S_RUNS = (function () {
+  let prof = 0;
+  let runs = 0;
+  while (prof < PROF_MAX && runs < 100000) {
+    runs += 1;
+    prof += comboGain(runs);
+  }
+  return runs;
+}());
 const TIERS = [
   { key: 'none', name: '未入门', threshold: 0, bonus: 0, color: '#9aa39a', desc: '只能参悟简单档，尚无加成' },
   { key: 'basic', name: '入门', threshold: 300, bonus: 1, color: '#3d8c74', desc: '解锁「普通」难度与基础属性加成' },
@@ -27,7 +54,7 @@ const TIERS = [
 ];
 
 // 评级倍率：只反映这一局打得好不好，只进灵气产出与挂机加成，不进熟练度。
-// S 压到 1.5，只进灵气产出与挂机加成；熟练度另走 PROF_GRADE 定额，不参与连乘。
+// S 压到 1.5，只进灵气产出与挂机加成；熟练度另走 PROF_BASE / comboGain，不参与连乘。
 // F 是 0，不是「最低一档」：走火＝这一局没走完，整局作废，熟练度、灵气、灵石、
 // 挂机加成一律不给。C 才是「走完了但糙」的那一档（0.6），两者不是同一条线的两端。
 const GRADE_FACTOR = { S: 1.5, A: 1.2, B: 1.0, C: 0.6, F: 0 };
@@ -37,7 +64,7 @@ const GRADE_COLOR = { S: '#b4453c', A: '#b8893b', B: '#3d8c74', C: '#8a8f83', F:
 // 灵气灵石倍率的封顶：品阶 resource × 难度 mult × 境界衰减 × 悟性 × 触类旁通。
 // 正常最高组合约 3.20 × 2.60 × 1.60 × 1.15 ≈ 15.3，上限取 16.0：
 // 只防以后新增系数叠加失控，不许拿它去压正常玩法（压低了高档的资源优势会被抹平）。
-// 注意：这是资源倍率；熟练度吃的是 PROF_GRADE 定额 × 低档折减，不进这一串。
+// 注意：这是资源倍率；熟练度走 PROF_BASE / comboGain，不进这一串。
 const MAX_MULTIPLIER = 16.0;
 // 境界超过功法可修上限后的收益衰减。不为 0：还能练，但该换功法了。
 const REALM_DECAY = 0.3;
@@ -107,7 +134,14 @@ function getWorld(id) {
 module.exports = {
   PROF_MAX: PROF_MAX,
   PROF_C_RUNS: PROF_C_RUNS,
-  PROF_GRADE: PROF_GRADE,
+  PROF_S_RUNS: PROF_S_RUNS,
+  PROF_BASE: PROF_BASE,
+  COMBO_STEP: COMBO_STEP,
+  COMBO_MAX: COMBO_MAX,
+  COMBO_TABLE: COMBO_TABLE,
+  COMBO_ROUND: COMBO_ROUND,
+  COMBO_CAP_GAIN: COMBO_CAP_GAIN,
+  comboGain: comboGain,
   TIERS: TIERS,
   GRADE_FACTOR: GRADE_FACTOR,
   GRADE_COLOR: GRADE_COLOR,

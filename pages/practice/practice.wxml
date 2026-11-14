@@ -65,11 +65,10 @@
       <view class="bar bar--dark mt8">
         <view class="bar__fill" style="width:{{percent}}%;background:{{tierColor}}"></view>
       </view>
-      <!-- 连 S 从一整张卡收成一行：圆点留着（不用读字也知道差几局），
-           文案直接写「晋哪一段 · 开哪一档」，玩家那句「3 局 S 解锁难度」就是这里来的。 -->
-      <view wx:if="{{streakDots.length}}" class="row streak-line mt8">
-        <view wx:for="{{streakDots}}" wx:key="id" class="streak-dot {{item.on ? 'streak-dot--on' : ''}}"></view>
-        <text class="tiny">{{streakText}}</text>
+      <!-- 连 S 倍率收成一行：十个小圆点看层数，句子只写「下一局 S 值多少点」。 -->
+      <view wx:if="{{comboDots.length}}" class="row combo-line mt8">
+        <view wx:for="{{comboDots}}" wx:key="id" class="combo-dot {{item.on ? 'combo-dot--on' : ''}}"></view>
+        <text class="tiny">{{comboText}}</text>
       </view>
       <!-- 下一段给什么：只写「还差 114」等于只给了个数字，练到头才发现没好处。 -->
       <text wx:if="{{nextBenefit}}" class="tiny pr-tier-next">{{nextBenefit}}</text>

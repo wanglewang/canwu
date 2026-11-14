@@ -15,10 +15,10 @@ const copy = require('../data/copy.js');
 const STORAGE_KEY = 'canwu_save_v1';
 const SAVE_PREFIX = 'CANWU1:';
 const BATTLE_PREFIX = 'CW1-';
-const SAVE_VERSION = 5;
-// 三连 S 直接晋级：同一门功法连续完成 3 局 S，就把熟练度直接补到下一个段位门槛。
-// 每门各算各的；非 S 断连，中途收功（F）不算完成、不增不减。
-const S_STREAK_GOAL = 3;
+const SAVE_VERSION = 6;
+// 连 S 叠倍率：同一门功法连续完成 S，本局熟练度 = round(34 × 1.5^(层数-1))，10 层封顶。
+// 层数真源在 world.COMBO_MAX；每门各算各的，非 S / 走火 / 主动收功都归零，
+// 低档局不参与连 S（层数原样保留）。旧的「三连 S 直接晋级」已整体退役。
 
 function readStorage(key) {
   try {
@@ -81,8 +81,8 @@ function createNewState() {
     },
     // 每门功法的局内最佳：{ score, grade, at }，用于「破纪录」反馈与功法页展示。
     records: {},
-    // 每门功法连续拿到 S 的次数：满 3 次直接晋一段，随后清零重数。
-    sStreak: {},
+    // 每门功法连续拿到 S 的层数（0..COMBO_MAX）：只在最高已解锁档累计，10 层封顶。
+    sCombo: {},
     // 各门功法被玩家手动关掉的阶段新法：{ 功法 id: ['逆诵', ...] }。
     // 逆诵 / 死门这类是「改规则」，不是「给便利」——练到解锁就该能关，
     // 否则想安心练基础记忆的人没有退路。缺省为空 = 全开（老存档自动是这个行为）。
@@ -121,6 +121,12 @@ function migrateState(raw) {
     // v4 -> v5：引入每门功法的连续 S 计数。老档从 0 开始，不补记历史。
     next = Object.assign({}, next, { version: 5, sStreak: {} });
   }
+  if (v < 6) {
+    // v5 -> v6：三连 S 晋级退役，换「连 S 叠倍率」。两套机制的层数含义不同，
+    // 旧计数不换算，一律从 0 重数；顺手把 sStreak 从存档里摘掉，不留双份字段。
+    next = Object.assign({}, next, { version: 6, sCombo: {} });
+    delete next.sStreak;
+  }
   return next;
 }
 
@@ -153,7 +159,6 @@ function normalizeState(input) {
     base.lastPractice.skillId = typeof raw.lastPractice.skillId === 'string' ? raw.lastPractice.skillId : '';
     base.lastPractice.at = num(raw.lastPractice.at, 0);
   }
-  // 旧存档里的连练计数字段随机制一并废弃；白名单重建时自然丢弃，不升版本号。
   if (raw.buff) {
     base.buff.multiplier = num(raw.buff.multiplier, 1) || 1;
     base.buff.until = num(raw.buff.until, 0);
@@ -182,12 +187,12 @@ function normalizeState(input) {
       };
     }
   }
-  if (raw.sStreak && typeof raw.sStreak === 'object') {
-    const sids = Object.keys(raw.sStreak);
+  if (raw.sCombo && typeof raw.sCombo === 'object') {
+    const sids = Object.keys(raw.sCombo);
     for (let i = 0; i < sids.length; i += 1) {
       const id = sids[i];
       if (!skillData.SKILL_MAP[id]) continue;
-      base.sStreak[id] = Math.min(S_STREAK_GOAL - 1, Math.floor(num(raw.sStreak[id], 0)));
+      base.sCombo[id] = Math.min(worldData.COMBO_MAX, Math.floor(num(raw.sCombo[id], 0)));
     }
   }
   // 关掉的阶段新法：缺省即空（老档、以及从没关过的人都是这个状态，等于全开）。
@@ -498,7 +503,7 @@ function applyPractice(state, skillId, grade, options) {
   const wuFactor = Math.min(1.6, 1 + (attrs.wu || 0) / 200);
   const practiceBonus = effectValue(state, 'practice');
 
-  // 只奖不罚：同一门连练不再递减。攒「连 3 局 S 直接晋级」本来就要连练同一门，
+  // 只奖不罚：同一门连练不再递减。攒「连 S 倍率」本来就要连练同一门，
   // 若同时扣收益，等于在最该上瘾的临门一脚反着来。多样化靠换门的正激励，不靠惩罚专精。
   const cross = !!state.lastPractice.skillId && state.lastPractice.skillId !== skillId;
   const crossBonus = cross ? worldData.CROSS_BONUS : 1;
@@ -527,21 +532,36 @@ function applyPractice(state, skillId, grade, options) {
   const maxIdx = practiceData.diffIndexOf(rec.prof);
   const fellBack = wantIdx > maxIdx;
   const diff = practiceData.DIFFICULTIES[Math.min(wantIdx, maxIdx)];
-  // 低于本门最高已解锁档：每低一档，熟练度与资源一起再折半，且这一局的 S 不计连晋。
-  // 三件事共用 diffGapOf() 一个判定：资源与连 S 取 lowDiffFactor() 的连续系数，
-  // 熟练度是整数点，另外走 profBelowCap() 逐档「÷2 + 四舍五入」。
+  // 低档折减只管「资源倍率」与「低档基础熟练度」：每低一档再折半，
+  // 熟练度是整数点，逐档 ÷2 后四舍五入（见 practice.profBelowCap）。
   const lowFactor = practiceData.lowDiffFactor(rec.prof, diff.key);
   const belowCap = lowFactor < 1;
   const diffGap = practiceData.diffGapOf(rec.prof, diff.key);
   const diffMult = diff.mult * lowFactor;
 
-  // 熟练度是评级定额（C 10 / B 17 / A 20 / S 25），只吃上面这一个低档折减；
-  // 不乘品阶、不乘难度倍率、不乘境界、不乘属性。折减按「每档 ÷2 后四舍五入」逐档取整，
-  // 一步一个整数，玩家拿结算卡就能复算；也不会像 10 × 0.0625 那样出现归零。
-  // 到 PROF_MAX 后熟练度封顶，但资源、纪录、连 S 照常给：大圆满是数值毕业，不是不许再练。
-  const profBase = worldData.PROF_GRADE[grade] || 0;
-  const rawGain = (wiped || !profBase) ? 0 : practiceData.profBelowCap(profBase, rec.prof, diff.key);
+  // 连 S 与低档完全解耦：只有最高已解锁档的 S 才叠层，本局按 34 × 1.5^(层数-1) 独立取整；
+  // 低档局不叠层、不砍连击收益、层数原样保留；走火（F）不分档位一律断连。
+  // 到 PROF_MAX 后熟练度封顶，但层数、资源、纪录照常：大圆满是数值毕业，不是不许再练。
+  if (!state.sCombo) state.sCombo = {};
+  const comboBefore = Math.min(worldData.COMBO_MAX, Math.floor(num(state.sCombo[skillId], 0)));
+  let comboNow = comboBefore;
+  let comboGainNow = 0;
+  let rawGain = 0;
+  if (wiped) {
+    comboNow = 0;
+  } else if (belowCap) {
+    rawGain = practiceData.profBelowCap(worldData.PROF_BASE[grade] || 0, rec.prof, diff.key);
+  } else if (grade === 'S') {
+    comboNow = Math.min(worldData.COMBO_MAX, comboBefore + 1);
+    comboGainNow = worldData.comboGain(comboNow);
+    rawGain = comboGainNow;
+  } else {
+    // C / B / A 是固定基础值，不叠层且断连。
+    comboNow = 0;
+    rawGain = worldData.PROF_BASE[grade] || 0;
+  }
   const gain = Math.min(rawGain, Math.max(0, worldData.PROF_MAX - rec.prof));
+  state.sCombo[skillId] = comboNow;
 
   // 原来的四连乘整个搬到资源：品阶 resource × 难度 mult × 境界衰减 × 悟性 × 触类旁通。
   // 高档仍值得打（灵气灵石更厚、局内纪录更好），只是不再让熟练度坐火箭。
@@ -564,55 +584,8 @@ function applyPractice(state, skillId, grade, options) {
   state.lastPractice = { skillId: skillId, at: Date.now() };
   if (cross) state.stats.comboCount += 1;
 
-  // 三连 S 直接晋级：连续完成的 3 局都拿到 S，就把熟练度直接补到下一阶段门槛。
-  // 「直接晋级」= 升一个熟练度段位（未入门→入门→小成→大成→圆满→大圆满），
-  // 不是加一句文案里的奖励；已至大圆满则不再补。
-  // 走火（F）是一局打完的结果，照样断连——它进到这里就说明不是主动收功。
-  // 主动收功（中途收功）根本不会调 applyPractice，连 S 原样不动，所以这里不再给 F 开口子：
-  // 旧写法 `grade !== 'F'` 会让「阵溃」比「勉强打成 C」更保连晋，激励正好反了。
-  // 计不计入只认一条：本档是不是「本门最高已解锁档」。
-  // 门槛达到之后还退回低档刷 S，等于拿最容易的档位换最贵的补额——
-  // 模拟里「只刷简单」曾反超「逐档升」（8424 vs 7339）。折减与断连是同一根尺子的两面：
-  // 只有最高已解锁档才算真功夫，收益不减、S 才计数。
-  const streakCounts = !belowCap;
-
-  if (!state.sStreak) state.sStreak = {};
-  const streakBefore = Math.min(S_STREAK_GOAL - 1, Math.floor(num(state.sStreak[skillId], 0)));
-  let streakNow = streakBefore;
-  if (streakCounts) streakNow = grade === 'S' ? streakBefore + 1 : 0;
-
+  // 三连 S 晋级已取消：段位不再被「补额」跳过，只由上面这一局的实得点数一格格涨。
   rec.prof += gain;
-  let promotion = null;
-  if (streakNow >= S_STREAK_GOAL) {
-    // 以「本局开场时的段位」为基准晋一段：若这局正常收益已经跨过门槛，就只补差额，
-    // 不会因为一次 S 恰好升段又白送下一段。
-    const nextTier = worldData.TIERS[beforeTier + 1];
-    // 大圆满是熟练度硬顶 99999，最后这一段（圆满 24000 → 99999，76000 点）只能靠绝境一局局实打。
-    // 不堵这个口子，三连 S 会直接白送整段，9999 局的标定当场作废。
-    if (nextTier && nextTier.threshold < worldData.PROF_MAX) {
-      const added = Math.max(0, nextTier.threshold - rec.prof);
-      rec.prof += added;
-      promotion = {
-        added: added,
-        fromName: worldData.TIERS[beforeTier].name,
-        toName: nextTier.name,
-        threshold: nextTier.threshold,
-        maxed: false,
-        atFinalTier: false,
-      };
-    } else {
-      promotion = {
-        added: 0,
-        fromName: worldData.TIERS[beforeTier].name,
-        toName: '',
-        threshold: rec.prof,
-        maxed: !nextTier,
-        atFinalTier: !!nextTier,
-      };
-    }
-    streakNow = 0;   // 领过晋级就重新数，避免每局都白送一段
-  }
-  state.sStreak[skillId] = streakNow;
 
   // 走火连资源与挂机加成都不给：熟练度、灵气、灵石、buff 是同一笔「这一局的收益」，
   // 只砍其中一半会让人以为「崩了还能蹭加成」。
@@ -640,13 +613,7 @@ function applyPractice(state, skillId, grade, options) {
   const afterTier = tierIndex(rec.prof);
   if (afterTier > beforeTier) {
     state.stats.tierUps += (afterTier - beforeTier);
-    addLog(state, promotion && !promotion.maxed
-      ? skill.name + ' 三连圆满，直接晋至「' + worldData.TIERS[afterTier].name + '」'
-      : skill.name + ' 参悟至「' + worldData.TIERS[afterTier].name + '」', 'tier');
-  } else if (promotion && promotion.atFinalTier) {
-    addLog(state, skill.name + ' 三连圆满，大圆满须绝境一局局实打', 'tier');
-  } else if (promotion && promotion.maxed) {
-    addLog(state, skill.name + ' 三连圆满，本门已至大圆满', 'tier');
+    addLog(state, skill.name + ' 参悟至「' + worldData.TIERS[afterTier].name + '」', 'tier');
   } else if (wiped) {
     // 不能说「熟练度 +0」：玩家会以为是自己眼睛看错了，而不是这一局作废。
     addLog(state, '参悟 ' + skill.name + ' 走火，这一局没有收益', 'practice');
@@ -696,15 +663,19 @@ function applyPractice(state, skillId, grade, options) {
     qi: qi,
     stone: stone,
     profBefore: profBefore,
-    // gain 是本局正常收益；若触发三连晋级，profAfter 还会含直接补到门槛的那一段。
-    promotionGain: promotion ? promotion.added : 0,
-    totalGain: gain + (promotion ? promotion.added : 0),
     // 战力在这一局前后的值：没跨段位就是相等的，不是算错。
     powerBefore: powerBefore,
     powerAfter: powerDetail(state).total,
-    sStreak: streakNow,
-    sStreakGoal: S_STREAK_GOAL,
-    promotion: promotion,
+    // 连 S 回执：本局叠到第几层、这一层给了多少、下一层能给多少。
+    // 三连晋级取消后，profAfter = profBefore + gain，不再有「补额」这一笔。
+    comboBefore: comboBefore,
+    comboNow: comboNow,
+    comboMax: worldData.COMBO_MAX,
+    comboGain: comboGainNow,
+    comboNextGain: worldData.comboGain(comboNow + 1),
+    comboCapped: comboNow >= worldData.COMBO_MAX,
+    comboActive: !wiped && !belowCap && grade === 'S',
+    comboTransparent: !wiped && belowCap,
     profAfter: rec.prof,
     tierBefore: beforeTier,
     tierAfter: afterTier,
@@ -722,7 +693,7 @@ function applyPractice(state, skillId, grade, options) {
     // 结算报的是「这一局实际入账的资源倍率」：按档差折减后可能远低于面板上的标称倍率。
     diffMult: diffMult,
     diffMultRaw: diff.mult,
-    // 低于本门最高已解锁档：熟练度与资源已按档差折减、S 也不计连晋，结算要如实报出档差与系数。
+    // 低于本门最高已解锁档：资源与基础熟练度已按档差折减、本局不叠连 S，结算要如实报出档差与系数。
     diffBelowCap: belowCap,
     diffBelowCapFactor: lowFactor,
     diffBelowGap: diffGap,
@@ -1257,9 +1228,10 @@ function getSkillList(state) {
       diffMult: diffNow.mult,
       diffText: '最高可选「' + diffNow.name + '」×' + diffNow.mult.toFixed(1),
       bestText: best ? best.score + ' 分 · ' + best.grade + ' 档' : '',
-      // 三连 S 进度：功法页与准备页都能直接显示「还差几局 S 直接晋一段」。
-      sStreak: Math.min(S_STREAK_GOAL - 1, Math.floor(num(state.sStreak && state.sStreak[s.id], 0))),
-      sStreakGoal: S_STREAK_GOAL,
+      // 连 S 层数：功法页与准备页都能直接显示「下一局 S 值多少点」。
+      sCombo: comboOf(state, s.id),
+      sComboMax: worldData.COMBO_MAX,
+      comboNextGain: worldData.comboGain(comboOf(state, s.id) + 1),
       tierIndex: info.index,
       profTierName: info.name,
       profTierColor: info.color,
@@ -1505,11 +1477,25 @@ function getTopSkills(state, count) {
   return arr.slice(0, n);
 }
 
+function comboOf(state, id) {
+  return Math.min(worldData.COMBO_MAX, Math.floor(num(state.sCombo && state.sCombo[id], 0)));
+}
+
+// 主动收功：这一局不进 applyPractice（不作数），但连 S 必须归零，
+// 否则「预感这局拿不到 S 就中途收功」能把连击永久保住，断连惩罚形同虚设。
+// 突破局的「气机一乱」不是参悟，页面不会调这里，不会误伤别的门。
+function breakCombo(state, skillId) {
+  if (!state.sCombo) state.sCombo = {};
+  state.sCombo[skillId] = 0;
+  return { ok: true, skillId: skillId, combo: 0 };
+}
+
 module.exports = {
   STORAGE_KEY: STORAGE_KEY,
   SAVE_PREFIX: SAVE_PREFIX,
   SAVE_VERSION: SAVE_VERSION,
-  S_STREAK_GOAL: S_STREAK_GOAL,
+  COMBO_MAX: worldData.COMBO_MAX,
+  breakCombo: breakCombo,
   createNewState: createNewState,
   normalizeState: normalizeState,
   migrateState: migrateState,

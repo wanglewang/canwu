@@ -16,7 +16,7 @@
 // 同理，「丹道·凝露方」练的是一条竖向河道采露，与炼丹无关，已按玩法改为「水术·凝露诀」；
 // 丹道这一门暂时空缺，留给以后真正炼丹的功课。
 // id 是稳定键（存档、纪录都按它索引），改文案时不要动 id。
-// base 是灵气基数（/4 后即 8–14），按各玩法的通关难度分别配平；熟练度走 world.PROF_GRADE 定额，不用 base。
+// base 是灵气基数（/4 后即 8–14），按各玩法的通关难度分别配平；熟练度走 world.PROF_BASE / comboGain，不用 base。
 //
 // 一个维度只管一件事：
 //   类型 → 玩什么（游戏族，见 FAMILIES）
@@ -302,7 +302,8 @@ function diffKeyIndex(key) {
 //
 // 为什么要有这一条：难度档是事前承诺，不是面板上的装饰。解锁了普通档却一直刷简单档，
 // 等于既拿难度倍率又躲开难度本身——模拟里「只刷简单」曾经反超「逐档升」。
-// 只把连 S 停掉不够：正常收益那一路仍在按全额走。
+// 连 S 是另一套机制，与这里完全解耦：低档局不叠连 S、连击层数原样保留，
+// 连击收益也不被折减砍；这里折的是资源倍率与「低档基础熟练度」。
 //
 // 按落差累进：解锁普通后打简单 ×0.5；再解锁困难，简单 ×0.25、普通 ×0.5；
 // 绝境都开了还回头刷简单就只剩 ×0.0625。「差几档折几次半」一句话讲完，
@@ -330,7 +331,7 @@ function diffGapOf(prof, diffKey) {
   return Math.max(0, diffIndexOf(prof) - diffKeyIndex(diffKey));
 }
 
-// 实得系数 = 0.5^档差。熟练度、资源倍率、连 S 判定全从这一个函数取，
+// 实得系数 = 0.5^档差。资源倍率与「是否算低档」都从这一个函数取，
 // 玩家只需记一句「只有最高已解锁档才算全额；每退一档再折半」。
 function lowDiffFactor(prof, diffKey) {
   return Math.pow(DIFF_BELOW_CAP, diffGapOf(prof, diffKey));
@@ -338,7 +339,7 @@ function lowDiffFactor(prof, diffKey) {
 
 // 熟练度折减的逐档对照表：低 0 / 1 / 2 / 3 / 4 档各给几点。
 // 每一步都是「÷2 再四舍五入」，不是「先乘 0.5^档差，最后取整一次」：
-// S 的 25 点低两档是 25 → 13 → 7，一次性算 25 × 0.25 = 6.25 只会给 6，
+// S 的 34 点低三档是 34 → 17 → 9 → 5，一次性算 34 × 0.125 = 4.25 只会给 4，
 // 玩家照「除以 2 四舍五入」复算会对不上结算卡。逐档取整也不会归零（1 ÷ 2 = 0.5 → 1），
 // 不再需要「至少给 1 点」的兜底。档差判定仍只有 diffGapOf() 一个。
 function profLadder(base) {
@@ -376,8 +377,8 @@ function belowCapText(prof, diffKey) {
   if (!gap) return '';
   const cap = DIFFICULTIES[diffIndexOf(prof)];
   return '比已解锁的「' + cap.name + '」低 ' + gap + ' 档：每低一档再折半，资源按 '
-    + factorText(lowDiffFactor(prof, diffKey)) + ' 计；熟练度每档 ÷2 后四舍五入，S 也不计连晋。'
-    + '想快些练，回到「' + cap.name + '」打。';
+    + factorText(lowDiffFactor(prof, diffKey)) + ' 计；熟练度每档 ÷2 后四舍五入。'
+    + '低档不叠连 S，但已有层数原样保留；想快些练，回到「' + cap.name + '」打。';
 }
 
 // 给选择器用的五档列表，含解锁状态与所需熟练度。

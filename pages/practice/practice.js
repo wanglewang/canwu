@@ -52,11 +52,11 @@ Page({
     rankRewardText: '×1.00',
     decayTip: '',
     bestText: '',
-    // 三连 S 直接晋级：一行写完（圆点 + 还差几局），不再占一整张卡。
-    streakText: '',
+    // 连 S 倍率：一行写完（十个小圆点 + 下一局 S 值多少点），不再占一整张卡。
+    comboText: '',
     // 收益口径一行：只奖不罚，开局前就写清本局会不会吃到换门加成。
     repeatNote: '',
-    streakDots: [],
+    comboDots: [],
     // 开局卡第一行：这一局做什么。整篇规则在说明页，这里只留一句。
     ruleText: '',
     // 低于本门最高已解锁档时的折减提示；没折减就是空串，整行不出现。
@@ -230,8 +230,8 @@ Page({
         rankRewardText: '',
         decayTip: '',
         bestText: '',
-        streakText: '',
-        streakDots: [],
+        comboText: '',
+        comboDots: [],
         theme: this.theme,
         twistName: '',
         // 冲关只有一句话的规则，不存在「本门新法」与难度块。
@@ -260,7 +260,7 @@ Page({
     // 难度默认值 = 本门最高已解锁档，每次进这一页都按熟练度重算。
     // 手动选过的档只在这一页停留期间有效；一旦跨过新门槛（最高档变了），
     // 就清掉手选、回到新档——解锁新档是玩家练出来的结果，第一局就该打它。
-    // 想练手可以随时点回低档，但每低一档收益再折半、S 也不计连晋（见 belowCapText）。
+    // 想练手可以随时点回低档，但每低一档收益再折半、本局也不叠连 S（见 belowCapText）。
     const maxIdx = practiceData.diffIndexOf(rec.prof);
     if (maxIdx > this.maxIdxSeen) this.diffOverride = '';
     this.maxIdxSeen = maxIdx;
@@ -276,25 +276,14 @@ Page({
     const best = state.records ? state.records[skill.id] : null;
     const bestText = best ? '本门最佳 ' + best.score + ' 分 · ' + best.grade + ' 档' : '';
 
-    // 连 S 每门各算各的：非 S 断连，中途收功不计数。满 3 局直接补到下一阶段门槛。
-    // 文案把「晋到哪一段、开哪一档难度」一起写出来：连 S 补的是段位，
-    // 而段位门槛与难度门槛同源，玩家看到的「3 局 S 解锁困难」正是这么来的。
-    const streakGoal = engine.S_STREAK_GOAL || 3;
-    const streakNow = Math.min(streakGoal - 1, Math.floor(Number(state.sStreak && state.sStreak[skill.id]) || 0));
-    const streakDots = [];
-    for (let i = 0; i < streakGoal; i += 1) streakDots.push({ id: i, on: i < streakNow });
-    const nextTierForStreak = info.maxed ? null : worldData.TIERS[info.index + 1];
-    // 晋一段顺带开哪一档？段位门槛与难度门槛同源，玩家心里那句「3 局 S 解难度」
-    // 就是这么来的——与其让他自己猜，不如直接写在进度行里。门槛没跨档时就不提。
-    let streakTail = '本门已至大圆满';
-    if (nextTierForStreak) {
-      const nd = practiceData.DIFFICULTIES[practiceData.diffIndexOf(nextTierForStreak.threshold)];
-      streakTail = '晋「' + nextTierForStreak.name + '」';
-      if (practiceData.diffKeyIndex(nd.key) > maxIdx) streakTail += ' · 开「' + nd.name + '」';
-    }
-    const streakText = streakNow > 0
-      ? '连 S ' + streakNow + ' / ' + streakGoal + ' · 再 ' + (streakGoal - streakNow) + ' 局' + streakTail
-      : '连续 ' + streakGoal + ' 局 S ' + streakTail;
+    // 连 S 每门各算各的：只有最高档的 S 叠层，C/B/A 与走火归零，低档局原样保留。
+    // 一行只写「现在几层 / 下一局 S 值多少点」，整条曲线在说明页，别铺公式。
+    const comboMax = worldData.COMBO_MAX;
+    const comboNow = Math.min(comboMax, Math.floor(Number(state.sCombo && state.sCombo[skill.id]) || 0));
+    const comboDots = [];
+    for (let i = 0; i < comboMax; i += 1) comboDots.push({ id: i, on: i < comboNow });
+    const comboText = '连 S ' + comboNow + ' / ' + comboMax + ' · 下一局 S '
+      + (comboNow >= comboMax ? '封顶 ' : '') + worldData.comboGain(comboNow + 1) + ' 点';
     // 这一局是不是「换门」由存档里的上一门决定，和结算用的是同一条判定。
     const crossNow = !!state.lastPractice.skillId && state.lastPractice.skillId !== skill.id;
     const repeatNote = copy.practiceNote(crossNow, worldData.CROSS_BONUS);
@@ -397,9 +386,9 @@ Page({
       rankRewardText: '×' + tier.resource.toFixed(2),   // 品阶只放大灵气灵石，不加速熟练度
       decayTip: decayTip,
       bestText: bestText,
-      streakText: streakText,
+      comboText: comboText,
       repeatNote: repeatNote,
-      streakDots: streakDots,
+      comboDots: comboDots,
       theme: theme,
       twistName: twist.name,
       stageRules: stageRules,
@@ -1051,13 +1040,18 @@ Page({
     const self = this;
     wx.showModal({
       title: '中途收功',
-      content: '这一局作废，不计收益；连 S 进度原样保留，不增也不减。确定收功？',
+      content: '这一局作废，不计收益；连 S 归零，下一局 S 重新从 34 点起。确定收功？',
       confirmText: '收功',
       confirmColor: '#b4453c',
       success: function (res) {
         if (res.confirm && self.controller) {
           // 先置位再收功：结算回来才知道这条 F 是玩家自己点的，而不是打崩的。
           self.aborting = true;
+          // 收功不进 applyPractice，但连 S 必须断——否则预感拿不到 S 就退出能把连击永久保住。
+          // 突破局（气机一乱）不是参悟，不动任何一门功法的连击。
+          if (self.mode !== 'breakthrough') {
+            store.commitCritical(function (s) { return engine.breakCombo(s, self.skillId); });
+          }
           self.controller.abandon();
         }
       },
@@ -1074,7 +1068,7 @@ Page({
     let rv;
 
     // F 有两种来历，处置完全不同：
-    //   ① 玩家点「收功」→ 这一局作废，不进结算，连 S 原样不动；
+    //   ① 玩家点「收功」→ 这一局作废，不进结算，由 onAbandon 把连 S 归零；
     //   ② 玩法自己判负（阵溃 / 心神耗尽 / 时辰到没通完）→ 是一局打完的结果，
     //      按「走火」结算：零收益（熟练度 / 灵气 / 灵石 / 加成都不给），连 S 断。
     // 突破局只有一种 F：气机一乱，走 ①。
@@ -1131,12 +1125,11 @@ Page({
         // 走火不是「得 0 分」，是这一局不作数：一排 +0 会让人以为自己算错了。
         ? [{ k: '收益', v: '无 · 走火' }, { k: '局内得分', v: String(res.score || 0) }]
         : [
-          // 三连晋级那一笔也算熟练度入账，演出数字得跟实际增长对得上。
-          { k: '熟练度', v: r.totalGain > 0 ? '+' + r.totalGain : '已圆满' },
+          // 三连晋级取消后，这一栏就是本局实得点数，与 profAfter - profBefore 严格对齐。
+          { k: '熟练度', v: r.gain > 0 ? '+' + r.gain : '已圆满' },
           { k: '灵气', v: '+' + r.qi },
           { k: '局内得分', v: String(res.score || 0) },
         ];
-      if (r.promotionGain > 0) lines.splice(1, 0, { k: '其中直接晋级', v: '+' + r.promotionGain });
       if (r.stone > 0) lines.push({ k: '灵石', v: '+' + r.stone });
       lines.push({ k: '资源倍率', v: multText });
       // 走火没给加成：这行留着会让玩家以为「崩了还蹭到了 30 分钟加速」。
@@ -1156,7 +1149,7 @@ Page({
       const notes = Array.isArray(res.notes) ? res.notes.slice() : [];
       // 走火不是「成绩差」，是没走完：先把理由摆在最前，玩家才知道这一局到底栽在哪。
       if (grade === 'F') {
-        notes.unshift('这一局没走完，按「走火」不计收益：熟练度、灵气、灵石与挂机加成都不给，连 S 也断。');
+        notes.unshift('这一局没走完，按「走火」不计收益：熟练度、灵气、灵石与挂机加成都不给，连 S 归零。');
       }
       // 折减要当场说：面板上选了简单档、结算只给一半，不解释就像算错了。
       if (r.diffBelowCap) {
@@ -1164,21 +1157,18 @@ Page({
         // 熟练度是整数点、逐档 ÷2 四舍五入，和资源的一次性系数不是同一套取整，分开说清。
         notes.push('本档比已解锁的「' + r.diffCapName + '」低 ' + r.diffBelowGap
           + ' 档：每低一档再折半，资源按 ' + practiceData.factorText(r.diffBelowCapFactor)
-          + ' 计；熟练度每档 ÷2 后四舍五入，S 也不计连晋；回「' + r.diffCapName + '」打才全额。');
+          + ' 计；熟练度每档 ÷2 后四舍五入。低档不叠连 S，但已有层数原样保留；回「'
+          + r.diffCapName + '」打才全额。');
       }
-      if (r.promotion && !r.promotion.maxed) {
-        notes.push(r.promotion.added > 0
-          ? '三连 S 圆满：熟练度直接补到「' + r.promotion.toName + '」门槛（+' + r.promotion.added + '），下一轮重新数。'
-          : '三连 S 圆满：这一局的收益已自行跨过「' + r.promotion.toName + '」门槛，无需再补；计数清零重数。');
-      } else if (r.promotion && r.promotion.maxed) {
-        notes.push('三连 S 圆满，但本门已至大圆满，不再补熟练度。');
-      } else if (r.diffBelowCap) {
-        // 折减那句已经写明「S 不计连晋」，这里不再补一句连 S 进度——
-        // 否则「S 3/3」和「不算」会同时出现在结算里，自相矛盾。
-      } else if (grade === 'S') {
-        notes.push('连 S 进度 ' + r.sStreak + ' / ' + r.sStreakGoal + '：再连续 ' + (r.sStreakGoal - r.sStreak) + ' 局 S 可直接晋一段；非 S 会断连。');
-      } else {
-        notes.push('连 S 进度 ' + r.sStreak + ' / ' + r.sStreakGoal + '（这一档断了连，下一局重新数）。');
+      // 连 S 回执：本局叠了几层、下一局值多少点，数字全部由 world.comboGain 同源给。
+      if (r.comboActive) {
+        notes.push('连 S ' + r.comboNow + ' / ' + r.comboMax + '：本局 34 × 1.5^'
+          + (r.comboNow - 1) + ' → ' + r.comboGain + ' 点；下一局 S ' + r.comboNextGain
+          + ' 点' + (r.comboCapped ? '（已封顶）' : '') + '。非 S 或走火都会归零。');
+      } else if (grade !== 'F' && r.comboTransparent) {
+        notes.push('本门连 S ' + r.comboNow + ' 层原样保留：低档不叠也不清。');
+      } else if (grade !== 'F') {
+        notes.push('非 S，连 S 归零；下一局 S 重新从 34 点起算。');
       }
       if (r.tierUp) notes.push('【' + r.skillName + '】升段至「' + r.tierName + '」，属性加成提高。');
       if (r.cross) notes.push('触类旁通：换了门功法，熟练度 ×' + r.crossBonus.toFixed(2) + '。');
@@ -1201,9 +1191,7 @@ Page({
         gradeTitle: grade === 'F' ? '这一局没走完' : gradeTitle,
         headline: grade === 'F'
           ? '走火'
-          : (r.promotion && !r.promotion.maxed
-            ? '三连圆满 · 晋 ' + r.promotion.toName
-            : r.tierUp ? '升段 · ' + r.tierName : '参悟完成'),
+          : (r.tierUp ? '升段 · ' + r.tierName : '参悟完成'),
         subline: r.methodName + ' · ' + res.summary,
         summary: res.summary,
         lines: lines,

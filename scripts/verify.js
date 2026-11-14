@@ -765,6 +765,23 @@ if (!fs.existsSync(checklistPath)) {
   else checked += 1;
   if (doc.indexOf('最高已解锁档') < 0) errors.push('自检清单没写「默认档 = 本门最高已解锁档」');
   else checked += 1;
+  // 连 S 叠倍率是熟练度的唯一曲线：三连 S 晋级的旧字段必须整体消失，收功必须断连。
+  const worldSrc = fs.readFileSync(path.join(ROOT, 'data/world.js'), 'utf8');
+  if (!/function comboGain\(/.test(worldSrc)) errors.push('data/world.js 没有连 S 曲线真源 comboGain()');
+  else checked += 1;
+  if (doc.indexOf('连 S 叠倍率') < 0) errors.push('自检清单没写「连 S 叠倍率」机制');
+  else checked += 1;
+  if (doc.indexOf('1307') < 0) errors.push('自检清单没写连 S 第 10 层封顶值 1307');
+  else checked += 1;
+  const pageSrc = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.js'), 'utf8');
+  if (!/engine\.breakCombo\(/.test(pageSrc)) errors.push('参悟页收功没接 breakCombo()，连击能靠中途退出保住');
+  else checked += 1;
+  if (/S_STREAK_GOAL|promotionGain|sStreakGoal/.test(gameSrc)) {
+    errors.push('utils/game.js 还留着三连 S 晋级的旧字段');
+  } else checked += 1;
+  const engineApi = require(path.join(ROOT, 'utils/game.js'));
+  if (engineApi.SAVE_VERSION !== 6) errors.push('存档版本没升到 v6（连击层数换了字段）');
+  else checked += 1;
   // 参悟页的说明是按功法现拼的，不能塞进静态主题表（那里只放整页主题）。
   const navData = require(path.join(ROOT, 'data/navigation.js'));
   if (navData.HELP_TOPICS.practice) errors.push('practice 被塞进了静态 HELP_TOPICS，说明页会拼不出这一门的规则');

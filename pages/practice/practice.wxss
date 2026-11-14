@@ -239,12 +239,11 @@
     line-height: 1.5;
 }
 
-/* ---------- 连 S：准备页只剩一行 ---------- */
-/* 从一整张金底卡收成「三个圆点 + 一句」：圆点不看字也知道差几局，
-   句子直接写「晋哪一段 · 开哪一档」，不再需要标题与独立区块。 */
-.streak-line {
+/* ---------- 连 S 倍率：准备页只剩一行 ---------- */
+/* 十个小圆点看层数，句子只写「下一局 S 值多少点」。点压到 16rpx 才放得进一行。 */
+.combo-line {
     align-items: center;
-    gap: 12rpx;
+    gap: 6rpx;
     flex-wrap: wrap;
 }
 
@@ -1361,18 +1360,18 @@
   color: var(--c-imm-gold);
 }
 
-/* ---------- 三连 S 晋级的圆点 ---------- */
-/* 圆点还在（形状比数字快），但不再有自己的卡片容器。 */
-.streak-dot {
-  width: 28rpx;
-  height: 28rpx;
+/* ---------- 连 S 倍率的十格圆点 ---------- */
+/* 圆点还在（形状比数字快），但不铺十张卡片；亮到第 10 格就是封顶。 */
+.combo-dot {
+  width: 16rpx;
+  height: 16rpx;
   border: 1rpx solid var(--c-imm-gold-dim);
   border-radius: 50%;
   background: transparent;
   box-sizing: border-box;
 }
 
-.streak-dot--on { background: var(--c-imm-gold); border-color: var(--c-imm-gold); }
+.combo-dot--on { background: var(--c-imm-gold); border-color: var(--c-imm-gold); }
 
 /* ---------- 三套经典玩法的盘面：矮格 / 灵纹 / 落石 / 方向键 ---------- */
 /* 6 列以上、8 行的盘面要把格子压矮，否则小屏装不下；只在 vm.extras.compact 时启用。 */

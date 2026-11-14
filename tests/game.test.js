@@ -11,32 +11,32 @@ function check(name, fn) {
   console.log('OK  ' + name);
 }
 
-check('新档版本为 5，带纪录与连 S 计数，不再有头像字段', function () {
+check('新档版本为 6，带纪录与连 S 层数，不再有头像字段', function () {
   const s = game.createNewState();
-  assert.strictEqual(s.version, 5);
+  assert.strictEqual(s.version, 6);
   assert.strictEqual('avatar' in s, false, '头像已下线，存档里不该再留空字段');
   assert.deepStrictEqual(s.records, {});
-  assert.deepStrictEqual(s.sStreak, {});
-  assert.strictEqual(game.S_STREAK_GOAL, 3);
+  assert.deepStrictEqual(s.sCombo, {});
+  assert.strictEqual(game.COMBO_MAX, 10);
 });
 
-check('v1 存档可迁移到 v5', function () {
+check('v1 存档可迁移到 v6', function () {
   const old = game.createNewState();
   delete old.records;
   old.version = 1;
   const n = game.normalizeState(old);
-  assert.strictEqual(n.version, 5);
+  assert.strictEqual(n.version, 6);
   assert.strictEqual('avatar' in n, false);
   assert.deepStrictEqual(n.records, {});
   assert.ok(n.skills && Object.keys(n.skills).length > 0);
 });
 
-check('v2 存档迁移后补出空纪录表与连 S 计数', function () {
+check('v2 存档迁移后补出空纪录表与连 S 层数', function () {
   const old = game.createNewState();
   delete old.records;
   old.version = 2;
   const n = game.normalizeState(old);
-  assert.strictEqual(n.version, 5);
+  assert.strictEqual(n.version, 6);
   assert.deepStrictEqual(n.records, {});
 });
 
@@ -44,7 +44,7 @@ check('无 version 的老存档也能兜底', function () {
   const old = game.createNewState();
   delete old.version;
   const n = game.normalizeState(old);
-  assert.strictEqual(n.version, 5);
+  assert.strictEqual(n.version, 6);
 });
 
 check('存档码导出导入往返一致', function () {
@@ -57,7 +57,7 @@ check('存档码导出导入往返一致', function () {
   assert.strictEqual(r.state.roleName, '青云散人');
   assert.strictEqual(r.state.portrait, 3);
   assert.strictEqual(r.state.resources.qi, 321);
-  assert.strictEqual(r.state.version, 5);
+  assert.strictEqual(r.state.version, 6);
 });
 
 check('非法存档码被拒绝', function () {
@@ -154,132 +154,157 @@ check('真实玩家镜像对战返回完整结果', function () {
   assert.ok(s.stats.wins >= wins);
 });
 
-check('v4 存档升到 v5：熟练度与纪录原样保留，连 S 从 0 重数', function () {
+check('v5 存档升到 v6：熟练度与纪录原样保留，旧三连计数不换算', function () {
+  const world = require('../data/world.js');
   const old = game.createNewState();
-  old.version = 4;
+  old.version = 5;
   old.skills.jian.prof = 812;
   old.records = { jian: { score: 42, grade: 'A', at: 1 } };
-  delete old.sStreak;
+  old.sStreak = { jian: 2 };
+  delete old.sCombo;
   const n = game.normalizeState(old);
-  assert.strictEqual(n.version, 5);
+  assert.strictEqual(n.version, 6);
   assert.strictEqual(n.skills.jian.prof, 812);
   assert.strictEqual(n.records.jian.score, 42);
-  assert.deepStrictEqual(n.sStreak, {});
+  assert.deepStrictEqual(n.sCombo, {}, '旧的三连计数被当成连击层数了');
+  assert.strictEqual('sStreak' in n, false, '旧字段没摘干净');
+  assert.strictEqual(world.COMBO_MAX, 10);
 });
 
-check('连 S 计数随存档码往返，伪造的超额计数被截到目标-1', function () {
+check('连 S 层数随存档码往返，伪造的超额层数被截到 10', function () {
   const s = game.createNewState();
-  s.sStreak = { jian: 2, tuna: 99 };
+  s.sCombo = { jian: 3, tuna: 99 };
   const r = game.importSaveCode(game.exportSaveCode(s));
   assert.strictEqual(r.ok, true);
-  assert.strictEqual(r.state.sStreak.jian, 2);
-  assert.strictEqual(r.state.sStreak.tuna, game.S_STREAK_GOAL - 1);
+  assert.strictEqual(r.state.sCombo.jian, 3);
+  assert.strictEqual(r.state.sCombo.tuna, game.COMBO_MAX);
 });
 
-check('同一门连续三局 S：直接补到下一个段位门槛', function () {
+check('第 1～14 连 S：前十局走 1.5 曲线，之后每局锁死 1307', function () {
+  const world = require('../data/world.js');
   const s = game.createNewState();
-  s.skills.jian.prof = 1500;                   // 小成，离大成还差 4500，正常三局根本补不满
-  const goal = 6000;                          // world.TIERS[3].threshold
-  // 小成之后简单 / 普通档不再计连 S（否则最容易的档位成了刷熟练度的最优解），
-  // 这里走困难档——它正是小成（1500）解锁的那一档。
-  const r1 = game.applyPractice(s, 'jian', 'S', { difficulty: 'hard', score: 10 });
-  const r2 = game.applyPractice(s, 'jian', 'S', { difficulty: 'hard', score: 10 });
-  assert.strictEqual(r1.promotion, null);
-  assert.strictEqual(r2.promotion, null);
-  assert.strictEqual(r1.sStreak, 1);
-  assert.strictEqual(r2.sStreak, 2);
-  const r3 = game.applyPractice(s, 'jian', 'S', { difficulty: 'hard', score: 10 });
-  assert.ok(r3.promotion && !r3.promotion.maxed, '第三局 S 没有触发直接晋级');
-  assert.ok(r3.promotion.added > 0, '晋级没有补熟练度');
-  assert.strictEqual(r3.profAfter, goal);
-  assert.strictEqual(r3.tierAfter, 3);
-  assert.strictEqual(r3.totalGain, r3.gain + r3.promotionGain);
-  assert.strictEqual(r3.sStreak, 0, '领过晋级后没有重新数');
-  assert.strictEqual(s.sStreak.jian, 0);
+  s.skills.jian.unlocked = true;
+  s.skills.jian.prof = 24000;   // 绝境已开，每局都打最高档，不吃低档折减
+  for (let i = 1; i <= 14; i += 1) {
+    const r = game.applyPractice(s, 'jian', 'S', { difficulty: 'desperate', score: 0 });
+    assert.strictEqual(r.comboNow, Math.min(i, 10), '第 ' + i + ' 连层数不对');
+    assert.strictEqual(r.gain, world.comboGain(i), '第 ' + i + ' 连收益不是曲线值');
+    assert.strictEqual(r.comboActive, true);
+    assert.strictEqual(r.comboNextGain, world.comboGain(i + 1), '结算没报下一局的点数');
+    assert.strictEqual(r.profAfter, r.profBefore + r.gain, '入账与实际增长对不上');
+    assert.strictEqual(r.promotion, undefined, '三连晋级的回执字段还在');
+    assert.strictEqual(r.totalGain, undefined, '补额时代的 totalGain 还在');
+  }
+  assert.strictEqual(s.sCombo.jian, 10);
 });
 
-check('简单档只送新手进门：到入门（解锁普通）后不再计连 S', function () {
-  // 还没到小成：简单档的 S 照常计数，新手要有反馈。
-  const newbie = game.createNewState();
-  newbie.skills.jian.prof = 0;
-  assert.strictEqual(
-    game.applyPractice(newbie, 'jian', 'S', { difficulty: 'easy', score: 0 }).sStreak, 1,
-    '新手的简单档 S 没计数');
-
-  // 到入门（400，此时已能选普通档）后：简单档不再计数。
-  const vet = game.createNewState();
-  vet.skills.jian.prof = 400;
-  assert.strictEqual(
-    game.applyPractice(vet, 'jian', 'S', { difficulty: 'easy', score: 0 }).sStreak, 0,
-    '入门之后简单档还在计连 S，等于奖励待在最容易的档位');
-  assert.strictEqual(
-    game.applyPractice(vet, 'jian', 'S', { difficulty: 'normal', score: 0 }).sStreak, 1,
-    '普通档的 S 没有计数');
-
-  // 简单档的局既不计入也不打断：在普通档攒了两局，去简单档练手不该清零。
-  const keep = game.createNewState();
-  keep.skills.jian.prof = 400;
-  game.applyPractice(keep, 'jian', 'S', { difficulty: 'normal', score: 0 });
-  game.applyPractice(keep, 'jian', 'S', { difficulty: 'normal', score: 0 });
-  const back = game.applyPractice(keep, 'jian', 'B', { difficulty: 'easy', score: 0 });
-  assert.strictEqual(back.sStreak, 2, '简单档的局把普通档攒的连 S 清零了');
+check('第 3 连取 77 而不是 76，第 4 连不拿上局整数接着乘', function () {
+  const world = require('../data/world.js');
+  assert.strictEqual(34 * 1.5 * 1.5, 76.5);
+  assert.strictEqual(world.comboGain(3), 77);
+  assert.strictEqual(world.PROF_BASE.A, 23, '22.5 与 76.5 的进位方向不一致');
+  assert.strictEqual(world.comboGain(4), 115);
+  assert.notStrictEqual(world.comboGain(4), Math.round(77 * 1.5));
 });
 
-check('非 S 断连，中途收功（F）不增不减', function () {
+check('非 S、走火、主动收功都归零，下一局 S 重新从 34 点起', function () {
+  const world = require('../data/world.js');
   const s = game.createNewState();
   game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
   game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
   const a = game.applyPractice(s, 'jian', 'A', { difficulty: 'easy', score: 0 });
-  assert.strictEqual(a.sStreak, 0, 'A 档没有断掉连 S');
-  const f = game.applyPractice(s, 'jian', 'F', { difficulty: 'easy', score: 0 });
-  assert.strictEqual(f.sStreak, 0, 'F 不该算完成，也不该把计数清成负数');
-  assert.strictEqual(f.promotion, null);
+  assert.strictEqual(a.comboNow, 0, 'A 档没有断掉连 S');
+  assert.strictEqual(a.gain, world.PROF_BASE.A);
   const one = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
-  assert.strictEqual(one.sStreak, 1, '断连后要重新数');
+  assert.strictEqual(one.comboNow, 1);
+  assert.strictEqual(one.gain, 34, '断连后没从第 1 连重起');
+  const f = game.applyPractice(s, 'jian', 'F', { difficulty: 'easy', score: 0 });
+  assert.strictEqual(f.comboNow, 0, '走火没有断连');
+  assert.strictEqual(f.gain, 0);
+  game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  const br = game.breakCombo(s, 'jian');   // 主动收功：不进结算，只断连
+  assert.strictEqual(br.ok, true);
+  assert.strictEqual(s.sCombo.jian, 0, '收功没断连，能靠中途退出保住连击');
+  const restart = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  assert.strictEqual(restart.comboNow, 1);
+  assert.strictEqual(restart.gain, 34);
 });
 
-check('连 S 按功法各算各的，换一门不会蹭到别人的进度', function () {
+check('连 S 按功法各算各的，换一门不会蹭到别人的层数', function () {
   const s = game.createNewState();
   game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
   game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
   const r = game.applyPractice(s, 'tuna', 'S', { difficulty: 'easy', score: 0 });
-  assert.strictEqual(s.sStreak.jian, 2);
-  assert.strictEqual(r.sStreak, 1);
-  assert.strictEqual(r.promotion, null, '跨功法凑三局不该直接晋级');
+  assert.strictEqual(s.sCombo.jian, 2);
+  assert.strictEqual(r.comboNow, 1);
+  assert.strictEqual(r.gain, 34, '跨功法凑连击把第一局抬成了第 3 连');
+  game.breakCombo(s, 'jian');
+  assert.strictEqual(s.sCombo.tuna, 1, '收功把别的门的连击也清了');
 });
 
-check('已至大圆满时三连 S 不再补熟练度，也不会越界', function () {
+check('低档局与连 S 无关：不叠层、不砍连击收益、层数原样保留', function () {
+  const practice = require('../data/practice.js');
+  const world = require('../data/world.js');
   const s = game.createNewState();
-  s.skills.jian.prof = 99999;   // 大圆满 = 熟练度硬顶，不是旧表的 6000
-  // 大圆满没有下一段了，走最高档绝境连三局 S 也只能如实回报「已圆满」。
-  game.applyPractice(s, 'jian', 'S', { difficulty: 'desperate', score: 0 });
-  game.applyPractice(s, 'jian', 'S', { difficulty: 'desperate', score: 0 });
-  const r = game.applyPractice(s, 'jian', 'S', { difficulty: 'desperate', score: 0 });
-  assert.ok(r.promotion && r.promotion.maxed, '大圆满没有如实回报');
-  assert.strictEqual(r.promotionGain, 0);
+  s.skills.jian.unlocked = true;
+  s.skills.jian.prof = 1500;   // 最高已解锁档 = 困难，简单档低 2 档
+  game.applyPractice(s, 'jian', 'S', { difficulty: 'hard', score: 0 });
+  game.applyPractice(s, 'jian', 'S', { difficulty: 'hard', score: 0 });
+  const low = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  assert.strictEqual(low.comboActive, false, '低档 S 走了连击曲线');
+  assert.strictEqual(low.comboNow, 2, '低档 S 动了两局攒下的层数');
+  assert.strictEqual(low.gain, practice.profBelowCap(world.PROF_BASE.S, 1500, 'easy'));
+  assert.strictEqual(low.gain, 9, '低两档 S 应是 34 → 17 → 9');
+  const third = game.applyPractice(s, 'jian', 'S', { difficulty: 'hard', score: 0 });
+  assert.strictEqual(third.comboNow, 3);
+  assert.strictEqual(third.gain, 77, '回高档没接上第 3 连');
+});
+
+check('大圆满后熟练度封顶，但连 S、资源与纪录照常给', function () {
+  const s = game.createNewState();
+  s.skills.jian.prof = 99999;
+  const r = game.applyPractice(s, 'jian', 'S', { difficulty: 'desperate', score: 123 });
+  assert.strictEqual(r.gain, 0);
+  assert.strictEqual(s.skills.jian.prof, 99999);
+  assert.strictEqual(r.comboNow, 1, '到顶后连 S 不该停');
+  assert.ok(r.qi > 0 && r.stone > 0, '到顶后资源停发了');
   assert.strictEqual(r.tierAfter, 5);
 });
 
-check('三连 S 晋级：只补到开场段位的下一门槛，不白送两段', function () {
+check('全程不断 S、都打最高档：84 局到大圆满；全 C 是 10000 局', function () {
+  const practice = require('../data/practice.js');
+  const world = require('../data/world.js');
   const s = game.createNewState();
-  game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
-  game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
-  const r = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
-  const tiers = require('../data/world.js').TIERS;
-  assert.ok(r.promotion && !r.promotion.maxed, '第三局仍该给出三连圆满回执');
-  // 以前「补额恰好为 0」是连练递减压出来的巧合；该守的是「只晋一段」这条语义。
-  assert.strictEqual(r.promotion.threshold, tiers[r.tierBefore + 1].threshold, '补的不是开场段位的下一门槛');
-  assert.ok(r.profAfter >= r.promotion.threshold, '没补到下一门槛');
-  const nextNext = tiers[r.tierBefore + 2];
-  assert.ok(!nextNext || r.profAfter < nextNext.threshold, '不该顺手把玩家送到下下段');
-  assert.strictEqual(r.profAfter, r.profBefore + r.totalGain, '入账与实际增长对不上');
+  s.skills.jian.unlocked = true;
+  let runs = 0;
+  while (s.skills.jian.prof < world.PROF_MAX && runs < 500) {
+    runs += 1;
+    const key = practice.DIFFICULTIES[practice.diffIndexOf(s.skills.jian.prof)].key;
+    game.applyPractice(s, 'jian', 'S', { difficulty: key, score: 0 });
+  }
+  assert.strictEqual(runs, world.PROF_S_RUNS, '全程不断 S 的最少局数不是标定值');
+  assert.strictEqual(runs, 84);
+  assert.strictEqual(s.skills.jian.prof, world.PROF_MAX);
+  assert.strictEqual(world.PROF_C_RUNS + 1, 10000, '全 C 的 10000 局基准变了');
+  // 断一次连就得重新叠：在第 10 连后插一局 A，总局数必然变多。
+  const b = game.createNewState();
+  b.skills.jian.unlocked = true;
+  let broken = 0;
+  while (b.skills.jian.prof < world.PROF_MAX && broken < 500) {
+    broken += 1;
+    const key = practice.DIFFICULTIES[practice.diffIndexOf(b.skills.jian.prof)].key;
+    game.applyPractice(b, 'jian', broken === 11 ? 'A' : 'S', { difficulty: key, score: 0 });
+  }
+  assert.ok(broken > runs, '中途断连不该和全程不断一样快');
 });
-check('getSkillList 输出每门功法的连 S 进度', function () {
+
+check('getSkillList 输出每门功法的连 S 层数与下一局收益', function () {
   const s = game.createNewState();
-  s.sStreak.jian = 2;
+  s.sCombo.jian = 2;
   const item = game.getSkillList(s).find(function (x) { return x.id === 'jian'; });
-  assert.strictEqual(item.sStreak, 2);
-  assert.strictEqual(item.sStreakGoal, 3);
+  assert.strictEqual(item.sCombo, 2);
+  assert.strictEqual(item.sComboMax, 10);
+  assert.strictEqual(item.comboNextGain, 77);
 });
 
 check('同一门连练不减收益：换门只给正激励，不罚专精', function () {
@@ -385,7 +410,7 @@ check('首局引导标记：与技能同级存，老档读出来是「没看过�
   delete old.skills.jian.onboarded;
   old.version = 4;
   const migrated = game.normalizeState(old);
-  assert.strictEqual(migrated.version, 5);
+  assert.strictEqual(migrated.version, 6);
   assert.strictEqual(game.hasOnboarded(migrated, 'jian'), false);
 });
 

@@ -120,7 +120,7 @@
           <view class="imm-bar imm-bar--thin">
             <view class="imm-bar__fill" style="width:{{detail.percent}}%"></view>
           </view>
-          <text class="codex__note">连 {{detail.sStreakGoal}} 局 S 直接晋一段 · 已连 {{detail.sStreak}} 局</text>
+          <text class="codex__note">连 S {{detail.sCombo}} / {{detail.sComboMax}} 层 · 下一局 S {{detail.comboNextGain}} 点</text>
           <text wx:if="{{detail.bestText}}" class="codex__note">最佳 {{detail.bestText}}</text>
           <!-- 已习得的门如果境界吃亏，说清「还能练，只是只剩三成」，不要让人以为这门作废了。 -->
           <text wx:if="{{detail.decayed}}" class="codex__note codex__warn">{{detail.decayText}}</text>
