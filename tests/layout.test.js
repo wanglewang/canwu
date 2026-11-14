@@ -1512,25 +1512,49 @@ check('阵灯推演：翻转范围微光是一次性动画，不占常驻预算'
   assert.ok(/flipSeq \+= 1/.test(lights), '连点 / 破阵没让旧定时器作废');
 });
 
-check('参悟结算：留在本页、回看战绩、倒计时可反悔', function () {
+check('参悟结算：金按钮再来一局、留在本页留的是刚打完那一屏', function () {
   const wxml = read('pages/practice/practice.wxml');
   const js = read('pages/practice/practice.js');
   const copy = require('../data/copy.js');
-  assert.strictEqual(copy.UI.actions.stay, '留在本页', '结算主按钮文案没进真源');
-  assert.ok(/primary: copy\.UI\.actions\.stay/.test(js), '结算主按钮没走文案真源');
-  assert.ok(!/primary: '再来一次'/.test(js), '主按钮仍在把玩家推进下一局');
-  assert.ok(/onStay: function/.test(js) && /showResult: false, started: false/.test(js),
-    '留在本页没有收起遮罩回到准备页');
-  assert.ok(/onAgain: function/.test(js) && /result\.canAgain/.test(wxml),
-    '快捷连刷没单独给一条文字链');
+  assert.strictEqual(copy.UI.actions.stay, '留在本页', '「留在本页」文案没进真源');
+  assert.strictEqual(copy.UI.actions.again, '再来一局', '「再来一局」文案没进真源');
+  // 位置对调：金按钮是再来一局，留在本页退成下方文字链。
+  assert.ok(/primary: copy\.UI\.actions\.again/.test(js), '金按钮没换成再来一局');
+  assert.ok(!/primary: copy\.UI\.actions\.stay/.test(js), '金按钮仍是留在本页');
+  assert.ok(/result\.canStay[\s\S]{0,120}catchtap="onStay"/.test(wxml)
+    && /result\.canStay[\s\S]{0,120}bindtap="onStay"/.test(wxml), '文字链没换成留在本页');
+  assert.ok(!/onAgain}}/.test(wxml), '结算里还留着一条「再来一局」文字链');
+  // 留在本页 = 留在刚打完的那一屏：不 rebuild、不回准备页，盘面还立着，控制器摘掉。
+  const stay = /onStay: function \(\) \{[\s\S]*?\n  \}/.exec(js);
+  assert.ok(stay && /showResult: false, started: true, boardHeld: true/.test(stay[0]),
+    '留在本页没把盘面留在屏上');
+  assert.ok(stay && /controller\.destroy/.test(stay[0]) && /controller = null/.test(stay[0]),
+    '留在本页仍留着能点的控制器');
+  // 终局底栏：回看 / 离开 / 再来一局，三个去处各一格。
+  assert.ok(/boardHeld\) mode = 'done'/.test(js), '终局底栏没接进 syncBar');
+  const bar = /barMode === 'done'[\s\S]{0,520}?<\/view>/.exec(wxml);
+  assert.ok(bar && /onOpenRecord/.test(bar[0]) && /onBack/.test(bar[0]) && /onAgain/.test(bar[0]),
+    '终局底栏缺去处');
+  // 盘面已终：收功与操作提示都不该还在邀请玩家点。
+  assert.ok(/wx:if="\{\{!boardHeld\}\}" class="scene-hud__quit"/.test(wxml)
+    && /wx:if="\{\{!tutorial && !boardHeld\}\}" class="pr-hint"/.test(wxml)
+    && /vm\.trail && started && !boardHeld/.test(wxml),
+    '本局已终还挂着收功 / 操作提示');
+  // 留住的盘面是「这一局」的，不能在换局路上活着：建局与再来一局都要把标记清掉，
+  // 否则下一局开局就被当成已终局，底栏摆着终局三项却点不动盘面。
+  const build = /buildGame: function \(\) \{[\s\S]*?lastTones = \[\];/.exec(js);
+  assert.ok(build && /boardHeld: false/.test(build[0]), '建新局没清掉「盘面留住」标记');
+  const again = /onAgain: function \(\) \{[\s\S]*?\n  \}/.exec(js);
+  assert.ok(again && /boardHeld: false/.test(again[0]), '再来一局没清掉「盘面留住」标记');
   assert.ok(/onOpenRecord: function/.test(js) && /recordBrief && !showResult/.test(wxml),
-    '准备页没有可回看上局战绩的入口');
+    '没有可回看上局战绩的入口');
   assert.ok(/onCancelCountdown: function/.test(js) && /catchtap="onCancelCountdown"/.test(wxml),
     '倒数三秒不能反悔');
   const cancel = /onCancelCountdown: function \(\) \{[\s\S]*?\n  \}/.exec(js);
   assert.ok(cancel && !/controller\.start/.test(cancel[0]), '取消倒计时却已经开局了');
+  // 金按钮直接把下一局开起来：默认动作就是连刷，不再绕准备页。
   const primary = /onPrimary: function \(\) \{[\s\S]*?\n  \}/.exec(js);
-  assert.ok(primary && !/onStart\(\)/.test(primary[0]), '主按钮还在自动开下一局');
+  assert.ok(primary && /onAgain\(\)/.test(primary[0]), '金按钮没把下一局开起来');
   assert.ok(/goalText/.test(wxml), '准备页没显示本档 S 线');
 });
 

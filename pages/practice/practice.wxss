@@ -144,6 +144,18 @@
     box-shadow: none;
 }
 
+/* 终局底栏（留在本页之后）：左边两个去处是「再看一眼 / 走人」，右边金按钮是再来一局。
+   两条文字链不换行、不被按钮挤断，剩下的宽度全给金按钮。 */
+.pg .sticky-bar--done {
+    justify-content: space-between;
+    gap: var(--sp-6);
+}
+
+.sticky-bar--done .text-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
 /* ---------- 局内 HUD ---------- */
 .pr-play {
     padding: 26rpx 28rpx 24rpx;

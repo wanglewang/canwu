@@ -705,10 +705,12 @@
     color: #cfe6f2;
 }
 
+/* 主操作走全站唯一强调色（旧金），不跟玩法主题色漂：这一颗是「下一局继续」，
+   与盘面的青玉 / 朱红不是一回事，混进主题色就分不出主次了。 */
 .settle__actions .btn--primary {
-    background: #2a87ab;
-    border-color: #6FD4E8;
-    color: #ffffff;
+    background: var(--c-primary);
+    border-color: var(--c-imm-gold-dim);
+    color: var(--c-primary-on);
 }
 
 .settle__skip {

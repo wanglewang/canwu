@@ -84,6 +84,9 @@ Page({
     meterPercent: 0,
     countdown: 0,
     started: false,
+    // 本局已终但盘面留着看（结算里点「留在本页」）：started 仍为 true，
+    // 因为屏幕上是那一局打完的样子，不是准备页；区别是控制器已摘掉、底栏换成终局三项。
+    boardHeld: false,
     // 首局手把手：true 时页面渲染教学卡与教学盘，不渲染真局 HUD，也不结算。
     tutorial: false,
     showResult: false,
@@ -515,6 +518,7 @@ Page({
     this.setData({
       started: false,
       showResult: false,
+      boardHeld: false,
       // result / recordBrief 不清：留在准备页时切出去再回来，controller 要重建，
       // 但「上局战绩」还得能点开重看。只有「再来一局」才显式清掉。
       guide: guides.guideOf(gameId),
@@ -661,6 +665,8 @@ Page({
     const vm = this.data.vm;
     let mode = '';
     if (this.data.showResult) mode = '';
+    // 本局已终、盘面留在屏上：这一屏不能点盘面了，三个去处全在底栏。
+    else if (this.data.boardHeld) mode = 'done';
     // 教学盘没有「收功」也没有提示按钮：它连一步都不计，底栏不该出现任何可点项。
     else if (this.data.tutorial) mode = '';
     // 撤销 / 复位 / 提示三者有一个就得出条：华容道只有「复位」，没有这一项就点不到。
@@ -1085,8 +1091,9 @@ Page({
         lines: [],
         notes: [],
         titles: [],
-        primary: copy.UI.actions.stay,
-        secondary: copy.UI.actions.back,
+        // 冲关局没有盘面可留（那一盘是蓄力条），两个去处与成功时一致。
+        primary: this.mode === 'breakthrough' ? copy.UI.actions.backHome : copy.UI.actions.again,
+        secondary: this.mode === 'breakthrough' ? copy.UI.actions.goSkills : copy.UI.actions.back,
       };
     } else if (this.mode === 'breakthrough') {
       const r = store.commitCritical(function (s) { return engine.applyBreakthrough(s, grade); });
@@ -1197,7 +1204,9 @@ Page({
         lines: lines,
         notes: notes,
         titles: (r.newTitles || []).map(function (t) { return t.name; }),
-        primary: copy.UI.actions.stay,
+        // 一局打完，十有八九还想再来一局——它才该是那颗金按钮。
+        // 「留在本页」退成下方文字链：那是给想多看两眼盘面的人留的。
+        primary: copy.UI.actions.again,
         secondary: copy.UI.actions.backSkills,
       };
     }
@@ -1208,11 +1217,12 @@ Page({
     if (grade === 'S' || grade === 'A') sfx.play('clear');
     else if (grade === 'F') sfx.play('fail');
     else sfx.play('settle');
-    // 结算不再只有「返回 / 再来一局」两条把玩家推走的路：主按钮留在准备页，
-    // 想连刷的人另给一条文字链。突破结算没有准备页可留，保持原来的两个去处。
-    rv.canAgain = this.mode !== 'breakthrough';
+    // 结算的两颗按钮 + 一条文字链：金按钮「再来一局」（一局打完多半还想连刷）、
+    // 次按钮「返回功法」、文字链「留在本页」（留着盘面多看两眼）。
+    // 突破结算没有盘面也没有下一局，保持原来的两个去处。
+    rv.canStay = this.mode !== 'breakthrough';
     let recordBrief = '';
-    if (rv.canAgain) {
+    if (rv.canStay) {
       let gain = '';
       for (let i = 0; i < rv.lines.length; i += 1) {
         if (rv.lines[i].k === '熟练度') gain = rv.lines[i].v;
@@ -1223,41 +1233,45 @@ Page({
       recordBrief = '上局 · ' + (briefTitle || '') + (gain ? ' · ' + gain + ' 熟练度' : '');
     }
     this.clearCountdown();
-    this.setData({ showResult: true, result: rv, recordBrief: recordBrief, started: false });
+    this.setData({ showResult: true, result: rv, recordBrief: recordBrief, started: false, boardHeld: false });
     this.syncBar();
     this.refresh();
     if (this.data.sceneOn) this.startSettle(rv, grade);
   },
 
-  // 结算主按钮：留在本页（突破结算仍回洞府）。收起遮罩后准备页按这一局的结果重算，
-  // 熟练度、连 S 进度、本门最佳与难度档都变了，玩家终于有一拍能看清这页写了什么。
+  // 结算金按钮：再来一局（冲关结算仍回洞府——那一盘没有「下一局」可续）。
   onPrimary: function () {
     const rv = this.data.result;
     if (!rv) return;
-    if (rv.kind === 'breakthrough') { this.onBack(); return; }
-    this.onStay();
+    if (rv.kind === 'breakthrough' || this.mode === 'breakthrough') { this.onBack(); return; }
+    this.onAgain();
   },
 
+  // 留在本页 = 留在刚打完的这一屏：盘面、终局分数、香炷刻度都原样停在眼前，
+  // 退的是结算卡，不是退到准备页。这一局已经结束，所以把控制器摘掉——
+  // 盘面只剩看的份，底部换成「上局战绩 / 返回功法 / 再来一局」。
   onStay: function () {
     if (!this.pageAlive) return;
     this.clearSettleTimers();
-    this.setData({ showResult: false, started: false, settlePhase: 4 });
+    if (this.controller) { this.controller.destroy(); this.controller = null; }
+    this.setData({ showResult: false, started: true, boardHeld: true, settlePhase: 4 });
     this.refresh();
     this.syncBar();
   },
 
-  // 快捷连刷：跳过准备页直接起下一局，留给已经熟悉规则的人；不再是唯一的默认动作。
+  // 再来一局：跳过准备页直接起下一局（金按钮的主路）。
+  // 也负责把「留住的盘面」换掉——先清 boardHeld，否则新局会被当成已终局。
   onAgain: function () {
     if (!this.pageAlive) return;
     this.clearSettleTimers();
-    this.setData({ showResult: false, result: null, recordBrief: '', started: false });
+    this.setData({ showResult: false, result: null, recordBrief: '', started: false, boardHeld: false });
     // 先重算再建局：上一局可能刚升段、解锁了新难度，连刷也该打新档。
     this.refresh();
     this.buildGame();
     this.onStart();
   },
 
-  // 准备页顶部那行「上局战绩」：把刚收起的结算明细叫回来重看，不必再打一局。
+  // 留住的盘面上那行「上局战绩」：把结算明细叫回来重看，不必再打一局。
   onOpenRecord: function () {
     if (!this.data.result) return;
     this.clearSettleTimers();
@@ -1265,9 +1279,10 @@ Page({
     this.syncBar();
   },
 
+  // 次按钮：冲关局（成或不成）都去功法页；练习局返回功法页由 onBack 走原生返回。
   onSecondary: function () {
     this.clearSettleTimers();
-    if (this.data.result && this.data.result.kind === 'breakthrough') {
+    if (this.mode === 'breakthrough') {
       wx.switchTab({ url: '/pages/skills/skills' });
       return;
     }

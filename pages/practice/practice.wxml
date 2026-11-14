@@ -184,7 +184,7 @@
         <view class="hud__right">
           <text wx:if="{{vm.comboText}}" class="combo-chip">{{vm.comboText}}</text>
           <text wx:if="{{vm.extras.showGradeNow}}" class="grade-chip" style="background:{{gradeNowColor}}"><text class="grade-chip__label">评级</text>{{vm.gradeNow}}</text>
-          <view class="hud__quit" bindtap="onAbandon">收功</view>
+          <view wx:if="{{!boardHeld}}" class="hud__quit" bindtap="onAbandon">收功</view>
         </view>
       </view>
       <view wx:if="{{vm.extras.showProgress}}" class="hud__track mt8">
@@ -218,7 +218,7 @@
             <view wx:for="{{sceneLamps}}" wx:key="id" class="scene-hud__lamp {{item.on ? 'scene-hud__lamp--on' : ''}}"></view>
           </view>
           <text wx:if="{{vm.extras.showGradeNow}}" class="scene-hud__grade" style="background:{{gradeNowColor}}"><text class="grade-chip__label">评级</text>{{vm.gradeNow}}</text>
-          <view class="scene-hud__quit" bindtap="onAbandon">收功</view>
+          <view wx:if="{{!boardHeld}}" class="scene-hud__quit" bindtap="onAbandon">收功</view>
         </view>
       </view>
       <view class="scene-hud__incense-track">
@@ -242,7 +242,7 @@
 
     <text wx:if="{{vm.banner && !tutorial}}" class="banner mt12" style="{{sceneOn ? 'color:' + stage.glow + ';border-color:' + stage.deep : ''}}">{{vm.banner}}</text>
 
-    <view wx:if="{{!tutorial}}" class="pr-hint">
+    <view wx:if="{{!tutorial && !boardHeld}}" class="pr-hint">
       <text class="tiny">{{vm.hint}}</text>
       <view wx:if="{{guide}}" class="pr-hint__terms"><text class="tiny">{{guide.inline}}</text></view>
     </view>
@@ -262,14 +262,14 @@
         <view class="ring-orb ring-orb--{{vm.ring.tone}}" style="transform:scale({{vm.ring.scale}});border-color:{{theme.accent}}">
           <text style="color:{{theme.ink}}">{{theme.glyph}}</text>
         </view>
-        <text class="ring-tip">点按盘面 · 第 {{vm.ring.beat}} / {{vm.ring.total}} 拍</text>
+        <text wx:if="{{!boardHeld}}" class="ring-tip">点按盘面 · 第 {{vm.ring.beat}} / {{vm.ring.total}} 拍</text>
       </view>
 
       <view wx:if="{{vm.stage === 'lane' && vm.lane}}" class="lane-rule">
         <text class="tiny">{{vm.lane.rule}} · 正采第 {{vm.lane.activeRow + 1}} / {{vm.lane.rows}} 层</text>
       </view>
 
-      <view wx:if="{{vm.trail && started}}" class="trail-hint">
+      <view wx:if="{{vm.trail && started && !boardHeld}}" class="trail-hint">
         <text class="trail-hint__name">{{vm.trail.name}}</text>
         <text class="tiny">顺箭头扫斩 {{trailLen}} 桩 · {{vm.trail.rule || '反向算劈空'}}</text>
       </view>
@@ -300,7 +300,7 @@
           <view wx:for="{{item.dots}}" wx:key="id" wx:for-item="dot" class="spark__dot" style="background:{{item.color}};width:{{dot.size}}rpx;height:{{dot.size}}rpx;margin:{{dot.mt}}rpx 0 0 {{dot.mt}}rpx;--a:{{dot.a}}deg;--d:{{dot.d}}rpx;animation-delay:{{dot.delay}}ms"></view>
         </view>
         <!-- 划刀玩法的透明触摸层：盖住静态格子，用手势坐标还原一条连续轨迹 -->
-        <view wx:if="{{vm.extras.showSwipe && started}}" class="swipe-layer" bindtouchstart="onBoardTouchStart" catchtouchmove="onBoardTouchMove" bindtouchend="onBoardTouchEnd" bindtouchcancel="onBoardTouchEnd"></view>
+        <view wx:if="{{vm.extras.showSwipe && started && !boardHeld}}" class="swipe-layer" bindtouchstart="onBoardTouchStart" catchtouchmove="onBoardTouchMove" bindtouchend="onBoardTouchEnd" bindtouchcancel="onBoardTouchEnd"></view>
       </view>
 
       <!-- 华容道：块是整块滑的，用绝对定位按格摆；格子拼出来的块会被缝线切碎，
@@ -316,7 +316,7 @@
       </view>
 
       <!-- 只有持续下落的玩法才挂方向键：挪石 / 转石 / 速降，其余玩法盘面下不留这一排。 -->
-      <view wx:if="{{vm.extras.showPad && vm.pad && started}}" class="pad {{vm.pad.digits ? 'pad--numbers' : ''}}">
+      <view wx:if="{{vm.extras.showPad && vm.pad && started && !boardHeld}}" class="pad {{vm.pad.digits ? 'pad--numbers' : ''}}">
         <view wx:for="{{vm.pad.keys}}" wx:key="id" class="pad__key" data-dir="{{item.dir}}" bindtap="onPad" hover-class="pad__key--press" hover-stay-time="60"><text>{{item.glyph}}</text></view>
       </view>
 
@@ -341,7 +341,7 @@
             </view>
           </view>
         </view>
-        <view class="scroll__keys">
+        <view wx:if="{{!boardHeld}}" class="scroll__keys">
           <view wx:for="{{vm.scroll.keys}}" wx:key="id" class="scroll__key scroll__key--{{item.dir}}" hover-class="scroll__key--press" data-index="{{item.index}}" bindtap="onCellTap">
             <view class="step step--{{item.dir}} step--lg">
               <view class="step__arrow"></view>
@@ -364,6 +364,13 @@
   <view wx:if="{{barMode === 'start'}}" class="sticky-bar">
     <text class="text-link text-link--muted" bindtap="onBack">{{copy.actions.leave}}</text>
     <button class="btn btn--primary" bindtap="onStart">{{copy.actions.start}}</button>
+  </view>
+
+  <!-- 本局已终、盘面留在屏上：盘面不能再点，去处全在这一条。 -->
+  <view wx:if="{{barMode === 'done'}}" class="sticky-bar sticky-bar--done">
+    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onOpenRecord">{{copy.actions.reviewRecord}}</text>
+    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onBack">{{copy.actions.backSkills}}</text>
+    <button class="btn btn--primary" bindtap="onAgain">{{copy.actions.again}}</button>
   </view>
 
   <view wx:if="{{barMode === 'tools'}}" class="sticky-bar sticky-bar--tools">
@@ -432,7 +439,7 @@
         <button class="btn btn--plain" catchtap="onSecondary">{{result.secondary}}</button>
         <button class="btn btn--primary" catchtap="onPrimary">{{result.primary}}</button>
       </view>
-      <text wx:if="{{settlePhase >= 4 && result.canAgain}}" class="text-link text-link--muted settle__again pressable" hover-class="pressable--on" catchtap="onAgain">{{copy.actions.again}} ›</text>
+      <text wx:if="{{settlePhase >= 4 && result.canStay}}" class="text-link text-link--muted settle__again pressable" hover-class="pressable--on" catchtap="onStay">{{copy.actions.stay}} ›</text>
     </view>
     <text wx:if="{{settlePhase < 4}}" class="settle__skip">点任意处跳过演出</text>
   </view>
@@ -467,7 +474,7 @@
         <button class="btn btn--plain" bindtap="onSecondary">{{result.secondary}}</button>
         <button class="btn btn--primary" bindtap="onPrimary">{{result.primary}}</button>
       </view>
-      <text wx:if="{{result.canAgain}}" class="text-link text-link--muted modal__again pressable" hover-class="pressable--on" bindtap="onAgain">{{copy.actions.again}} ›</text>
+      <text wx:if="{{result.canStay}}" class="text-link text-link--muted modal__again pressable" hover-class="pressable--on" bindtap="onStay">{{copy.actions.stay}} ›</text>
     </view>
   </view>
 
