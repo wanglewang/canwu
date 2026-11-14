@@ -10,7 +10,8 @@
       { "type": "folder", "value": ".github" },
       { "type": "suffix", "value": ".md" },
       { "type": "file", "value": "eslint.config.js" },
-      { "type": "file", "value": "package-lock.json" }
+      { "type": "file", "value": "package-lock.json" },
+      { "type": "file", "value": "assets/crest.png" }
     ],
     "include": []
   },

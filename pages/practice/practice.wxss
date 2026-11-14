@@ -8,6 +8,10 @@
    格子里的字才有落处；页面、HUD、横幅、弹层一律走 --c-imm-*。
    本页恒定深色，不写系统明暗媒体查询：系统切深色时纸与墨都不变。 */
 
+/* 灵纹牌上的八种图案：一张内联的 sprite + 切位，单独放一个文件，
+   免得这三十来 KB 的 base64 混在页面样式里，改起来看不清别的规则。 */
+@import "../../styles/crest.wxss";
+
 /* 功法头不做盒子：标题直接落在墨底上，只用一条发丝线收口。
    原先是一张深卡叠在墨底上，两层深色几乎同值，看不出层次还多一圈圆角。 */
 .pr-head {
@@ -1332,11 +1336,9 @@
 .cell--set { opacity: 0.86; }
 .cell--live { box-shadow: 0 0 16rpx rgba(255, 253, 247, 0.8); }
 
-/* ---------- 灵纹牌：六种纹样（牵灵引线 / 灵植三秀） ----------
-   盘面原来放的是 ✦ ◆ ● ▲ ■ ✿：它们是字体里的 dingbat，安卓上常被系统换成
-   彩色 emoji，同一门功课在两台手机上不是同一个盘面；而且字形没有颜色，六种纹
-   只能靠形状硬记。这里改成用 CSS 画纹——形与色两路区分，跨机型一致。
-   牌面也从深色块退回瓷白：深底上画彩色纹看不清，纹要有纸底才立得住。 */
+/* ---------- 灵纹牌：盘面上摆的是图案，不是字形（牵灵引线 / 灵植三秀） ----------
+   牌面从深色块退回瓷白：深底上摆彩色的果子看不清，图案要有纸底才立得住。
+   八种图案的 sprite 与切位在 styles/crest.wxss，由本文件顶部那条导入语句引进。 */
 
 .cell--lit.cell--chip {
     background-color: #fdf8ee;
@@ -1353,195 +1355,12 @@
     box-shadow: inset 0 0 0 5rpx #c08a2e, 0 0 20rpx rgba(192, 138, 46, 0.45);
 }
 
-.cell__crest {
-    position: relative;
-    display: block;
-    box-sizing: border-box;
-    width: 44rpx;
-    height: 44rpx;
-    color: #b4453c;
-}
-
-/* 一 · 同心环（朱砂） */
-.crest--1 {
-    color: #b4453c;
-    border: 4rpx solid currentColor;
-    border-radius: 50%;
-}
-
-.crest--1::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 14rpx;
-    height: 14rpx;
-    margin: -7rpx 0 0 -7rpx;
-    border-radius: 50%;
-    background: currentColor;
-}
-
-/* 二 · 方胜（松绿）：大方套小方，各自转 45° */
-.crest--2 {
-    color: #3f7d5f;
-    border: 4rpx solid currentColor;
-    border-radius: 4rpx;
-    transform: rotate(45deg) scale(0.74);
-}
-
-.crest--2::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 18rpx;
-    height: 18rpx;
-    margin: -9rpx 0 0 -9rpx;
-    border: 3rpx solid currentColor;
-    border-radius: 2rpx;
-}
-
-/* 三 · 四瓣花（赭黄）：两条圆头短棒十字交叠 */
-.crest--3 {
-    color: #b0791f;
-}
-
-.crest--3::before,
-.crest--3::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44rpx;
-    height: 19rpx;
-    margin: -9.5rpx 0 0 -22rpx;
-    border-radius: 999rpx;
-    background: currentColor;
-}
-
-.crest--3::after {
-    transform: rotate(90deg);
-}
-
-/* 四 · 菱格（黛蓝）：两向斜线织成网，像一块织锦 */
-.crest--4 {
-    color: #3f6384;
-    border: 3rpx solid currentColor;
-    border-radius: 6rpx;
-    background-image:
-        repeating-linear-gradient(45deg, currentColor 0, currentColor 3rpx, transparent 3rpx, transparent 12rpx),
-        repeating-linear-gradient(-45deg, currentColor 0, currentColor 3rpx, transparent 3rpx, transparent 12rpx);
-}
-
-/* 五 · 回纹（紫檀）：双层方框，一层套一层 */
-.crest--5 {
-    color: #7a4a63;
-    border: 4rpx solid currentColor;
-    border-radius: 3rpx;
-}
-
-.crest--5::after {
-    content: '';
-    position: absolute;
-    top: 8rpx;
-    left: 8rpx;
-    right: 8rpx;
-    bottom: 8rpx;
-    border: 3rpx solid currentColor;
-    border-radius: 2rpx;
-}
-
-/* 六 · 六出（墨）：三条短线绕心交成雪花 */
-.crest--6 {
-    color: #4a4437;
-    background-image: linear-gradient(currentColor, currentColor);
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 6rpx 44rpx;
-}
-
-.crest--6::before,
-.crest--6::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 6rpx;
-    height: 44rpx;
-    margin: -22rpx 0 0 -3rpx;
-    border-radius: 3rpx;
-    background: currentColor;
-}
-
-.crest--6::before {
-    transform: rotate(60deg);
-}
-
-.crest--6::after {
-    transform: rotate(120deg);
-}
-
-/* 收走的灵纹：牌位空出来，只剩纸底。border-color 是页面 inline 注入的
+/* 收走的灵果：牌位空出来，只剩纸底。border-color 是页面 inline 注入的
    （跟主题走），压不掉也不该压，所以整格透明——留位置、不留牌。 */
 .cell--chip.cell--gone {
     background: transparent;
     box-shadow: none;
     opacity: 0;
-}
-
-/* 矮盘（6×6 消消乐）里纹样跟着收一档，别顶到牌边。 */
-.grid--compact .cell__crest {
-    width: 38rpx;
-    height: 38rpx;
-}
-
-.grid--compact .crest--1,
-.grid--compact .crest--2,
-.grid--compact .crest--5 {
-    border-width: 3rpx;
-}
-
-.grid--compact .crest--2 {
-    transform: rotate(45deg) scale(0.72);
-}
-
-.grid--compact .crest--2::after {
-    width: 15rpx;
-    height: 15rpx;
-    margin: -7.5rpx 0 0 -7.5rpx;
-    border-width: 2rpx;
-}
-
-.grid--compact .crest--3::before,
-.grid--compact .crest--3::after {
-    width: 38rpx;
-    height: 16rpx;
-    margin: -8rpx 0 0 -19rpx;
-}
-
-.grid--compact .crest--4 {
-    background-image:
-        repeating-linear-gradient(45deg, currentColor 0, currentColor 2rpx, transparent 2rpx, transparent 10rpx),
-        repeating-linear-gradient(-45deg, currentColor 0, currentColor 2rpx, transparent 2rpx, transparent 10rpx);
-}
-
-.grid--compact .crest--5::after {
-    top: 7rpx;
-    left: 7rpx;
-    right: 7rpx;
-    bottom: 7rpx;
-    border-width: 2rpx;
-}
-
-.grid--compact .crest--6 {
-    background-size: 5rpx 38rpx;
-}
-
-.grid--compact .crest--6::before,
-.grid--compact .crest--6::after {
-    width: 5rpx;
-    height: 38rpx;
-    margin: -19rpx 0 0 -2.5rpx;
 }
 
 .pad {

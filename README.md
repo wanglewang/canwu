@@ -139,10 +139,12 @@
 ├── docs/checklist-puzzle.md            玩法设计完备性自检清单：十二维 + 本项目口径纠正 + 设计笔记模板
 ├── assets/tab/                         6 个 tabBar 图标（home / book / seal 各两态，scripts/gen-icons.js 生成）
 ├── assets/sfx/                         9 个局内音效（16kHz 单声道 wav，scripts/gen-sfx.js 合成）
+├── assets/crest.png                    灵纹牌上的 8 个图案 sprite（512×64，源文件；运行时用的是 styles/crest.wxss 里的内联副本，不进包）
 ├── styles/
 │   ├── tokens.wxss                     设计令牌唯一真源：语义色（含 --c-imm-* 仙箓色）、字号阶梯、间距栅格、圆角 / 阴影 / 层级 / 触控 / 动效 / 明暗两套
 │   ├── immortal.wxss                   仙箓皮肤：金线标题条 / 境界大卡 / 六宫格 / 两态切换 / 属性格 / 折叠分节（app.wxss @import）
-│   └── scene.wxss                      沉浸舞台：三层场景 / 游戏化 HUD / 命中粒子 / 结算五段演出（app.wxss @import）
+│   ├── scene.wxss                      沉浸舞台：三层场景 / 游戏化 HUD / 命中粒子 / 结算五段演出（app.wxss @import）
+│   └── crest.wxss                      灵纹牌图案：sprite 的 base64 + 八个切位（practice.wxss @import）
 │
 ├── data/                               纯配置：改数值与内容只动这里
 │   ├── world.js                        世界设定、六阶熟练度阈值、评级倍率、总倍率上限与衰减、离线参数
