@@ -157,8 +157,8 @@
 }
 
 .hud__skill {
-    color: var(--c-imm-text-3);
-    font-size: 20rpx;
+    color: var(--c-imm-text-2);
+    font-size: 22rpx;
     letter-spacing: 2rpx;
 }
 
@@ -167,6 +167,9 @@
     color: var(--c-imm-text);
     font-size: 40rpx;
     line-height: 1.2;
+    /* 秒数每局都在变，等宽数字 + 一点字距，读起来才像仪表而不是普通标题。 */
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1rpx;
 }
 
 .hud__right {
@@ -186,6 +189,7 @@
     padding: 0 18rpx;
     border: 1rpx solid var(--c-imm-line);
     border-radius: 999rpx;
+    background: rgba(236, 229, 216, 0.04);
     color: var(--c-imm-text-3);
     font-size: 22rpx;
     line-height: 1;
@@ -256,16 +260,19 @@
     opacity: 0.72;
 }
 
+/* 进度条：轨道吃进内影，填充带一层白光——深底上才不会看成两块纯色积木。 */
 .hud__track {
     overflow: hidden;
     height: 14rpx;
     border-radius: 10rpx;
     background: var(--c-imm-track);
+    box-shadow: inset 0 2rpx 4rpx rgba(0, 0, 0, 0.5);
 }
 
 .hud__fill {
     height: 100%;
     border-radius: 10rpx;
+    box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.32), 0 0 12rpx rgba(255, 255, 255, 0.18);
     transition: width 0.25s ease;
 }
 
@@ -282,6 +289,7 @@
 
 .heart--on {
     color: var(--c-imm-gold);
+    text-shadow: 0 0 12rpx rgba(207, 174, 109, 0.55);
 }
 
 .hearts .tiny {
@@ -294,11 +302,13 @@
     margin-top: 6rpx;
     border-radius: 8rpx;
     background: var(--c-imm-track);
+    box-shadow: inset 0 2rpx 4rpx rgba(0, 0, 0, 0.5);
 }
 
 .meter__fill {
     height: 100%;
     border-radius: 8rpx;
+    box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.28);
     transition: width 0.2s ease;
 }
 
@@ -349,15 +359,19 @@
     height: 64rpx;
     border-radius: 14rpx;
     background: var(--soft, #e9e3d4);
+    /* 一条凹进纸面的槽：内影从上方压下来，光标才像在槽里跑。 */
+    box-shadow: inset 0 4rpx 10rpx rgba(74, 58, 30, 0.22), inset 0 -2rpx 0 rgba(255, 255, 255, 0.6);
 }
 
+/* 朱线区间：底色一层金，内侧再压一圈朱红，两条线就是「停在这里」的边界。 */
 .charge__zone {
     position: absolute;
     top: 0;
     bottom: 0;
-    background: rgba(184, 137, 59, 0.42);
+    background: linear-gradient(180deg, rgba(184, 137, 59, 0.5), rgba(184, 137, 59, 0.32));
     border-left: 5rpx solid #b4453c;
     border-right: 5rpx solid #b4453c;
+    box-shadow: inset 0 0 14rpx rgba(180, 69, 60, 0.35);
 }
 
 .charge__cursor {
@@ -365,7 +379,9 @@
     top: 0;
     bottom: 0;
     width: 10rpx;
-    background: var(--acc, #2f6b5b);
+    background: linear-gradient(180deg, #7fd0bc, var(--acc, #2f6b5b));
+    /* 光标带一圈辉光：64rpx 高的槽里，一道纯色竖线很容易看丢。 */
+    box-shadow: 0 0 14rpx rgba(47, 107, 91, 0.75), 0 0 4rpx rgba(255, 255, 255, 0.8);
     transform: translateX(-5rpx);
 }
 
@@ -379,6 +395,7 @@
     margin-top: 20rpx;
     border-radius: 20rpx;
     background: var(--soft, #e9e3d4);
+    box-shadow: inset 0 0 0 2rpx rgba(255, 255, 255, 0.38), inset 0 12rpx 30rpx rgba(120, 100, 60, 0.12);
 }
 
 .ring-judge {
@@ -389,6 +406,8 @@
     border: 6rpx solid #b4453c;
     border-radius: 50%;
     opacity: 0.65;
+    /* 判定圈之外再散一圈朱气：珠子压上来时，边界比一根线更清楚。 */
+    box-shadow: 0 0 0 10rpx rgba(180, 69, 60, 0.1), inset 0 0 22rpx rgba(180, 69, 60, 0.16);
 }
 
 .ring-orb {
@@ -403,6 +422,7 @@
     background: var(--bg, #efe9db);
     font-family: serif;
     font-size: 56rpx;
+    box-shadow: 0 12rpx 26rpx rgba(0, 0, 0, 0.18), inset 0 4rpx 0 rgba(255, 255, 255, 0.55);
 }
 
 .ring-orb--perfect { background: #f6e6c8; }
@@ -417,28 +437,70 @@
 }
 
 /* ---------- 通用格子 ---------- */
+/* 盘面是一块「木框里的纸」：受光的纸面 + 一圈压边，格子像摆在纸上的竹牌。
+   这里的观感全交给「上缘高光 / 下缘薄唇 / 内部渐层」三件事，不加一张图：
+   小程序里图片要占包体、要适配三档屏，而这三件事纯 CSS 就能撑起厚度。 */
 .grid {
     position: relative;
     display: flex;
     flex-wrap: wrap;
     margin-top: 24rpx;
     padding: 10rpx;
-    border-radius: 18rpx;
+    /* 一圈深木包边：纸面嵌在框里，而不是一块浅色圆角贴在墨底上。
+       框比纸深、纸比框亮，盘面才有「装裱」的意思。 */
+    border: 6rpx solid rgba(58, 42, 22, 0.58);
+    border-radius: 20rpx;
     overflow: hidden;
+    /* 外投影给它「放得住」的重量，内圈一道白线是纸的裁边。 */
+    box-shadow: 0 18rpx 44rpx rgba(0, 0, 0, 0.42), inset 0 0 0 3rpx rgba(255, 255, 255, 0.3);
+}
+
+/* 纸面受光：顶上偏亮、底下压暗，盘面不再是一块平涂色。
+   放在伪元素里，是因为 .grid 的背景色由页面按功法 inline 注入（background 简写会清掉图片）。 */
+.grid::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background:
+        radial-gradient(120% 82% at 50% -12%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 58%),
+        radial-gradient(130% 92% at 50% 114%, rgba(74, 58, 30, 0.14), rgba(74, 58, 30, 0) 62%);
+    pointer-events: none;
 }
 
 .cell {
     box-sizing: border-box;
     position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 5rpx solid #fffdf7;
+    border: 5rpx solid rgba(255, 253, 247, 0.86);
     border-radius: 16rpx;
-    background: var(--soft, #efe9db);
+    /* 竹牌：表面一道自上而下的渐亮，底下留 3rpx 薄唇，中间压一圈内影。
+       底色里掺一大半白：盘面纸色普遍与格子同色系，不掺白就是「浅底上摆浅块」，
+       远看只剩一片色。掺白后牌面接近瓷白，纸色退成底色，两者才分得开。 */
+    background-color: var(--soft, #efe9db);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.46));
     color: var(--ink, #8a8f83);
-    font-size: 30rpx;
+    /* 字是盘面的内容：3 列盘给到 34rpx，4 / 6 列再按档降，别让数字缩成注解。 */
+    font-size: 34rpx;
     font-weight: 600;
+    /* 数字每局都在跳，等宽数字才不会让盘面跟着左右抖。 */
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 3rpx 0 rgba(120, 100, 60, 0.18), inset 0 2rpx 0 rgba(255, 255, 255, 0.7),
+        inset 0 -8rpx 12rpx rgba(120, 100, 60, 0.08);
+    transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.1s ease;
+}
+
+/* 按下去的反馈只做缩放：状态色归状态类管，手感归这一条，两者不打架。
+   盘上格子是这一屏唯一的输入面，没有按压反馈时玩家会怀疑「是不是没点上」。 */
+.cell--press {
+    transform: scale(0.962);
 }
 
 .grid--c3 .cell { width: 33.3333%; height: 156rpx; }
@@ -449,27 +511,39 @@
     background: var(--acc, #3d8c74);
     color: #fffdf7;
     animation: litPop 0.35s ease-out;
+    /* 亮起来的格子是「被点着的」，不是换了个色块：外圈一层同族辉光把它从盘面抬起来。 */
+    box-shadow: 0 3rpx 0 rgba(0, 0, 0, 0.2), 0 8rpx 20rpx rgba(0, 0, 0, 0.24),
+        inset 0 2rpx 0 rgba(255, 255, 255, 0.34);
 }
-.cell--off { background: #ded7c6; color: #a09e8f; transition: background 0.25s ease, color 0.25s ease; }
-.cell--ok { background: var(--acc, #b8893b); color: #fffdf7; }
-.cell--bad { background: #b4453c; color: #fffdf7; animation: badShake 0.22s ease-out; }
+.cell--off { background: #ded7c6; color: #a09e8f; transition: background 0.25s ease, color 0.25s ease; box-shadow: inset 0 2rpx 6rpx rgba(120, 100, 60, 0.14); }
+.cell--ok { background: var(--acc, #b8893b); color: #fffdf7; box-shadow: 0 3rpx 0 rgba(0, 0, 0, 0.18), inset 0 2rpx 0 rgba(255, 255, 255, 0.3); }
+.cell--bad { background: #b4453c; color: #fffdf7; animation: badShake 0.22s ease-out; box-shadow: 0 0 22rpx rgba(180, 69, 60, 0.5), inset 0 0 0 3rpx rgba(255, 236, 228, 0.28); }
 .cell--hidden { background: #d5cdb9; color: #9a9a8b; }
-.cell--open { background: #f7f3e8; color: var(--ink, #2f6b5b); font-weight: 700; }
+/* 翻开 = 凹下去。未翻开的格子是凸起的竹牌，翻开的那一格压低并吃进内影，
+   于是「哪些还没动过」不用记规则也能看出来——这是实体棋盘最好用的一条暗示。
+   底色仍用比竹牌更亮一档的纸色（不跟 --bg 同色）：同色只靠阴影分档，小屏上几乎看不出来。 */
+.cell--open { background: #f7f3e8; color: var(--ink, #2f6b5b); font-weight: 700; box-shadow: inset 0 6rpx 12rpx rgba(120, 100, 60, 0.22), inset 0 -2rpx 0 rgba(255, 255, 255, 0.72); }
 /* 探禁：翻开格上的数字按大小分色（1 / 2 / 3+），一眼扫得出「1 的边界在哪」。
    这是经典扫雷里唯一值得照搬的辅助；把数字画成符文反而读不出来。 */
 .cell--open.cell--t1 { color: #2f6b5b; }
 .cell--open.cell--t2 { color: #b4453c; }
 .cell--open.cell--t3 { color: #a8791f; }
-.cell--flag { background: #f5ead2; color: #a2762d; }
-.cell--mine { background: #b4453c; color: #fffdf7; animation: badShake 0.3s ease-out; }
-.cell--hint { background: #b8893b; color: #fffdf7; animation: litPop 0.5s ease-out infinite alternate; }
+.cell--flag { background: #f5ead2; color: #a2762d; box-shadow: inset 0 0 0 3rpx rgba(162, 118, 45, 0.35), 0 3rpx 0 rgba(120, 100, 60, 0.16); }
+.cell--mine { background: #b4453c; color: #fffdf7; animation: badShake 0.3s ease-out; box-shadow: 0 0 26rpx rgba(180, 69, 60, 0.55), inset 0 0 0 3rpx rgba(255, 214, 206, 0.5); }
+.cell--hint { background: #b8893b; color: #fffdf7; animation: litPop 0.5s ease-out infinite alternate; box-shadow: 0 0 24rpx rgba(184, 137, 59, 0.5), inset 0 2rpx 0 rgba(255, 255, 255, 0.3); }
 .cell--trail { background: var(--soft, #dcecf1); color: var(--ink, #22505f); }
-.cell--gold { background: #b8893b; color: #fffdf7; }
-.cell--hot { box-shadow: inset 0 0 0 6rpx rgba(255, 243, 205, 0.55); }
-/* 死门：暗红底 + 叉号，和米色的暗格拉开一整档；亮着的死门提一档亮度，轮廓不变。 */
-.cell--dead { background: #8d3b32; color: #fff3e6; box-shadow: inset 0 0 0 4rpx #5c231d; }
-.cell--dead-lit { background: #a84a3e; }
-
+.cell--gold { background: #b8893b; color: #fffdf7; box-shadow: 0 0 24rpx rgba(184, 137, 59, 0.45), inset 0 2rpx 0 rgba(255, 255, 255, 0.3); }
+.cell--hot { box-shadow: inset 0 0 0 6rpx rgba(255, 243, 205, 0.55), 0 0 26rpx rgba(255, 236, 170, 0.35); }
+/* 死门：暗红底 + 斜纹，和米色的暗格拉开一整档；斜纹给它「栅栏」的意思，不只是块红。
+   亮着的死门提一档亮度，轮廓不变。 */
+.cell--dead {
+    background: #8d3b32;
+    /* 斜纹单独盖一层：`background` 简写会清掉图片，所以图片必须写在它后面。 */
+    background-image: repeating-linear-gradient(45deg, rgba(92, 35, 29, 0.55) 0, rgba(92, 35, 29, 0.55) 5rpx, rgba(92, 35, 29, 0) 5rpx, rgba(92, 35, 29, 0) 12rpx);
+    color: #fff3e6;
+    box-shadow: inset 0 0 0 4rpx #5c231d, inset 0 6rpx 14rpx rgba(0, 0, 0, 0.24);
+}
+.cell--dead-lit { background-color: #a84a3e; }
 /* 破阵那一拍：整盘一次性泛金 + 金描边。换盘时 paint() 重置 cls，这一层自然收掉，
    不做常驻呼吸；动画只跑一次，也不占「常驻循环动画」的预算。 */
 .cell--solved {
@@ -677,6 +751,7 @@
     height: 6rpx;
     border-radius: 3rpx;
     background: rgba(255, 253, 247, 0.92);
+    box-shadow: 0 0 8rpx rgba(255, 253, 247, 0.55);
     transform-origin: left center;
     animation-name: lifeDrain;
     animation-timing-function: linear;
@@ -793,6 +868,7 @@
     margin-top: 20rpx;
     border-radius: 20rpx;
     background: var(--soft, #e9e3d4);
+    box-shadow: inset 0 0 0 2rpx rgba(255, 255, 255, 0.4), inset 0 10rpx 26rpx rgba(120, 100, 60, 0.12);
 }
 
 .orbit__core {
@@ -809,6 +885,7 @@
     border: 6rpx solid var(--acc, #3d8c74);
     border-radius: 50%;
     background: var(--bg, #efe9db);
+    box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.16), inset 0 3rpx 0 rgba(255, 255, 255, 0.65);
     transform: translate(-50%, -50%);
 }
 
@@ -828,10 +905,14 @@
     height: 112rpx;
     border: 5rpx solid var(--frame, #fffdf7);
     border-radius: 50%;
-    background: var(--bg, #efe9db);
+    /* 五灯是一圈悬在纸上的灯盏：表面受光、底下落一层薄影。 */
+    background-color: var(--bg, #efe9db);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 62%);
     color: var(--ink, #5d6358);
     font-family: serif;
     font-size: 38rpx;
+    box-shadow: 0 5rpx 0 rgba(120, 100, 60, 0.2), 0 8rpx 16rpx rgba(0, 0, 0, 0.12),
+        inset 0 -6rpx 10rpx rgba(120, 100, 60, 0.1);
 }
 
 .orbit__lamp--0 { top: 16rpx; left: 50%; transform: translateX(-50%); }
@@ -849,7 +930,7 @@
 .orbit__lamp.lamp--current {
     background: var(--acc, #3d8c74);
     color: #fffdf7;
-    box-shadow: 0 0 0 8rpx rgba(184, 137, 59, 0.28);
+    box-shadow: 0 0 0 8rpx rgba(184, 137, 59, 0.28), 0 10rpx 20rpx rgba(0, 0, 0, 0.2);
 }
 
 .orbit__lamp.lamp--hit {
@@ -1265,9 +1346,18 @@
   justify-content: center;
   font-size: 38rpx;
   color: var(--ink, #2f6b5b);
-  background: var(--soft, #efe9db);
+  background-color: var(--soft, #efe9db);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 62%);
   border: 3rpx solid var(--frame, #fffdf7);
   border-radius: var(--r-md);
+  /* 一颗能按下去的键：底边留 5rpx 厚度，按下去缩回 3rpx，手感靠这两行。 */
+  box-shadow: 0 5rpx 0 rgba(120, 100, 60, 0.26), inset 0 2rpx 0 rgba(255, 255, 255, 0.7);
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.pad__key--press {
+  transform: translateY(3rpx);
+  box-shadow: 0 2rpx 0 rgba(120, 100, 60, 0.26), inset 0 2rpx 0 rgba(255, 255, 255, 0.5);
 }
 
 /* ---------- 阵灯推演：翻转范围微光 ---------- */
@@ -1433,19 +1523,25 @@
 .klotski__blk {
     position: absolute;
     box-sizing: border-box;
-    border: 4rpx solid #fffdf7;
+    border: 4rpx solid rgba(255, 253, 247, 0.9);
     border-radius: 14rpx;
-    background: #d9c8a8;
+    /* 木块：上缘受光、底边留 6rpx 厚度、整体落影。挪动时块与块之间才有「叠着」的关系。 */
+    background-color: #d9c8a8;
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 58%);
+    box-shadow: 0 6rpx 0 rgba(96, 72, 40, 0.32), 0 10rpx 18rpx rgba(0, 0, 0, 0.16),
+        inset 0 2rpx 0 rgba(255, 255, 255, 0.6);
 }
 
-.klotski__blk--main { background: var(--acc, #96603c); }
-.klotski__blk--wide { background: #c9a06a; }
-.klotski__blk--tall { background: #b5836a; }
+.klotski__blk--main { background-color: var(--acc, #96603c); }
+.klotski__blk--wide { background-color: #c9a06a; }
+.klotski__blk--tall { background-color: #b5836a; }
 .klotski__blk--ga,
-.klotski__blk--gb { background: #cdbb9a; }
+.klotski__blk--gb { background-color: #cdbb9a; }
 
+/* 选中：金环箍住 + 抬高一档。只动阴影与位移，块的位置仍由 left/top 的百分比决定。 */
 .klotski__blk--sel {
-    box-shadow: 0 0 0 6rpx var(--c-imm-gold, #cfae6d);
+    box-shadow: 0 0 0 6rpx var(--c-imm-gold, #cfae6d), 0 14rpx 24rpx rgba(0, 0, 0, 0.24),
+        inset 0 2rpx 0 rgba(255, 255, 255, 0.6);
 }
 
 .klotski__core {
