@@ -41,7 +41,7 @@ const TERMS = [
     { key: 'worlds', name: '此界之外', group: '页面', desc: '尚未开放的后续世界；当前只有青云界可玩。' },
     { key: 'code', name: '战力码', group: '对战', desc: '以 CW1- 开头的一串码。复制给朋友，对方粘贴后就能和你的镜像过招。' },
     { key: 'mirror', name: '镜像', group: '对战', desc: '按战力码还原出的「另一个人」，不用同时在线也能打一场。' },
-    { key: 'mijing', name: '秘境', group: '对战', desc: '只产资源、不掉功法的挑战，适合攒兑换用的灵气与灵石。' },
+    { key: 'mijing', name: '秘境', group: '对战', desc: '只产资源、不掉功法的去处，适合攒兑换用的灵气与灵石。' },
     { key: 'stageRule', name: '本门新法', group: '玩法', desc: '熟练度到阶段后新增的规则或便利，每门功法各不相同，准备页会逐条列出。' },
     { key: 'shen', name: '心神', group: '玩法', desc: '部分玩法的容错次数，误触一次扣一盏，耗尽就收功。' },
     { key: 'pause', name: '收势', group: '玩法', desc: '刀法大成后的规矩：刀划到靶心时停一拍再抬手，才算这一招收得稳。' },
@@ -91,7 +91,13 @@ const UI = {
         viewDetail: '详情 ›',
         goSkills: '去功法页',
         goBattle: '去切磋',
+        goSecret: '去秘境',
         goHome: '去攒资源',
+        // 切磋与秘境各一支动作：同一件事用同一个词，两页不再各写一遍。
+        challenge: '挑战',
+        rechallenge: '再战',
+        enterSecret: '入秘境',
+        reenter: '再探',
         buy: '换取',
         allAchievements: '全部成就',
         // 参悟结算：主按钮不再把玩家推走，留在准备页慢慢看；连刷另给一条文字链。
@@ -128,6 +134,7 @@ const UI = {
         skills: { title: '功法' },
         profile: { title: '人物' },
         battle: { title: '仙门切磋' },
+        secret: { title: '秘境探索' },
         guide: { title: '玩法与数值' },
         help: { title: '说明' },
         log: { title: '修行日志' },
@@ -137,6 +144,11 @@ const UI = {
     sections: {
         today: '今日份例',
         realm: '境界突破',
+        // 切磋与秘境共用的两块：战力条与对手列表。两页各写一遍就会有一页先改。
+        myPower: '我的战力',
+        rivals: '同门与来客',
+        duel: '约战',
+        secrets: '可探之处',
         // 参悟准备页只剩这一块讲规则：一整句「这一局做什么」，整篇在说明页。
         rule: '本局规则',
         more: '更多 · 修行记录与诸界',
@@ -166,6 +178,8 @@ const UI = {
         fortune: '机缘可得',
         enough: '资源已足',
         cleared: '已战胜',
+        walked: '已走过',
+        unwalked: '未走过',
         noRecord: '尚无战绩 · 开一局试试',
     },
 

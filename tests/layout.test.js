@@ -269,20 +269,38 @@ check('局内音效有资源、有开关、跟着判定浮字走', function () {
   assert.ok(/onToggleSfx/.test(profile), '道牒页缺少音效开关');
 });
 
-check('仙门切磋页对手按钮是行内紧凑按钮，且战斗与探索分得开', function () {
-  const s = read('pages/battle/battle.wxml');
+check('切磋与秘境拆成两页：各自只排自己的列表，按钮层级也不一样', function () {
+  const battle = read('pages/battle/battle.wxml');
+  const secret = read('pages/secret/secret.wxml');
+  // 切磋页只剩同门对手，按钮是行内紧凑按钮；再不出现「入秘境」。
   let fights = 0;
-  for (const line of s.split('\n')) {
+  for (const line of battle.split('\n')) {
     if (/bindtap="onFight"/.test(line)) {
       fights += 1;
       assert.ok(!/imm-btn--block/.test(line), '仍有整宽重复按钮：' + line.trim());
       assert.ok(/imm-btn--sm/.test(line), '未使用行内紧凑按钮：' + line.trim());
     }
   }
-  assert.ok(fights >= 2, '对手与秘境的动作按钮不见了');
+  // 同门那一段是一个 wx:for 里的行内按钮（六位对手共用一行模板），不再有第二个列表。
+  assert.strictEqual(fights, 1, '切磋页出现了第二个对手列表（秘境是不是又搬回来了）');
+  assert.ok(battle.indexOf('入秘境') < 0, '秘境列表又回到切磋页了：两页各排一份必然有一页先改');
+  assert.ok(battle.indexOf('onGoSecret') >= 0, '切磋页没有通往秘境的指路');
   // 秘境行必须是细描边的次操作，不能和「挑战」同为金色实心。
-  const secretLine = s.split('\n').filter(function (l) { return /入秘境/.test(l); })[0] || '';
-  assert.ok(/imm-btn--ghost/.test(secretLine), '秘境按钮没和战斗按钮拉开层级');
+  let walks = 0;
+  for (const line of secret.split('\n')) {
+    if (!/bindtap="onFight"/.test(line)) continue;
+    walks += 1;
+    assert.ok(/imm-btn--ghost/.test(line), '秘境按钮没和战斗按钮拉开层级：' + line.trim());
+    assert.ok(/imm-btn--sm/.test(line), '秘境按钮不是行内紧凑按钮：' + line.trim());
+  }
+  assert.ok(walks >= 1, '秘境页没有「入秘境」按钮');
+  // 两页共用一份结算卡：抄成两份的话，改一处就有一处会忘。
+  for (const src of [battle, secret]) {
+    assert.ok(/<duel-result\b/.test(src), '对决结算没走共用组件');
+    assert.ok(!/class="modal"/.test(src), '页面里又自绘了一份结算弹窗');
+  }
+  // 秘境页不再复述对手名单，只留一行去切磋的指路。
+  assert.ok(secret.indexOf('onGoBattle') >= 0 && secret.indexOf('战力码') < 0, '秘境页又把切磋那份东西抄过来了');
 });
 
 check('不再使用会被 .btn-row 覆盖的 mt12 / mt16 组合', function () {
@@ -840,8 +858,7 @@ check('全局基础层与常规页样式不写裸色值，尺寸走令牌', func
 });
 
 check('导航栏标题简洁统一，tab 页不重复 tabBar，配色交给主题变量', function () {
-  const titles = ['仙门切磋', '参悟', '登录', '修行指南', '修行日志',
-    '战力仙榜', '称号簿'];
+  const titles = require('../data/navigation.js').PAGE_TITLES;
   const appCfg = require('../app.json');
   const tabs = appCfg.tabBar.list.map(function (t) { return t.pagePath; });
   // 说明页的标题在 onLoad 里按主题动态设置（人物 · 说明）；
@@ -959,7 +976,7 @@ check('信息架构：主页只做导航，说明独立成页，低频内容默�
   // 留成 tab 的话，「点哪门功法进哪门的静室」就做不到——tab 页不能带 query。
   assert.ok(appJson.tabBar.list.every(function (t) { return t.pagePath !== 'pages/cultivate/cultivate'; }),
     '修炼又回到 tabBar 了：那样点功法卡片只能进「上一次练的那门」');
-  assert.strictEqual(nav.TILES.length, 5, '主页宫格不是 5 个入口');
+  assert.strictEqual(nav.TILES.length, 6, '主页宫格不是 6 个入口');
   const index = read('pages/index/index.wxml');
   assert.ok(/class="imm-grid"/.test(index) && /bindtap="onTile"/.test(index), '主页没有宫格导航');
   assert.strictEqual((index.match(/bindtap="onQuickPractice"/g) || []).length, 1,
@@ -1101,7 +1118,7 @@ check('主页宫格各进各的子页，不再借道别的 tab', function () {
   const nav = require('../data/navigation.js');
   const app = JSON.parse(read('app.json'));
   const tabs = app.tabBar.list.map(function (t) { return t.pagePath; });
-  assert.strictEqual(nav.TILES.length, 5, '主页宫格不再是五格');
+  assert.strictEqual(nav.TILES.length, 6, '主页宫格不再是六格');
   const urls = nav.TILES.map(function (t) { return t.url; });
   assert.strictEqual(new Set(urls).size, urls.length, '宫格有重复去处');
   for (const t of nav.TILES) {
@@ -1111,7 +1128,7 @@ check('主页宫格各进各的子页，不再借道别的 tab', function () {
     assert.ok(tabs.indexOf(rel) < 0, t.label + ' 仍然跳去 tab 页 ' + rel);
   }
   // 子页都是独立四件套，且页面里不再自绘返回。
-  for (const name of ['cultivate', 'board', 'titles']) {
+  for (const name of ['cultivate', 'board', 'titles', 'secret']) {
     for (const ext of ['.js', '.json', '.wxml', '.wxss']) {
       assert.ok(fs.existsSync(path.join(ROOT, 'pages/' + name + '/' + name + ext)), name + ' 缺 ' + ext);
     }

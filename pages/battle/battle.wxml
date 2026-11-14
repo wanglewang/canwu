@@ -1,7 +1,7 @@
 <view class="pg pg--imm">
   <view wx:if="{{ov}}" class="imm-panel">
     <view class="imm-panel__head">
-      <text class="imm-panel__label">我的战力</text>
+      <text class="imm-panel__label">{{copy.sections.myPower}}</text>
       <text class="imm-chip">{{ov.equippedTitleName}}</text>
     </view>
     <text class="imm-realm">{{ov.power}}</text>
@@ -15,7 +15,7 @@
     <text class="state__desc">{{copy.loading}}</text>
   </view>
 
-  <view class="imm-sec-title">同门与来客</view>
+  <view class="imm-sec-title">{{copy.sections.rivals}}</view>
   <view class="imm-list">
     <view class="imm-row" wx:for="{{npcs}}" wx:key="id">
       <view class="imm-row__body">
@@ -32,30 +32,22 @@
         <text wx:elif="{{item.dropName}}" class="riv-note">首胜功法已得，再战只给灵气与灵石</text>
         <text wx:else class="riv-note">灵气 +{{item.qi}} · 灵石 +{{item.stone}}</text>
       </view>
-      <button class="imm-btn imm-btn--sm {{item.cleared ? 'imm-btn--ghost' : ''}}" data-id="{{item.id}}" bindtap="onFight">{{item.cleared ? '再战' : '挑战'}}</button>
+      <button class="imm-btn imm-btn--sm {{item.cleared ? 'imm-btn--ghost' : ''}}" data-id="{{item.id}}" bindtap="onFight">{{item.cleared ? copy.actions.rechallenge : copy.actions.challenge}}</button>
     </view>
   </view>
 
-  <view class="imm-sec-title">秘境探索</view>
+  <!-- 秘境已经是独立一页：这里只留一行指路，不再重复那三段列表。 -->
   <view class="imm-list">
-    <view class="imm-row" wx:for="{{secrets}}" wx:key="id">
+    <view class="imm-row pressable" hover-class="pressable--on" bindtap="onGoSecret">
       <view class="imm-row__body">
-        <view class="riv-head">
-          <text class="imm-row__name">{{item.name}}</text>
-          <text class="imm-chip {{item.cleared ? 'imm-chip--jade' : ''}}">{{item.cleared ? '已走过' : item.title}}</text>
-        </view>
-        <text class="imm-row__sub riv-desc">{{item.desc}}</text>
-        <view class="riv-meta">
-          <text>战力 {{item.power}}</text>
-          <text class="riv-tone--{{item.hintTone}}">{{item.hint}}</text>
-        </view>
-        <text class="riv-note">只产灵气与灵石 · 灵气 +{{item.qi}} / 灵石 +{{item.stone}}</text>
+        <text class="imm-row__name">{{copy.pages.secret.title}}</text>
+        <text class="imm-row__sub">只产灵气与灵石，不掉功法</text>
       </view>
-      <button class="imm-btn imm-btn--sm imm-btn--ghost" data-id="{{item.id}}" bindtap="onFight">入秘境</button>
+      <text class="imm-row__value">{{copy.actions.goSecret}} ›</text>
     </view>
   </view>
 
-  <view class="imm-sec-title">约战</view>
+  <view class="imm-sec-title">{{copy.sections.duel}}</view>
   <view class="imm-list">
     <view class="imm-row pressable" hover-class="pressable--on" bindtap="onToggleCode">
       <view class="imm-row__body">
@@ -81,50 +73,7 @@
     </view>
   </view>
 
-  <view class="mask" wx:if="{{showResult && result}}" bindtap="closeResult">
-    <view class="modal" catchtap="noop">
-      <text class="modal__title">{{result.headline}}</text>
-      <text class="modal__sub">{{result.subline}}</text>
-
-      <view class="battle-score mt24">
-        <view class="battle-score__side">
-          <text class="tiny">我方挥出</text>
-          <text class="battle-num {{result.winTone}}">{{result.playerRoll}}</text>
-        </view>
-        <text class="battle-vs">对</text>
-        <view class="battle-score__side">
-          <text class="tiny">对方接下</text>
-          <text class="battle-num">{{result.enemyRoll}}</text>
-        </view>
-      </view>
-      <text class="quote mt16">{{result.line}}</text>
-
-      <view class="modal__body" wx:if="{{result.effects.length > 0}}">
-        <text class="tag tag--gold">触发特效</text>
-        <view class="res-note mt8" wx:for="{{result.effects}}" wx:key="name">
-          <text class="tiny">· {{item.name}}：{{item.text}}</text>
-        </view>
-      </view>
-
-      <view class="modal__body">
-        <view class="res-line" wx:for="{{result.lines}}" wx:key="k">
-          <text class="muted">{{item.k}}</text>
-          <text class="h3 jade">{{item.v}}</text>
-        </view>
-      </view>
-
-      <view class="modal__body" wx:if="{{result.titles.length > 0}}">
-        <text class="tag tag--gold">新称号</text>
-        <view class="row--wrap mt8">
-          <text class="tag tag--jade" wx:for="{{result.titles}}" wx:key="*this">{{item}}</text>
-        </view>
-      </view>
-
-      <view class="modal__actions">
-        <button class="imm-btn imm-btn--block" bindtap="closeResult">{{copy.actions.confirm}}</button>
-      </view>
-    </view>
-  </view>
+  <duel-result show="{{showResult}}" result="{{result}}" bind:close="closeResult" />
 
   <!-- 两条都是"看规则"：合成一行，别在页尾排两段同类链接。 -->
   <view class="pg__foot">

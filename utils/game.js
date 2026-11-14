@@ -779,7 +779,7 @@ function battle(state, challengeId) {
       dropName = s ? s.name : '';
       addLog(state, '战胜 ' + c.name + '，得《' + dropName + '》', 'battle');
     } else {
-      addLog(state, '首胜 ' + c.name + '，灵石 +' + stone, 'battle');
+      addLog(state, (c.kind === 'secret' ? '首过 ' : '首胜 ') + c.name + '，灵石 +' + stone, 'battle');
     }
   } else {
     addLog(state, (win ? '胜 ' : '负于 ') + c.name + '，战力 ' + rolls.playerRoll + ' : ' + rolls.enemyRoll, 'battle');
@@ -789,6 +789,7 @@ function battle(state, challengeId) {
     ok: true,
     win: win,
     firstClear: firstClear,
+    kind: c.kind,
     challengeName: c.name,
     challengeTitle: c.title,
     power: power,
@@ -1343,7 +1344,7 @@ function recommend(state) {
       profTierName: '大圆满', profTierColor: worldData.TIERS[worldData.TIERS.length - 1].color,
       gap: 0, percent: 100, maxed: true,
       reason: '手上的 ' + skillData.SKILLS.length + ' 门功法都练到了大圆满',
-      next: '去仙门切磋试试秘境，那里还有没打过的对手。',
+      next: '去仙门切磋找还没首胜的对手，或去秘境探索攒兑换用的资源。',
     };
   }
 

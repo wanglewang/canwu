@@ -1,81 +1,9 @@
-/* 仙门切磋页私有样式。code-box / code-input / code-ph 用全局基础层，不在这里重复定义。 */
+/* 仙门切磋页私有样式：只剩战力码这一块。
+   对手行（.riv-*）切磋与秘境都在用，已收进 styles/immortal.wxss；
+   结算卡在 components/duel-result 里，两页共用一份，也不在这里。 */
 
-/* 对手行：名字与身份标记同行，下面是风味句、数值行、掉落行。
-   桌面端卡片堆叠改成分组列表后，行内必须自己撑住四行信息的间距。 */
-.riv-head {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-3);
-}
-
-.riv-desc {
-    display: block;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
-/* 风味句退到注脚色，战力与状态词提亮一档：
-   两行同色同号时，四行字会糊成一段，看不出哪行是能决策的信息。 */
-.riv-meta {
-    display: flex;
-    align-items: baseline;
-    gap: var(--sp-5);
-    margin-top: var(--sp-3);
-    color: var(--c-imm-text-2);
-    font-size: var(--fs-caption);
-}
-
-.riv-tone--good { color: var(--c-imm-jade); }
-.riv-tone--warn { color: var(--c-imm-gold); }
-
-.riv-drop {
-    display: block;
-    margin-top: var(--sp-2);
-    color: var(--c-imm-gold);
-    font-size: var(--fs-caption);
-}
-
-.riv-note {
-    display: block;
-    margin-top: var(--sp-2);
-    color: var(--c-imm-text-3);
-    font-size: var(--fs-caption);
-}
-
-/* 行内按钮不参与压缩，也不让名字把按钮挤成两行 */
-.imm-row > .imm-btn { flex: none; }
-
-.battle-score {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    padding: var(--sp-6) 0;
-    border-radius: var(--r-md);
-    background: var(--c-surface-2);
-}
-
-.battle-score__side {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.battle-num {
-    margin-top: var(--sp-2);
-    font-size: var(--fs-h1);
-    font-weight: 700;
-    line-height: 1;
-    color: var(--c-text);
-    animation: riseIn 420ms ease-out both;
-}
-
-.battle-vs {
-    color: var(--c-text-3);
-    font-size: var(--fs-note);
-}
-
-@keyframes riseIn {
-    from { opacity: 0; transform: translateY(var(--sp-4)); }
-    to { opacity: 1; transform: translateY(0); }
+/* 战力码是一整串不能断的字符（CW1-XX-X-XXXXXX-XXX），小屏上必须允许任意位置折行，
+   否则会把 code-box 撑出横向滚动。 */
+.code-box {
+    word-break: break-all;
 }

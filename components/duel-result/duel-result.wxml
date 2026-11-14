@@ -1,0 +1,44 @@
+<view wx:if="{{show && view}}" class="mask" bindtap="onClose">
+  <view class="modal" catchtap="noop">
+    <text class="modal__title">{{view.headline}}</text>
+    <text class="modal__sub">{{view.subline}}</text>
+
+    <view class="duel-score mt24">
+      <view class="duel-score__side">
+        <text class="tiny">我方挥出</text>
+        <text class="duel-num {{view.winTone}}">{{view.playerRoll}}</text>
+      </view>
+      <text class="duel-vs">对</text>
+      <view class="duel-score__side">
+        <text class="tiny">对方接下</text>
+        <text class="duel-num">{{view.enemyRoll}}</text>
+      </view>
+    </view>
+    <text class="quote mt16">{{view.line}}</text>
+
+    <view class="modal__body" wx:if="{{view.effects.length > 0}}">
+      <text class="tag tag--gold">触发特效</text>
+      <view class="res-note mt8" wx:for="{{view.effects}}" wx:key="name">
+        <text class="tiny">· {{item.name}}：{{item.text}}</text>
+      </view>
+    </view>
+
+    <view class="modal__body">
+      <view class="res-line" wx:for="{{view.lines}}" wx:key="k">
+        <text class="muted">{{item.k}}</text>
+        <text class="h3 jade">{{item.v}}</text>
+      </view>
+    </view>
+
+    <view class="modal__body" wx:if="{{view.titles.length > 0}}">
+      <text class="tag tag--gold">新称号</text>
+      <view class="row--wrap mt8">
+        <text class="tag tag--jade" wx:for="{{view.titles}}" wx:key="*this">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="modal__actions">
+      <button class="imm-btn imm-btn--block" bindtap="onClose">{{copy.actions.confirm}}</button>
+    </view>
+  </view>
+</view>

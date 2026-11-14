@@ -1,7 +1,7 @@
 <view class="pg pg--imm">
   <view class="imm-panel">
     <view class="imm-panel__head">
-      <text class="imm-panel__label">我的战力</text>
+      <text class="imm-panel__label">{{copy.sections.myPower}}</text>
       <text class="imm-chip">{{myRank > 0 ? '榜上第 ' + myRank : '尚未上榜'}}</text>
     </view>
     <text class="imm-realm">{{ov ? ov.power : 0}}</text>

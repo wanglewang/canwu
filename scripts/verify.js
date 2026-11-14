@@ -382,7 +382,7 @@ for (const mode of ['light', 'dark']) {
 
 // 导航栏标题：tab 页一律留空（页名由底部 tabBar 承担，顶部再写一遍就是同一行字出现两次）；
 // 子页必须用统一命名表里的页面名；配色交给 app.json 的 @变量（页面写死会在暗色下穿帮）。
-const TITLES = ['仙门切磋', '参悟', '登录', '修行指南', '修行日志', '战力仙榜', '称号簿'];
+const TITLES = require(path.join(ROOT, 'data/navigation.js')).PAGE_TITLES;
 // 说明页是共用容器，导航标题在 onLoad 里按主题动态给出「人物 · 说明」，json 里必须留空。
 // 功法详情页（pages/cultivate）的标题是这一门的正名，进哪门写哪门，json 里必须留空。
 const DYNAMIC_TITLES = ['pages/help/help', 'pages/cultivate/cultivate'];
@@ -419,6 +419,8 @@ const TOKENIZED = [
   'pages/cultivate/cultivate.wxss',
   'pages/skills/skills.wxss',
   'pages/battle/battle.wxss',
+  'pages/secret/secret.wxss',
+  'components/duel-result/duel-result.wxss',
   'pages/profile/profile.wxss',
   'pages/guide/guide.wxss',
   'pages/help/help.wxss',
@@ -435,7 +437,7 @@ for (const f of TOKENIZED) {
 // 运行时由 minigames/theme.js / data/visual.js 注入的盘面变量在这里白名单放行。
 const tokenDefs = new Set([...tokenSrc.matchAll(/(--[\w-]+)\s*:/g)].map(function (m) { return m[1]; }));
 const runtimeVars = new Set(['--acc', '--soft', '--ink', '--bg', '--frame', '--glow', '--deep', '--well', '--a', '--d']);
-const styleFiles = ['app.wxss', 'styles/scene.wxss', 'styles/immortal.wxss'].concat(appJson.pages.map(function (pg) { return pg + '.wxss'; }));
+const styleFiles = ['app.wxss', 'styles/scene.wxss', 'styles/immortal.wxss', 'components/duel-result/duel-result.wxss'].concat(appJson.pages.map(function (pg) { return pg + '.wxss'; }));
 const undefinedVars = [];
 for (const f of styleFiles) {
   const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -479,6 +481,8 @@ const sharedCopy = [
   copy.UI.emptyLog, copy.UI.emptyBoard, copy.UI.emptySkills,
   copy.UI.sections.today, copy.UI.sections.more,
   copy.UI.sections.settings, copy.UI.sections.battleCode,
+  // 切磋与秘境共用「我的战力」与对手列表标题：两页各抄一遍就会有一页先改。
+  copy.UI.sections.myPower, copy.UI.sections.rivals,
 ];
 for (const text of sharedCopy) {
   if (allWxml.indexOf('>' + text + '<') >= 0) errors.push('WXML 又硬编码了共享文案：' + text);
@@ -518,7 +522,7 @@ for (let i = 0; i < nav.TAB_ORDER.length; i += 1) {
     errors.push('tabBar 第 ' + (i + 1) + ' 项的文案与导航真源不一致：' + appJson.tabBar.list[i].text);
   } else checked += 1;
 }
-if (nav.TILES.length !== 5) errors.push('主页宫格不是 5 个入口');
+if (nav.TILES.length !== 6) errors.push('主页宫格不是 6 个入口');
 else checked += 1;
 for (const tile of nav.TILES) {
   const target = tile.url.replace(/^\//, '');

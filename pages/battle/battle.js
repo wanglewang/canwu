@@ -10,35 +10,15 @@ function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
 }
 
-function buildResult(r) {
-  const lines = [
-    { k: '灵气', v: '+' + r.qi },
-  ];
-  if (r.stone > 0) lines.push({ k: '灵石', v: '+' + r.stone });
-  if (r.dropName) lines.push({ k: '新功法', v: r.dropName });
-  return {
-    win: r.win,
-    headline: r.win ? (r.firstClear ? '首胜 · ' + r.challengeName : '胜 · ' + r.challengeName) : '惜败 · ' + r.challengeName,
-    subline: r.challengeTitle + ' · 双方各有 ±15% 波动',
-    power: r.power,
-    enemyPower: r.enemyPower,
-    playerRoll: r.playerRoll,
-    enemyRoll: r.enemyRoll,
-    effects: r.effects || [],
-    lines: lines,
-    line: r.line,
-    titles: (r.newTitles || []).map(function (t) { return t.name; }),
-    winTone: r.win ? 'jade' : 'red',
-  };
-}
-
 // 仙门切磋：一个页面只做一件事——挑一个对手，打一场。
-// 榜单在「战力仙榜」页，这里只留一行指路，不再重复一份前十。
+// 秘境探索已经不在这里了：它是主页六宫格里的另一格、另一个页面。
+// 以前两段列表挤在同一屏，玩家得先分清「哪一段是同门」才点得对；
+// 现在各说各的，这一页末尾只留一行指路，不重复那份列表。
+// 榜单在「战力仙榜」页，这里同样只留一行指路。
 Page({
   data: {
     ov: null,
     npcs: [],
-    secrets: [],
     myCode: '',
     inputCode: '',
     showResult: false,
@@ -61,15 +41,12 @@ Page({
     const state = store.get();
     const all = engine.getChallengeList(state);
     const npcs = [];
-    const secrets = [];
     for (let i = 0; i < all.length; i += 1) {
       if (all[i].kind === 'npc') npcs.push(all[i]);
-      else secrets.push(all[i]);
     }
     this.setData({
       ov: engine.getOverview(state),
       npcs: npcs,
-      secrets: secrets,
       myCode: engine.battleCode(state),
     });
   },
@@ -81,15 +58,18 @@ Page({
 
   onGoBoard: function () { wx.navigateTo({ url: '/pages/board/board' }); },
 
+  onGoSecret: function () { wx.navigateTo({ url: '/pages/secret/secret' }); },
+
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
 
   onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('battle') }); },
 
+  // 结果原样交给 components/duel-result：格式化只写一份，两页共用。
   onFight: function (event) {
     const id = event.currentTarget.dataset.id;
     const r = store.commitCritical(function (s) { return engine.battle(s, id); });
     if (!r.ok) { toast(r.msg); return; }
-    this.setData({ showResult: true, result: buildResult(r) });
+    this.setData({ showResult: true, result: r });
     this.refresh();
   },
 
@@ -120,7 +100,7 @@ Page({
     if (!code) { toast('先粘贴一个战力码'); return; }
     const r = store.commitCritical(function (s) { return engine.battleMirror(s, code); });
     if (!r.ok) { toast(r.msg); return; }
-    this.setData({ showResult: true, result: buildResult(r) });
+    this.setData({ showResult: true, result: r });
     this.refresh();
   },
 

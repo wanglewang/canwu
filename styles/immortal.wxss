@@ -193,10 +193,10 @@
     border-bottom: 1rpx solid var(--c-imm-line-soft);
 }
 
+/* 六格：3 列 × 2 行，正好排满。末格右边框由 nth-child(3n) 收掉，
+   最后一行三格都没有下边框——按「末两格」写会把第二行的第一格留一条线。 */
 .imm-tile:nth-child(3n) { border-right: 0; }
-/* 五格布局：第 5 格是第二行的末格，右边框同样要收掉；末行两格没有下边框。 */
-.imm-tile:nth-last-child(1) { border-right: 0; }
-.imm-tile:nth-last-child(-n + 2) { border-bottom: 0; }
+.imm-tile:nth-last-child(-n + 3) { border-bottom: 0; }
 
 .imm-tile__inner {
     display: flex;
@@ -589,3 +589,53 @@
     height: 1rpx;
     background: var(--c-imm-line-soft);
 }
+
+/* ---------- 对手行：切磋与秘境共用 ---------- */
+/* 名字与身份标记同行，下面是风味句、数值行、掉落行。
+   卡片堆叠改成分组列表后，行内必须自己撑住四行信息的间距。
+   这一组住在皮肤层，是因为「仙门切磋」与「秘境探索」是两页、两段数据，
+   但「一个人/一处地方的战力与状态」是同一套排版，各写一份必然有一页先改。 */
+
+.riv-head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+}
+
+.riv-desc {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* 风味句退到注脚色，战力与状态词提亮一档：
+   两行同色同号时，四行字会糊成一段，看不出哪行是能决策的信息。 */
+.riv-meta {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-5);
+    margin-top: var(--sp-3);
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-caption);
+}
+
+.riv-tone--good { color: var(--c-imm-jade); }
+.riv-tone--warn { color: var(--c-imm-gold); }
+
+.riv-drop {
+    display: block;
+    margin-top: var(--sp-2);
+    color: var(--c-imm-gold);
+    font-size: var(--fs-caption);
+}
+
+.riv-note {
+    display: block;
+    margin-top: var(--sp-2);
+    color: var(--c-imm-text-3);
+    font-size: var(--fs-caption);
+}
+
+/* 行内按钮不参与压缩，也不让名字把按钮挤成两行 */
+.imm-row > .imm-btn { flex: none; }
