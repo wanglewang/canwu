@@ -12,6 +12,7 @@ const visual = require('../../data/visual.js');
 const sfx = require('../../utils/sfx.js');
 const swipeInput = require('../../utils/swipe.js');
 const copy = require('../../data/copy.js');
+const nav = require('../../data/navigation.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -47,21 +48,24 @@ Page({
     rankLabel: '黄阶',
     rankChar: '黄',
     rankColor: '#8a8f83',
-    rankStars: '★☆☆☆',
-    rankRewardText: '熟练度 ×1.00',
+    rankRewardText: '×1.00',
     decayTip: '',
-    chainItems: [],
-    chainLabel: '',
     bestText: '',
-    // 三连 S 直接晋级：准备页常驻「还差几局」，不占按钮也不打断计时。
+    // 三连 S 直接晋级：一行写完（圆点 + 还差几局），不再占一整张卡。
     streakText: '',
     // 收益口径一行：只奖不罚，开局前就写清本局会不会吃到换门加成。
     repeatNote: '',
     streakDots: [],
+    // 开局卡第一行：这一局做什么。整篇规则在说明页，这里只留一句。
+    ruleText: '',
+    // 低于本门最高已解锁档时的折减提示；没折减就是空串，整行不出现。
+    belowCapText: '',
+    // 本门新法默认折叠：开关要在开局前能改，但七条规则不该铺在首屏。
+    stageOpen: false,
+    stageSummary: '',
+    stageBrief: '',
     theme: themes.themeOf('forge', 'click'),
     twistName: '常规功课',
-    twistTag: '本门机制',
-    twistDesc: '',
     stageRules: [],
     hintLabel: '提示',
     copy: copy.UI,
@@ -77,9 +81,8 @@ Page({
     showResult: false,
     result: null,
     barMode: '',
+    // 局内那一行速记（guide.inline）。整篇规则在说明页，这里只留操作，不留解释。
     guide: null,
-    // 说明默认收起：准备页先看功法与熟练度，要看规则再点「展开」。
-    guideOpen: false,
     // 收起结算后准备页顶部还留一行「上局战绩」，随时能把结算明细叫回来重看。
     recordBrief: '',
     slashList: [],
@@ -121,6 +124,11 @@ Page({
     this.lastTouchY = 0;
     this.theme = themes.themeOf('forge', 'click');
     this.twist = '';
+    // 难度默认值不落存档：每次进这一页都按本门熟练度重算（默认最高已解锁档）。
+    // diffOverride 只记「这一次停留里玩家手动点过哪一档」，换页即弃——
+    // 否则半年前点过一次简单档，练到圆满也永远默认简单。
+    this.diffOverride = '';
+    this.maxIdxSeen = -1;
     this.mode = query && query.mode === 'breakthrough' ? 'breakthrough' : 'practice';
     this.skillId = (query && query.skillId) || '';
     sfx.warm();
@@ -201,18 +209,19 @@ Page({
         diffMultText: '',
         rankLabel: '',
         rankChar: '',
-        rankStars: '',
         rankRewardText: '',
         decayTip: '',
-        chainItems: [],
-        chainLabel: '',
         bestText: '',
         streakText: '',
         streakDots: [],
         theme: this.theme,
-        twistName: '长按蓄力',
-        twistTag: '',
-        twistDesc: '按住蓄力，松手停在朱线区间。越贴近正中，评级越高。',
+        twistName: '',
+        // 冲关只有一句话的规则，不存在「本门新法」与难度块。
+        ruleText: '按住蓄力，松手停在朱线区间；越贴近正中，评级越高。',
+        belowCapText: '',
+        stageOpen: false,
+        stageSummary: '',
+        stageBrief: '',
         stageRules: [],
       });
       return;
@@ -225,32 +234,44 @@ Page({
     const twist = themes.twistOf(method.twist);
     const tier = practiceData.tierOf(skill.tier);
 
-    // 难度档只认本门熟练度：已选的档若还没解锁，就回落到当前能选最高档。
-    const maxDiff = practiceData.bestDifficulty(rec.prof);
-    const keep = practiceData.diffKeyIndex(this.data.difficulty) <= practiceData.diffIndexOf(rec.prof);
-    const diffKey = keep ? this.data.difficulty : maxDiff;
+    // 难度默认值 = 本门最高已解锁档，每次进这一页都按熟练度重算。
+    // 手动选过的档只在这一页停留期间有效；一旦跨过新门槛（最高档变了），
+    // 就清掉手选、回到新档——解锁新档是玩家练出来的结果，第一局就该打它。
+    // 想练手可以随时点回低档，但低档收益折半、S 也不计连晋（见 belowCapText）。
+    const maxIdx = practiceData.diffIndexOf(rec.prof);
+    if (maxIdx > this.maxIdxSeen) this.diffOverride = '';
+    this.maxIdxSeen = maxIdx;
+    const keepOverride = this.diffOverride
+      && practiceData.diffKeyIndex(this.diffOverride) <= maxIdx;
+    const diffKey = keepOverride ? this.diffOverride : practiceData.DIFFICULTIES[maxIdx].key;
     const diff = practiceData.diffDetail(method, diffKey);
     const diffList = practiceData.difficultyList(rec.prof, diffKey);
+    const belowCapText = practiceData.belowCapText(rec.prof, diffKey);
+    // 折减后的实得倍率：面板上不能还写 ×1.30，结算又是 ×0.65。
+    const diffMultText = '×' + practiceData.effectiveMultOf(rec.prof, diffKey).toFixed(2);
 
-    const chain = skillData.chainOfType(skill.type);
-    const chainItems = chain.items.map(function (it) {
-      return {
-        id: it.id, name: it.name,
-        tierColor: practiceData.tierOf(it.tier).color,
-        current: it.id === skill.id,
-      };
-    });
     const best = state.records ? state.records[skill.id] : null;
     const bestText = best ? '本门最佳 ' + best.score + ' 分 · ' + best.grade + ' 档' : '';
 
     // 连 S 每门各算各的：非 S 断连，中途收功不计数。满 3 局直接补到下一阶段门槛。
+    // 文案把「晋到哪一段、开哪一档难度」一起写出来：连 S 补的是段位，
+    // 而段位门槛与难度门槛同源，玩家看到的「3 局 S 解锁困难」正是这么来的。
     const streakGoal = engine.S_STREAK_GOAL || 3;
     const streakNow = Math.min(streakGoal - 1, Math.floor(Number(state.sStreak && state.sStreak[skill.id]) || 0));
     const streakDots = [];
     for (let i = 0; i < streakGoal; i += 1) streakDots.push({ id: i, on: i < streakNow });
+    const nextTierForStreak = info.maxed ? null : worldData.TIERS[info.index + 1];
+    // 晋一段顺带开哪一档？段位门槛与难度门槛同源，玩家心里那句「3 局 S 解难度」
+    // 就是这么来的——与其让他自己猜，不如直接写在进度行里。门槛没跨档时就不提。
+    let streakTail = '本门已至大圆满';
+    if (nextTierForStreak) {
+      const nd = practiceData.DIFFICULTIES[practiceData.diffIndexOf(nextTierForStreak.threshold)];
+      streakTail = '晋「' + nextTierForStreak.name + '」';
+      if (practiceData.diffKeyIndex(nd.key) > maxIdx) streakTail += ' · 开「' + nd.name + '」';
+    }
     const streakText = streakNow > 0
-      ? '已连 ' + streakNow + ' 局 S · 再 ' + (streakGoal - streakNow) + ' 局直接晋一段'
-      : '连续 ' + streakGoal + ' 局 S 直接晋一段 · 非 S 断连';
+      ? '连 S ' + streakNow + ' / ' + streakGoal + ' · 再 ' + (streakGoal - streakNow) + ' 局' + streakTail
+      : '连续 ' + streakGoal + ' 局 S ' + streakTail;
     // 这一局是不是「换门」由存档里的上一门决定，和结算用的是同一条判定。
     const crossNow = !!state.lastPractice.skillId && state.lastPractice.skillId !== skill.id;
     const repeatNote = copy.practiceNote(crossNow, worldData.CROSS_BONUS);
@@ -267,9 +288,11 @@ Page({
     }
 
     const offTwists = engine.twistsOff(state, this.skillId);
+    let stageOn = 0;
     const stageRules = practiceData.stageRulesOf(method.id).map(function (r) {
       const on = rec.prof >= worldData.TIERS[r.at].threshold;
-      // 只有 hard 类（改规矩的）才给开关；照影、稳基那种纯加成关了没好处，
+      if (on) stageOn += 1;
+      // 只有 hard 类（改规矩的）才给开关；勘位、稳基那种纯加成关了没好处，
       // 多一个开关只是多一处看不懂。
       const toggle = !!r.hard && on;
       const enabled = on && offTwists.indexOf(r.name) < 0;
@@ -284,12 +307,21 @@ Page({
         tagCls: on && enabled ? 'tag--jade' : 'tag--grey',
       };
     });
-    // 下一段给什么：现在只写「还差 114」，玩家不知道练到那一步能得到什么。
+    const stageSummary = stageOn ? '共 ' + stageRules.length + ' 项 · 已得 ' + stageOn : '共 ' + stageRules.length + ' 项';
+    // 折叠态只留一行「已得的那几条长什么样」：名字 + 速记写法（死门＝✕ 格点不得）。
+    // 这是原来「怎么玩」收起态里那半句的落点——开局前该知道这一门现在多了什么，
+    // 但不值得为它铺开五条正文。
+    const stageBrief = stageRules.filter(function (r) { return r.enabled; })
+      .map(function (r) { return r.name + '＝' + r.short; }).join(' · ');
+    // 下一段给什么：只写「还差 114」，玩家不知道练到那一步能得到什么。
     // 收益就在 world.TIERS[].desc 里（解锁难度 / 属性 / 阶段新法），原样搬一句，不另编。
     const nextTier = info.maxed ? null : worldData.TIERS[info.index + 1];
     // S 线只写在准备页：局内只报「还差几分」，这里给出本档门槛与评级口径。
     // 分数线（三秀同收）与盘数线（阵灯推演）都由 practiceData 同源生成，换难度档跟着变。
     const sLine = practiceData.sLineText(method, diffKey);
+    // 开局卡那一行：整篇规则在说明页，首屏只留「这一局做什么」。
+    const guideData = guides.guideOf(method.game);
+    const ruleText = guideData ? guideData.goal : method.desc;
 
     this.theme = theme;
     this.twist = method.twist;
@@ -298,6 +330,7 @@ Page({
       subtitle: skill.desc,
       gameName: minigames.gameName(method.game),
       tip: method.tip,
+      ruleText: ruleText,
       tierName: info.name,
       tierColor: info.color,
       prof: rec.prof,
@@ -307,33 +340,36 @@ Page({
       difficulty: diffKey,
       diffList: diffList,
       diffName: diff.name,
-      diffMultText: diff.multText,
+      diffMultText: diffMultText,
+      belowCapText: belowCapText,
       // 高难度除了倍率还收紧了什么：diffDetail 已经算好了（亮起时长、口诀轮数…），
       // 以前只在数据里躺着没渲染，玩家只能看到「×1.70」。
       diffBrief: diff.brief,
       goalText: sLine,
       rankLabel: tier.label,
       rankChar: tier.name,
-      rankStars: engine.starsOf(tier.stars),
       rankColor: tier.color,
-      rankRewardText: '熟练度 ×' + tier.reward.toFixed(2),
+      // 品阶卡收成标题行一小段：倍率是要用的数，星级与一脉属于图鉴，不占开局前这一屏。
+      rankRewardText: '×' + tier.reward.toFixed(2),
       decayTip: decayTip,
-      chainItems: chainItems,
-      chainLabel: skill.type + ' 一脉',
       bestText: bestText,
       streakText: streakText,
       repeatNote: repeatNote,
       streakDots: streakDots,
       theme: theme,
       twistName: twist.name,
-      twistTag: '本门机制',
-      twistDesc: twist.desc,
       stageRules: stageRules,
+      stageSummary: stageSummary,
+      stageBrief: stageBrief,
     });
   },
 
   buildGame: function () {
     if (this.controller) this.controller.destroy();
+    // 新一局默认不是「主动收功」：这个标记只由 onAbandon 置位，结算读完即失效。
+    // 同一条 F 有两种来历——主动退出（整局作废）与走火（一局打完但没成），
+    // 收益与连 S 处置完全不同，所以必须在页面上分开。
+    this.aborting = false;
     const state = store.get();
     let gameId = 'charge';
     let params = {};
@@ -507,7 +543,8 @@ Page({
     if (this.data.showResult) mode = '';
     // 教学盘没有「收功」也没有提示按钮：它连一步都不计，底栏不该出现任何可点项。
     else if (this.data.tutorial) mode = '';
-    else if (this.data.started) mode = vm && (vm.extras.showUndo || vm.extras.showHint) ? 'tools' : '';
+    // 撤销 / 复位 / 提示三者有一个就得出条：华容道只有「复位」，没有这一项就点不到。
+    else if (this.data.started) mode = vm && (vm.extras.showUndo || vm.extras.showHint || vm.extras.showReset) ? 'tools' : '';
     else mode = 'start';
     if (mode !== this.data.barMode) this.setData({ barMode: mode });
   },
@@ -626,9 +663,21 @@ Page({
 
   onResize: function () { this.measureBoard(); },
 
-  onToggleGuide: function () {
-    this.setData({ guideOpen: !this.data.guideOpen });
+  // 本门新法默认折叠：开关要在开局前能改，但七条规则不该铺在首屏。
+  onToggleStage: function () {
+    this.setData({ stageOpen: !this.data.stageOpen });
     sfx.play('tap');
+  },
+
+  // 这一门的整篇规则只在说明页：准备页只留一行「这一局做什么」，局内只留两行速记。
+  // 局中不能开说明（切页即本局作废），所以这个入口必须留在开局前。
+  onGoHelp: function () {
+    const skill = this.mode === 'practice' ? skillData.getSkill(this.skillId) : null;
+    if (skill) {
+      wx.navigateTo({ url: nav.practiceHelpUrl(skill.method, '', this.data.difficulty) });
+      return;
+    }
+    wx.navigateTo({ url: nav.practiceHelpUrl('', 'charge') });
   },
 
   onDifficulty: function (event) {
@@ -641,6 +690,8 @@ Page({
       toast('熟练度到 ' + d.need + ' 才解锁「' + d.name + '」');
       return;
     }
+    // 手选只在这一页停留期间有效：换页回来仍按熟练度取默认（最高已解锁档）。
+    this.diffOverride = key;
     this.setData({ difficulty: key });
     this.refresh();
     this.buildGame();
@@ -699,6 +750,16 @@ Page({
     const before = this.lastFxKey;
     this.controller.longpress(Number(event.currentTarget.dataset.index));
     if (this.lastFxKey === before) sfx.play('tap');
+  },
+
+  // 华容道的块不在 cells 里：整块按百分比定位渲染，点一下就把这一块选中。
+  // 只有 stage === 'klotski' 会用到，别的玩法照旧走格子。
+  onBlockTap: function (event) {
+    if (this.data.tutorial) return;
+    if (!this.controller || !this.data.started || this.data.showResult) return;
+    const i = Number(event.currentTarget.dataset.i || 0);
+    this.controller.tap(i);
+    sfx.play('tap');
   },
 
   // ---------- 划刀输入 ----------
@@ -839,11 +900,15 @@ Page({
     const self = this;
     wx.showModal({
       title: '中途收功',
-      content: '这一局按「走火」结算，几乎拿不到收益，连 S 进度也会断。确定收功？',
+      content: '这一局作废，不计收益；连 S 进度原样保留，不增也不减。确定收功？',
       confirmText: '收功',
       confirmColor: '#b4453c',
       success: function (res) {
-        if (res.confirm && self.controller) self.controller.abandon();
+        if (res.confirm && self.controller) {
+          // 先置位再收功：结算回来才知道这条 F 是玩家自己点的，而不是打崩的。
+          self.aborting = true;
+          self.controller.abandon();
+        }
       },
     });
   },
@@ -857,7 +922,12 @@ Page({
     const gradeTitle = copy.GRADE_TITLE[grade] || '';
     let rv;
 
-    if (grade === 'F') {
+    // F 有两种来历，处置完全不同：
+    //   ① 玩家点「收功」→ 这一局作废，不进结算，连 S 原样不动；
+    //   ② 玩法自己判负（阵溃 / 心神耗尽 / 时辰到没通完）→ 是一局打完的结果，
+    //      按「走火」正常结算（×0.20），连 S 断。
+    // 突破局只有一种 F：气机一乱，走 ①。
+    if (grade === 'F' && (this.aborting || this.mode === 'breakthrough')) {
       if (this.mode === 'breakthrough') {
         store.commitCritical(function (s) { return engine.applyBreakthrough(s, 'F'); });
       }
@@ -928,12 +998,24 @@ Page({
       // 玩法层可以带自己的评级依据（燃灯诀写「走了几步 / 最优几步 / 为什么不是 S」）。
       // 它排在最前：玩家最先想知道的是这一局本身，而不是连 S 进度。
       const notes = Array.isArray(res.notes) ? res.notes.slice() : [];
+      // 走火不是「成绩差」，是没走完：先把理由摆在最前，玩家才知道这一局到底栽在哪。
+      if (grade === 'F') {
+        notes.unshift('这一局没走完，按「走火」只算两成收益（×' + r.gradeFactor.toFixed(2) + '）。');
+      }
+      // 折减要当场说：面板上选了简单档、结算只给一半，不解释就像算错了。
+      if (r.diffBelowCap) {
+        notes.push('本档低于已解锁的「' + r.diffCapName + '」：熟练度按 ×' + r.diffBelowCapFactor.toFixed(1)
+          + ' 计，S 也不计连晋；回「' + r.diffCapName + '」打才全额。');
+      }
       if (r.promotion && !r.promotion.maxed) {
         notes.push(r.promotion.added > 0
           ? '三连 S 圆满：熟练度直接补到「' + r.promotion.toName + '」门槛（+' + r.promotion.added + '），下一轮重新数。'
           : '三连 S 圆满：这一局的收益已自行跨过「' + r.promotion.toName + '」门槛，无需再补；计数清零重数。');
       } else if (r.promotion && r.promotion.maxed) {
         notes.push('三连 S 圆满，但本门已至大圆满，不再补熟练度。');
+      } else if (r.diffBelowCap) {
+        // 折减那句已经写明「S 不计连晋」，这里不再补一句连 S 进度——
+        // 否则「S 3/3」和「不算」会同时出现在结算里，自相矛盾。
       } else if (grade === 'S') {
         notes.push('连 S 进度 ' + r.sStreak + ' / ' + r.sStreakGoal + '：再连续 ' + (r.sStreakGoal - r.sStreak) + ' 局 S 可直接晋一段；非 S 会断连。');
       } else {
@@ -955,10 +1037,14 @@ Page({
         kind: 'practice',
         grade: grade,
         gradeColor: color,
-        gradeTitle: gradeTitle,
-        headline: r.promotion && !r.promotion.maxed
-          ? '三连圆满 · 晋 ' + r.promotion.toName
-          : r.tierUp ? '升段 · ' + r.tierName : '参悟完成',
+        // 走火时 headline 与 gradeTitle 都会写「走火」，标题行会重复两遍；
+        // 这里让副标题改说「这一局没走完」，把「为什么只给两成」留在 notes 里。
+        gradeTitle: grade === 'F' ? '这一局没走完' : gradeTitle,
+        headline: grade === 'F'
+          ? '走火'
+          : (r.promotion && !r.promotion.maxed
+            ? '三连圆满 · 晋 ' + r.promotion.toName
+            : r.tierUp ? '升段 · ' + r.tierName : '参悟完成'),
         subline: r.methodName + ' · ' + res.summary,
         summary: res.summary,
         lines: lines,
@@ -984,7 +1070,10 @@ Page({
       for (let i = 0; i < rv.lines.length; i += 1) {
         if (rv.lines[i].k === '熟练度') gain = rv.lines[i].v;
       }
-      recordBrief = '上局 · ' + (rv.gradeTitle || '') + (gain ? ' · ' + gain + ' 熟练度' : '');
+      // 这一行是准备页上唯一还看得见的上一局结论，所以写短、写准：
+      // 走火/收功各自一个词，别再拼「这一局没走完」那种一读就断的短语。
+      const briefTitle = rv.kind === 'abandon' ? '收功' : (grade === 'F' ? '走火' : rv.gradeTitle);
+      recordBrief = '上局 · ' + (briefTitle || '') + (gain ? ' · ' + gain + ' 熟练度' : '');
     }
     this.clearCountdown();
     this.setData({ showResult: true, result: rv, recordBrief: recordBrief, started: false });
@@ -1015,9 +1104,10 @@ Page({
     if (!this.pageAlive) return;
     this.clearSettleTimers();
     this.setData({ showResult: false, result: null, recordBrief: '', started: false });
+    // 先重算再建局：上一局可能刚升段、解锁了新难度，连刷也该打新档。
+    this.refresh();
     this.buildGame();
     this.onStart();
-    this.refresh();
   },
 
   // 准备页顶部那行「上局战绩」：把刚收起的结算明细叫回来重看，不必再打一局。

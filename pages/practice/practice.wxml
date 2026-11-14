@@ -35,7 +35,15 @@
 
   <view wx:if="{{!started || showResult}}" class="card card--ink pr-head">
     <view class="pr-head-row">
-      <text class="tag tag--dark">{{gameName}}</text>
+      <view class="row">
+        <text wx:if="{{rankLabel}}" class="rank-badge rank-badge--sm" style="background:{{rankColor}}">{{rankChar}}</text>
+        <text class="tag tag--dark">{{gameName}}</text>
+        <!-- 黄阶／天阶这套四阶叫「品阶」，新玩家看到只是两个陌生字，就地给一个解释入口。 -->
+        <term wx:if="{{rankLabel}}" term-key="rank" />
+      </view>
+      <!-- 长解释只有一个入口：这一门的整篇规则、本门机制、品阶与一脉都在说明页。
+           准备页只留一行「这一局做什么」，局内只留两行速记——这是「去说明页看」的落点。 -->
+      <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">{{copy.actions.help}} ›</text>
     </view>
     <view class="pr-title-row">
       <text class="h1 pr-title">{{title}}</text>
@@ -46,11 +54,18 @@
     <text class="quote pr-desc">{{subtitle}}</text>
     <view class="pr-prof">
       <view class="row--between">
-        <text class="tiny pr-tiny">{{tierName}} · {{prof}}</text>
+        <!-- 段位与品阶倍率并在一行：这两个数决定「这一局值多少」，比星级和一脉实在。 -->
+        <text class="tiny pr-tiny">{{tierName}} · {{prof}}<text wx:if="{{rankLabel}}"> · {{rankLabel}} {{rankRewardText}}</text></text>
         <text class="tiny pr-tiny">{{nextText}}</text>
       </view>
       <view class="bar bar--dark mt8">
         <view class="bar__fill" style="width:{{percent}}%;background:{{tierColor}}"></view>
+      </view>
+      <!-- 连 S 从一整张卡收成一行：圆点留着（不用读字也知道差几局），
+           文案直接写「晋哪一段 · 开哪一档」，玩家那句「3 局 S 解锁难度」就是这里来的。 -->
+      <view wx:if="{{streakDots.length}}" class="row streak-line mt8">
+        <view wx:for="{{streakDots}}" wx:key="id" class="streak-dot {{item.on ? 'streak-dot--on' : ''}}"></view>
+        <text class="tiny">{{streakText}}</text>
       </view>
       <!-- 下一段给什么：只写「还差 114」等于只给了个数字，练到头才发现没好处。 -->
       <text wx:if="{{nextBenefit}}" class="tiny pr-tier-next">{{nextBenefit}}</text>
@@ -60,117 +75,70 @@
       <text class="tiny">{{recordBrief}}</text>
       <text class="text-link tiny">{{copy.actions.reviewRecord}} ›</text>
     </view>
+    <text wx:elif="{{bestText}}" class="tiny mt8">{{bestText}}</text>
   </view>
 
-  <view wx:if="{{!started && !showResult && guide}}" class="card guide-card">
-    <view class="row--between pressable" hover-class="pressable--on" bindtap="onToggleGuide">
-      <view class="row">
-        <text class="section__title">怎么玩</text>
-      </view>
-      <text class="text-link text-link--muted guide__toggle">{{guideOpen ? copy.actions.collapse : copy.actions.expand}}</text>
-    </view>
-    <text class="body mt8 guide__goal">{{guide.goal}}</text>
-    <block wx:if="{{guideOpen}}">
-      <view class="guide__steps">
-        <view wx:for="{{guide.steps}}" wx:key="*this" class="guide__step">
-          <text class="guide__no">{{index + 1}}</text>
-          <text class="tiny grow">{{item}}</text>
-        </view>
-      </view>
-      <view class="divider"></view>
-      <text class="section__title">盘上所见</text>
-      <view wx:for="{{guide.terms}}" wx:key="name" class="guide__term">
-        <text class="tag tag--jade guide__term-name">{{item.name}}</text>
-        <text class="tiny grow guide__term-desc">{{item.desc}}</text>
-      </view>
-      <view class="guide__note mt16">
-        <text class="tiny">{{guide.scoring}}</text>
-        <text class="tiny mt8">诀窍 · {{guide.tip}}</text>
-      </view>
-    </block>
-    <!-- 收起态只给已经会玩的人扫一眼：基础操作 + 本门已解锁的进阶机制。
-         没解锁的不列——新手第一眼要看到的是「怎么点」，不是三条规则硬拼在一行。 -->
-    <view wx:else class="guide__inline mt12">
-      <text class="tiny">{{guide.inline}}</text>
-      <text wx:for="{{stageRules}}" wx:key="name" wx:if="{{item.enabled}}" class="tiny guide__inline-more"> · {{item.name}}＝{{item.short}}</text>
-    </view>
-  </view>
-
+  <!-- 开局卡：一行规则 + 难度，一屏读完。
+       规则全文、盘上符号、本门机制都不在这里——它们是说明页的事，
+       首屏只回答两个问题：这一局做什么、打多难。 -->
   <view wx:if="{{!started && !showResult}}" class="card">
     <view class="row--between">
-      <text class="section__title">{{twistName}}</text>
-      <text class="tiny">{{twistTag}}</text>
+      <text class="section__title">{{copy.sections.rule}}</text>
+      <text class="tiny">{{twistName}}</text>
     </view>
-    <text class="body mt8">{{twistDesc}}</text>
-
-    <view wx:if="{{stageRules.length}}" class="mt16">
-      <!-- 这里原来挂了一个 term 角标，可它渲染出来是「本门新法?」，紧挨着同名的小标题，
-           一屏上出现两遍「本门新法」。解释交给说明页的名词速查，这一行只留标题。
-           右侧那句回答的是「这是永久被动，还是只有本局？」——习得是永久的，效果每局从头算。 -->
-      <view class="row--between">
-        <text class="section__title">本门新法</text>
-        <text class="tiny">习得后每局生效 · 可关</text>
-      </view>
-      <view wx:for="{{stageRules}}" wx:key="name" class="stage-rule">
-        <text class="tag {{item.tagCls}}">{{item.stateText}}</text>
-        <text class="tiny grow stage-rule__text">{{item.name}} · {{item.desc}}</text>
-        <!-- 关掉之后这一局就真的不触发：想专心练基础记忆的人得有退路。
-             不用原生 switch：它在墨底上的未选中轨道是块白，和这套皮肤打架。 -->
-        <view wx:if="{{item.toggle}}"
-          class="stage-rule__toggle {{item.enabled ? 'stage-rule__toggle--on' : ''}} pressable"
-          hover-class="pressable--on" data-name="{{item.name}}" data-next="{{item.enabled ? 'off' : 'on'}}"
-          bindtap="onToggleTwist">{{item.enabled ? '开' : '关'}}</view>
-      </view>
-    </view>
-
-    <view wx:if="{{rankLabel}}" class="rank-card mt16">
-      <view class="row--between">
-        <view class="row">
-          <text class="rank-badge" style="background:{{rankColor}}">{{rankChar}}</text>
-          <text class="h3 gap">{{rankLabel}} · {{rankStars}}</text>
-          <!-- 黄阶／天阶这套四阶叫「品阶」，新玩家看到只是两个陌生字，就地给一个解释入口。 -->
-          <term term-key="rank" />
-        </view>
-        <text class="tiny">{{rankRewardText}}</text>
-      </view>
-      <text wx:if="{{decayTip}}" class="warn-note mt8">{{decayTip}}</text>
-      <view class="divider"></view>
-      <text class="tiny">{{chainLabel}}</text>
-      <view class="row--wrap mt8">
-        <text wx:for="{{chainItems}}" wx:key="id" class="rank-chain__item {{item.current ? 'rank-chain__item--now' : ''}}">{{item.name}}</text>
-      </view>
-    </view>
-
-    <text wx:if="{{bestText}}" class="tiny mt12">{{bestText}}</text>
-
-    <view wx:if="{{streakDots.length}}" class="streak-card mt12">
-      <view class="row--between">
-        <text class="section__title">连 S 晋级</text>
-        <text class="tiny">{{streakText}}</text>
-      </view>
-      <text class="tiny mt8">{{repeatNote}}</text>
-      <view class="streak-dots mt8">
-        <view wx:for="{{streakDots}}" wx:key="id" class="streak-dot {{item.on ? 'streak-dot--on' : ''}}"></view>
-      </view>
-    </view>
+    <text class="body mt8">{{ruleText}}</text>
 
     <block wx:if="{{showDifficulty}}">
       <view class="divider"></view>
       <view class="row--between">
         <text class="section__title">难度</text>
-        <text class="tiny">{{diffName}} · 熟练度 {{diffMultText}}</text>
+        <text class="tiny">{{diffName}} · {{diffMultText}}</text>
       </view>
       <view class="diff-row mt12">
         <view wx:for="{{diffList}}" wx:key="key" class="diff-chip {{item.current ? 'diff-chip--on' : ''}} {{item.unlocked ? '' : 'diff-chip--lock'}}" data-d="{{item.key}}" bindtap="onDifficulty">
           <text class="diff-chip__name">{{item.name}}</text>
-          <text class="diff-chip__mult">{{item.multText}}</text>
+          <!-- 已解锁但刻意选低档：胶囊上直接给折后半数，别让人以为还是 ×1.30。 -->
+          <text class="diff-chip__mult">{{item.below ? item.realMultText : item.multText}}</text>
           <text wx:if="{{!item.unlocked}}" class="diff-chip__need">{{item.lockedText}}</text>
         </view>
       </view>
+      <!-- 折减只在真的选了低档时出现一行：说清折什么、S 算不算、该回哪一档。 -->
+      <text wx:if="{{belowCapText}}" class="warn-note mt8">{{belowCapText}}</text>
       <!-- 高档位不只有倍率：这一档实际收紧了哪几处（亮起时长 / 口诀轮数…），一一摆出来。 -->
       <text wx:if="{{diffBrief}}" class="tiny diff-brief">{{diffBrief}}</text>
       <!-- S 线随难度档变：局内只报「还差几分」，这一行给出本档总分门槛与评级口径。 -->
       <text wx:if="{{goalText}}" class="tiny diff-brief">{{goalText}}</text>
+      <!-- 收益口径：只奖不罚，开局前就写清本局会不会吃到换门加成。 -->
+      <text class="tiny diff-brief">{{repeatNote}}</text>
+    </block>
+
+    <block wx:if="{{stageRules.length}}">
+      <view class="divider"></view>
+      <!-- 本门新法默认折叠：开关要能在开局前改，但几条规则不该铺在首屏。
+           这里原来还挂过一个 term 角标，渲染出来是「本门新法?」紧挨同名小标题，
+           一屏两遍同名；解释交给说明页的名词速查。 -->
+      <view class="row--between pressable" hover-class="pressable--on" bindtap="onToggleStage">
+        <text class="section__title">本门新法</text>
+        <text class="text-link text-link--muted">{{stageOpen ? copy.actions.collapse : stageSummary}}<text wx:if="{{!stageOpen}}"> ›</text></text>
+      </view>
+      <!-- 折叠态给一行「已得的那几条长什么样」；未解锁的、被关掉的一律不列，
+           新手第一眼看到的是「现在多了什么」，不是五条还没影的规则。 -->
+      <text wx:if="{{!stageOpen && stageBrief}}" class="tiny mt8">{{stageBrief}}</text>
+      <block wx:if="{{stageOpen}}">
+        <!-- 展开后先答一句「这是永久被动还是只有本局」：习得是永久的，效果每局从头算。
+             折叠态不放它——那时玩家要的是「现在多了什么」，不是生效范围。 -->
+        <text class="tiny mt8">习得后每局生效 · 改规矩的可关</text>
+        <view wx:for="{{stageRules}}" wx:key="name" class="stage-rule">
+          <text class="tag {{item.tagCls}}">{{item.stateText}}</text>
+          <text class="tiny grow stage-rule__text">{{item.name}} · {{item.desc}}</text>
+          <!-- 关掉之后这一局就真的不触发：想专心练基础记忆的人得有退路。
+               不用原生 switch：它在墨底上的未选中轨道是块白，和这套皮肤打架。 -->
+          <view wx:if="{{item.toggle}}"
+            class="stage-rule__toggle {{item.enabled ? 'stage-rule__toggle--on' : ''}} pressable"
+            hover-class="pressable--on" data-name="{{item.name}}" data-next="{{item.enabled ? 'off' : 'on'}}"
+            bindtap="onToggleTwist">{{item.enabled ? '开' : '关'}}</view>
+        </view>
+      </block>
     </block>
   </view>
 
@@ -302,8 +270,20 @@
         <view wx:if="{{vm.extras.showSwipe && started}}" class="swipe-layer" bindtouchstart="onBoardTouchStart" catchtouchmove="onBoardTouchMove" bindtouchend="onBoardTouchEnd" bindtouchcancel="onBoardTouchEnd"></view>
       </view>
 
+      <!-- 华容道：块是整块滑的，用绝对定位按格摆；格子拼出来的块会被缝线切碎，
+           看不出「这是一整块」，滑动的手感也就没了。 -->
+      <view wx:if="{{vm.stage === 'klotski' && vm.klotski}}" class="klotski" style="background:{{sceneOn ? stage.well : theme.bg}}">
+        <view class="klotski__exit" style="left:{{vm.klotski.exitC * 25}}%"></view>
+        <view wx:for="{{vm.klotski.blocks}}" wx:key="id"
+          class="klotski__blk klotski__blk--{{item.id}} {{item.sel ? 'klotski__blk--sel' : ''}}"
+          style="left:{{item.x}}%;top:{{item.y}}%;width:{{item.w}}%;height:{{item.h}}%"
+          data-i="{{index}}" bindtap="onBlockTap">
+          <view wx:if="{{item.main}}" class="klotski__core"></view>
+        </view>
+      </view>
+
       <!-- 只有持续下落的玩法才挂方向键：挪石 / 转石 / 速降，其余玩法盘面下不留这一排。 -->
-      <view wx:if="{{vm.extras.showPad && vm.pad && started}}" class="pad">
+      <view wx:if="{{vm.extras.showPad && vm.pad && started}}" class="pad {{vm.pad.digits ? 'pad--numbers' : ''}}">
         <view wx:for="{{vm.pad.keys}}" wx:key="id" class="pad__key" data-dir="{{item.dir}}" bindtap="onPad"><text>{{item.glyph}}</text></view>
       </view>
 

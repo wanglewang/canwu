@@ -197,4 +197,13 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'sword', name: '步法连环', create: create };
+function lines(p) {
+  const t = Math.max(1, (p && p.segments) || 4);
+  return {
+    rule: '只看走完的段数（踏错不算走完）',
+    items: ['S：' + t + ' 段全成', 'A：走完 ' + (t - 1) + ' 段',
+      'B：走完 ' + Math.max(0, t - 2) + ' 段', '其余为 C'],
+  };
+}
+
+module.exports = { id: 'sword', name: '步法连环', create: create, lines: lines };

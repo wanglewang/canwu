@@ -158,15 +158,63 @@ check('参悟吸底条只在有操作时出现', function () {
   assert.ok(/bindtap="onBack"/.test(start), '准备页缺少退出入口');
 });
 
-check('玩法说明接进准备页，术语速记常驻局内', function () {
+check('两种 F 分开处置：收功作废，走火照常结算', function () {
+  // 同一条 grade === 'F' 有两个来历，处置必须不同：
+  //   ① 玩家点「收功」→ 整局作废，不进 applyPractice，连 S 不动；
+  //   ② 玩法判负（阵溃 / 心神尽 / 时辰到）→ 一局打完的结果，按走火结算、断连。
+  // 旧写法把所有 F 都当 ①，于是「蓄力偏离」「阵溃」也被显示成「中途收功 · 这回不算数」，
+  // 而且一分收益都没有——打崩了却连两成都不给，与「走火」的语义正好相反。
+  const js = read('pages/practice/practice.js');
+  assert.ok(/this\.aborting = false/.test(js), '新一局没清掉收功标记');
+  assert.ok(/self\.aborting = true/.test(js), '玩家收功时没置位，结算分不出是哪种 F');
+  assert.ok(/grade === 'F' && \(this\.aborting \|\| this\.mode === 'breakthrough'\)/.test(js),
+    '所有 F 都被当成收功，走火拿不到结算');
+  assert.ok(/没走完，按「走火」只算两成收益/.test(js), '走火结算没说清只算两成');
+  assert.ok(!/连 S 进度也会断/.test(js), '收功确认框还在说连 S 会断（实际原样保留）');
+});
+
+check('说明页写清本档四条线：C / B / A / S 各自要什么', function () {
+  // 玩家问过「每个小游戏怎么才能拿 C、B、A、S」——以前只有一句「按总分评」，
+  // 门槛数字埋在玩法文件里，局内还只看得到下一条线。现在由各玩法 lines() 统一给出。
+  const help = require('../data/help.js');
+  const pd = require('../data/practice.js');
+  for (const m of pd.PRACTICE_METHODS) {
+    const t = help.practiceTopic({ method: m.id, diff: 'hard' });
+    const sec = t.sections.filter(function (x) { return x.key === 'score'; })[0];
+    assert.ok(sec, m.id + ' 的说明页没有评级节');
+    const text = sec.lines.join(' ');
+    assert.ok(/本档「困难」/.test(text), m.id + ' 没写清是哪一档的门槛');
+    ['S', 'A', 'B', 'C'].forEach(function (g) {
+      assert.ok(text.indexOf(g) >= 0, m.id + ' 的四条线缺 ' + g);
+    });
+  }
+  // 链接没带档时按简单档给，不许留空或写「见局内」。
+  const plain = help.practiceTopic({ method: 'tanlei' });
+  const line = plain.sections.filter(function (x) { return x.key === 'score'; })[0].lines.join(' ');
+  assert.ok(/本档「简单」/.test(line), '没带难度档时没回落到简单档');
+});
+
+check('规则分层：准备页一行、局内两行、整篇在说明页', function () {
   const s = read('pages/practice/practice.wxml');
   const js = read('pages/practice/practice.js');
-  assert.ok(/class="card guide-card"/.test(s), '准备页缺少「怎么玩」卡');
-  assert.ok(/bindtap="onToggleGuide"/.test(s), '玩法说明不能收起');
-  assert.ok(/guide\.terms/.test(s) && /guide\.steps/.test(s), '说明卡没有步骤与术语表');
+  // 准备页只留一行「这一局做什么」：整篇步骤与术语表搬去了说明页。
+  assert.ok(/\{\{ruleText\}\}/.test(s), '准备页没有一行「本局规则」');
+  assert.ok(/guides\.guideOf\(method\.game\)/.test(js) && /ruleText: ruleText/.test(js),
+    '本局规则没从 guides 取，又抄了一遍');
+  assert.ok(!/guide\.steps/.test(s) && !/guide\.terms/.test(s),
+    '准备页又在铺整篇步骤与术语表（一屏塞不下，等于没人看）');
+  // 长解释只有一个入口：按功法现拼的说明页。局中切页即本局作废，所以入口只能在开局前。
+  assert.ok(/bindtap="onGoHelp"/.test(s) && /onGoHelp: function/.test(js), '准备页缺「说明」入口');
+  assert.ok(/nav\.practiceHelpUrl/.test(js), '说明入口没走导航真源');
+  const navSrc = read('data/navigation.js');
+  assert.ok(/function practiceHelpUrl/.test(navSrc) && /topic=practice/.test(navSrc),
+    '导航真源没有按功法生成的说明入口');
+  const help = read('data/help.js');
+  assert.ok(/function practiceTopic/.test(help) && /guides\.guideOf\(gameId\)/.test(help),
+    '说明页没有按功法现拼规则');
+  assert.ok(/guide\.steps/.test(help) && /guide\.terms/.test(help), '说明页没接住步骤与术语表');
+  assert.ok(/practiceTopic/.test(read('pages/help/help.js')), '说明页没接上 practice 主题');
   assert.ok(/class="pr-hint__terms"[\s\S]*?guide\.inline/.test(s), '局内没有常驻术语速记');
-  assert.ok(/guides\.guideOf\(gameId\)/.test(js), '页面没有按玩法取说明');
-  assert.ok(/onToggleGuide: function/.test(js), '缺少展开/收起方法');
   const click = read('minigames/click.js');
   assert.ok(/edgeName: '金锋'/.test(read('data/weapons.js')), '预留剑 profile 的金色长招没叫金锋');
   assert.ok(/profile\.edgeName/.test(click), '金色长招名没走兵器轴，容易串回剑法');
@@ -268,7 +316,7 @@ check('吸底条适配安全区且有高优先级底部留白', function () {
 
 check('视觉标准落在唯一真源，样板阶段只对刀法·开锋诀开', function () {
   const v = require('../data/visual.js');
-  assert.strictEqual(Object.keys(v.FAMILIES).length, 5, '五类主题色板不齐');
+  assert.strictEqual(Object.keys(v.FAMILIES).length, 4, '四类主题色板不齐（兵刃 / 心法 / 丹道 / 阵法）');
   assert.deepStrictEqual(Object.keys(v.ENABLED), ['forge'], '样板阶段不该一次改十套');
   assert.ok(v.isOn('forge') && !v.isOn('snatch'), '沉浸舞台开关没按主题生效');
   assert.ok(v.MOTION.particles <= v.MOTION.particleCap && v.MOTION.particleCap <= 12, '粒子超预算');
@@ -399,7 +447,7 @@ check('战力明细收进「说明」真源，首屏只留数值；指南保留�
   assert.ok(/title: '二 · 离线挂机收益规则'/.test(guide), '插了新专节，后面章节编号没顺延');
 });
 
-check('照影符按经典扫雷深耕：无猜、首点空白、连开、分数方向', function () {
+check('勘禁诀按经典扫雷深耕：无猜、首点空白、连开、分数方向', function () {
   const m = read('minigames/mines.js');
   const g = read('data/guides.js');
   const p = read('data/practice.js');
@@ -410,16 +458,16 @@ check('照影符按经典扫雷深耕：无猜、首点空白、连开、分数�
   assert.ok(!/hard \? 3/.test(m), '还在 ctx.difficulty 上叠 +3，三档会挤成一盘');
   assert.ok(/MINE_GLYPH = '✕'/.test(m) && /FLAG_GLYPH = '⚑'/.test(m), '盘面还在写汉字');
   assert.ok(/不必猜/.test(g) && /连开/.test(g) && /⚑/.test(g), '玩法说明没讲无猜与连开');
-  assert.ok(/tanlei: \[/.test(p) && /圆照/.test(p), '阶段新法没登记照影符');
+  assert.ok(/tanlei: \[/.test(p) && /洞玄/.test(p), '阶段新法没登记勘禁诀');
 });
 
-check('照影符局内只讲「在追哪一档」：不摆当前评级，HUD 不重复计数', function () {
+check('勘禁诀局内只讲「在追哪一档」：不摆当前评级，HUD 不重复计数', function () {
   const m = read('minigames/mines.js');
   const g = read('data/guides.js');
   const w = read('pages/practice/practice.wxml');
   // 评级只看用时，按当前用时反推出来的档，开局那一刻必是 S。摆进 HUD 等于告诉玩家
   // 「已经拿到 S 了」，之后只能看它一路往下掉。局内改成只报下一档的时限。
-  assert.ok(/showGradeNow = false/.test(m), '照影符又把「当前评级」摆回 HUD 了');
+  assert.ok(/showGradeNow = false/.test(m), '勘禁诀又把「当前评级」摆回 HUD 了');
   assert.ok(/C\.paceGoal\(elapsed, GRADE_LINE\)/.test(m), '局内没给「下一档还差几秒」');
   // 同样的反推逻辑不止探禁一家：搭桥、翻牌也按用时评级。凡是这类玩法都不许摆当前档位。
   for (const name of ['bridge', 'seal']) {
@@ -429,9 +477,9 @@ check('照影符局内只讲「在追哪一档」：不摆当前评级，HUD 不
   }
   assert.ok(m.indexOf("'还剩 '") < 0, 'HUD 又用「还剩 N 格」重复「已探 X / Y」');
   assert.ok(/不必靠猜/.test(m), '提示区没讲「此盘不必猜」');
-  // 扫雷原生词一律换题材词：旗 → 镇符（盘面上的 ⚑ 只是个记号，不落汉字）。
+  // 扫雷原生词一律换题材词：旗 → 阵钉（盘面上的 ⚑ 只是个记号，不落汉字）。
   assert.ok(!/插旗|旗数/.test(m + g), '还在用「插旗 / 旗数」，扫雷既视感没洗掉');
-  assert.ok(/镇符/.test(m) && /镇符/.test(g), '镇符没进玩法与说明');
+  assert.ok(/阵钉/.test(m) && /阵钉/.test(g), '阵钉没进玩法与说明');
   // 玩法名一屏只写一处：页头那一处，其余卡片的 tag 都该收掉。
   assert.strictEqual((w.match(/\{\{gameName\}\}/g) || []).length, 1, '同一屏上写了两遍玩法名');
 });
@@ -516,9 +564,11 @@ check('局内速记只列已解锁的进阶机制，收起态不吓新手', func
   // 逆诵（大成）与死门（大成）都是后面才有的规则，收起态里不该先出现。
   assert.ok(guides.guideOf('memory').inline.indexOf('逆诵') < 0, '记序复现的速记又提前写了逆诵');
   assert.ok(guides.guideOf('lights').inline.indexOf('忌') < 0, '阵灯推演的速记又提前写了死门');
-  // 收起态把「已解锁且开着」的阶段新法接在基础操作后面；未解锁的、被玩家关掉的都不列。
-  assert.ok(/stageRules[\s\S]{0,160}item\.enabled[\s\S]{0,80}item\.short/.test(wxml),
-    '收起态没接已解锁的阶段新法');
+  // 折叠态把「已解锁且开着」的阶段新法缩成一行（死门＝✕ 格点不得）；
+  // 未解锁的、被玩家关掉的都不列——速记里也不许提前剧透。
+  assert.ok(/stageBrief/.test(wxml) && /'＝' \+ r\.short/.test(read('pages/practice/practice.js')),
+    '折叠态没接已解锁的阶段新法');
+  assert.ok(!/guide__inline-more/.test(wxml), '速记里又塞了一遍未解锁的规则');
   for (const id of Object.keys(practice.STAGE_RULES)) {
     for (const r of practice.STAGE_RULES[id]) {
       assert.ok(r.short && r.short.length >= 2, id + '/' + r.name + ' 缺速记写法 short');
@@ -540,7 +590,7 @@ check('阶段新法可关：只有「改规矩」的才给开关，关了真的�
   assert.ok(practice.STAGE_RULES.arrayEye.some(function (r) { return r.hard; }),
     '死门没被标成可关');
   assert.ok(!practice.STAGE_RULES.tanlei.some(function (r) { return r.hard; }),
-    '照影符的纯加成也被给了开关');
+    '勘禁诀的纯加成也被给了开关');
   assert.ok(!practice.STAGE_RULES.stackstone.some(function (r) { return r.hard; }),
     '垒岳诀的纯加成也被给了开关');
 
@@ -693,9 +743,11 @@ check('三连 S 直接晋级：准备页有进度、结算页有回执、指南�
   const engine = read('utils/game.js');
   assert.ok(/S_STREAK_GOAL = 3/.test(engine) && /sStreakGoal/.test(engine), '内核没有连 S 计数');
   assert.ok(/streakDots/.test(js) && /streakText/.test(js), '准备页没算连 S 进度');
-  assert.ok(/class="streak-card/.test(wxml) && /streak-dot--on/.test(wxml), '准备页没画连 S 圆点');
+  // 从整张卡收成一行：圆点还在（形状比数字快），句子直接写「晋哪一段 · 开哪一档」。
+  assert.ok(/class="row streak-line/.test(wxml) && /streak-dot--on/.test(wxml), '准备页没画连 S 圆点');
+  assert.ok(/晋「/.test(js) && /开「/.test(js), '连 S 文案没写清晋到哪一段、开哪一档');
   // 参悟页与四个主页面同色：恒定额色，不再做明暗两套，所以这里断言的是「有没有落在墨金令牌上」。
-  assert.ok(/\.streak-card\s*\{[^}]*var\(--c-imm-gold-soft\)/.test(css), '连 S 卡片没有落在墨金体系里');
+  assert.ok(/\.streak-dot--on\s*\{[^}]*var\(--c-imm-gold\)/.test(css), '连 S 圆点没有落在墨金体系里');
   assert.ok(!/@media\s*\(\s*prefers-color-scheme/.test(css), '参悟页又按系统明暗翻转了，盘面会突然换色');
   assert.ok(/r\.totalGain/.test(js) && /其中直接晋级/.test(js) && /三连圆满 · 晋/.test(js), '结算页没把直接补的那笔讲清');
   assert.ok(/连 S 进度/.test(js) && /sStreakGoal/.test(js), '结算页没写还差几局');
@@ -974,7 +1026,7 @@ check('功法命名统一：类别·三字正名，前缀严格等于类别', fu
     assert.ok(practice.FAMILIES[s.type], s.id + ' 类别不在游戏族表内');
   }
   // 十三门里不许再出现「有的没前缀」或「前缀和类别对不上」。
-  assert.strictEqual(skills.SKILLS.length, 13, '功法数变了，命名断言要同步');
+  assert.strictEqual(skills.SKILLS.length, 19, '功法数变了，命名断言要同步');
   const names = skills.SKILLS.map(function (s) { return s.name; });
   assert.strictEqual(new Set(names).size, names.length, '功法名重复');
   assert.ok(names.indexOf('刀法·开锋诀') >= 0 && names.indexOf('剑法·断岳诀') >= 0, '刀 / 剑两门没按规范统一');
@@ -1089,7 +1141,11 @@ check('三秀同收：S 线与提示按钮名各只有一份真源', function ()
   assert.strictEqual(pd.sLineOf(method, 'hard'), 920, '困难档 S 线没跟着 depth 抬');
   assert.strictEqual(pd.sLineOf(pd.getMethod('linkpair'), 'easy'), 0, '非三消玩法不该有 S 线');
   assert.strictEqual(pd.buildParams(method, 'hard').sBase, pd.MATCH_S.base, '玩法层没拿到同源 S 线');
-  assert.ok(/sLimit = \(p\.sBase/.test(read('minigames/match.js')), 'match.js 又把 S 线写死在玩法层');
+  // 门槛只能出现在 gradeLimits 一处：create 里只许调它，不许再自己写 620 / 150 这种数。
+  assert.ok(/lim = gradeLimits\(p, depth\)/.test(read('minigames/match.js')),
+    'match.js 又把 S 线写死在玩法层');
+  assert.ok(/\(p && p\.sBase\) \|\| 620/.test(read('minigames/match.js')),
+    'match.js 的 gradeLimits 没从 params 取 S 线基数');
   assert.ok(/goalText/.test(read('pages/practice/practice.wxml')), '准备页没显示本档 S 线');
   assert.ok(/goalText: sLine/.test(read('pages/practice/practice.js')), '准备页没从同源数生成 S 线文案');
   const gd = require('../data/guides.js').guideOf('match');
@@ -1196,7 +1252,7 @@ check('评级中文名只有一份真源，且避开段位词', function () {
   }
 });
 
-check('13 套玩法的代价句在局内真的看得见（运行时探针）', function () {
+check('19 套玩法的代价句在局内真的看得见（运行时探针）', function () {
   const pd = require('../data/practice.js');
   for (const m of pd.PRACTICE_METHODS) {
     const M = require('../minigames/' + m.game + '.js');
@@ -1226,7 +1282,7 @@ check('收益只奖不罚：连练递减全站清零，换门倍率有单一真�
   assert.ok(/copy\.practiceNote/.test(read('pages/practice/practice.js'))
     && /repeatNote/.test(read('pages/practice/practice.wxml')),
     '准备页没把「连练不减收益」写在开局前');
-  // 只刷简单反超逐档升的坑已经修掉（简单档在小成后不计连 S），
+  // 只刷简单反超逐档升的坑：先修了「简单档在小成后不计连 S」，再补上收益折半。
   // 现在既要它别再出现，也要有断言把它钉住。
   assert.ok(!/WARN 只刷简单的熟练度反超/.test(read('scripts/simulate.js')),
     '反超问题已修，模拟里不该还挂着这条 WARN');

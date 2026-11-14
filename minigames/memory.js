@@ -87,17 +87,11 @@ function create(ctx) {
   function roundLen(r) { return Math.min(grid, startLen + r - 1); }
 
   // 理论满分：一轮不错、连对一路攒满时的总分。实际门槛按它的百分比取。
-  const fullScore = (function () {
-    let sum = 0;
-    for (let r = 1; r <= maxRound; r += 1) {
-      const mul = 1 + Math.min(STREAK_CAP, STREAK_STEP * Math.max(0, r - 2));
-      sum += 10 * roundLen(r) * mul;
-    }
-    return Math.round(sum);
-  })();
-  const sLimit = Math.round(fullScore * GRADE_RATIO.S);
-  const aLimit = Math.round(fullScore * GRADE_RATIO.A);
-  const bLimit = Math.round(fullScore * GRADE_RATIO.B);
+  const fullScore = fullScoreOf(grid, startLen, maxRound);
+  const lim = gradeLimits(fullScore);
+  const sLimit = lim.s;
+  const aLimit = lim.a;
+  const bLimit = lim.b;
 
   function roundMs(len) { return 600 + len * perNote; }
 
@@ -258,7 +252,8 @@ function create(ctx) {
     vm.hearts = { value: Math.max(0, lives), max: maxLives };
     vm.comboText = '';
     if (lives <= 0) {
-      finishOnce('口诀散在第 ' + round + ' 轮 · 得分 ' + score);
+      // 心神折尽＝这一局没背完：走火，不是「分低」。
+      finishOnce('口诀散在第 ' + round + ' 轮 · 得分 ' + score, 'F');
       return;
     }
     vm.status = theme.miss || '气机一乱';
@@ -364,4 +359,35 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'memory', name: '记序复现', create: create };
+// 理论满分：一轮不错、连对一路攒满时的总分。门槛按它的百分比取。
+function fullScoreOf(grid, startLen, maxRound) {
+  let sum = 0;
+  for (let r = 1; r <= maxRound; r += 1) {
+    const mul = 1 + Math.min(STREAK_CAP, STREAK_STEP * Math.max(0, r - 2));
+    sum += 10 * Math.min(grid, startLen + r - 1) * mul;
+  }
+  return Math.round(sum);
+}
+
+function gradeLimits(fullScore) {
+  return {
+    s: Math.round(fullScore * GRADE_RATIO.S),
+    a: Math.round(fullScore * GRADE_RATIO.A),
+    b: Math.round(fullScore * GRADE_RATIO.B),
+  };
+}
+
+function lines(p) {
+  const grid = (p && p.grid) || 9;
+  const startLen = (p && p.startLen) || 2;
+  const maxRound = (p && p.maxRound) || 7;
+  const fs = fullScoreOf(grid, startLen, maxRound);
+  const lim = gradeLimits(fs);
+  return {
+    rule: '按本局总分（理论满分 ' + fs + ' 分，按它的比例取线）',
+    items: ['S ≥ ' + lim.s + ' 分', 'A ≥ ' + lim.a + ' 分', 'B ≥ ' + lim.b + ' 分', '其余为 C'],
+    fail: '心神全折（口诀散掉、这一局没背完）→ 走火 F，只算两成收益',
+  };
+}
+
+module.exports = { id: 'memory', name: '记序复现', create: create, lines: lines };

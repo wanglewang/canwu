@@ -63,7 +63,12 @@ function run({ skillId, realmIndex, runs, mode }) {
   const marks = [];
   for (let i = 1; i <= runs; i += 1) {
     const prof = state.skills[skillId].prof;
-    const key = mode === 'easy' ? 'easy' : practice.bestDifficulty(prof);
+    // three modes: 只刷简单 / 只退一档 / 逐档升（默认最高已解锁档，也是准备页的默认值）
+    const maxIdx = practice.diffIndexOf(prof);
+    let key;
+    if (mode === 'easy') key = 'easy';
+    else if (mode === 'below') key = practice.DIFFICULTIES[Math.max(0, maxIdx - 1)].key;
+    else key = practice.DIFFICULTIES[maxIdx].key;
     const grade = pickGrade(rng, GRADE_DIST[key]);
     const r = game.applyPractice(state, skillId, grade, { difficulty: key, score: 0 });
     total += r.gain;
@@ -79,6 +84,7 @@ const RUNS = 120;
 const strategies = [
   { name: '黄阶 · 只刷简单', skillId: 'jian', realmIndex: 0, mode: 'easy' },
   { name: '黄阶 · 逐档升', skillId: 'jian', realmIndex: 0, mode: 'auto' },
+  { name: '黄阶 · 退一档刷', skillId: 'jian', realmIndex: 0, mode: 'below' },
   { name: '天阶 · 逐档升', skillId: 'taixu', realmIndex: 3, mode: 'auto' },
   { name: '黄阶 · 金丹后', skillId: 'jian', realmIndex: 2, mode: 'auto' },
 ];
@@ -106,8 +112,9 @@ for (const r of results) {
 
 const easy = results[0];
 const auto = results[1];
-const tian = results[2];
-const decayed = results[3];
+const belowOne = results[2];
+const tian = results[3];
+const decayed = results[4];
 
 console.log('\n== 检查 ==');
 let bad = 0;
@@ -146,10 +153,18 @@ for (const tier of practice.TIERS) {
     + raws.map(function (v) { return v.toFixed(2); }).join(' < ') + '）');
 }
 
-// 简单档的 S 只在「还没到小成」时计连 S：一旦能选普通档，最容易的档位就不再产出补额。
-// 这条守的是「奖励要奖励难度」——修之前只刷简单靠补额反超逐档升（8424 vs 7339）。
+// 低档两件事共用一根尺子：收益 ×0.5、S 不计连晋。守的是「奖励要奖励难度」——
+// 修之前只刷简单靠补额反超逐档升（8424 vs 7339），只砍连 S 时仍有 4691。
 expect(easy.prof <= auto.prof,
   '只刷简单的总熟练度不该反超逐档升（' + easy.prof + ' vs ' + auto.prof + '）');
+expect(belowOne.prof <= auto.prof,
+  '退一档刷也不该反超逐档升（' + belowOne.prof + ' vs ' + auto.prof + '）');
+
+// 界线要能一句话讲给玩家：折半之后，普通档打个 C 就比简单档拿 S 多。
+const easyS = practice.DIFFICULTIES[0].mult * practice.DIFF_BELOW_CAP * world.GRADE_FACTOR.S;
+const normalC = practice.DIFFICULTIES[1].mult * world.GRADE_FACTOR.C;
+expect(easyS < normalC,
+  '折半后简单档 S（×' + easyS.toFixed(2) + '）低于普通档 C（×' + normalC.toFixed(2) + '）');
 
 console.log(bad === 0 ? '\n收益曲线检查全部通过' : '\n有 ' + bad + ' 项不达标，需要调数值');
 process.exit(bad === 0 ? 0 : 1);

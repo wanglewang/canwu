@@ -11,7 +11,7 @@
 //   S  正好走最优解，一步没浪费
 //   A  多走两步以内
 //   B  两倍最优以内
-//   C  解开但走了太多步，或预算耗尽阵溃
+//   C  解开但走了太多步；预算耗尽阵溃则是走火 F（没解开 ≠ 解得糙）
 // S 只给没借外力的推演：用一次阵眼感应，或重置过一次阵局，本盘最高只有 A。
 // 辅助不是扣分，是让出最高档——两类玩家都能通关，但 S 留着给纯推演。
 //
@@ -313,7 +313,8 @@ function create(ctx) {
   // 评级只认「走了几步」，不认时间：推演类玩法不该因为想得久而被扣。
   // 借过外力（感应 / 重置）就封顶到 A——S 是同一条推演路径上一步没浪费的结果。
   function gradeOf() {
-    if (failed) return 'C';
+    // 阵溃不是「解得糙」，是没解开：走火（F），和「步数超了两倍」这种 C 分开算。
+    if (failed) return 'F';
     let g;
     if (moves <= optimal) g = 'S';
     else if (moves <= optimal + 2) g = 'A';
@@ -577,10 +578,19 @@ function create(ctx) {
   });
 }
 
+function lines() {
+  return {
+    rule: '按已走步数与最优步数比（不论用时，想得久不扣）',
+    items: ['S：正好最优步数', 'A：多 2 步以内', 'B：不超过最优的两倍', '其余为 C',
+      '用过阵眼感应或重置本盘，最高只到 A'],
+    fail: '步数预算走完阵还没全亮（阵溃）→ 走火 F，只算两成收益',
+  };
+}
+
 module.exports = {
   id: 'lights',
   name: '阵灯推演',
-  create: create,
+  create: create, lines: lines,
   solve: solve,
   effectOf: effectOf,
   teach: teach,

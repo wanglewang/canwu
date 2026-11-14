@@ -162,4 +162,17 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'tempo', name: '节律判定', create: create };
+function lines(p) {
+  const total = Math.max(4, Math.floor((p && p.beats) || 8));
+  return {
+    rule: '按圆满拍数（合拍只算半拍，失拍不算）',
+    items: [
+      'S：' + total + ' 拍里圆满 ' + (total - 1) + ' 拍以上',
+      'A：圆满 ' + (total - 2.5) + ' 拍以上',
+      'B：圆满 ' + Math.ceil(total * 0.5) + ' 拍以上',
+      '其余为 C',
+    ],
+  };
+}
+
+module.exports = { id: 'tempo', name: '节律判定', create: create, lines: lines };

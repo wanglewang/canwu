@@ -115,9 +115,10 @@ function create(ctx) {
 
   // 门槛按「一盘收干净能拿多少」标：满收 pairs×100 + 剩余息数×4，
   // 简单档满收基本是 S，漏几对或错配多了自然掉档。
-  const sLimit = Math.ceil(pairs * (88 + depth * 10));
-  const aLimit = Math.ceil(sLimit * 0.78);
-  const bLimit = Math.ceil(sLimit * 0.55);
+  const lim = gradeLimits(pairs, depth);
+  const sLimit = lim.s;
+  const aLimit = lim.a;
+  const bLimit = lim.b;
 
   const bag = C.TimerBag();
   let board = [];
@@ -208,6 +209,12 @@ function create(ctx) {
   }
 
   function finish() {
+    // 消尽才叫走完。时钟先到、还剩对子没接上，是没走完（走火），
+    // 不能因为「收了几对」就按分数给 C——那是把没做完算成做糙了。
+    if (pairsDone < pairs) {
+      finishOnce('F', '时辰到，还剩 ' + (pairs - pairsDone) + ' 对没接上');
+      return;
+    }
     const grade = C.gradeBy(score, sLimit, aLimit, bLimit);
     finishOnce(grade, '收 ' + pairsDone + ' / ' + pairs + ' 对 · 错配 ' + mistakes + ' · 重排 ' + shuffles);
   }
@@ -321,7 +328,24 @@ function create(ctx) {
   });
 }
 
+function gradeLimits(pairs, depth) {
+  const s = Math.ceil(pairs * (88 + depth * 10));
+  return { s: s, a: Math.ceil(s * 0.78), b: Math.ceil(s * 0.55) };
+}
+
+function lines(p) {
+  const cols = (p && p.cols) || 6;
+  const rows = (p && p.rows) || 4;
+  const depth = Math.max(0, Math.min(4, (p && p.depth) || 0));
+  const lim = gradeLimits(cols * rows / 2, depth);
+  return {
+    rule: '按本局总得分（每对 100 分，连收有倍率）',
+    items: ['S ≥ ' + lim.s + ' 分', 'A ≥ ' + lim.a + ' 分', 'B ≥ ' + lim.b + ' 分', '其余为 C'],
+    fail: '时辰到还剩对子没接上 → 走火 F，只算两成收益',
+  };
+}
+
 module.exports = {
-  id: 'link', name: '灵纹连线', create: create,
+  id: 'link', name: '灵纹连线', create: create, lines: lines,
   canLink: canLink, findPair: findPair, GLYPHS: GLYPHS,
 };

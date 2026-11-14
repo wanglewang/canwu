@@ -9,6 +9,18 @@
 //
 // 维护约定：新增解释只改这里，不要在 WXML 里补长句；行文本一律大白话，
 // 不写「本作 / 玩家 / 数据」这类出戏词，也不写实现细节。
+//
+// 参悟页的说明是「一门一册」，由 practiceTopic() 现拼：玩法规则取 data/guides.js、
+// 难度与门槛取 data/practice.js、品阶与一脉取 data/skills.js、本门机制取 minigames/theme.js。
+// 这四份都是真源，这里只做编排，不抄第二遍——规则改在真源，说明页跟着变。
+
+const guides = require('./guides.js');
+const practiceData = require('./practice.js');
+const skillData = require('./skills.js');
+const worldData = require('./world.js');
+const themes = require('../minigames/theme.js');
+// 评级门槛由玩法自己算（见各 minigames/*.js 的 lines()），说明页只负责摆出来。
+const minigames = require('../minigames/index.js');
 
 const TOPICS = {
     home: {
@@ -83,6 +95,8 @@ const TOPICS = {
                     '五档跟人走：熟练度越高，能开的档越高；品阶不决定难度。',
                     '档越高，盘面更长、规则更多，结算倍率也更高。',
                     '简单档按人手速标定，不是按机器手速，慢慢划也能拿 S。',
+                    '开局默认就是本门最高已解锁的那一档：门槛到了就说明本事到了，不必再手动挑。',
+                    '刻意退回低档也练得动，但熟练度只剩一半、S 也不计连晋——低档是练手，不是刷分。',
                 ],
             },
             {
@@ -100,7 +114,8 @@ const TOPICS = {
                 lines: [
                     '同一门功法连续 3 局 S，熟练度直接补到下一段位门槛。',
                     'A / B / C 会断连，F 不增不减；领过晋级后重新计数。',
-                    '简单档的 S 只在还没到小成时计数：一旦能选普通档，就得往更高档走才算数——不然最容易的档位会变成刷熟练度的最优解。',
+                    '只有本门最高已解锁档的 S 才计数：退回低档刷 S 既不补进度也攒不上连晋，但也不会断连。',
+                    '段位门槛与难度门槛同源，所以「3 局 S」看起来就像「开下一档」；下一档早开了，它就只是往下一段补。',
                     '大圆满不越界，突破局的蓄力停区不计入连 S。',
                 ],
             },
@@ -109,7 +124,7 @@ const TOPICS = {
                 title: '本门新法',
                 lines: [
                     '熟练度到阶段后新增的规则或便利，每门功法各不相同。',
-                    '进局前的准备页会逐条列出，已得的会标出来；每条后面写的是它替你省下的代价或抬高的收益，不是又一条要背的规则。',
+                    '准备页那一行点开才逐条列出，已得的会标出来；改规矩的那几条能就地关掉，专心练基础。',
                 ],
             },
         ],
@@ -124,7 +139,7 @@ const TOPICS = {
                 title: '天地玄黄',
                 lines: [
                     '功法分黄 / 玄 / 地 / 天四阶，只决定收益倍率、属性系数与可修境界，不决定难度。',
-                    '三套入门小游戏（灵纹连线 / 落石垒基 / 三秀同收）与照影符都是黄阶，便宜好上手。',
+                    '三套入门小游戏（灵纹连线 / 落石垒基 / 三秀同收）与阵法·勘禁诀都是黄阶，便宜好上手。',
                     '阵法类偏推演，归玄阶及以上。',
                 ],
             },
@@ -367,7 +382,129 @@ function topicOf(key) {
     return TOPICS[key] || TOPICS.home;
 }
 
+// 参悟页的说明：按这一门现拼一节一册。
+// 以前这些字全印在准备页上（怎么玩六条 + 盘上所见十条 + 本门机制 + 本门新法 + 品阶 + 一脉），
+// 一屏塞不下，玩家就整块跳过。现在准备页只留一行规则，整篇搬到这里按节折叠。
+function practiceTopic(opts) {
+    const o = opts || {};
+    // 只认真有的参悟方式：getMethod 对未知 id 会回落到第一门（刀法），
+    // 那会让冲关局或拼错的链接显示成别人的规则。
+    const method = o.method && practiceData.METHOD_MAP[o.method] ? practiceData.getMethod(o.method) : null;
+    const gameId = method ? method.game : (o.game || 'charge');
+    const guide = guides.guideOf(gameId);
+    const title = method ? method.name : '蓄力停区';
+    const lead = method
+        ? '这一门的整篇规则只在这里：开局前看一行，局内看两行，拿不准再回来。'
+        : '冲关只玩一件事：按住蓄力，松手停在朱线区间。';
+    const sections = [];
+    // 说明页要把本档门槛写成具体数字，所以难度档跟着链接传进来；
+    // 没传（例如从别处点进来）就按简单档给，至少不是空话。
+    const diffKey = practiceData.DIFFICULTIES.some(function (d) { return d.key === o.diff; })
+        ? o.diff
+        : 'easy';
+    const diff = practiceData.difficultyOf(diffKey);
+
+    if (guide) {
+        sections.push({
+            key: 'goal',
+            title: '这一局做什么',
+            lines: [guide.goal].concat(guide.steps),
+        });
+        if (guide.terms && guide.terms.length) {
+            sections.push({
+                key: 'terms',
+                title: '盘上所见',
+                lines: guide.terms.map(function (t) { return t.name + '：' + t.desc; }),
+            });
+        }
+        // 评级不能只说「按总分评」。S/A/B/C 各自要多少，由这一档的实际门槛给出，
+        // 与局内 HUD、结算同源（各玩法 exports 的 lines()）。
+        const scoreLines = [guide.scoring];
+        const gradeLines = method
+            ? minigames.gradeLines(gameId, practiceData.buildParams(method, diffKey), diff.gear)
+            : null;
+        if (gradeLines) {
+            scoreLines.push('本档「' + diff.name + '」的门槛：');
+            gradeLines.items.forEach(function (it) { scoreLines.push(it); });
+            // 有失败态的玩法要单独写清「最差那档」：C 是「做糙了」，F 是「没走完」，
+            // 两个都是差，但玩家该知道掉到哪一档、代价是多少。
+            if (gradeLines.fail) scoreLines.push(gradeLines.fail);
+        }
+        scoreLines.push('诀窍：' + guide.tip);
+        sections.push({
+            key: 'score',
+            title: '怎么评级',
+            lines: scoreLines,
+        });
+    }
+
+    if (method) {
+        const tw = themes.twistOf(method.twist);
+        sections.push({
+            key: 'twist',
+            title: '本门机制 · ' + tw.name,
+            lines: [tw.desc],
+        });
+
+        const rules = practiceData.stageRulesOf(method.id);
+        if (rules.length) {
+            sections.push({
+                key: 'stage',
+                title: '本门新法',
+                lines: rules.map(function (r) {
+                    const gate = worldData.TIERS[r.at].name;
+                    // 有些 desc 自己就以「大成起」开头，再拼一遍就成了「大成起 · 照畦：大成起…」。
+                    const body = r.desc.indexOf(gate + '起') === 0 ? r.desc.slice(gate.length + 1) : r.desc;
+                    return gate + '起 · ' + r.name + '：' + body;
+                }).concat(['改规矩的那几条可以在准备页关掉，专心练基础；照见、稳基这类纯便利不给开关。']),
+            });
+        }
+
+        const diffLines = ['五档只看这一门的熟练度，品阶不决定难度：'];
+        practiceData.DIFFICULTIES.forEach(function (d) {
+            diffLines.push(d.name + ' · 门槛 ' + d.need + ' · 收益 ×' + d.mult.toFixed(2));
+        });
+        diffLines.push('默认打本门最高已解锁档：门槛到了就说明这一门的本事到了，不必再手动挑。');
+        diffLines.push('刻意退回低档也能练，但熟练度只剩 ×' + practiceData.DIFF_BELOW_CAP.toFixed(1)
+            + '，S 也不计连晋——低档是练手，不是刷分。');
+        diffLines.push('连 3 局 S 直接把熟练度补到下一段位门槛。段位门槛与难度门槛同源，'
+            + '所以看起来就像「3 局 S 开一档」；下一档早开了，它就只是往下一段补。');
+        sections.push({ key: 'difficulty', title: '难度与收益', lines: diffLines });
+
+        // 品阶与一脉：图鉴页也有，但玩家是在准备页起念「这门值不值得练」的，就地给一句。
+        const skill = findSkillByMethod(method.id);
+        if (skill) {
+            const tier = practiceData.tierOf(skill.tier);
+            const realms = worldData.getWorld().realms;
+            const maxRealm = realms[Math.min(realms.length - 1, tier.maxRealm - 1)].name;
+            const chain = skillData.chainOfType(skill.type);
+            const lines = [
+                tier.label + '：' + tier.desc,
+                '熟练度收益 ×' + tier.reward.toFixed(2) + '，属性系数 ×' + tier.attr.toFixed(2)
+                + '；收益不衰减的上限是「' + maxRealm + '」。',
+            ];
+            if (chain.items.length > 1) {
+                lines.push(skill.type + '一脉：' + chain.items.map(function (it) {
+                    const t = practiceData.tierOf(it.tier);
+                    return it.name + '（' + t.label + '）';
+                }).join(' · '));
+            }
+            sections.push({ key: 'rank', title: '品阶与一脉', lines: lines });
+        }
+    }
+
+    return { title: title, lead: lead, sections: sections };
+}
+
+function findSkillByMethod(methodId) {
+    for (let i = 0; i < skillData.SKILLS.length; i += 1) {
+        if (skillData.SKILLS[i].method === methodId) return skillData.SKILLS[i];
+    }
+    return null;
+}
+
 module.exports = {
     TOPICS: TOPICS,
     topicOf: topicOf,
+    practiceTopic: practiceTopic,
 };

@@ -14,7 +14,11 @@ Page({
     },
 
     onLoad: function (query) {
-        const topic = helpData.topicOf(query && query.topic);
+        // 参悟页的说明是「一门一册」，要按功法现拼；其余主题是静态表。
+        const q = query || {};
+        const topic = q.topic === 'practice'
+            ? helpData.practiceTopic({ method: q.method, game: q.game, diff: q.diff })
+            : helpData.topicOf(q.topic);
         // 「说明」页是共用容器，导航栏留空会把「你现在看的是哪一页」丢掉，
         // 所以标题按主题动态给出「人物 · 说明」——这一层就够了，页内不再画第二个标题。
         wx.setNavigationBarTitle({ title: topic.title + ' · 说明' });

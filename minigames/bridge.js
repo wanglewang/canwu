@@ -139,7 +139,8 @@ function create(ctx) {
       elapsed += 1;
       syncHud();
       if (elapsed >= timeLimit) {
-        finishOnce('C', '水流太急，只采到 ' + activeRow + ' 层');
+        // 没采到顶就被水冲走＝没走完：走火。
+        finishOnce('F', '水流太急，只采到 ' + activeRow + ' 层');
         return;
       }
       render();
@@ -178,7 +179,7 @@ function create(ctx) {
     C.flash(vm, '心神 -1 · 还该采「' + (NUM[target] || target) + '」纹', 'bad');
     syncHud();
     if (hearts <= 0) {
-      finishOnce('C', '心神耗尽，只采到 ' + activeRow + ' 层');
+      finishOnce('F', '心神耗尽，只采到 ' + activeRow + ' 层');
       return;
     }
     bag.after(function () {
@@ -200,4 +201,13 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'bridge', name: '循纹递推', create: create };
+function lines() {
+  return {
+    rule: '按采到对岸的用时（越快越高；采错只少一盏心神）',
+    items: ['S ≤ ' + GRADE_LINE[0] + ' 秒', 'A ≤ ' + GRADE_LINE[1] + ' 秒',
+      'B ≤ ' + GRADE_LINE[2] + ' 秒', '其余为 C'],
+    fail: '时间到或心神耗尽还没采到顶层 → 走火 F，只算两成收益',
+  };
+}
+
+module.exports = { id: 'bridge', name: '循纹递推', create: create, lines: lines };

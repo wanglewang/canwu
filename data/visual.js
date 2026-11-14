@@ -1,6 +1,8 @@
 'use strict';
 
-// 视觉标准唯一真源：舞台色板、五类主题、动效预算、结算分镜。
+// 视觉标准唯一真源：舞台色板、四类主题、动效预算、结算分镜。
+// 四类＝兵刃 / 心法 / 丹道 / 阵法。原「符箓」一类已随功法归类调整撤掉：
+// 那门改为阵法·勘禁诀，色板归阵法；太虚诀是心法，归心法。
 // 只被 pages/practice 与 styles/scene.wxss 消费；minigames/ 下一行都不许引用。
 // 舞台固定深色（游戏该有固定氛围），外围页面仍由 prefers-color-scheme 管双主题。
 
@@ -38,10 +40,6 @@ const FAMILIES = {
     key: 'alchemy', name: '丹道', glow: '#F0A35C', deep: '#B4453C', well: '#291713',
     motif: '丹炉 · 灵液 · 火',
   },
-  talisman: {
-    key: 'talisman', name: '符箓', glow: '#E8C46A', deep: '#A2553F', well: '#241A12',
-    motif: '符纸 · 朱砂 · 禁纹',
-  },
   array: {
     key: 'array', name: '阵法', glow: '#B39CE8', deep: '#6F5B9E', well: '#191628',
     motif: '阵盘 · 灯阵 · 五行环',
@@ -52,8 +50,13 @@ const FAMILY_OF = {
   forge: 'sword', snatch: 'sword',
   recite: 'mind', absorb: 'mind',
   stones: 'alchemy', combo: 'alchemy',
-  tanlei: 'talisman', seal: 'talisman',
+  // 勘禁诀练的是格盘推演，不是画符，色板归阵法；太虚诀是心法，归心法。
+  tanlei: 'array', seal: 'mind',
   arrayEye: 'array', wuxing: 'array',
+  // 六门经典盘面：填数 / 让路 / 推箱是盘上推演，归阵法；逐数 / 择大是眼力，归心法；
+  // 叠元是「合」的功课，归丹道那一支暖色（丹道门类暂时空缺，色板先留着）。
+  shudu: 'array', rongdao: 'array', tuisuo: 'array',
+  shumu: 'mind', zeda: 'mind', heyuan: 'alchemy',
   breakthrough: 'alchemy',
 };
 

@@ -54,8 +54,8 @@ const THEMES = {
   },
   tanlei: {
     key: 'tanlei', name: '禁纹', accent: '#a2553f', soft: '#f4e2da', ink: '#6d3527',
-    bg: '#efe1d8', frame: '#fff7f1', glyph: '禁', motif: '照',
-    hit: '石格无事', miss: '触了禁制', banner: '照影起符', praise: '步步不惊',
+    bg: '#efe1d8', frame: '#fff7f1', glyph: '禁', motif: '勘',
+    hit: '石格无事', miss: '触了禁制', banner: '勘位起阵', praise: '步步不惊',
   },
   seal: {
     key: 'seal', name: '卦象', accent: '#5d5b8a', soft: '#e5e4f0', ink: '#3a3860',
@@ -76,6 +76,36 @@ const THEMES = {
     key: 'harvest', name: '灵畦', accent: '#4e8b5b', soft: '#dfeedf', ink: '#2c5b38',
     bg: '#e6f1e5', frame: '#f7fcf6', glyph: '苗', motif: '秀',
     hit: '三秀同收', miss: '换不出三连', banner: '灵畦初开', praise: '一畦三秀',
+  },
+  shudu: {
+    key: 'shudu', name: '九宫', accent: '#3f5d8a', soft: '#e2e9f3', ink: '#26405f',
+    bg: '#e6ecf4', frame: '#f8fafd', glyph: '格', motif: '数',
+    hit: '这一格对了', miss: '这一格不对', banner: '九宫待填', praise: '一数不重',
+  },
+  heyuan: {
+    key: 'heyuan', name: '叠元', accent: '#7b5b8f', soft: '#ece3f2', ink: '#4a3358',
+    bg: '#eee7f4', frame: '#fbf8fe', glyph: '合', motif: '叠',
+    hit: '合上去了', miss: '推不动', banner: '同数待合', praise: '叠到极处',
+  },
+  shumu: {
+    key: 'shumu', name: '逐数', accent: '#2f7f7a', soft: '#dcefee', ink: '#1e514d',
+    bg: '#e4f1f0', frame: '#f7fcfb', glyph: '目', motif: '逐',
+    hit: '点对了', miss: '点错了', banner: '逐数而视', praise: '一眼到底',
+  },
+  rongdao: {
+    key: 'rongdao', name: '让路', accent: '#96603c', soft: '#f3e4d8', ink: '#5f3a22',
+    bg: '#f0e5da', frame: '#fdf7f0', glyph: '机', motif: '巧',
+    hit: '挪了一格', miss: '挪不动', banner: '一子挡道', praise: '一步不废',
+  },
+  tuisuo: {
+    key: 'tuisuo', name: '入位', accent: '#4f6b45', soft: '#e3eddd', ink: '#33452c',
+    bg: '#e8f0e2', frame: '#f9fdf5', glyph: '挪', motif: '移',
+    hit: '推了一格', miss: '推不动', banner: '石箱待位', praise: '处处入位',
+  },
+  zeda: {
+    key: 'zeda', name: '择大', accent: '#8a4560', soft: '#f2dee6', ink: '#5c2c40',
+    bg: '#f2e4ea', frame: '#fdf6f8', glyph: '辨', motif: '择',
+    hit: '就是这个', miss: '不是最大', banner: '辨数择大', praise: '一眼取大',
   },
   breakthrough: {
     key: 'breakthrough', name: '冲关', accent: '#b4453c', soft: '#f7e4d5', ink: '#7a3129',
@@ -98,6 +128,12 @@ const FALLBACK = {
   link: 'linkpair',
   blocks: 'stackstone',
   match: 'harvest',
+  sudoku: 'shudu',
+  merge: 'heyuan',
+  schulte: 'shumu',
+  klotski: 'rongdao',
+  pushbox: 'tuisuo',
+  biggest: 'zeda',
   charge: 'breakthrough',
 };
 
@@ -155,6 +191,30 @@ const TWIST_INFO = {
   harvest: {
     name: '落苗连锁',
     desc: '换相邻两株凑三连，收完上头落下来补新苗，再凑成一线就是连锁，分越滚越高。',
+  },
+  shudu: {
+    name: '九宫唯一解',
+    desc: '每盘都验过只有唯一解，靠行、列、宫的排除法一定能推完，不必猜；填错一格罚 10 秒。',
+  },
+  heyuan: {
+    name: '合到即收',
+    desc: '同数两块一撞合成双倍，合出本档目标那一块就收功；盘满又相邻无同数就推不动了。',
+  },
+  shumu: {
+    name: '按序扫盘',
+    desc: '数不动，只有顺序是死的：从 1 一路点到最后一个，点错不换格只罚 2 秒。',
+  },
+  rongdao: {
+    name: '一步一格',
+    desc: '点一块选中，再按方向键挪一格；主块落到盘底出口即脱身，步数预算按本盘最优步数给。',
+  },
+  tuisuo: {
+    name: '只推不拉',
+    desc: '石箱只会被推、拉不回来；推错方向卡进墙角就只能复位重来，推数预算用完即困住。',
+  },
+  zeda: {
+    name: '一批一换',
+    desc: '每挑对一次就换一批新数，数越来越长；点错不换轮，罚 2 秒后接着挑。',
   },
 };
 

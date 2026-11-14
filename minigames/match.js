@@ -144,9 +144,10 @@ function create(ctx) {
 
   // 一格三连 12 分，连锁每层 ×(1 + 0.5×(层数-1))；一局打得顺能收十几次。
   // S 线的基数与每档增量由 data/practice.js 的 params 同源送入，准备页照同一份数写给玩家看。
-  const sLimit = (p.sBase || 620) + depth * (p.sStep || 150);
-  const aLimit = Math.ceil(sLimit * 0.68);
-  const bLimit = Math.ceil(sLimit * 0.40);
+  const lim = gradeLimits(p, depth);
+  const sLimit = lim.s;
+  const aLimit = lim.a;
+  const bLimit = lim.b;
 
   const bag = C.TimerBag();
   let board = new Array(n).fill(0);
@@ -328,7 +329,21 @@ function create(ctx) {
   });
 }
 
+function gradeLimits(p, depth) {
+  const s = ((p && p.sBase) || 620) + depth * ((p && p.sStep) || 150);
+  return { s: s, a: Math.ceil(s * 0.68), b: Math.ceil(s * 0.40) };
+}
+
+function lines(p) {
+  const depth = Math.max(0, Math.min(4, (p && p.depth) || 0));
+  const lim = gradeLimits(p, depth);
+  return {
+    rule: '按本局总分（无效互换只少息、不扣分）',
+    items: ['S ≥ ' + lim.s + ' 分', 'A ≥ ' + lim.a + ' 分', 'B ≥ ' + lim.b + ' 分', '其余为 C'],
+  };
+}
+
 module.exports = {
-  id: 'match', name: '三秀同收', create: create,
+  id: 'match', name: '三秀同收', create: create, lines: lines,
   matchesOf: matchesOf, findMove: findMove, collapse: collapse, GLYPHS: GLYPHS,
 };

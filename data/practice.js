@@ -1,15 +1,20 @@
 'use strict';
 
 // 参悟方式 = 一门功法 + 一套专属玩法 + 该门独有的规则花样(twist) + 表现主题(theme)。
-// 13 门功法对应 13 套互不复用内核的小游戏；同是剑法、同是阵法，也不会点进去是同一个盘面。
+// 19 门功法对应 19 套互不复用内核的小游戏；同是剑法、同是阵法，也不会点进去是同一个盘面。
 // game 取值见 minigames/index.js：
-//   click / hunt / memory / bridge / tempo / sword / lights / wuxing / mines / seal / link / blocks / match。
+//   click / hunt / memory / bridge / tempo / sword / lights / wuxing / mines / seal / link / blocks / match
+//   / sudoku / merge / schulte / klotski / pushbox / biggest。
 // forge 是刀法（weapon: 'dao'），剑法·断岳诀仍标 sword，但 hunt 引擎暂不读兵器轴。
 // 兵器是功法属性，不是某个玩法的私有参数。charge 仅用于境界突破，不挂功法。
 //
 // 命名分工：「参悟方式」写这一门功课具体在做什么（斩桩 / 采露 / 观窍），
 // 「玩法名」写盘面上的动作（顺光扫斩 / 循纹递推）。两者不可重名，也不可与功法本身相斥——
-// 刀法不练数格子，丹道不练渡河，符箓不练探雷。
+// 刀法不练数格子，丹道不练渡河，心法不练牵线——类别与盘面上的动作必须同源。
+// 反例就发生在这一版之前：「符箓·照影符」练的是数格辨禁，可符是纸上画出来的东西，
+// 与格盘推理毫无关系；已按「以游戏为准」改为「阵法·勘禁诀」，归入阵法黄阶。
+// 同理，「丹道·凝露方」练的是一条竖向河道采露，与炼丹无关，已按玩法改为「水术·凝露诀」；
+// 丹道这一门暂时空缺，留给以后真正炼丹的功课。
 // id 是稳定键（存档、纪录都按它索引），改文案时不要动 id。
 // base 是熟练度收益基数，按各玩法的通关难度分别配平。
 //
@@ -81,8 +86,8 @@ const PRACTICE_METHODS = [
     params: { duration: 20, chainGoal: 10, windowMs: 2600 },
   },
   {
-    id: 'tanlei', name: '持符探禁', game: 'mines', theme: 'tanlei', twist: 'tanlei',
-    desc: '照影符照出石格下的禁制。看数字推位置、布镇符连开，把安全石格一处处翻明。',
+    id: 'tanlei', name: '勘位辨禁', game: 'mines', theme: 'tanlei', twist: 'tanlei',
+    desc: '石格下埋着禁制，能看到只有周围露出的数字。按数字把禁位一格格勘出来，钉住再连开。',
     tip: '误触折 1 盏心神，耗尽即收功',
     base: 50,
     params: { cols: 6, rows: 6, mines: 6 },
@@ -117,6 +122,52 @@ const PRACTICE_METHODS = [
     base: 34,
     params: { duration: 60, cols: 6, rows: 6, kinds: 5, flashMs: 760 },
   },
+  // 下面六门也是「看一眼就会玩」的经典盘面玩法，与上面三套一样挂黄阶：
+  // 品阶按「这门功课有多难」定，这六门规则都直白，前期就该买得起。
+  {
+    id: 'shudu', name: '推填九宫', game: 'sudoku', theme: 'shudu', twist: 'shudu',
+    desc: '九宫盘上留着空格，每行、每列、每宫都要把 1 到 9 各填一遍；填错一格会被记下。',
+    tip: '填错一格罚 10 秒，时辰到没填完即收功',
+    base: 38,
+    // 盘面规格 / 挖洞数 / 时限与三条时间线由 SUDOKU_LEVELS 按难度档注入，这里不写死 4×4。
+    params: {},
+  },
+  {
+    id: 'heyuan', name: '同数相合', game: 'merge', theme: 'heyuan', twist: 'heyuan',
+    desc: '整行整列往一个方向挤，同数相撞就合成双倍；空出来的格子里再补一块新的。',
+    tip: '盘满又相邻无同数即走火，合出本档目标块就收功',
+    base: 34,
+    params: { cols: 4, rows: 4 },
+  },
+  {
+    id: 'shumu', name: '循数疾点', game: 'schulte', theme: 'shumu', twist: 'shumu',
+    desc: '盘上的数散乱摆着，从 1 顺着点到最后，点完即完成。',
+    tip: '点错不换格，罚 2 秒',
+    base: 32,
+    params: {},
+  },
+  {
+    id: 'rongdao', name: '挪块开路', game: 'klotski', theme: 'rongdao', twist: 'rongdao',
+    desc: '盘上若干滑块，一次只挪一格；把 2×2 的主块一路让到底部的出口才算脱身。',
+    tip: '步数用尽还没脱身，就是被困住了',
+    base: 36,
+    // 最优步数的上下限由 KLOTSKI_LEVELS 按难度档注入。
+    params: {},
+  },
+  {
+    id: 'tuisuo', name: '归箱入阵', game: 'pushbox', theme: 'tuisuo', twist: 'tuisuo',
+    desc: '人走在石格上，石箱只推不拉；把每块石箱推到自己的阵位上，一处不落。',
+    tip: '推不回来：推错方向只能重来',
+    base: 36,
+    params: {},
+  },
+  {
+    id: 'zeda', name: '择大辨微', game: 'biggest', theme: 'zeda', twist: 'zeda',
+    desc: '一批数散在盘上，只管挑出最大的那一个；每挑对一次换一批新的。',
+    tip: '点错不换轮，罚 2 秒',
+    base: 30,
+    params: {},
+  },
 ];
 
 // 玩法中文名：只写盘面上的动作，不写题材。与 minigames/ 各模块导出的 name 一一对应，
@@ -135,6 +186,12 @@ const GAME_LABELS = {
   link: '灵纹连线',
   blocks: '落石垒基',
   match: '三秀同收',
+  sudoku: '九宫填数',
+  merge: '滑格相合',
+  schulte: '顺序点格',
+  klotski: '滑块让路',
+  pushbox: '推石入位',
+  biggest: '数中取大',
 };
 
 // 提示按钮各门叫法不同：跟着玩法名走，别在页面 JS 里散着写三元。
@@ -142,7 +199,7 @@ const GAME_LABELS = {
 const HINT_LABELS = {
   match: '照畦',
   lights: '阵眼感应',
-  seal: '符箓照纹',
+  seal: '入定照见',
 };
 
 function hintLabelOf(gameId) {
@@ -154,14 +211,23 @@ function hintLabelOf(gameId) {
 const FAMILIES = {
   刀法: { core: '顺光成路', note: '顺着箭头把刀扫到靶心，招长而折，容许多带两桩', kind: 'skill' },
   剑法: { core: '辨光取真', note: '先不做剑法，眼下只余剑法·断岳诀一门，在数道剑光里截真招', kind: 'skill' },
-  阵法: { core: '阵灯推演', note: '同族都在推阵灯，换的是推演方向与步数目标', kind: 'skill' },
+  阵法: { core: '盘上推演', note: '同族都在方盘上推演：勘禁位、排五行、点阵灯', kind: 'skill' },
   心法: { core: '记忆与节律', note: '三门主修各考一样：节拍、记性、配对', kind: 'main' },
-  丹道: { core: '循纹递推', note: '看纹路递推，只有一门', kind: 'skill' },
-  符箓: { core: '数格辨禁', note: '看数字推禁制，只有一门', kind: 'skill' },
+  // 丹道暂时空缺：凝露那门练的是河石采露（水术），不是炼丹。等真有一门「配药、控火、
+  // 守炉」的功课再填进来，别为了凑满一门类把别的玩法硬塞给它。
+  丹道: { core: '待补', note: '暂空缺：留给真正炼丹的功课', kind: 'skill' },
+  水术: { core: '循纹递推', note: '看河石上的水纹递推，只有一门', kind: 'skill' },
   身法: { core: '步法连环', note: '照卷轴踏位，只有一门', kind: 'skill' },
   御灵: { core: '灵纹连线', note: '牵两枚同纹灵石，找一条不超过两折的通路', kind: 'skill' },
   土术: { core: '落石垒基', note: '挪石转石垒满一层，是唯一持续下落的盘面', kind: 'skill' },
   灵植: { core: '三秀同收', note: '互换相邻两株凑三连，采收后新苗落下还能连锁', kind: 'skill' },
+  // 六门经典盘面各占一门类：都是黄阶，同阶不能撞类别，撞了谱系按阶取槽会盖掉后一门。
+  术数: { core: '填数推演', note: '九宫盘上补数，行、列、宫各要一遍', kind: 'skill' },
+  合术: { core: '同数相叠', note: '四向推盘，同数相撞就合上去', kind: 'skill' },
+  目术: { core: '按序扫盘', note: '目光按序把整盘点一遍，考的是扫而不是记', kind: 'skill' },
+  机巧: { core: '滑块让路', note: '一块一格地滑，给主块腾出底部的出口', kind: 'skill' },
+  挪移: { core: '推石入位', note: '人走箱推、只推不拉，每块石箱对上自己的阵位', kind: 'skill' },
+  辨术: { core: '择大辨微', note: '一堆数里挑最大的那个，考的是比较不是记性', kind: 'skill' },
 };
 
 const METHOD_MAP = {};
@@ -227,6 +293,18 @@ function diffKeyIndex(key) {
   return d ? DIFFICULTIES.indexOf(d) : 0;
 }
 
+// 低于「本门最高已解锁档」时的熟练度折减。
+//
+// 为什么要有这一条：难度档是事前承诺，不是面板上的装饰。解锁了普通档却一直刷简单档，
+// 等于既拿难度倍率又躲开难度本身——模拟里「只刷简单」曾经反超「逐档升」（8424 vs 7339）。
+// 只把连 S 停掉不够：正常收益那一路仍在按 ×1.00 走。
+//
+// 取 0.5 而不是按落差叠乘：一条规则只能有一个数字，玩家才记得住。
+// 折半之后界线正好可讲——黄阶简单档 S = 1.00×0.5×1.5 = 0.75，
+// 普通档 C = 1.30×0.6 = 0.78：普通档打个 C，也比简单档 S 多。
+// 熟练度不到 400 时简单档就是最高档，本项自动不生效，新手不受罚。
+const DIFF_BELOW_CAP = 0.5;
+
 // 这门功法当前熟练度实际解锁到第几档。
 function diffIndexOf(prof) {
   const p = Math.max(0, Number(prof) || 0);
@@ -241,6 +319,28 @@ function bestDifficulty(prof) {
   return DIFFICULTIES[diffIndexOf(prof)].key;
 }
 
+// 这一档是不是「低于本门最高已解锁档」。收益折半与连 S 是否计数共用这一个判定：
+// 玩家只需记一句话——只有最高已解锁档才算真功夫。
+function belowCapOf(prof, diffKey) {
+  return diffKeyIndex(diffKey) < diffIndexOf(prof);
+}
+
+// 实际生效的难度倍率：低于最高档时折半。结算与准备页都从这里取，别各算一遍。
+function effectiveMultOf(prof, diffKey) {
+  return belowCapOf(prof, diffKey)
+    ? difficultyOf(diffKey).mult * DIFF_BELOW_CAP
+    : difficultyOf(diffKey).mult;
+}
+
+// 准备页那一行折减提示：说清折的是哪一半、代价是什么，只在真的折减时出现。
+function belowCapText(prof, diffKey) {
+  if (!belowCapOf(prof, diffKey)) return '';
+  const cap = DIFFICULTIES[diffIndexOf(prof)];
+  return '低于已解锁的「' + cap.name + '」：熟练度 ×' + DIFF_BELOW_CAP.toFixed(1)
+    + '，S 也不计连晋。'
+    + '想快些练，回到「' + cap.name + '」打。';
+}
+
 // 给选择器用的五档列表，含解锁状态与所需熟练度。
 function difficultyList(prof, current) {
   const idx = diffIndexOf(prof);
@@ -249,8 +349,11 @@ function difficultyList(prof, current) {
     return {
       key: d.key,
       name: d.name,
-      multText: '×' + d.mult.toFixed(1),
+      multText: '×' + d.mult.toFixed(2),
       mult: d.mult,
+      // 选中低档时，胶囊上直接给实得倍率，别让玩家以为还是 ×1.30。
+      realMultText: '×' + (i < idx ? d.mult * DIFF_BELOW_CAP : d.mult).toFixed(2),
+      below: i < idx,
       need: d.need,
       desc: d.desc,
       unlocked: i <= idx,
@@ -282,6 +385,51 @@ const LIGHTS_LEVELS = [
 function lightsLevelOf(diffKey) {
   return LIGHTS_LEVELS[difficultyOf(diffKey).depth];
 }
+
+// 九宫填数的档位表：盘面规格 / 挖洞数 / 时限 / 三条时间线。
+// 规格按档递进：4×4 先把「行、列、宫各一遍」看懂，6×6 换宫格形状，9×9 才是正经数独。
+// 挖洞越多越难；时限给得比 B 线宽一截，是为了让「填完但慢」还有个 C，
+// 而不是一超线就直接判负——没填完（走火）和填得慢（C）是两件事。
+const SUDOKU_LEVELS = [
+  { size: 4, holes: 8, timeLimit: 150, tS: 45, tA: 70, tB: 100 },
+  { size: 6, holes: 14, timeLimit: 240, tS: 80, tA: 120, tB: 170 },
+  { size: 9, holes: 32, timeLimit: 420, tS: 170, tA: 240, tB: 330 },
+  { size: 9, holes: 40, timeLimit: 420, tS: 190, tA: 270, tB: 370 },
+  { size: 9, holes: 46, timeLimit: 420, tS: 210, tA: 300, tB: 410 },
+];
+
+function sudokuLevelOf(diffKey) {
+  return SUDOKU_LEVELS[difficultyOf(diffKey).depth];
+}
+
+// 滑块让路的档位表：这一盘「最少几步脱身」的上下限。
+// 只放最优步数不放盘面：4×4 的小盘已经够看，靠步数上下限就能一档一比一档难。
+const KLOTSKI_LEVELS = [
+  { minOpt: 2, maxOpt: 4 },
+  { minOpt: 3, maxOpt: 6 },
+  { minOpt: 4, maxOpt: 8 },
+  { minOpt: 5, maxOpt: 10 },
+  { minOpt: 6, maxOpt: 12 },
+];
+
+function klotskiLevelOf(diffKey) {
+  return KLOTSKI_LEVELS[difficultyOf(diffKey).depth];
+}
+
+// 另外三门的档位表住在玩法模块里（合术 / 目术 / 挪移 / 辨术 各有一套自己的数），
+// 这里只把「本档最关键的那个数」按档注入 params：准备页的难度说明要能写出
+// 「这一档换成了什么」，不然高档位那行会照旧写「入门基准」。
+// 模块里的默认表只在没带参数时兜底（测试探针直接 create 就是走那条路）。
+const MERGE_TARGETS = [128, 256, 256, 512, 1024];
+const SCHULTE_SIZES = [4, 5, 5, 6, 6];
+const PUSHBOX_LEVELS = [0, 1, 2, 3, 4];
+const BIGGEST_LEVELS = [
+  { count: 9, rounds: 8 },
+  { count: 11, rounds: 10 },
+  { count: 13, rounds: 12 },
+  { count: 15, rounds: 14 },
+  { count: 16, rounds: 16 },
+];
 
 function sLineOf(method, diffKey) {
   if (!method || method.game !== 'match') return 0;
@@ -316,7 +464,7 @@ const FIELD_LABELS = {
   interval: '灵光间隔', life: '刀光停留', flashMs: '亮起时长', gapMs: '闪烁间隔', windowMs: '相生之窗', msPerNote: '每字限时',
   shuffleMs: '水流变阵', flipMs: '翻牌停留', dropMs: '落石间隔', window: '判定窗', speed: '气机收敛',
   chainGoal: '连生目标', maxRound: '口诀轮数', segments: '步法段数', beats: '息数',
-  scramble: '打乱步数', mines: '禁制数', pairs: '符对数', decoys: '影子数',
+  scramble: '打乱步数', mines: '禁制数', pairs: '气窍对数', decoys: '影子数',
   startLen: '起始字数', baseLen: '每步长度', steps: '最少步数',
 };
 
@@ -367,6 +515,30 @@ function buildParams(method, diffKey) {
     out.minSteps = lv.min;
     out.capSteps = lv.cap;
   }
+  // 九宫填数：规格、挖洞数与三条时间线都按档注入，玩法层不再自己写死 4×4。
+  if (method && method.game === 'sudoku') {
+    const lv = sudokuLevelOf(diffKey);
+    out.size = lv.size;
+    out.holes = lv.holes;
+    out.timeLimit = lv.timeLimit;
+    out.tS = lv.tS;
+    out.tA = lv.tA;
+    out.tB = lv.tB;
+  }
+  // 滑块让路：只注入「本盘最优步数」的上下限，盘面固定 4×4。
+  if (method && method.game === 'klotski') {
+    const lv = klotskiLevelOf(diffKey);
+    out.minOpt = lv.minOpt;
+    out.maxOpt = lv.maxOpt;
+  }
+  // 档位表住在模块里的四门：只注入本档最关键的那个数，给准备页的难度说明用。
+  if (method && method.game === 'merge') out.target = MERGE_TARGETS[d.depth];
+  if (method && method.game === 'schulte') out.size = SCHULTE_SIZES[d.depth];
+  if (method && method.game === 'pushbox') out.level = PUSHBOX_LEVELS[d.depth];
+  if (method && method.game === 'biggest') {
+    out.count = BIGGEST_LEVELS[d.depth].count;
+    out.rounds = BIGGEST_LEVELS[d.depth].rounds;
+  }
   // steps 是「这盘最少几步」这类按档递增的量：params 里写的是简单档的值，每档 +1。
   if (typeof out.steps === 'number') out.steps += d.depth;
   if (typeof out[SPEED_KEY] === 'number') out[SPEED_KEY] = Math.round(out[SPEED_KEY] / d.pace * 10000) / 10000;
@@ -408,6 +580,20 @@ function diffDetail(method, diffKey) {
   if (method && method.game === 'lights') {
     const lv = lightsLevelOf(diffKey);
     brief = lv.size + '×' + lv.size + ' 盘 · 最优 ' + lv.min + ' 步起 · 预算 ' + lv.cap + ' 步';
+  } else if (method && method.game === 'sudoku') {
+    const lv = sudokuLevelOf(diffKey);
+    brief = lv.size + '×' + lv.size + ' 盘 · 要填 ' + lv.holes + ' 格 · S 线 ' + lv.tS + ' 秒';
+  } else if (method && method.game === 'klotski') {
+    const lv = klotskiLevelOf(diffKey);
+    brief = '4×4 小盘 · 最优 ' + lv.minOpt + '～' + lv.maxOpt + ' 步';
+  } else if (method && method.game === 'merge') {
+    brief = '本档要合出 ' + now.target + ' 一块';
+  } else if (method && method.game === 'schulte') {
+    brief = now.size + '×' + now.size + ' 盘 · 共 ' + now.size * now.size + ' 个数';
+  } else if (method && method.game === 'pushbox') {
+    brief = '第 ' + (now.level + 1) + ' 张石图 · 推数越少越好';
+  } else if (method && method.game === 'biggest') {
+    brief = '本档 ' + now.rounds + ' 轮 · 每轮盘上 ' + now.count + ' 个数';
   } else {
     brief = changes.length
       ? changes.map(function (c) { return c.text; }).join(' · ')
@@ -433,7 +619,7 @@ function diffDetail(method, diffKey) {
 // 收起态是给已经会玩的人看一眼的，展开态才讲条件与代价。
 // hard: true 标记这批新法是「改规则」而不是「给便利」——逆诵会改点击方向、死门会多一格
 // 不能碰的，玩家可能想关掉专心练基础。只有带这个标记的才在准备页给开关；
-// 照影 / 照纹 / 稳基那类纯加成没有理由关，多一个开关只是多一处看不懂。
+// 勘位 / 照纹 / 稳基那类纯加成没有理由关，多一个开关只是多一处看不懂。
 const STAGE_RULES = {
   recite: [
     { at: 3, name: '逆诵', short: '倒着点', hard: true, desc: '第 3 轮起，奇轮要从未字往前点回' },
@@ -448,10 +634,10 @@ const STAGE_RULES = {
     { at: 4, name: '禁桩', short: '绕开红叉', hard: true, desc: '盘上多出红叉禁桩，划到即断刀势；绕开它把刀路走完才算数' },
     { at: 5, name: '双锋', short: '双刀路挑呼吸的', hard: true, desc: '同时亮两道刀路，只有靶心在呼吸的那道是真招，划错断势' },
   ],
-  // 照影符是黄阶入门功法，阶段新法只给「看得更清」的便利，不往经典扫雷里加新规则。
+  // 勘禁诀是黄阶入门功法，阶段新法只给「看得更清」的便利，不往经典扫雷里加新规则。
   tanlei: [
-    { at: 3, name: '照影', short: '开局标 3 处', desc: '大成起每局开局照见 3 处禁制并标出' },
-    { at: 5, name: '圆照', short: '开局标 5 处', desc: '大圆满起每局开局照见 5 处禁制' },
+    { at: 3, name: '勘位', short: '开局标 3 处', desc: '大成起每局开局勘出 3 处禁位并标出' },
+    { at: 5, name: '洞玄', short: '开局标 5 处', desc: '大圆满起每局开局勘出 5 处禁位' },
   ],
   // 三套经典玩法是黄阶里的入门功课，阶段新法只给「看得更清 / 手更稳」的便利，
   // 不往经典规则里塞新花样——看一眼就会玩，才配叫简单。
@@ -491,6 +677,10 @@ module.exports = {
   diffKeyIndex: diffKeyIndex,
   diffIndexOf: diffIndexOf,
   bestDifficulty: bestDifficulty,
+  belowCapOf: belowCapOf,
+  effectiveMultOf: effectiveMultOf,
+  belowCapText: belowCapText,
+  DIFF_BELOW_CAP: DIFF_BELOW_CAP,
   difficultyList: difficultyList,
   buildParams: buildParams,
   diffDetail: diffDetail,
@@ -498,6 +688,10 @@ module.exports = {
   sLineText: sLineText,
   lightsLevelOf: lightsLevelOf,
   LIGHTS_LEVELS: LIGHTS_LEVELS,
+  sudokuLevelOf: sudokuLevelOf,
+  SUDOKU_LEVELS: SUDOKU_LEVELS,
+  klotskiLevelOf: klotskiLevelOf,
+  KLOTSKI_LEVELS: KLOTSKI_LEVELS,
   hintLabelOf: hintLabelOf,
   stageRulesOf: stageRulesOf,
 };

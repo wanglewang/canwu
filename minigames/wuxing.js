@@ -178,4 +178,17 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'wuxing', name: '五行相生', create: create };
+function gradeLimits(goal) {
+  return { s: goal, a: Math.ceil(goal * 0.7), b: Math.ceil(goal * 0.4) };
+}
+
+function lines(p, gear) {
+  const goal = ((p && p.chainGoal) || 10) + (gear === 'hard' ? 2 : 0);
+  const lim = gradeLimits(goal);
+  return {
+    rule: '按最长连生位数（相生一断，就得从木重新起链）',
+    items: ['S ≥ ' + lim.s + ' 位', 'A ≥ ' + lim.a + ' 位', 'B ≥ ' + lim.b + ' 位', '其余为 C'],
+  };
+}
+
+module.exports = { id: 'wuxing', name: '五行相生', create: create, lines: lines };

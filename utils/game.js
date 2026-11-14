@@ -515,12 +515,18 @@ function applyPractice(state, skillId, grade, options) {
   const realmDecay = realmOk ? 1 : worldData.REALM_DECAY;
 
   // 难度档只认这门功法自己的熟练度；越权选高档（例如改页面参数）自动回落到已解锁的最高档。
-  const wantIdx = practiceData.diffKeyIndex(opts.difficulty || (opts.hard ? 'hard' : 'easy'));
+  // 没传难度就按「本门最高已解锁档」结算：老默认是 easy，会让没带参数的调用在高段位被静默折半。
+  const fallbackDiff = opts.hard ? 'hard' : practiceData.bestDifficulty(rec.prof);
+  const wantIdx = practiceData.diffKeyIndex(opts.difficulty || fallbackDiff);
   const maxIdx = practiceData.diffIndexOf(rec.prof);
   const fellBack = wantIdx > maxIdx;
   const diff = practiceData.DIFFICULTIES[Math.min(wantIdx, maxIdx)];
+  // 低于本门最高已解锁档：熟练度折半，且这一局的 S 不计连晋。
+  // 两件事共用同一个判定（「只有最高已解锁档才算真功夫」），不写成两套口径。
+  const belowCap = practiceData.belowCapOf(rec.prof, diff.key);
+  const diffMult = belowCap ? diff.mult * practiceData.DIFF_BELOW_CAP : diff.mult;
 
-  const coreRaw = tier.reward * diff.mult * factor * realmDecay;
+  const coreRaw = tier.reward * diffMult * factor * realmDecay;
   const coreMult = Math.min(worldData.MAX_MULTIPLIER, coreRaw);
   const capped = coreRaw > worldData.MAX_MULTIPLIER + 1e-9;
 
@@ -531,9 +537,11 @@ function applyPractice(state, skillId, grade, options) {
   const score = Math.max(0, Math.floor(num(opts.score, 0)));
   const prev = state.records[skillId];
   const prevBest = prev ? Math.floor(num(prev.score, 0)) : 0;
-  const newRecord = score > prevBest;
+  // 走火这一局不立纪录：没走完的成绩不构成「本门最佳」，
+  // 否则第一局崩掉就会在准备页留下「本门最佳 0 分 · 走火」，玩家会以为这就是他的水平。
+  const newRecord = score > prevBest && grade !== 'F';
   if (newRecord) state.records[skillId] = { score: score, grade: grade, at: Date.now() };
-  else if (!prev) state.records[skillId] = { score: 0, grade: grade, at: Date.now() };
+  else if (!prev && grade !== 'F') state.records[skillId] = { score: 0, grade: grade, at: Date.now() };
   const bestScore = Math.max(prevBest, score);
 
   state.lastPractice = { skillId: skillId, at: Date.now() };
@@ -541,15 +549,20 @@ function applyPractice(state, skillId, grade, options) {
 
   // 三连 S 直接晋级：连续完成的 3 局都拿到 S，就把熟练度直接补到下一阶段门槛。
   // 「直接晋级」= 升一个熟练度段位（未入门→入门→小成→大成→圆满→大圆满），
-  // 不是加一句文案里的奖励；已至大圆满则不再补。中途收功（F）不算完成，连 S 不增不减。
-  // 简单档只负责把新手送进门：段位到小成（也就是已经能选普通档）之后，
-  // 简单档的 S 不再计连 S。否则最容易的档位反而成了刷熟练度的最优解——
-  // 收益模拟里「只刷简单」会反超「逐档升」，等于把玩家往回推。
-  const streakCounts = diff.depth >= 1 || beforeTier < 2;
+  // 不是加一句文案里的奖励；已至大圆满则不再补。
+  // 走火（F）是一局打完的结果，照样断连——它进到这里就说明不是主动收功。
+  // 主动收功（中途收功）根本不会调 applyPractice，连 S 原样不动，所以这里不再给 F 开口子：
+  // 旧写法 `grade !== 'F'` 会让「阵溃」比「勉强打成 C」更保连晋，激励正好反了。
+  // 计不计入只认一条：本档是不是「本门最高已解锁档」。
+  // 门槛达到之后还退回低档刷 S，等于拿最容易的档位换最贵的补额——
+  // 模拟里「只刷简单」曾反超「逐档升」（8424 vs 7339）。折减与断连是同一根尺子的两面：
+  // 只有最高已解锁档才算真功夫，收益不减、S 才计数。
+  const streakCounts = !belowCap;
+
   if (!state.sStreak) state.sStreak = {};
   const streakBefore = Math.min(S_STREAK_GOAL - 1, Math.floor(num(state.sStreak[skillId], 0)));
   let streakNow = streakBefore;
-  if (streakCounts && grade !== 'F') streakNow = grade === 'S' ? streakBefore + 1 : 0;
+  if (streakCounts) streakNow = grade === 'S' ? streakBefore + 1 : 0;
 
   rec.prof += gain;
   let promotion = null;
@@ -668,7 +681,13 @@ function applyPractice(state, skillId, grade, options) {
     tierColor: tier.color,
     diffKey: diff.key,
     diffName: diff.name,
-    diffMult: diff.mult,
+    // 结算报的是「这一局实际入账的倍率」：低档折半后就是 ×0.65，不是面板上的 ×1.30。
+    diffMult: diffMult,
+    diffMultRaw: diff.mult,
+    // 低于本门最高已解锁档：熟练度已折半、S 也不计连晋，结算要把这句说出来。
+    diffBelowCap: belowCap,
+    diffBelowCapFactor: practiceData.DIFF_BELOW_CAP,
+    diffCapName: practiceData.DIFFICULTIES[maxIdx].name,
     diffFellBack: fellBack,
     diffMaxName: practiceData.DIFFICULTIES[maxIdx].name,
     realmDecay: realmDecay,

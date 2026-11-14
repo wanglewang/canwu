@@ -1,17 +1,17 @@
 'use strict';
 
-// 数格辨禁（持符探禁 / 照影符专属）：经典扫雷，看周围数字推禁制位置，翻遍所有安全石格。
+// 数格辨禁（勘位辨禁 / 阵法·勘禁诀专属）：经典扫雷，看周围数字推禁制位置，翻遍所有安全石格。
 //
-// 「照影符应该简单，因为扫雷太经典了」——这里的深耕不是往里塞新规则，而是把经典扫雷
+// 「勘禁诀应该简单，因为扫雷太经典了」——这里的深耕不是往里塞新规则，而是把经典扫雷
 // 之所以好玩的那几件事补齐，规则一个字不加：
 //   ① 首点及其八邻无禁制，第一下必开出一片空白，不会开局就被一个数字堵死。
 //   ② 整盘「无猜」：布完禁制用约束传播验一遍，确认从首点纯推理能翻完，否则重布。
 //      新手不该死在「两格只能猜一个」上，那是扫雷最劝退的地方。
-//   ③ 布镇符不再只是装饰：点已翻开的数字格，符数对上就自动连开其余邻格（chord）。
-//      不布符照样能玩，会用的人才快，所以不破坏「一看就懂」。
+//   ③ 钉阵钉不再只是装饰：点已翻开的数字格，钉数对上就自动连开其余邻格（chord）。
+//      不钉钉照样能玩，会用的人才快，所以不破坏「一看就懂」。
 //
-// 保留下来的本门机制：三盏心神（误触只扣一盏并让那处显形，耗尽才收功）、长按布镇符、
-// 大成开局照见禁制。盘面只有数字与两个通用符号（✕ 禁制 / ⚑ 镇符），不落汉字。
+// 保留下来的本门机制：三盏心神（误触只扣一盏并让那处显形，耗尽才收功）、长按钉阵钉、
+// 大成开局勘出禁位。盘面只有数字与两个通用符号（✕ 禁制 / ⚑ 阵钉），不落汉字。
 //
 // finish.score 一律「越大越好」：engine.applyPractice 按 score > prevBest 记破纪录，
 // 旧实现把「耗时秒数」当 score 传出去，越慢反而越容易破纪录，方向是反的。
@@ -21,7 +21,7 @@ const C = require('./common.js');
 const LAYOUT_TRIES = 64;   // 单格可解布局约占十几分之一，64 次足够；找不到就接受最后一盘，绝不死循环
 const HEARTS_BY_DEPTH = [3, 3, 3, 2, 2];
 const MINE_GLYPH = '✕';
-const FLAG_GLYPH = '⚑';   // 镇符：长按落下的记号，仍是个通用符号，不落汉字
+const FLAG_GLYPH = '⚑';   // 阵钉：长按钉下的记号，仍是个通用符号，不落汉字
 // 评级只看用时，所以「按当前用时换算出来的档」在开局那一刻一定是 S。那个字母摆在局内
 // 等于骗人：玩家会以为 S 已经到手，之后只会看着它一路往下掉。
 // 局内不给档位（extras.showGradeNow = false），只给下一档的时限，让玩家知道在追什么。
@@ -42,7 +42,7 @@ function create(ctx) {
   const tier = perks.tier || 0;
   const sensedCount = tier >= 5 ? 5 : (tier >= 3 || perks.easy ? 3 : 0);
   const maxHearts = HEARTS_BY_DEPTH[depth];
-  // 提示区只留规则，操作速记交给 guides 的 inline（两行都在讲「长按布镇符」是重复的）。
+  // 提示区只留规则，操作速记交给 guides 的 inline（两行都在讲「长按钉阵钉」是重复的）。
   // 代价句来自准备页的 method.tip；「此盘已验过」是无猜保证，两者都是规则，一起留在提示区。
   const costText = ctx.tip || '误触折 1 盏心神，耗尽即收功';
   const vm = C.makeVm(cols, n, '点开第一格，禁制才会显形', costText + ' · 此盘已验过，不必靠猜');
@@ -99,7 +99,7 @@ function create(ctx) {
   // ---------------------------------------------------------------- 无猜布局
   // 只模拟「玩家看得见的信息」：从首点展开，反复用最基础的单格规则推进——
   //   某数字格周围「未探格数 == 剩余禁制数」→ 全是禁制；剩余 0 → 全安全。
-  // 刻意不引入「1-2-1 / 两个数字格相减」这类高阶技巧：照影符是黄阶入门功法，
+  // 刻意不引入「1-2-1 / 两个数字格相减」这类高阶技巧：勘禁诀是黄阶入门功法，
   // 无猜就该是「认得数字就能推完」，不要求玩家先学会扫雷竞赛的推理。
   // 判定只是验布局，不给玩家任何额外提示；不合格就重布。
   function flood(rev, known, start) {
@@ -261,7 +261,7 @@ function create(ctx) {
         vm.cells[i].cls = 'cell cell--open';
         vm.cells[i].label = num > 0 ? String(num) : '';
         // 数字按大小分色（1/2/3+ 三档）：扫一眼就能看出 1 与 2 的边界，
-        // 这是经典扫雷里唯一值得照搬的辅助，比把数字画成符文更能读。
+        // 这是经典扫雷里唯一值得照搬的辅助，比把数字画成花纹更能读。
         vm.cells[i].tone = num >= 3 ? 3 : num;
       } else if (exposed[i] || sensedSet[i]) {
         vm.cells[i].cls = 'cell cell--mine';
@@ -327,14 +327,15 @@ function create(ctx) {
     paint();
     syncHud();
     if (hearts <= 0) {
-      finishOnce('C', '心神耗尽，此番只算粗浅', true);
+      // 心神耗尽＝这一局没探完，是走火不是粗浅：粗浅是探完了但慢。
+      finishOnce('F', '心神耗尽，这一局没探完', true);
       return;
     }
     render();
   }
 
-  // 经典扫雷的 chord：数字格周围符数对上，一键连开其余邻格。
-  // 符压错位置照样会踩到禁制，按误触规矩扣心神，不替玩家兜底。
+  // 经典扫雷的 chord：数字格周围钉数对上，一键连开其余邻格。
+  // 钉错位置照样会踩到禁制，按误触规矩扣心神，不替玩家兜底。
   function chord(index) {
     if (!revealed[index] || numbers[index] <= 0) return;
     const nb = neighbors(index);
@@ -349,8 +350,8 @@ function create(ctx) {
     if (marked !== numbers[index]) {
       // 这句以前只写进 vm.status，而 HUD 那行是 goal || status —— goal 一直有值，
       // 所以它从来没露过面。改成浮字，玩家才知道为什么点了没动静。
-      vm.status = '镇符未合';
-      C.flash(vm, '镇符未合 · 先布符再点数字格', 'bad');
+      vm.status = '阵钉未合';
+      C.flash(vm, '阵钉未合 · 先钉再点数字格', 'bad');
       render();
       return;
     }
@@ -363,7 +364,7 @@ function create(ctx) {
     if (done) return;
     paint();
     syncHud();
-    if (opened > 0) C.flash(vm, '符光连开 ' + opened + ' 格', 'good');
+    if (opened > 0) C.flash(vm, '阵光连开 ' + opened + ' 格', 'good');
     if (checkWin()) return;
     render();
   }
@@ -431,4 +432,13 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'mines', name: '数格辨禁', create: create };
+function lines() {
+  return {
+    rule: '按探完全盘的用时（心神折了只扣结算分，不影响档位）',
+    items: ['S ≤ ' + GRADE_LINE[0] + ' 秒', 'A ≤ ' + GRADE_LINE[1] + ' 秒',
+      'B ≤ ' + GRADE_LINE[2] + ' 秒', '其余为 C'],
+    fail: '三盏心神全折（禁制没探完）→ 走火 F，只算两成收益',
+  };
+}
+
+module.exports = { id: 'mines', name: '数格辨禁', create: create, lines: lines };

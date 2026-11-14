@@ -362,9 +362,10 @@ function create(ctx) {
   // 连击不断打下来 530 上下，所以 S 定 507、A 385——完美连击才 S，稍一迟疑是 A。
   // 别把 S 定到刚好等于完美分（差 1 分就会变成运气），留 4% 余量。
   // 旧值 155/68/22 是按「每秒 4 刀」配的，15 息要 157 刀，人力根本达不到。
-  const sLimit = Math.ceil(duration * (25 + depth * 5) * profile.gradeScale);
-  const aLimit = Math.ceil(duration * (19 + depth * 3) * profile.gradeScale);
-  const bLimit = Math.ceil(duration * (10 + depth * 2) * profile.gradeScale);
+  const lim = gradeLimits(duration, depth, profile);
+  const sLimit = lim.s;
+  const aLimit = lim.a;
+  const bLimit = lim.b;
 
   const vm = C.makeVm(cols, grid, words.ready, ctx.tip || words.tip);
   vm.timeText = C.mmss(duration);
@@ -768,8 +769,28 @@ function create(ctx) {
   });
 }
 
+// 本档 S/A/B 三条线。局内 HUD、结算与说明页共用这一处，别在别处再推一遍。
+function gradeLimits(duration, depth, profile) {
+  const gs = profile.gradeScale;
+  return {
+    s: Math.ceil(duration * (25 + depth * 5) * gs),
+    a: Math.ceil(duration * (19 + depth * 3) * gs),
+    b: Math.ceil(duration * (10 + depth * 2) * gs),
+  };
+}
+
+// 说明页那一节：按本档基准参数给全四条线（新手便利只同步放宽时长，比例不变）。
+function lines(p) {
+  const lim = gradeLimits(Math.max(8, (p && p.duration) || 15), (p && p.depth) || 0,
+    W.weaponOf(p && p.weapon));
+  return {
+    rule: '按本局总得分（招越长、连击越长，一刀越值钱）',
+    items: ['S ≥ ' + lim.s + ' 分', 'A ≥ ' + lim.a + ' 分', 'B ≥ ' + lim.b + ' 分', '其余为 C'],
+  };
+}
+
 module.exports = {
-  id: 'click', name: '顺光扫斩', create: create,
+  id: 'click', name: '顺光扫斩', create: create, lines: lines,
   // 纯函数导出给断言用：角度是否与两桩中心连线一致，不靠肉眼校对。
   dirAngle: dirAngle, angleOf: angleOf, DEFAULT_ASPECT: DEFAULT_ASPECT,
 };

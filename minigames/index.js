@@ -1,6 +1,6 @@
 'use strict';
 
-// 小游戏注册表：13 门功法各有 1 套独立玩法，另有 1 套只在境界突破时用。
+// 小游戏注册表：19 门功法各有 1 套独立玩法，另有 1 套只在境界突破时用。
 // 玩法名由模块自己导出，注册表不重复维护一份名字。
 // ctx.theme / ctx.twist 决定每门功法的配色与本门玄机，但玩法内核彼此独立：
 // 两门同类功法（如两门剑法）也不会共用同一套盘面、交互或胜负规则。
@@ -21,6 +21,13 @@ const MODULES = {
   link: require('./link.js'),
   blocks: require('./blocks.js'),
   match: require('./match.js'),
+  // 六门「看一眼就会玩」的经典盘面玩法，都挂黄阶。
+  sudoku: require('./sudoku.js'),
+  merge: require('./merge.js'),
+  schulte: require('./schulte.js'),
+  klotski: require('./klotski.js'),
+  pushbox: require('./pushbox.js'),
+  biggest: require('./biggest.js'),
   charge: require('./charge.js'),
 };
 
@@ -51,12 +58,21 @@ function createTeach(gameId, ctx) {
 
 function gameName(gameId) { return GAME_NAMES[gameId] || '顺光扫斩'; }
 
+// 本档 S/A/B/C 四条线。各玩法自己导出 lines()，说明页从这里取，
+// 与局内 HUD、结算用同一份算法——门槛只许有一个出处。
+function gradeLines(gameId, params, gear) {
+  const mod = MODULES[gameId];
+  if (!mod || typeof mod.lines !== 'function') return null;
+  return mod.lines(params || {}, gear || 'normal');
+}
+
 module.exports = {
   MODULES: MODULES,
   GAME_NAMES: GAME_NAMES,
   PRACTICE_GAMES: PRACTICE_GAMES,
   createGame: createGame,
   gameName: gameName,
+  gradeLines: gradeLines,
   hasTeach: hasTeach,
   createTeach: createTeach,
 };

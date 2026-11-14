@@ -11,6 +11,9 @@ const guides = require('../data/guides.js');
 const weapons = require('../data/weapons.js');
 const worldData = require('../data/world.js');
 const lightsMod = require('../minigames/lights.js');
+const sudokuMod = require('../minigames/sudoku.js');
+const klotskiMod = require('../minigames/klotski.js');
+const pushboxMod = require('../minigames/pushbox.js');
 
 let passed = 0;
 function check(name, fn) {
@@ -77,6 +80,7 @@ function advance(ms) {
 // ---------------------------------------------------------------- 驱动
 function makeCtx(method, perks, params) {
   const st = { vm: null, finished: null, flash: [], roundKey: '', plan: null, planAt: 0, at: 0, pressed: false, seen: {}, sawReverse: false, sawRepeat: false, hints: [] };
+  st.method = method;
   const c = index.createGame(method.game, {
     params: params || method.params,
     difficulty: 'normal',
@@ -256,6 +260,68 @@ function actionFor(game) {
     // 灵石自己会落、堆到顶就收功；方向键的手感由下面的专项断言单独验。
     return function () {};
   }
+  if (game === 'sudoku') {
+    // 先按题面把解算出来，再一格一格填：这条路就是玩家照着排除法推到底的那条。
+    return function (vm, c, st) {
+      if (!vm.sudoku) return;
+      const g = vm.sudoku;
+      if (!st.solution) st.solution = sudokuMod.solveGrid(g.given, g.size);
+      for (let i = 0; i < g.given.length; i += 1) {
+        if (g.given[i] === 0 && g.grid[i] === 0) { c.tap(i); c.move(String(st.solution[i])); return; }
+      }
+    };
+  }
+  if (game === 'merge') {
+    return function (vm, c, st) {
+      if (!vm.merge) return;
+      const dirs = ['left', 'up', 'right', 'down'];
+      c.move(dirs[st.at++ % 4]);
+    };
+  }
+  if (game === 'schulte') {
+    return function (vm, c) {
+      if (!vm.schulte) return;
+      const want = String(vm.schulte.next);
+      for (let i = 0; i < vm.cells.length; i += 1) {
+        if (vm.cells[i].label === want) { c.tap(i); return; }
+      }
+    };
+  }
+  if (game === 'klotski') {
+    return function (vm, c, st) {
+      if (!vm.klotski) return;
+      if (!st.plan) {
+        const state = vm.klotski.blocks.map(function (b) {
+          return [Math.round(b.y / 25), Math.round(b.x / 25)];
+        });
+        st.plan = klotskiMod.solvePath(state, klotskiMod.SHAPES, 4, 4, 40) || [];
+      }
+      if (st.at >= st.plan.length) return;
+      const step = st.plan[st.at];
+      st.at += 1;
+      c.tap(step.piece);
+      const dir = step.dir[0] === -1 ? 'up' : step.dir[0] === 1 ? 'down' : step.dir[1] === -1 ? 'left' : 'right';
+      c.move(dir);
+    };
+  }
+  if (game === 'pushbox') {
+    return function (vm, c, st) {
+      if (!vm.pushbox) return;
+      if (!st.plan) st.plan = pushboxMod.solutionMoves(pushboxMod.LEVELS[0]) || [];
+      if (st.at >= st.plan.length) return;
+      c.move(st.plan[st.at]);
+      st.at += 1;
+    };
+  }
+  if (game === 'biggest') {
+    return function (vm, c) {
+      if (!vm.biggest) return;
+      const want = String(vm.biggest.max);
+      for (let i = 0; i < vm.cells.length; i += 1) {
+        if (vm.cells[i].label === want) { c.tap(i); return; }
+      }
+    };
+  }
   return function (vm, c, st) {
     if (!st.pressed) { c.press(); st.pressed = true; return; }
     const v = vm.charge.value;
@@ -287,22 +353,29 @@ const LIMITS = {
   link: [70000, 60],
   blocks: [80000, 80],
   match: [70000, 60],
+  sudoku: [220000, 60],
+  merge: [30000, 60],
+  schulte: [70000, 60],
+  klotski: [50000, 60],
+  pushbox: [70000, 60],
+  biggest: [70000, 60],
   charge: [20000, 55],
 };
 
 // ---------------------------------------------------------------- 断言：十三门十三套
-check('13 套常规玩法 + 突破专用玩法全部注册', function () {
+check('19 套常规玩法 + 突破专用玩法全部注册', function () {
   assert.deepStrictEqual(Object.keys(index.MODULES).sort(), [
-    'blocks', 'bridge', 'charge', 'click', 'hunt', 'lights', 'link', 'match',
-    'memory', 'mines', 'seal', 'sword', 'tempo', 'wuxing',
+    'biggest', 'blocks', 'bridge', 'charge', 'click', 'hunt', 'klotski', 'lights', 'link',
+    'match', 'memory', 'merge', 'mines', 'pushbox', 'schulte', 'seal', 'sudoku', 'sword',
+    'tempo', 'wuxing',
   ]);
-  assert.strictEqual(index.PRACTICE_GAMES.length, 13);
+  assert.strictEqual(index.PRACTICE_GAMES.length, 19);
 });
 
-check('13 门功法对应 13 套互不重复的玩法', function () {
+check('19 门功法对应 19 套互不重复的玩法', function () {
   const games = data.PRACTICE_METHODS.map(function (m) { return m.game; });
-  assert.strictEqual(games.length, 13);
-  assert.strictEqual(new Set(games).size, 13, '仍有功法共用同一套玩法内核');
+  assert.strictEqual(games.length, 19);
+  assert.strictEqual(new Set(games).size, 19, '仍有功法共用同一套玩法内核');
   for (const g of games) assert.ok(index.MODULES[g], g + ' 未注册');
 });
 
@@ -319,7 +392,40 @@ check('同类功法（刀法/剑法/阵法/心法）也各用各的玩法', func
   // 这一版先只做刀法，剑法暂留天阶的剑法·断岳诀一门。
   assert.strictEqual(new Set(byType['刀法']).size, 1);
   assert.strictEqual(new Set(byType['剑法']).size, 1);
-  assert.strictEqual(new Set(byType['阵法']).size, 2);
+  // 阵法三档齐全：黄阶勘禁（数格辨禁）、玄阶五行、地阶燃灯，三套内核互不复用。
+  assert.strictEqual(new Set(byType['阵法']).size, 3);
+});
+
+check('每门玩法都给出本档 S/A/B/C 四条线，说明页与局内同源', function () {
+  // 「怎么才能拿 C / B / A / S」以前散在各玩法里，玩家只看得到「下一条线还差多少」。
+  // 现在由各模块的 lines() 统一给出，说明页照抄这一份数，不许另算一遍。
+  for (const m of data.PRACTICE_METHODS) {
+    const mod = index.MODULES[m.game];
+    assert.strictEqual(typeof mod.lines, 'function', m.id + ' 没导出 lines()');
+    for (const dk of ['easy', 'normal', 'desperate']) {
+      const r = mod.lines(data.buildParams(m, dk), data.difficultyOf(dk).gear);
+      assert.ok(r && Array.isArray(r.items), m.id + ' 的 lines() 没给 items');
+      assert.ok(r.items.length >= 4, m.id + ' 的 ' + dk + ' 档没给全四条线');
+      const text = r.items.join('');
+      assert.ok(!/undefined|NaN/.test(text), m.id + ' 的 ' + dk + ' 档线算出了空值：' + text);
+      assert.ok(/C/.test(text), m.id + ' 没写 C 的条件');
+    }
+    // 数值型门槛还要随档变难：分数类抬高、时间类收紧，两者都是「档越高越难」。
+    // 段数与步数类（步法 / 燃灯）本身不随档变，只能靠盘面规格变难，这里不强行要求。
+    // gear（normal / hard）要跟着档走：剑法的时长、五行的目标都按它再收一次。
+    const easy = mod.lines(data.buildParams(m, 'easy'), data.difficultyOf('easy').gear);
+    const hard = mod.lines(data.buildParams(m, 'desperate'), data.difficultyOf('desperate').gear);
+    const nums = function (r) {
+      return r.items.join(' ').match(/\d+(\.\d+)?/g) || [];
+    };
+    // 只有「按分数」的门会把线抬高；按用时的三门（递推 / 探禁 / 翻牌）评级线是固定的，
+    // 难度由盘面变快与错一步更贵来体现，线不变才是对的。
+    if (/分/.test(easy.items.join('')) && /分/.test(hard.items.join(''))) {
+      const joinText = nums(easy).join(',') + '|' + nums(hard).join(',');
+      assert.ok(joinText.split('|')[0] !== joinText.split('|')[1],
+        m.id + ' 的门槛不随难度档变化：' + joinText);
+    }
+  }
 });
 
 check('玩法中文名与模块导出一致，功法表与注册表不漂移', function () {
@@ -353,7 +459,7 @@ check('参悟方式、玩法名、本门玄机三层互不撞词', function () {
   }
 });
 
-check('13 套玩法覆盖 5 种以上不同舞台形态', function () {
+check('19 套玩法覆盖 6 种舞台形态', function () {
   const stages = {};
   for (const m of data.PRACTICE_METHODS) {
     const ctx = makeCtx(m);
@@ -361,7 +467,8 @@ check('13 套玩法覆盖 5 种以上不同舞台形态', function () {
     ctx.c.destroy();
   }
   assert.ok(Object.keys(stages).length >= 5, '舞台形态不足：' + JSON.stringify(stages));
-  assert.strictEqual(stages.board, 9);
+  assert.strictEqual(stages.board, 14);
+  assert.strictEqual(stages.klotski, 1);
   assert.strictEqual(stages.lane, 1);
   assert.strictEqual(stages.ring, 1);
   assert.strictEqual(stages.orbit, 1);
@@ -370,10 +477,10 @@ check('13 套玩法覆盖 5 种以上不同舞台形态', function () {
 
 check('每门功法的独有机制互不重复', function () {
   const twists = new Set(data.PRACTICE_METHODS.map(function (m) { return m.twist; }));
-  assert.strictEqual(twists.size, 13);
+  assert.strictEqual(twists.size, 19);
 });
 
-check('13 门功法各有完整主题字段', function () {
+check('19 门功法各有完整主题字段', function () {
   const keys = ['accent', 'soft', 'ink', 'bg', 'frame', 'glyph', 'motif', 'hit', 'miss', 'banner', 'praise'];
   for (const m of data.PRACTICE_METHODS) {
     const t = themes.themeOf(m.id, m.game);
@@ -799,7 +906,7 @@ check('阵灯推演：正好走最优解是 S，破阵即结算', function () {
   } finally { restoreClock(); }
 });
 
-check('阵灯推演：步数用尽还没全亮即阵溃，只算 C', function () {
+check('阵灯推演：步数用尽还没全亮即阵溃，按走火 F 收场', function () {
   installClock();
   try {
     const m = data.getMethod('arrayEye');
@@ -821,7 +928,8 @@ check('阵灯推演：步数用尽还没全亮即阵溃，只算 C', function ()
       guard += 1;
     }
     assert.ok(ctx.st.finished, '步数用尽了还没结算');
-    assert.strictEqual(ctx.st.finished.grade, 'C', '阵溃不是 C 档：' + ctx.st.finished.grade);
+    // 阵溃是「没解开」，不是「解得糙」：走火 F，与步数超两倍的 C 分开。
+    assert.strictEqual(ctx.st.finished.grade, 'F', '阵溃不是走火 F：' + ctx.st.finished.grade);
     assert.ok(/阵溃/.test(ctx.st.finished.summary), '结算没写阵溃：' + ctx.st.finished.summary);
     ctx.c.destroy();
   } finally { restoreClock(); }
@@ -960,7 +1068,7 @@ check('触雷不再一击出局，只扣一盏心神并显形', function () {
   try {
     const ctx = makeCtx(data.getMethod('tanlei'));
     ctx.c.start();
-    assert.strictEqual(ctx.st.vm.extras.showHint, false, '探禁不该有符箓照纹');
+    assert.strictEqual(ctx.st.vm.extras.showHint, false, '探禁不该有照见类提示按钮');
     let guard = 0;
     while (ctx.st.vm.hearts.value === 3 && guard < 40 && !ctx.st.finished) {
       ctx.c.tap(guard);
@@ -974,7 +1082,7 @@ check('触雷不再一击出局，只扣一盏心神并显形', function () {
   } finally { restoreClock(); }
 });
 
-// ---------------------------------------------------------------- 照影符：经典扫雷深耕
+// ---------------------------------------------------------------- 勘禁诀：经典扫雷深耕
 // 只读 vm.cells 的推理器，与 mines.js「无猜」判定同用最基础的单格规则。
 // 它看不到 mineSet，推得完就说明这一盘真的不用猜，而不是玩法层自己说了算。
 function mineNeighbors(i, cols, rows) {
@@ -1022,7 +1130,7 @@ function solveMines(ctx, cols) {
   return !!ctx.st.finished;
 }
 
-check('照影符：开局不先布雷，首点九宫格全开且盘面无汉字', function () {
+check('勘禁诀：开局不先布雷，首点九宫格全开且盘面无汉字', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('tanlei'));
@@ -1045,7 +1153,7 @@ check('照影符：开局不先布雷，首点九宫格全开且盘面无汉字'
   } finally { restoreClock(); }
 });
 
-check('照影符：无猜布局能纯靠数字零失误翻完全盘', function () {
+check('勘禁诀：无猜布局能纯靠数字零失误翻完全盘', function () {
   installClock();
   try {
     let guessed = 0;
@@ -1066,7 +1174,7 @@ check('照影符：无猜布局能纯靠数字零失误翻完全盘', function (
   } finally { restoreClock(); }
 });
 
-check('照影符：首点不会把整盘开完（否则 0 秒拿 S，等于没参悟）', function () {
+check('勘禁诀：首点不会把整盘开完（否则 0 秒拿 S，等于没参悟）', function () {
   installClock();
   try {
     for (let round = 0; round < 30; round += 1) {
@@ -1079,7 +1187,7 @@ check('照影符：首点不会把整盘开完（否则 0 秒拿 S，等于没�
   } finally { restoreClock(); }
 });
 
-check('照影符：镇符数对上点数字格可连开，压错位置照样踩禁制', function () {
+check('勘禁诀：阵钉数对上点数字格可连开，压错位置照样踩禁制', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('tanlei'));
@@ -1099,10 +1207,10 @@ check('照影符：镇符数对上点数字格可连开，压错位置照样踩�
     };
     const beforeOpen = openCount();
     ctx.c.tap(numCell);
-    assert.ok(/镇符未合/.test(ctx.st.vm.fx && ctx.st.vm.fx.text), '没布符就点数字格，应该浮字提示镇符未合');
+    assert.ok(/阵钉未合/.test(ctx.st.vm.fx && ctx.st.vm.fx.text), '没钉阵钉就点数字格，应该浮字提示阵钉未合');
     assert.strictEqual(openCount(), beforeOpen, '符数不合竟然连开了');
 
-    // 布够镇符再点：要么连开安全格，要么压错踩到禁制，两者都说明 chord 真的生效了。
+    // 钉够阵钉再点：要么连开安全格，要么钉错踩到禁制，两者都说明 chord 真的生效了。
     let target = -1;
     let toFlag = [];
     for (let i = 0; i < cells.length && target < 0; i += 1) {
@@ -1124,7 +1232,7 @@ check('照影符：镇符数对上点数字格可连开，压错位置照样踩�
   } finally { restoreClock(); }
 });
 
-check('照影符：结算分数越大越好，玩得快不会反而输给磨洋工', function () {
+check('勘禁诀：结算分数越大越好，玩得快不会反而输给磨洋工', function () {
   installClock();
   try {
     function abandonScore(seconds) {
@@ -1142,7 +1250,7 @@ check('照影符：结算分数越大越好，玩得快不会反而输给磨洋�
   } finally { restoreClock(); }
 });
 
-check('照影符：五档禁制数与心神数真的分开，不再叠一次 hard +3', function () {
+check('勘禁诀：五档禁制数与心神数真的分开，不再叠一次 hard +3', function () {
   installClock();
   try {
     const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
@@ -1164,7 +1272,7 @@ check('照影符：五档禁制数与心神数真的分开，不再叠一次 har
   } finally { restoreClock(); }
 });
 
-check('照影符：大成照见 3 处、大圆满 5 处，已照见的禁制点了不再扣心神', function () {
+check('勘禁诀：大成勘出 3 处、大圆满 5 处，已勘出的禁制点了不再扣心神', function () {
   installClock();
   try {
     for (const pair of [[3, 3], [5, 5]]) {
@@ -1202,7 +1310,7 @@ for (const method of data.PRACTICE_METHODS) {
       assert.strictEqual(typeof vm.gradeNow, 'string');
       assert.strictEqual(typeof vm.goal, 'string');
       assert.ok(vm.extras && typeof vm.extras === 'object');
-      assert.ok(['board', 'lane', 'ring', 'orbit', 'scroll'].indexOf(vm.stage) >= 0, '舞台形态非法');
+      assert.ok(['board', 'lane', 'ring', 'orbit', 'scroll', 'klotski'].indexOf(vm.stage) >= 0, '舞台形态非法');
       ctx.c.destroy();
     } finally { restoreClock(); }
   });
@@ -1221,7 +1329,7 @@ check('突破瓶颈的蓄力停区也能跑完', function () {
   } finally { restoreClock(); }
 });
 
-check('14 套玩法都有「怎么玩」说明，盘面符号讲得清', function () {
+check('20 套玩法都有「怎么玩」说明，盘面符号讲得清', function () {
   for (const id of Object.keys(index.MODULES)) {
     const g = guides.guideOf(id);
     assert.ok(g, id + ' 缺玩法说明');
@@ -1853,6 +1961,67 @@ check('首局手把手只给「自带脚本」的玩法，不是所有玩法硬�
   assert.strictEqual(index.hasTeach('lights'), true, '燃灯诀应该有教学脚本');
   assert.strictEqual(index.hasTeach('click'), false, '没写脚本的玩法不该被塞引导');
   assert.strictEqual(index.createTeach('click', {}), null, '没有脚本却返回了控制器');
+});
+
+// 走火（F）与粗浅（C）是两个结论：前者是「这一局没走完」，后者是「走完了但糙」。
+// 把没走完算成 C，玩家会以为再练练就好；把打得糙算成 F，又等于抹掉一局的努力。
+check('走火：有失败态的玩法判负给 F，没有失败态的玩法不许瞎给', function () {
+  const fs = require('fs');
+  const path = require('path');
+  const root = path.join(__dirname, '..', 'minigames');
+  const readMod = function (f) { return fs.readFileSync(path.join(root, f + '.js'), 'utf8'); };
+
+  // 六门有「没走完」这个结果的：判负分支必须是 F。
+  const mustBeF = {
+    lights: /if \(failed\) return 'F'/,
+    mines: /finishOnce\('F', '心神耗尽/,
+    memory: /finishOnce\('口诀散在[^)]*, 'F'\)/,
+    seal: /finishOnce\('F', '只通了/,
+    bridge: /finishOnce\('F', '(水流太急|心神耗尽)/,
+    link: /pairsDone < pairs[\s\S]{0,160}'F'/,
+    sudoku: /finishOnce\('F', '时辰到/,
+    merge: /finishOnce\('F', '盘满/,
+    schulte: /finishOnce\('F', '时辰到/,
+    klotski: /finishOnce\('F', '步数用尽/,
+    pushbox: /finishOnce\('F', '推数用尽/,
+    biggest: /finishOnce\('F', '时辰到/,
+  };
+  Object.keys(mustBeF).forEach(function (f) {
+    assert.ok(mustBeF[f].test(readMod(f)), f + '.js 的判负分支没给走火 F');
+  });
+
+  // 没有「达成/未达成」的玩法（只看时限内产出）不许出现第二种 F：
+  // 唯一合法的 F 是 abandon（中途收功），那是玩家自己退的，不是打崩的。
+  ['click', 'hunt', 'tempo', 'sword', 'wuxing', 'match', 'blocks'].forEach(function (f) {
+    const hits = readMod(f).match(/finishOnce\('F'|grade: 'F'/g) || [];
+    assert.ok(hits.length <= 1, f + '.js 把「时间到」也判成了走火（F 只该留给中途收功）');
+  });
+
+  // 有失败态的玩法，说明页必须写出这条：玩家要能在开局前知道「崩了会掉到哪」。
+  for (const m of data.PRACTICE_METHODS) {
+    const mod = index.MODULES[m.game];
+    const r = mod.lines(data.buildParams(m, 'normal'), 'normal');
+    if (mustBeF[m.game]) {
+      assert.ok(r.fail, m.id + ' 有失败态却没在说明页写 fail 线');
+      assert.ok(/走火\s*F|走火（F）/.test(r.fail), m.id + ' 的 fail 线没说清是走火 F：' + r.fail);
+    } else {
+      assert.ok(!r.fail, m.id + ' 没有失败态，却写了 fail 线');
+    }
+  }
+});
+
+check('太虚诀：时辰到还没通完就是走火 F', function () {
+  installClock();
+  try {
+    const method = data.getMethod('seal');
+    const ctx = makeCtx(method, {}, Object.assign({}, method.params, { timeLimit: 1 }));
+    ctx.c.start();
+    for (let i = 0; i < 40 && !ctx.st.finished; i += 1) advance(100);
+    assert.ok(ctx.st.finished, '时辰到了还没结算');
+    assert.strictEqual(ctx.st.finished.grade, 'F', '没通完却给了 ' + ctx.st.finished.grade);
+    assert.ok(/只通了/.test(ctx.st.finished.summary), '结算没说清通了几对：' + ctx.st.finished.summary);
+    ctx.c.destroy();
+  } finally { restoreClock(); }
 });
 
 console.log('\n小游戏层断言全部通过（' + passed + ' 项）');

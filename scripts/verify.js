@@ -153,7 +153,7 @@ for (const s of skillMod.SKILLS) {
 // 黑名单字面量本身写在 scripts/verify.js 里，跳过自身，否则会自己把自己检出来。
 for (const f of files.filter(function (x) { return (x.endsWith('.js') || x.endsWith('.wxml')) && rel(x) !== 'scripts/verify.js'; })) {
   const src = fs.readFileSync(f, 'utf8');
-  for (const bad of ["name: '基础刀法'", "name: '吐纳诀'", "name: '剑诀·断岳'", "name: '灵契·并蒂引'", "name: '阵法·小五行阵'", "name: '丹道·凝露丹方'"]) {
+  for (const bad of ["name: '基础刀法'", "name: '吐纳诀'", "name: '剑诀·断岳'", "name: '灵契·并蒂引'", "name: '阵法·小五行阵'", "name: '丹道·凝露丹方'", "name: '丹道·凝露方'"]) {
     if (src.indexOf(bad) >= 0) errors.push(rel(f) + ' 又写回了旧功法名：' + bad);
     else checked += 1;
   }
@@ -456,6 +456,19 @@ if (!fs.existsSync(checklistPath)) {
   else checked += 1;
   if (/分步新手引导[^\n]*明确不做/.test(doc)) errors.push('自检清单还把新手引导写成「明确不做」');
   else checked += 1;
+  // 低档折减与默认档是同一根尺子的两面，文档必须写成真源里的那个数，
+  // 否则以后照文档调数值，玩家看到的和代码算的就对不上。
+  const belowCapLine = '低档折减 ×' + practiceData.DIFF_BELOW_CAP.toFixed(1);
+  if (doc.indexOf(belowCapLine) < 0) errors.push('自检清单的低档折减与 DIFF_BELOW_CAP 不一致（应为 ' + belowCapLine + '）');
+  else checked += 1;
+  if (doc.indexOf('最高已解锁档') < 0) errors.push('自检清单没写「默认档 = 本门最高已解锁档」');
+  else checked += 1;
+  // 参悟页的说明是按功法现拼的，不能塞进静态主题表（那里只放整页主题）。
+  const navData = require(path.join(ROOT, 'data/navigation.js'));
+  if (navData.HELP_TOPICS.practice) errors.push('practice 被塞进了静态 HELP_TOPICS，说明页会拼不出这一门的规则');
+  else checked += 1;
+  if (typeof navData.practiceHelpUrl !== 'function') errors.push('导航真源缺 practiceHelpUrl');
+  else checked += 1;
 
   // 文档里点名的文件都得真实存在，别指向已删除的模块。
   const seenRefs = {};
@@ -473,7 +486,39 @@ if (!fs.existsSync(checklistPath)) {
   const readmeSrc = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
   if (readmeSrc.indexOf('docs/checklist-puzzle.md') < 0) errors.push('README 没有指到 docs/checklist-puzzle.md');
   else checked += 1;
+  // 最差那一档必须写清是「没走完」而不是「做糙了」：走火（F）与粗浅（C）是两个结论。
+  // 曾经所有 F 都被页面当成「中途收功」，打崩了一分收益都没有、还被说成「这回不算数」。
+  if (readmeSrc.indexOf('走火') < 0) errors.push('README 没写「走火（F）」这一档');
+  else checked += 1;
+  if (doc.indexOf('走火') < 0) errors.push('自检清单没写「走火（F）」：最差结局的语义没人守');
+  else checked += 1;
+  // 有失败态的玩法必须在说明页给出 fail 线，缺了就等于玩家开局前不知道崩了会怎样。
+  const failMods = ['lights', 'mines', 'memory', 'seal', 'bridge', 'link',
+    'sudoku', 'merge', 'schulte', 'klotski', 'pushbox', 'biggest'];
+  failMods.forEach(function (g) {
+    const src = fs.readFileSync(path.join(ROOT, 'minigames', g + '.js'), 'utf8');
+    if (!/fail:/.test(src)) errors.push(g + '.js 有失败态却没给 lines().fail');
+    else checked += 1;
+  });
 }
+
+// 每套玩法都要导出 lines()：说明页的「C/B/A/S 各自要什么」从这里取，
+// 缺一门就退回一句「按总分评」——玩家问过的问题会原样回来。
+const SKIP_MG = ['index.js', 'common.js', 'theme.js', 'charge.js'];
+fs.readdirSync(path.join(ROOT, 'minigames'))
+  .filter(function (f) { return /\.js$/.test(f) && SKIP_MG.indexOf(f) < 0; })
+  .forEach(function (f) {
+    const src = fs.readFileSync(path.join(ROOT, 'minigames', f), 'utf8');
+    if (!/function lines\s*\(/.test(src)) errors.push(f + ' 没有 lines()：说明页的评级四条线会缺这一门');
+    else checked += 1;
+    if (!/lines: lines/.test(src)) errors.push(f + ' 没导出 lines，index.gradeLines 取不到');
+    else checked += 1;
+  });
+
+// 说明页拿不到玩法模块就等于没数据，这条守住接线。
+const helpSrc = fs.readFileSync(path.join(ROOT, 'data/help.js'), 'utf8');
+if (!/minigames\.gradeLines\(/.test(helpSrc)) errors.push('说明页没接 minigames.gradeLines，评级四条线写不出来');
+else checked += 1;
 
 if (errors.length > 0) {
   console.error('静态校验失败（' + errors.length + ' 项）:');

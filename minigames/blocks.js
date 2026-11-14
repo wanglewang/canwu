@@ -83,9 +83,10 @@ function create(ctx) {
     ],
   };
 
-  const sLimit = 420 + depth * 100;
-  const aLimit = Math.ceil(sLimit * 0.60);
-  const bLimit = Math.ceil(sLimit * 0.32);
+  const lim = gradeLimits(depth);
+  const sLimit = lim.s;
+  const aLimit = lim.a;
+  const bLimit = lim.b;
 
   const bag = C.TimerBag();
   let board = new Array(n).fill(0);
@@ -288,7 +289,20 @@ function create(ctx) {
   });
 }
 
+function gradeLimits(depth) {
+  const s = 420 + depth * 100;
+  return { s: s, a: Math.ceil(s * 0.60), b: Math.ceil(s * 0.32) };
+}
+
+function lines(p) {
+  const lim = gradeLimits(Math.max(0, Math.min(4, (p && p.depth) || 0)));
+  return {
+    rule: '按本局得分（化层越多、一次多消越多，分越高）',
+    items: ['S ≥ ' + lim.s + ' 分', 'A ≥ ' + lim.a + ' 分', 'B ≥ ' + lim.b + ' 分', '其余为 C'],
+  };
+}
+
 module.exports = {
-  id: 'blocks', name: '落石垒基', create: create,
+  id: 'blocks', name: '落石垒基', create: create, lines: lines,
   rotateCells: rotateCells, clearLines: clearLines, SHAPES: SHAPES,
 };

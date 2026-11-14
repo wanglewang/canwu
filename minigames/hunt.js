@@ -15,9 +15,10 @@ function create(ctx) {
   const baseInterval = Math.max(420, (p.interval || 1000) + (perks.easy ? 160 : 0) - (hard ? 180 : 0));
   const grid = p.grid || 12;
   const decoys = Math.min(grid - 1, (p.decoys || 2) + (hard ? 1 : 0));
-  const sLimit = Math.ceil(duration * 0.8);
-  const aLimit = Math.ceil(duration * 0.6);
-  const bLimit = Math.ceil(duration * 0.35);
+  const lim = gradeLimits(duration);
+  const sLimit = lim.s;
+  const aLimit = lim.a;
+  const bLimit = lim.b;
   const vm = C.makeVm(p.cols || 4, grid, '凝神，辨出哪一道是真招', ctx.tip || '只截真招，虚影是陷阱');
   vm.timeText = C.mmss(duration);
   vm.scoreText = '截击 0';
@@ -153,4 +154,22 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'hunt', name: '辨伪择真', create: create };
+function gradeLimits(duration) {
+  return {
+    s: Math.ceil(duration * 0.8),
+    a: Math.ceil(duration * 0.6),
+    b: Math.ceil(duration * 0.35),
+  };
+}
+
+// 高档会把这一局的时间压短（困难起 -2 息），线的位置也跟着压；
+// 新手的 +3 息是便利，说明页按基准给，不写进去。
+function lines(p, gear) {
+  const lim = gradeLimits(Math.max(9, ((p && p.duration) || 16) - (gear === 'hard' ? 2 : 0)));
+  return {
+    rule: '按截住的真招道数（截错会倒扣分数与时间）',
+    items: ['S ≥ ' + lim.s + ' 道', 'A ≥ ' + lim.a + ' 道', 'B ≥ ' + lim.b + ' 道', '其余为 C'],
+  };
+}
+
+module.exports = { id: 'hunt', name: '辨伪择真', create: create, lines: lines };

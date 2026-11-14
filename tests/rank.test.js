@@ -6,10 +6,14 @@
 // 三条线互不牵扯 —— 任何一条被写回另一条身上，这里的断言都要炸。
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const game = require('../utils/game.js');
 const practice = require('../data/practice.js');
 const skills = require('../data/skills.js');
 const world = require('../data/world.js');
+
+const ROOT = path.join(__dirname, '..');
 
 let passed = 0;
 function check(name, fn) {
@@ -68,7 +72,7 @@ check('评级倍率按设计文档压低，S 不再一家独大', function () {
 });
 
 check('数据层：十三门功法、天地玄黄四阶都有人、分类合法', function () {
-  assert.strictEqual(skills.SKILLS.length, 13);
+  assert.strictEqual(skills.SKILLS.length, 19);
   const tiers = {};
   for (const s of skills.SKILLS) {
     assert.ok(practice.TIERS.some(function (t) { return t.key === s.tier; }), s.name + ' 品阶非法');
@@ -160,18 +164,135 @@ check('品阶只改收益：同档同评级，黄 < 玄 < 地 < 天', function (
   assert.deepStrictEqual(cores, [1, 1.5, 2.2, 3.2]);
 });
 
-check('难度档只改倍率：同一门功法档越高收益越大', function () {
+check('难度档只改倍率：在各自门槛上同评级比较，档越高收益越大', function () {
+  // 拿「刚好解锁这一档」的熟练度去比：这样每一局都是「本门最高档」，不吃低档折减，
+  // 比的才是倍率本身。拿一个 6000 的存档去打五档，前四档都会被折半，比出来的是折减。
   const gains = [];
   for (const d of practice.DIFFICULTIES) {
-    const s = freshState('jingxin', 6000, 1);
+    const s = freshState('jingxin', d.need, 1);
     const r = game.applyPractice(s, 'jingxin', 'B', { difficulty: d.key, score: 0 });
     assert.strictEqual(r.diffName, d.name);
     assert.strictEqual(r.realmDecay, 1);
+    assert.strictEqual(r.diffBelowCap, false, d.name + ' 是最高已解锁档，不该折减');
     gains.push(r.gain);
   }
   for (let i = 1; i < gains.length; i += 1) {
     assert.ok(gains[i] > gains[i - 1], '第 ' + (i + 1) + ' 档收益没有更高');
   }
+});
+
+check('退回低档：熟练度折半、S 不计连晋，两者同一判定', function () {
+  // 已被解锁的最高档是「困难」（1000），偏偏去玩简单档。
+  const prof = 1200;
+  assert.strictEqual(practice.bestDifficulty(prof), 'hard', '默认档不是最高已解锁档');
+  assert.strictEqual(practice.belowCapOf(prof, 'easy'), true, '低档没被判成折减');
+  assert.strictEqual(practice.belowCapOf(prof, 'hard'), false, '最高档被误判成折减');
+  assert.strictEqual(practice.effectiveMultOf(prof, 'easy'),
+    practice.DIFFICULTIES[0].mult * practice.DIFF_BELOW_CAP, '实得倍率没折半');
+
+  const low = freshState('jingxin', prof, 1);
+  const r = game.applyPractice(low, 'jingxin', 'S', { difficulty: 'easy', score: 0 });
+  assert.strictEqual(r.diffBelowCap, true, '结算没标出折减');
+  assert.strictEqual(r.diffMult, 0.5, '结算倍率没按折半报（应为 0.5）');
+  assert.strictEqual(r.diffMultRaw, 1, '原始档位倍率丢了');
+  assert.strictEqual(r.sStreak, 0, '折减档的 S 计进了连晋');
+  assert.strictEqual(low.sStreak.jingxin, 0, '折减档的 S 写进了存档');
+
+  // 同一存档在最高档拿 S，就该正常计数。
+  const top = freshState('jingxin', prof, 1);
+  const r2 = game.applyPractice(top, 'jingxin', 'S', { difficulty: 'hard', score: 0 });
+  assert.strictEqual(r2.diffBelowCap, false, '最高档被误判成折减');
+  assert.strictEqual(r2.sStreak, 1, '最高档的 S 没计连晋');
+
+  // 界线要能一句话讲：折半之后，普通档打个 C 也比简单档 S 多。
+  // 取 400（刚开普通档）来比：这时普通是最高档、不折减，简单已经折半，比的才是界线的位置。
+  const lowS = freshState('jingxin', 400, 1);
+  const easyS = game.applyPractice(lowS, 'jingxin', 'S', { difficulty: 'easy', score: 0 });
+  const midC = freshState('jingxin', 400, 1);
+  const normalC = game.applyPractice(midC, 'jingxin', 'C', { difficulty: 'normal', score: 0 });
+  assert.ok(easyS.gain < normalC.gain,
+    '折半后简单档 S（' + easyS.gain + '）仍不低于普通档 C（' + normalC.gain + '）');
+
+  // 熟练度还没到 400 时，简单档就是最高档：不折减，新手不受罚。
+  const rookie = freshState('jingxin', 120, 1);
+  const rr = game.applyPractice(rookie, 'jingxin', 'S', { difficulty: 'easy', score: 0 });
+  assert.strictEqual(rr.diffBelowCap, false, '新手在简单档也被折减了');
+  assert.strictEqual(rr.sStreak, 1, '新手在简单档拿 S 不计连晋');
+});
+
+check('折减只看「是不是最高档」，不看落差：低两档也是 ×0.5，不叠加', function () {
+  // 玩家问的那个场景：解锁普通后简单折半；继续解锁困难后，普通也要跟着折半。
+  // 关键在于「凡是低于最高已解锁档的档位都折半」——不是只折最近那一档，
+  // 也不是按落差层层相乘（×0.5 的 n 次方）。这两件事以前没有断言守着。
+  const prof = 6000; // 最高已解锁档 = 绝境
+  const expectBelow = [true, true, true, true, false];
+  practice.DIFFICULTIES.forEach(function (d, i) {
+    assert.strictEqual(practice.belowCapOf(prof, d.key), expectBelow[i],
+      d.name + ' 的折减判定不对（最高档是绝境）');
+  });
+
+  const eff = practice.DIFFICULTIES.map(function (d) { return practice.effectiveMultOf(prof, d.key); });
+  // 折的是「这一档自己的倍率 ×0.5」：普通是 1.30→0.65，不是拍平成 0.50。
+  assert.ok(Math.abs(eff[0] - practice.DIFFICULTIES[0].mult * practice.DIFF_BELOW_CAP) < 1e-9,
+    '退四档的简单档没停在 ×0.5（实得 ×' + eff[0].toFixed(2) + '），折减被按落差叠加了');
+  // 折半之后低档之间仍严格有序，最高档不折：档位不能倒挂，也不能把最高档一起压了。
+  for (let i = 1; i < eff.length; i += 1) {
+    assert.ok(eff[i] > eff[i - 1], '折减后第 ' + (i + 1) + ' 档不高于第 ' + i + ' 档（倍率倒挂）');
+  }
+
+  // 连 S 走的是同一个判定：低两档、低三档的 S 同样不计数，不是只有「低一档」不计数。
+  ['easy', 'normal', 'hard', 'expert'].forEach(function (key) {
+    const i = practice.diffKeyIndex(key);
+    const s = freshState('jingxin', prof, 1);
+    const r = game.applyPractice(s, 'jingxin', 'S', { difficulty: key, score: 0 });
+    assert.strictEqual(r.diffBelowCap, true, key + ' 没被判成折减');
+    assert.strictEqual(r.diffMult, practice.DIFFICULTIES[i].mult * practice.DIFF_BELOW_CAP,
+      key + ' 的实得倍率不是折半');
+    assert.strictEqual(r.diffMultRaw, practice.DIFFICULTIES[i].mult, key + ' 丢了原始档位倍率');
+    assert.strictEqual(r.sStreak, 0, key + ' 的 S 计进了连晋');
+    assert.strictEqual(s.sStreak.jingxin || 0, 0, key + ' 的 S 写进了存档');
+  });
+});
+
+check('走火：F 算一局，照常结算但只算两成、连 S 断', function () {
+  // F 有两种来历，这里测的是「玩到一半被判负」的那种：
+  // 它是一局真实打完的结果，所以要进结算（有极少收益）、要断连。
+  // 主动收功根本不调 applyPractice，连 S 原样不动，不归这条管。
+  const s = freshState('jingxin', 1200, 1);
+  s.sStreak.jingxin = 2;
+  const r = game.applyPractice(s, 'jingxin', 'F', { difficulty: 'hard', score: 0 });
+  assert.strictEqual(r.gradeFactor, world.GRADE_FACTOR.F, '走火没用 F 的倍率');
+  assert.strictEqual(r.sStreak, 0, '走火没有断连');
+  assert.strictEqual(s.sStreak.jingxin, 0, '走火后存档里的连 S 没清');
+  assert.ok(r.gain >= 1, '走火一分收益都没有，崩一局等于白打');
+
+  // 同一门、同一档，S 与 F 的收益比就是 1.5 / 0.2 = 7.5 倍。
+  const s2 = freshState('jingxin', 1200, 1);
+  const rs = game.applyPractice(s2, 'jingxin', 'S', { difficulty: 'hard', score: 0 });
+  assert.ok(rs.gain > r.gain * 5, 'S 与走火的收益差距不对：' + rs.gain + ' vs ' + r.gain);
+
+  // 走火不立纪录：没走完的这一局不该成为「本门最佳」。
+  assert.strictEqual(s.records.jingxin, undefined, '走火被写成了本门纪录');
+  // 而同一存档之后打出 S，纪录照常出现。
+  const s3 = freshState('jingxin', 1200, 1);
+  game.applyPractice(s3, 'jingxin', 'F', { difficulty: 'hard', score: 0 });
+  game.applyPractice(s3, 'jingxin', 'S', { difficulty: 'hard', score: 640 });
+  assert.strictEqual(s3.records.jingxin.score, 640, '走火之后的正常一局没立纪录');
+});
+
+check('默认难度跟熟练度走：门槛一到就默认最高档，不记忆手选', function () {
+  const pairs = [[0, 'easy'], [399, 'easy'], [400, 'normal'], [999, 'normal'],
+    [1000, 'hard'], [2500, 'expert'], [6000, 'desperate']];
+  for (const pair of pairs) {
+    assert.strictEqual(practice.bestDifficulty(pair[0]), pair[1],
+      pair[0] + ' 熟练度的默认档不是 ' + pair[1]);
+  }
+  // 准备页每次重算默认档，只把「本次停留里的手选」放在内存里（diffOverride）。
+  const page = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.js'), 'utf8');
+  assert.ok(/this\.diffOverride = ''/.test(page), '准备页没把手选难度标成「本次停留有效」');
+  assert.ok(/keepOverride \? this\.diffOverride : practiceData\.DIFFICULTIES\[maxIdx\]\.key/.test(page),
+    '准备页默认档没按最高已解锁档取');
+  assert.ok(/maxIdx > this\.maxIdxSeen/.test(page), '解锁新档时没清掉手选、回到新档');
 });
 
 check('越权选高档自动回落到已解锁的最高档', function () {
@@ -252,11 +373,22 @@ check('藏经阁按品阶拦境界：炼气买不了玄阶', function () {
 // ---------------------------------------------------------------- 参数与展示
 
 check('难度档缩放不碰盘面尺寸，且各档参数确有区分', function () {
+  // 规格按档递增的三门由各自的档位表管（lights / sudoku / klotski），见下面的专条断言。
+  const tableGames = ['lights', 'sudoku', 'klotski'];
+  // 档位表住在玩法模块里的四门（merge / schulte / pushbox / biggest）：params 只有 depth，
+  // 「难度确实变了」要看它们的评级线随档收紧——线不变才是真没区分度。
+  const internalGames = ['merge', 'schulte', 'pushbox', 'biggest'];
   for (const m of practice.PRACTICE_METHODS) {
-    // 阵灯推演的规格按档递增（3×3 → 4×4 → 5×5），由 LIGHTS_LEVELS 管，见下一条断言。
-    if (m.game === 'lights') continue;
+    if (tableGames.indexOf(m.game) >= 0) continue;
     const easy = practice.buildParams(m, 'easy');
     const hard = practice.buildParams(m, 'desperate');
+    if (internalGames.indexOf(m.game) >= 0) {
+      const mod = require('../minigames/' + m.game + '.js');
+      const a = mod.lines(easy, 'normal').items.join('');
+      const b = mod.lines(hard, 'hard').items.join('');
+      assert.notStrictEqual(a, b, m.id + ' 的评级线不随难度档收紧');
+      continue;
+    }
     let changed = false;
     for (const key of Object.keys(m.params)) {
       if (['grid', 'cols', 'rows', 'size'].indexOf(key) >= 0) {
@@ -264,6 +396,28 @@ check('难度档缩放不碰盘面尺寸，且各档参数确有区分', functio
       } else if (easy[key] !== hard[key]) changed = true;
     }
     assert.ok(changed, m.id + ' 各难度档参数没有区分度');
+  }
+});
+
+check('九宫填数与滑块让路的档位表逐档变难', function () {
+  let prevHoles = 0;
+  let prevS = 0;
+  for (const d of practice.DIFFICULTIES) {
+    const lv = practice.sudokuLevelOf(d.key);
+    assert.ok(lv.size >= 4, d.name + ' 的盘面规格不合法');
+    assert.ok(lv.holes > prevHoles, d.name + ' 要填的格数没有增加');
+    assert.ok(lv.tS > prevS, d.name + ' 的 S 线没有收紧');
+    assert.ok(lv.timeLimit > lv.tB, d.name + ' 的时限比 B 线还紧，填得慢就没有 C 了');
+    prevHoles = lv.holes;
+    prevS = lv.tS;
+    const kl = practice.klotskiLevelOf(d.key);
+    assert.ok(kl.maxOpt >= kl.minOpt, d.name + ' 的最优步数区间反了');
+  }
+  let prevOpt = 0;
+  for (const d of practice.DIFFICULTIES) {
+    const kl = practice.klotskiLevelOf(d.key);
+    assert.ok(kl.minOpt > prevOpt, d.name + ' 的最优步数下限没有提高');
+    prevOpt = kl.minOpt;
   }
 });
 
@@ -298,7 +452,7 @@ check('节奏不越过触屏安全下限', function () {
 check('getSkillList 输出品阶、可修境界与难度档', function () {
   const s = freshState('', 0, 0);
   const list = game.getSkillList(s);
-  assert.strictEqual(list.length, 13);
+  assert.strictEqual(list.length, 19);
   for (const item of list) {
     assert.ok(item.tierName && item.tierLabel && item.tierColor);
     assert.ok(item.starsText.length === 4);

@@ -114,7 +114,8 @@ function create(ctx) {
       elapsed += 1;
       syncHud();
       if (elapsed >= timeLimit) {
-        finishOnce('C', '只通了 ' + pairsDone + ' 对，时辰到了');
+        // 时辰到还没通完＝没走完：走火。通完了只是慢，那才是 C。
+        finishOnce('F', '只通了 ' + pairsDone + ' 对，时辰到了');
         return;
       }
       render();
@@ -214,4 +215,14 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'seal', name: '成对翻牌', create: create };
+function lines(p) {
+  const pairs = Math.max(2, (p && p.pairs) || 6);
+  return {
+    rule: '按解完全部对子的用时；S 另要求翻牌次数少',
+    items: ['S ≤ ' + GRADE_LINE[0] + ' 秒，且翻牌 ≤ ' + pairs * 4 + ' 次',
+      'A ≤ ' + GRADE_LINE[1] + ' 秒', 'B ≤ ' + GRADE_LINE[2] + ' 秒', '其余为 C'],
+    fail: '时辰到还没全部通开 → 走火 F，只算两成收益',
+  };
+}
+
+module.exports = { id: 'seal', name: '成对翻牌', create: create, lines: lines };

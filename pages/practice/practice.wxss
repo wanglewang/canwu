@@ -23,7 +23,19 @@
    「参 悟」就是同一行字出现两次。 */
 .pr-head-row {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+}
+
+/* 小印与「黄阶 ×1.00」分两处放：印在标题行、倍率在熟练度那一行。
+   星级与一脉属于图鉴（功法页有谱系），不占开局前这一屏。 */
+/* 选两个类名叠起来：.rank-badge 的基础尺寸在本文件更靠后定义，
+   单类选择器会被它盖回去，小印就又变回 46rpx。 */
+.rank-badge.rank-badge--sm {
+    width: 38rpx;
+    height: 38rpx;
+    font-size: 22rpx;
 }
 
 .pr-title-row {
@@ -169,79 +181,13 @@
     line-height: 1.5;
 }
 
-/* ---------- 准备页「怎么玩」 ---------- */
-.guide__toggle {
-    font-size: 23rpx;
-}
-
-.guide__goal {
-    display: block;
-    line-height: 1.7;
-}
-
-.guide__steps {
-    margin-top: 16rpx;
-}
-
-.guide__step {
-    display: flex;
-    align-items: flex-start;
-    gap: 12rpx;
-    margin-top: 12rpx;
-}
-
-.guide__no {
-    flex: 0 0 36rpx;
-    display: flex;
+/* ---------- 连 S：准备页只剩一行 ---------- */
+/* 从一整张金底卡收成「三个圆点 + 一句」：圆点不看字也知道差几局，
+   句子直接写「晋哪一段 · 开哪一档」，不再需要标题与独立区块。 */
+.streak-line {
     align-items: center;
-    justify-content: center;
-    width: 36rpx;
-    height: 36rpx;
-    border-radius: 50%;
-    background: var(--c-imm-panel-2);
-    color: var(--c-imm-gold);
-    font-size: 20rpx;
-}
-
-.guide__step .tiny,
-.guide__term-desc {
-    line-height: 1.6;
-}
-
-.guide__term {
-    display: flex;
-    align-items: flex-start;
     gap: 12rpx;
-    margin-top: 14rpx;
-}
-
-.guide__term-name {
-    flex: 0 0 auto;
-    max-width: 240rpx;
-    text-align: left;
-}
-
-.guide__note {
-    padding: 14rpx 16rpx;
-    border-left: 4rpx solid var(--c-imm-gold-dim);
-    border-radius: 0 var(--r-xs) var(--r-xs) 0;
-    background: var(--c-imm-gold-soft);
-}
-
-.guide__note .tiny {
-    display: block;
-    line-height: 1.6;
-}
-
-.guide__inline {
-    padding: 12rpx 14rpx;
-    border-radius: var(--r-xs);
-    background: var(--c-imm-panel-2);
-}
-
-/* 已解锁的进阶机制接在基础操作后面，同一条速记里不换行分段。 */
-.guide__inline-more {
-    color: var(--c-imm-gold);
+    flex-wrap: wrap;
 }
 
 .combo-chip {
@@ -1142,14 +1088,8 @@
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ---------- 功法品阶与进阶链 ---------- */
-/* 品阶卡是唯一带金底的块：一行品阶 + 一行进阶链，靠颜色成组，不再叠独立小盒。 */
-.rank-card {
-    border: 1rpx solid var(--c-imm-gold-dim);
-    border-radius: var(--r-sm);
-    background: var(--c-imm-gold-soft);
-    padding: 20rpx 22rpx;
-}
+/* ---------- 功法品阶 ---------- */
+/* 品阶只留一枚小印（.rank-badge--sm）+ 一段倍率，卡与进阶链都撤了。 */
 .rank-badge {
     width: 46rpx;
     height: 46rpx;
@@ -1162,17 +1102,6 @@
     align-items: center;
     justify-content: center;
 }
-.rank-chain__item {
-    display: inline-block;
-    margin: 0 10rpx 10rpx 0;
-    padding: 8rpx 14rpx;
-    border-radius: var(--r-xs);
-    background: var(--c-imm-panel-2);
-    color: var(--c-imm-text-2);
-    font-size: 22rpx;
-    line-height: 1.5;
-}
-.rank-chain__item--now { border: 1rpx solid var(--c-imm-gold-dim); background: var(--c-imm-gold-soft); color: var(--c-imm-gold); font-weight: 600; }
 
 /* ---------- 难度档选择 ---------- */
 .warn-note {
@@ -1257,16 +1186,8 @@
   color: var(--c-imm-gold);
 }
 
-/* ---------- 三连 S 晋级：准备页常驻进度 ---------- */
-.streak-card {
-  padding: 16rpx 20rpx;
-  border: 1rpx solid var(--c-imm-gold-dim);
-  border-radius: var(--r-sm);
-  background: var(--c-imm-gold-soft);
-}
-
-.streak-dots { display: flex; gap: 12rpx; }
-
+/* ---------- 三连 S 晋级的圆点 ---------- */
+/* 圆点还在（形状比数字快），但不再有自己的卡片容器。 */
 .streak-dot {
   width: 28rpx;
   height: 28rpx;
@@ -1386,3 +1307,118 @@
     font-size: var(--fs-body-sm);
 }
 
+
+/* ---------- 六门经典盘面：填数 / 合数 / 扫数 / 让路 / 推箱 / 择大 ----------
+   盘面仍是「纸」，所以这里的底色与字色接管场景注入的 --soft / --ink；
+   数值分色只用来分档（个位 / 十位 / 合到更大），不把答案标出来。 */
+.grid--c5 .cell {
+    width: 20%;
+    height: 118rpx;
+    font-size: 26rpx;
+}
+
+/* 9×9 一屏放得下：字小一档、边框细一档，粗线靠色调而不是靠加粗边框。 */
+.grid--c9 .cell {
+    width: 11.1111%;
+    height: 74rpx;
+    font-size: 20rpx;
+    border-width: 2rpx;
+    border-radius: 6rpx;
+}
+
+.cell--num {
+    background: #f7f3e8;
+    color: var(--ink, #26405f);
+    font-size: 30rpx;
+    font-weight: 700;
+}
+
+.cell--num.cell--t2 { color: #2f6b5b; }
+.cell--num.cell--t3 { color: #a8791f; }
+.cell--num.cell--t4 { color: #b4453c; }
+.cell--num.cell--t5 { color: #6f5b9e; }
+.cell--num.cell--t6 { color: #3d7f8c; }
+.cell--num.cell--t7 { color: #8a4560; }
+.cell--num.cell--t8 { color: #4f6b45; }
+
+/* 题面格与自填格必须一眼分得开：题面压深一档、自填用亮纸。 */
+.cell--given {
+    background: #e7e0cf;
+    color: #2b2b28;
+    font-weight: 800;
+}
+
+/* 选中一格的同行同列同宫：浅浅压一层，扫排除法时眼睛有落点。 */
+.cell--peer { background: #efe7d4; }
+
+/* 顺序点格里「下一个该点的」：只描一圈，不换底色，免得把整盘搅乱。 */
+.cell--next { box-shadow: inset 0 0 0 4rpx var(--acc, #3d8c74); }
+
+/* 推箱与让路：石壁 / 地面 / 阵位 / 人 / 石箱，全靠底色与形状分，不写汉字。 */
+.cell--wall { background: #4a4a44; border-color: #35352f; }
+.cell--floor { background: #f2ede0; }
+.cell--goal { background: #f2ede0; color: #b8893b; font-size: 32rpx; }
+.cell--man { background: var(--acc, #4f6b45); color: #fffdf7; font-size: 32rpx; }
+.cell--boxed { background: #c9b083; color: #4a3a1f; font-size: 32rpx; }
+.cell--boxed.cell--on-goal { background: #b8893b; color: #fffdf7; }
+
+/* 数字键：1–9 加一个清除，五行两排；比方向键小一点，但仍是可点尺寸。 */
+.pad--numbers {
+    flex-wrap: wrap;
+}
+
+.pad--numbers .pad__key {
+    flex: 0 0 calc(20% - var(--sp-3));
+    min-height: 88rpx;
+    font-size: 34rpx;
+}
+
+/* ---------- 滑块让路：整块定位，不拿格子拼 ---------- */
+.klotski {
+    position: relative;
+    width: 100%;
+    padding-top: 100%;
+    margin-top: 24rpx;
+    border-radius: 18rpx;
+    overflow: hidden;
+}
+
+.klotski__exit {
+    position: absolute;
+    bottom: 0;
+    width: 50%;
+    height: 25%;
+    border: 4rpx dashed var(--acc, #96603c);
+    border-bottom-width: 8rpx;
+    border-radius: 12rpx 12rpx 0 0;
+    opacity: 0.55;
+}
+
+.klotski__blk {
+    position: absolute;
+    box-sizing: border-box;
+    border: 4rpx solid #fffdf7;
+    border-radius: 14rpx;
+    background: #d9c8a8;
+}
+
+.klotski__blk--main { background: var(--acc, #96603c); }
+.klotski__blk--wide { background: #c9a06a; }
+.klotski__blk--tall { background: #b5836a; }
+.klotski__blk--ga,
+.klotski__blk--gb { background: #cdbb9a; }
+
+.klotski__blk--sel {
+    box-shadow: 0 0 0 6rpx var(--c-imm-gold, #cfae6d);
+}
+
+.klotski__core {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 34%;
+    height: 34%;
+    margin: -17% 0 0 -17%;
+    border-radius: 50%;
+    border: 4rpx solid rgba(255, 253, 247, 0.85);
+}
