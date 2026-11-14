@@ -23,10 +23,11 @@ function detailOf(state, id) {
 }
 
 // 弹窗右下角永远给一个能点的动作：未习得不等于死路。
-// 已习得 → 进这一门的静室（功法详情）；能换 → 就地换掉，不再跳一个藏经阁页面；
+// 已习得 → 直接进这一门的参悟页（那里就是静室：规则、难度、这一门、换门都在）；
+// 能换 → 就地换掉，不再跳一个藏经阁页面；
 // 其余看解锁条件指向哪（切磋 / 攒资源 / 回主页）。
 function primaryOf(d) {
-  if (d.unlocked) return { kind: 'cultivate', text: copy.UI.actions.practice, disabled: false };
+  if (d.unlocked) return { kind: 'practice', text: copy.UI.actions.practice, disabled: false };
   if (d.canBuy) return { kind: 'buy', text: copy.UI.actions.buy, disabled: false };
   return { kind: d.unlock.action || 'home', text: d.unlock.actionText || copy.UI.actions.goHome, disabled: false };
 }
@@ -152,27 +153,29 @@ Page({
     this.setData({ showDetail: true, detail: d, guideOpen: false });
   },
 
-  // 整行点击分两种：已持的进这一门的静室；没拿到的开图鉴（锁的只是开练，不是查阅）。
+  // 整行点击分两种：已持的直接进参悟页；没拿到的开图鉴（锁的只是开练，不是查阅）。
   openDetail: function (event) {
     const id = event.currentTarget.dataset.id;
     const card = this.data.cards.filter(function (c) { return c.id === id; })[0];
-    if (card && card.unlocked) { this.goDetail(id); return; }
+    if (card && card.unlocked) { this.goPractice(id); return; }
     this.showDetailFor(id);
   },
 
-  goDetail: function (id) {
+  // 参悟页就是这一门的静室：印、品阶、修为、这一门、难度与规则都在那一屏。
+  // 原来中间还夹着一层「功法详情」页，点进去再点「开始参悟」才开局——那一步已经并掉了。
+  goPractice: function (id) {
     getApp().globalData.lastSkillId = id;
-    wx.navigateTo({ url: '/pages/cultivate/cultivate?id=' + id });
+    wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
   },
 
   // 卡片右侧按钮：
-  //   已持 → 参悟（进详情页，那里有规则与难度，不在列表里直接开局）；
+  //   已持 → 参悟（直接进参悟页，规则与难度都在那儿，不在列表里直接开局）；
   //   可换 → 就地换取，不再跳页面。
   onCardAction: function (event) {
     const id = event.currentTarget.dataset.id;
     const card = this.data.cards.filter(function (c) { return c.id === id; })[0];
     if (!card) return;
-    if (card.unlocked) { this.goDetail(id); return; }
+    if (card.unlocked) { this.goPractice(id); return; }
     if (card.canBuy) { this.buy(id); return; }
     this.showDetailFor(id);
   },
@@ -198,7 +201,7 @@ Page({
     const kind = d.primary.kind;
     const id = d.id;
     this.closeDetail();
-    if (kind === 'cultivate') this.goDetail(id);
+    if (kind === 'practice') this.goPractice(id);
     else if (kind === 'buy') this.buy(id);
     else if (kind === 'battle') wx.navigateTo({ url: '/pages/battle/battle' });
     else wx.switchTab({ url: '/pages/index/index' });

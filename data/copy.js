@@ -151,11 +151,11 @@ const UI = {
         codexPlay: '这一门练什么',
         codexGain: '练成之后',
         codexUnlock: '如何习得',
-        // 功法详情（原「修炼」tab）的区块标题与两个次级入口。
-        detailProf: '修为',
-        detailRecord: '上一局',
+        // 参悟准备页的「这一门」：原功法详情页那几段并进来，折起只占一行。
+        // 换功法也在这一页（页内弹层），所以只留 swapTitle 一个标题。
+        archive: '这一门',
+        archiveFold: '来历与所得',
         swapTitle: '换一门练',
-        methodHelp: '玩法说明 ›',
     },
 
     // 功法图鉴：未习得也能查全本功法。状态与按钮只说明「现在能不能做什么」，不写黑话。

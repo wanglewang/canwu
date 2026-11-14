@@ -127,7 +127,8 @@ Page({
     if (tile) nav.openTile(getApp(), tile);
   },
 
-  // 主页把人送进那一门功法的静室，不替人开局：难度档、规则速记、上一局评价都在详情页。
+  // 主页把人送进那一门功法的参悟页，不替人开局：难度档、规则速记、上一局评价都在那一屏。
+  // 原来中间还有一层「功法详情」页，点了才到参悟页——那一跳已经并掉，现在是「点一次就到位」。
   onQuickPractice: function () {
     const id = this.data.quickSkillId;
     if (!id) {
@@ -135,8 +136,7 @@ Page({
       return;
     }
     getApp().globalData.lastSkillId = id;
-    // 修炼不是 tab 了：直接进这一门的静室（功法详情），在那儿开始参悟。
-    wx.navigateTo({ url: '/pages/cultivate/cultivate?id=' + id });
+    wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
   },
 
   onBreakthrough: function () {

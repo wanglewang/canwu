@@ -52,6 +52,10 @@
       </view>
     </view>
     <text class="quote pr-desc">{{subtitle}}</text>
+    <!-- 参悟与「这一门」合并成一屏之后，换门就在这一行：不必先退回功法页再点进来。 -->
+    <view wx:if="{{mode === 'practice'}}" class="pr-links">
+      <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onToggleSwap">{{copy.actions.swap}}</text>
+    </view>
     <view class="pr-prof">
       <view class="row--between">
         <!-- 段位与品阶倍率并在一行：这两个数决定「这一局值多少」，比星级和一脉实在。 -->
@@ -137,6 +141,24 @@
             class="stage-rule__toggle {{item.enabled ? 'stage-rule__toggle--on' : ''}} pressable"
             hover-class="pressable--on" data-name="{{item.name}}" data-next="{{item.enabled ? 'off' : 'on'}}"
             bindtap="onToggleTwist">{{item.enabled ? '开' : '关'}}</view>
+        </view>
+      </block>
+    </block>
+
+    <!-- 这一门：原「功法详情」那几段并进来，默认折起。
+         点开才铺开来历、风味与练成之后——开局前要的是规则与难度，不是一篇功法小传。 -->
+    <block wx:if="{{archive}}">
+      <view class="divider"></view>
+      <view class="row--between pressable" hover-class="pressable--on" bindtap="onToggleArchive">
+        <text class="section__title">{{copy.sections.archive}}</text>
+        <text class="text-link text-link--muted">{{archiveOpen ? copy.actions.collapse : copy.sections.archiveFold}}<text wx:if="{{!archiveOpen}}"> ›</text></text>
+      </view>
+      <block wx:if="{{archiveOpen}}">
+        <text class="body mt8">{{archive.desc}}</text>
+        <text class="quote pr-flavor">{{archive.flavor}}</text>
+        <view class="pr-gain" wx:for="{{archive.gains}}" wx:key="label">
+          <text class="tiny grow">{{item.label}}</text>
+          <text class="pr-gain__v">{{item.value}}</text>
         </view>
       </block>
     </block>
@@ -345,6 +367,27 @@
       <text class="countdown-num">{{countdown}}</text>
       <text class="tiny">凝神 · 起手（点一下跳过）</text>
       <text class="text-link countdown__stay pressable" hover-class="pressable--on" catchtap="onCancelCountdown">{{copy.actions.cancelStart}}</text>
+    </view>
+  </view>
+
+  <!-- 换一门练：一层已持功法，点一门就整页重开（换的是「现在对着哪一门」，不动任何进度）。 -->
+  <view class="mask" wx:if="{{swapOpen}}" bindtap="onToggleSwap">
+    <view class="modal" catchtap="noop">
+      <text class="modal__title">{{copy.sections.swapTitle}}</text>
+      <text class="modal__sub">换的是这一页对着哪一门，进度一点不动</text>
+      <view class="imm-list mt12">
+        <view class="imm-row pressable" hover-class="pressable--on" wx:for="{{swapList}}" wx:key="id" data-id="{{item.id}}" bindtap="onSwapTo">
+          <view class="imm-row__mark">{{item.mark}}</view>
+          <view class="imm-row__body">
+            <text class="imm-row__name">{{item.name}}</text>
+            <text class="imm-row__sub">{{item.metaText}}</text>
+          </view>
+          <text wx:if="{{item.current}}" class="imm-chip imm-chip--jade">当前</text>
+        </view>
+      </view>
+      <view class="modal__actions">
+        <button class="imm-btn--ghost imm-btn--block" bindtap="onToggleSwap">{{copy.actions.close}}</button>
+      </view>
     </view>
   </view>
 

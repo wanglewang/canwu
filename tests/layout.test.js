@@ -778,7 +778,7 @@ check('三连 S 直接晋级：准备页有进度、结算页有回执、指南�
 });
 
 check('页面骨架统一：三 tab + 子页用仙箓皮肤，导航只留原生一层', function () {
-  const main = ['index', 'cultivate', 'skills', 'profile', 'battle', 'board', 'titles', 'guide', 'help', 'log'];
+  const main = ['index', 'skills', 'profile', 'battle', 'board', 'titles', 'guide', 'help', 'log'];
   for (const name of main) {
     const wxml = read('pages/' + name + '/' + name + '.wxml');
     assert.ok(/^<view class="pg pg--imm/m.test(wxml), name + ' 根节点不是 .pg--imm');
@@ -813,8 +813,9 @@ check('加载 / 空 / 错误状态统一用 .state 占位，不再白屏', funct
     assert.ok(/class="state[ "]/.test(read('pages/' + name + '/' + name + '.wxml')),
       name + ' 数据未就绪时没有状态占位');
   }
-  // 修炼页的空态是真「还没习得功法」，用面板内的一句空态，不是加载中。
-  assert.ok(/imm-empty/.test(read('pages/cultivate/cultivate.wxml')), '修炼页空态没有文案占位');
+  // 参悟页不设空态：没习得这门功法就直接说一句并退回，不把人留在一张空页上。
+  assert.ok(/toast\('尚未习得这门功法'\)/.test(read('pages/practice/practice.js')),
+    '参悟页没有「尚未习得」的兜底');
   // 榜单的内联错误态跟着榜单走，现在它在战力仙榜页。
   assert.ok(/class="state state--inline"/.test(read('pages/board/board.wxml')), '榜单错误没有用内嵌状态');
   const css = read('app.wxss');
@@ -840,7 +841,7 @@ check('可点 view 统一按压反馈，反馈样式落在全局基础层', func
 check('全局基础层与常规页样式不写裸色值，尺寸走令牌', function () {
   const files = [
     'app.wxss', 'styles/immortal.wxss',
-    'pages/index/index.wxss', 'pages/cultivate/cultivate.wxss',
+    'pages/index/index.wxss',
     'pages/skills/skills.wxss', 'pages/battle/battle.wxss',
     'pages/profile/profile.wxss', 'pages/guide/guide.wxss',
     'pages/help/help.wxss', 'pages/log/log.wxss', 'pages/login/login.wxss',
@@ -861,9 +862,8 @@ check('导航栏标题简洁统一，tab 页不重复 tabBar，配色交给主�
   const titles = require('../data/navigation.js').PAGE_TITLES;
   const appCfg = require('../app.json');
   const tabs = appCfg.tabBar.list.map(function (t) { return t.pagePath; });
-  // 说明页的标题在 onLoad 里按主题动态设置（人物 · 说明）；
-  // 功法详情页的标题是这一门的正名（进哪门写哪门），两处 json 都留空。
-  const dynamic = ['pages/help/help', 'pages/cultivate/cultivate'];
+  // 说明页的标题在 onLoad 里按主题动态设置（人物 · 说明），json 里留空。
+  const dynamic = ['pages/help/help'];
   for (const p of pageFiles('.json')) {
     const cfg = JSON.parse(read(p.rel));
     const page = p.rel.replace(/\.json$/, '');
@@ -904,14 +904,14 @@ check('文案真源：跨页复用文案只在 data/copy.js 写一次', function
   for (const text of shared) {
     assert.ok(all.indexOf('>' + text + '<') < 0, '页面又硬编码了共享文案：' + text);
   }
-  for (const name of ['index', 'cultivate', 'skills', 'battle', 'profile', 'guide', 'practice', 'help', 'log']) {
+  for (const name of ['index', 'skills', 'battle', 'profile', 'guide', 'practice', 'help', 'log']) {
     const js = read('pages/' + name + '/' + name + '.js');
     assert.ok(/require\('\.\.\/\.\.\/data\/copy\.js'\)/.test(js), name + ' 没有引用文案真源');
     assert.ok(/copy: copy\.UI/.test(js), name + ' 没有把文案挂进 data');
   }
   // 「参悟」是入口，「开始参悟」才是打一局，两级不许混成一个词：
-  //   practice = 从功法列表点进这一门的详情（不开局，还要选难度）
-  //   start    = 在详情页里真的打一局（换熟练度）
+  //   practice = 从功法列表点进参悟页（不开局，还要选难度、看这一门）
+  //   start    = 在参悟页里真的打一局（换熟练度）
   assert.ok(copy.UI.actions.start === '开始参悟', '打一局的按钮不叫「开始参悟」');
   assert.ok(copy.UI.actions.practice === '参悟', '进详情的按钮不叫「参悟」');
   assert.notStrictEqual(copy.UI.actions.start, copy.UI.actions.practice,
@@ -972,10 +972,10 @@ check('信息架构：主页只做导航，说明独立成页，低频内容默�
   assert.strictEqual(appJson.tabBar.list.length, 3, 'tabBar 不是三页结构');
   assert.deepStrictEqual(appJson.tabBar.list.map(function (x) { return x.text; }),
     ['主页', '功法', '人物'], '三个 tab 的名称或顺序不对');
-  // 修炼不再是 tab：它是功法卡片点进去的详情子页，所以不该出现在 tabBar 里。
-  // 留成 tab 的话，「点哪门功法进哪门的静室」就做不到——tab 页不能带 query。
-  assert.ok(appJson.tabBar.list.every(function (t) { return t.pagePath !== 'pages/cultivate/cultivate'; }),
-    '修炼又回到 tabBar 了：那样点功法卡片只能进「上一次练的那门」');
+  // 参悟不是 tab：它要带 ?skillId 才能对着某一门，而 tab 页不能带 query。
+  // 留成 tab 的话，「点哪门功法练哪门」就做不到——只会进「上一次练的那门」。
+  assert.ok(appJson.tabBar.list.every(function (t) { return t.pagePath !== 'pages/practice/practice'; }),
+    '参悟页又回到 tabBar 了：那样点功法卡片只能进「上一次练的那门」');
   assert.strictEqual(nav.TILES.length, 6, '主页宫格不是 6 个入口');
   const index = read('pages/index/index.wxml');
   assert.ok(/class="imm-grid"/.test(index) && /bindtap="onTile"/.test(index), '主页没有宫格导航');
@@ -1128,13 +1128,23 @@ check('主页宫格各进各的子页，不再借道别的 tab', function () {
     assert.ok(tabs.indexOf(rel) < 0, t.label + ' 仍然跳去 tab 页 ' + rel);
   }
   // 子页都是独立四件套，且页面里不再自绘返回。
-  for (const name of ['cultivate', 'board', 'titles', 'secret']) {
+  for (const name of ['board', 'titles', 'secret']) {
     for (const ext of ['.js', '.json', '.wxml', '.wxss']) {
       assert.ok(fs.existsSync(path.join(ROOT, 'pages/' + name + '/' + name + ext)), name + ' 缺 ' + ext);
     }
     assert.ok(!/imm-head__back/.test(read('pages/' + name + '/' + name + '.wxml')), name + ' 又画了页内返回');
     assert.ok(!/onBack/.test(read('pages/' + name + '/' + name + '.js')), name + ' 还留着没人调用的 onBack');
   }
+  // 参悟只有一条路：主页吸底与功法页卡片都直达 pages/practice，
+  // 中间那层「功法详情」页已经并进参悟页，全项目不许再出现它的路径。
+  for (const name of ['index', 'skills', 'profile', 'practice', 'battle', 'secret']) {
+    const src = read('pages/' + name + '/' + name + '.js');
+    assert.ok(src.indexOf('/pages/cultivate/') < 0, name + ' 还指向已经删掉的功法详情页');
+  }
+  assert.ok(/\/pages\/practice\/practice\?skillId=/.test(read('pages/index/index.js')),
+    '主页吸底没有直达参悟页');
+  assert.ok(/\/pages\/practice\/practice\?skillId=/.test(read('pages/skills/skills.js')),
+    '功法页点卡片没有直达参悟页');
   // 榜单只在一个页面里出现：仙门切磋页不再复述前十，否则两处都能打、两处都要刷新。
   assert.ok(!/refreshBoard|onFightRival/.test(read('pages/battle/battle.js')),
     '仙门切磋页又接回了榜单（榜单只在战力仙榜页）');
@@ -1289,8 +1299,8 @@ check('评级中文名只有一份真源，且避开段位词', function () {
   }
   assert.ok(!/const GRADE_TITLE|GRADE_TITLE: GRADE_TITLE/.test(read('data/world.js')),
     'world.js 还留着第二份评级名');
-  assert.ok(!/gradeName = \{/.test(read('pages/cultivate/cultivate.js')), '修炼页还自写一套评级名');
-  for (const f of ['pages/cultivate/cultivate.js', 'pages/practice/practice.js', 'utils/game.js']) {
+  assert.ok(!/gradeName = \{/.test(read('pages/practice/practice.js')), '参悟页还自写一套评级名');
+  for (const f of ['pages/practice/practice.js', 'utils/game.js']) {
     assert.ok(/copy\.GRADE_TITLE/.test(read(f)), f + ' 没走评级名真源');
   }
 });
@@ -1398,22 +1408,27 @@ check('藏经阁分区装全部未习得，不是只装能换的那 12 门', fun
     '藏经阁分区把「不能兑换的门」滤掉了：那 4 门切磋来源的图鉴会消失');
 });
 
-check('功法详情页带 ?id 进，标题写这一门的正名，换功法不跳页', function () {
-  const js = read('pages/cultivate/cultivate.js');
-  const cfg = JSON.parse(read('pages/cultivate/cultivate.json'));
-  assert.ok(/options && options\.id/.test(js), '详情页不认 ?id：点哪门都进同一门');
-  assert.ok(/setNavigationBarTitle/.test(js), '详情页标题没按这一门的正名设置');
-  assert.ok(!cfg.navigationBarTitleText, '详情页 json 写了固定标题，会盖掉功法名');
+check('参悟页带 ?skillId 认门，「这一门」与换门都在页内', function () {
+  const js = read('pages/practice/practice.js');
+  const wxml = read('pages/practice/practice.wxml');
+  const cfg = JSON.parse(read('pages/practice/practice.json'));
+  assert.ok(/query && query\.skillId/.test(js), '参悟页不认 ?skillId：点哪门都进同一门');
+  // 页面名是「参悟」，功法名由卡片里的 h1 承担：导航标题再写一遍功法名，
+  // 一屏两处同字，而且冲关局根本没有功法可写。
+  assert.strictEqual(cfg.navigationBarTitleText, '参悟', '参悟页导航标题被改成别的了');
+  // 详情页并进来之后，换门与档案都得在本页解决，否则等于把那一页又建回来。
   assert.ok(/onToggleSwap/.test(js) && /onSwapTo/.test(js), '换功法又退回列表页了，页内弹层没了');
-  assert.ok(/wx\.navigateTo\(\{ url: '\/pages\/practice\/practice\?skillId=' \+ d\.id \}\)/.test(js),
-    '开始参悟没把这一门的 id 带给参悟页');
+  assert.ok(/onToggleArchive/.test(js) && /copy\.sections\.archive/.test(wxml),
+    '「这一门」没并进参悟页');
+  assert.ok(/wx\.redirectTo\(\{ url: '\/pages\/practice\/practice\?skillId=' \+ id \}\)/.test(js),
+    '换门没有整页重开：难度、规则、盘面都得跟着新功法重算');
 });
 
 check('玩家可见文案不写「看详情 / 去看看」这类口语前缀', function () {
   const copy = require('../data/copy.js');
   assert.strictEqual(copy.UI.actions.viewDetail, '详情 ›', '详情按钮仍带「看」字');
   const files = [
-    'pages/cultivate/cultivate.wxml', 'pages/profile/profile.wxml',
+    'pages/practice/practice.wxml', 'pages/profile/profile.wxml',
     'pages/skills/skills.wxml', 'pages/skills/skills.js',
     'pages/index/index.js', 'data/copy.js', 'data/help.js',
   ];
@@ -1421,7 +1436,8 @@ check('玩家可见文案不写「看详情 / 去看看」这类口语前缀', f
     assert.ok(!/看详情|去看看|去功法页看看|查看全部成就|看全本/.test(read(f)),
       f + ' 还残留口语化的「看」字措辞');
   }
-  assert.ok(/copy\.actions\.goSkills/.test(read('pages/cultivate/cultivate.wxml')), '功法页入口没走文案真源');
+  assert.ok(/copy\.UI\.actions\.practice/.test(read('pages/skills/skills.js')), '功法页动作没走文案真源');
+  assert.ok(/copy\.UI\.actions\.buy/.test(read('pages/skills/skills.js')), '藏经阁换取没走文案真源');
   assert.ok(/copy\.UI\.actions\.goSkills/.test(read('pages/index/index.js')), '主页无推荐时没走文案真源');
   assert.ok(/copy\.actions\.allAchievements/.test(read('pages/profile/profile.wxml')), '成就入口没走文案真源');
 });

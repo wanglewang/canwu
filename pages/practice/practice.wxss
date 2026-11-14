@@ -83,6 +83,42 @@
     line-height: 1.7;
 }
 
+/* 换门：一行靠右的小字链，与标题抢位置的入口越少越好。 */
+.pr-links {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: var(--sp-3);
+}
+
+/* 「这一门」展开后：风味另起一段用金色细体，像书页上的批注。 */
+.pr-flavor {
+    display: block;
+    margin-top: var(--sp-4);
+    padding-left: var(--sp-4);
+    border-left: 2rpx solid var(--c-imm-gold-dim);
+    color: var(--c-imm-gold-dim);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-body);
+}
+
+/* 练成之后两行：标签弱、数值亮，与功法页图鉴同一套读法。 */
+.pr-gain {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    margin-top: var(--sp-3);
+}
+
+.pr-gain__v {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: right;
+    color: var(--c-imm-gold);
+    font-size: var(--fs-body-sm);
+    word-break: break-all;
+}
+
 .pr-prof {
     margin-top: 28rpx;
 }

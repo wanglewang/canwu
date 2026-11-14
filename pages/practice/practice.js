@@ -60,6 +60,13 @@ Page({
     ruleText: '',
     // 低于本门最高已解锁档时的折减提示；没折减就是空串，整行不出现。
     belowCapText: '',
+    // 「这一门」= 原来功法详情页那几段（来历 / 风味 / 练成之后）。
+    // 合并之后它折在开局卡最后：想看的点开，不想看的当它不存在，首屏不多一个字。
+    archive: null,
+    archiveOpen: false,
+    // 换一门在页内解决：弹一层已持功法，点一门就换掉本页这一门。
+    swapOpen: false,
+    swapList: [],
     // 本门新法默认折叠：开关要在开局前能改，但七条规则不该铺在首屏。
     stageOpen: false,
     stageSummary: '',
@@ -223,6 +230,11 @@ Page({
         stageSummary: '',
         stageBrief: '',
         stageRules: [],
+        // 冲关局没有功法，也就没有「这一门」与换门可讲。
+        archive: null,
+        archiveOpen: false,
+        swapOpen: false,
+        swapList: [],
       });
       return;
     }
@@ -323,6 +335,26 @@ Page({
     const guideData = guides.guideOf(method.game);
     const ruleText = guideData ? guideData.goal : method.desc;
 
+    // 详情页已经不在了：这一门的来历、风味与「练成之后」跟着准备页走。
+    // 大成特效未达成时是空头支票，只取前两行；完整三行仍在功法页图鉴里。
+    const detail = engine.getSkillDetail(state, skill.id);
+    const archive = detail ? {
+      desc: detail.desc,
+      flavor: detail.flavor,
+      gains: (detail.gainLines || []).slice(0, 2),
+    } : null;
+    const swapList = engine.getSkillList(state)
+      .filter(function (x) { return x.unlocked; })
+      .map(function (x) {
+        return {
+          id: x.id,
+          name: x.name.split(skillData.NAME_RULE.sep)[1] || x.name,
+          mark: x.type.slice(0, 1),
+          metaText: x.profTierName + ' ' + x.percent + '%',
+          current: x.id === skill.id,
+        };
+      });
+
     this.theme = theme;
     this.twist = method.twist;
     this.setData({
@@ -361,6 +393,8 @@ Page({
       stageRules: stageRules,
       stageSummary: stageSummary,
       stageBrief: stageBrief,
+      archive: archive,
+      swapList: swapList,
     });
   },
 
@@ -668,6 +702,29 @@ Page({
     this.setData({ stageOpen: !this.data.stageOpen });
     sfx.play('tap');
   },
+
+  onToggleArchive: function () {
+    this.setData({ archiveOpen: !this.data.archiveOpen });
+    sfx.play('tap');
+  },
+
+  // 换一门练：功法详情页没了，但这件小事不该退回到功法页再点一遍。
+  // 换完用 redirectTo 重开本页——本页的难度、规则、盘面全都跟着功法走，
+  // 原地改一半比整页重来更容易出错；redirectTo 不会把旧页留在返回栈里。
+  onToggleSwap: function () {
+    if (this.data.started || this.data.countdown > 0) return;
+    this.setData({ swapOpen: !this.data.swapOpen });
+    sfx.play('tap');
+  },
+
+  onSwapTo: function (event) {
+    const id = event.currentTarget.dataset.id;
+    if (!id || id === this.skillId) { this.setData({ swapOpen: false }); return; }
+    getApp().globalData.lastSkillId = id;
+    wx.redirectTo({ url: '/pages/practice/practice?skillId=' + id });
+  },
+
+  noop: function () { },
 
   // 这一门的整篇规则只在说明页：准备页只留一行「这一局做什么」，局内只留两行速记。
   // 局中不能开说明（切页即本局作废），所以这个入口必须留在开局前。

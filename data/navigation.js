@@ -10,7 +10,7 @@
 //   - HELP_TOPICS 让每页只有一个「说明」，点进去按主题展开。
 // 低频信息（日志、仙榜）不占首屏，从宫格进子页。
 
-// 三个 tab：修炼不是一级页面，它是「功法卡片」点进去的详情子页（pages/cultivate）。
+// 三个 tab：修炼不是一级页面，也不是一个中间页——点一门功法直接进参悟页（pages/practice）。
 // 这样点哪门功法就进哪门的静室，不必先去修炼页再换一次功法。
 const TAB_ORDER = ['index', 'skills', 'profile'];
 
@@ -51,7 +51,6 @@ const PAGE_TITLES = [
 // 说明页按主题取内容（见 data/help.js）；guide 是完整手册，help 是「这一页」。
 const HELP_TOPICS = {
     index: 'home',
-    cultivate: 'cultivate',
     skills: 'skills',
     profile: 'profile',
     battle: 'battle',

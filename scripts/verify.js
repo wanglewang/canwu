@@ -416,8 +416,9 @@ for (const mode of ['light', 'dark']) {
 // 子页必须用统一命名表里的页面名；配色交给 app.json 的 @变量（页面写死会在暗色下穿帮）。
 const TITLES = require(path.join(ROOT, 'data/navigation.js')).PAGE_TITLES;
 // 说明页是共用容器，导航标题在 onLoad 里按主题动态给出「人物 · 说明」，json 里必须留空。
-// 功法详情页（pages/cultivate）的标题是这一门的正名，进哪门写哪门，json 里必须留空。
-const DYNAMIC_TITLES = ['pages/help/help', 'pages/cultivate/cultivate'];
+// 说明页是共用容器，标题按主题动态给，json 里必须留空。
+// （原「功法详情」页已并进参悟页，不再是单独一页。）
+const DYNAMIC_TITLES = ['pages/help/help'];
 const tabPages = appJson.tabBar.list.map(function (t) { return t.pagePath; });
 if (appJson.window.navigationBarTitleText) {
   errors.push('app.json window 写了导航标题，tab 页漏写就会回落成它：' + appJson.window.navigationBarTitleText);
@@ -448,7 +449,6 @@ const TOKENIZED = [
   'app.wxss',
   'styles/immortal.wxss',
   'pages/index/index.wxss',
-  'pages/cultivate/cultivate.wxss',
   'pages/skills/skills.wxss',
   'pages/battle/battle.wxss',
   'pages/secret/secret.wxss',
