@@ -420,6 +420,56 @@ const indexWxml = fs.readFileSync(path.join(ROOT, 'pages/index/index.wxml'), 'ut
 if (/onToggleWorld|worlds|修行记录/.test(indexWxml)) errors.push('主页还留着日志 / 诸界长区块');
 else checked += 1;
 
+// 玩法设计自检清单：文档必须跟真源同步，否则以后会照着过期口径打勾。
+const checklistPath = path.join(ROOT, 'docs/checklist-puzzle.md');
+if (!fs.existsSync(checklistPath)) {
+  errors.push('缺少玩法设计自检清单：docs/checklist-puzzle.md');
+} else {
+  const doc = fs.readFileSync(checklistPath, 'utf8');
+  const worldData = require(path.join(ROOT, 'data/world.js'));
+  const practiceData = require(path.join(ROOT, 'data/practice.js'));
+  const copyData = require(path.join(ROOT, 'data/copy.js'));
+
+  // 十二个维度一个都不能少。
+  const DIMS = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
+  const missingDims = DIMS.filter(function (d) { return doc.indexOf('## ' + d + '、') < 0; });
+  if (missingDims.length > 0) errors.push('自检清单缺维度：' + missingDims.join('、'));
+  else checked += 1;
+
+  // 评级与难度门槛逐字对上真源：真源加了档，文档不跟就红。
+  const gradeLine = Object.keys(copyData.GRADE_TITLE).join(' / ');
+  if (doc.indexOf(gradeLine) < 0) errors.push('自检清单的评级档位与 copy.GRADE_TITLE 不一致（应为 ' + gradeLine + '）');
+  else checked += 1;
+  const needLine = practiceData.DIFFICULTIES.map(function (d) { return d.need; }).join(' / ');
+  if (doc.indexOf(needLine) < 0) errors.push('自检清单的难度门槛与 DIFFICULTIES 不一致（应为 ' + needLine + '）');
+  else checked += 1;
+  if (doc.indexOf('MAX_MULTIPLIER') < 0) errors.push('自检清单没讲明收益总倍率封顶走 MAX_MULTIPLIER');
+  else checked += 1;
+  const capText = worldData.MAX_MULTIPLIER.toFixed(1);
+  if (doc.indexOf(capText) < 0) errors.push('自检清单的收益封顶与 MAX_MULTIPLIER 不一致（应为 ' + capText + '）');
+  else checked += 1;
+  // 结算主按钮是上一轮刚定的「留在本页」，文档不许写回「再来一局」当默认动作。
+  if (doc.indexOf('留在本页') < 0) errors.push('自检清单没写结算主按钮「留在本页」');
+  else checked += 1;
+
+  // 文档里点名的文件都得真实存在，别指向已删除的模块。
+  const seenRefs = {};
+  const refRe = /(data|minigames|pages|tests|scripts|styles|assets|utils)\/[A-Za-z0-9_./-]+\.(?:js|wxss|json)/g;
+  let hit = refRe.exec(doc);
+  while (hit) {
+    const ref = hit[0];
+    if (!seenRefs[ref]) {
+      seenRefs[ref] = true;
+      if (!fs.existsSync(path.join(ROOT, ref))) errors.push('自检清单指向不存在的文件：' + ref);
+      else checked += 1;
+    }
+    hit = refRe.exec(doc);
+  }
+  const readmeSrc = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  if (readmeSrc.indexOf('docs/checklist-puzzle.md') < 0) errors.push('README 没有指到 docs/checklist-puzzle.md');
+  else checked += 1;
+}
+
 if (errors.length > 0) {
   console.error('静态校验失败（' + errors.length + ' 项）:');
   for (const e of errors) console.error('  - ' + e);
