@@ -178,17 +178,17 @@ check('连 S 计数随存档码往返，伪造的超额计数被截到目标-1',
 
 check('同一门连续三局 S：直接补到下一个段位门槛', function () {
   const s = game.createNewState();
-  s.skills.jian.prof = 400;                   // 小成，离大成还差 600，正常三局根本补不满
-  const goal = 1000;                          // world.TIERS[3].threshold
-  // 小成之后简单档不再计连 S（否则最容易的档位成了刷熟练度的最优解），
-  // 这里走普通档——它正是小成（400）解锁的第一档。
-  const r1 = game.applyPractice(s, 'jian', 'S', { difficulty: 'normal', score: 10 });
-  const r2 = game.applyPractice(s, 'jian', 'S', { difficulty: 'normal', score: 10 });
+  s.skills.jian.prof = 1500;                   // 小成，离大成还差 4500，正常三局根本补不满
+  const goal = 6000;                          // world.TIERS[3].threshold
+  // 小成之后简单 / 普通档不再计连 S（否则最容易的档位成了刷熟练度的最优解），
+  // 这里走困难档——它正是小成（1500）解锁的那一档。
+  const r1 = game.applyPractice(s, 'jian', 'S', { difficulty: 'hard', score: 10 });
+  const r2 = game.applyPractice(s, 'jian', 'S', { difficulty: 'hard', score: 10 });
   assert.strictEqual(r1.promotion, null);
   assert.strictEqual(r2.promotion, null);
   assert.strictEqual(r1.sStreak, 1);
   assert.strictEqual(r2.sStreak, 2);
-  const r3 = game.applyPractice(s, 'jian', 'S', { difficulty: 'normal', score: 10 });
+  const r3 = game.applyPractice(s, 'jian', 'S', { difficulty: 'hard', score: 10 });
   assert.ok(r3.promotion && !r3.promotion.maxed, '第三局 S 没有触发直接晋级');
   assert.ok(r3.promotion.added > 0, '晋级没有补熟练度');
   assert.strictEqual(r3.profAfter, goal);
@@ -198,7 +198,7 @@ check('同一门连续三局 S：直接补到下一个段位门槛', function ()
   assert.strictEqual(s.sStreak.jian, 0);
 });
 
-check('简单档只送新手进门：到小成后不再计连 S', function () {
+check('简单档只送新手进门：到入门（解锁普通）后不再计连 S', function () {
   // 还没到小成：简单档的 S 照常计数，新手要有反馈。
   const newbie = game.createNewState();
   newbie.skills.jian.prof = 0;
@@ -206,12 +206,12 @@ check('简单档只送新手进门：到小成后不再计连 S', function () {
     game.applyPractice(newbie, 'jian', 'S', { difficulty: 'easy', score: 0 }).sStreak, 1,
     '新手的简单档 S 没计数');
 
-  // 到小成（400，此时已能选普通档）后：简单档不再计数。
+  // 到入门（400，此时已能选普通档）后：简单档不再计数。
   const vet = game.createNewState();
   vet.skills.jian.prof = 400;
   assert.strictEqual(
     game.applyPractice(vet, 'jian', 'S', { difficulty: 'easy', score: 0 }).sStreak, 0,
-    '小成之后简单档还在计连 S，等于奖励待在最容易的档位');
+    '入门之后简单档还在计连 S，等于奖励待在最容易的档位');
   assert.strictEqual(
     game.applyPractice(vet, 'jian', 'S', { difficulty: 'normal', score: 0 }).sStreak, 1,
     '普通档的 S 没有计数');
@@ -250,8 +250,8 @@ check('连 S 按功法各算各的，换一门不会蹭到别人的进度', func
 
 check('已至大圆满时三连 S 不再补熟练度，也不会越界', function () {
   const s = game.createNewState();
-  s.skills.jian.prof = 6000;
-  // 大圆满的段位早已越过小成，简单档不计连 S，这里走最高档。
+  s.skills.jian.prof = 99999;   // 大圆满 = 熟练度硬顶，不是旧表的 6000
+  // 大圆满没有下一段了，走最高档绝境连三局 S 也只能如实回报「已圆满」。
   game.applyPractice(s, 'jian', 'S', { difficulty: 'desperate', score: 0 });
   game.applyPractice(s, 'jian', 'S', { difficulty: 'desperate', score: 0 });
   const r = game.applyPractice(s, 'jian', 'S', { difficulty: 'desperate', score: 0 });
@@ -298,14 +298,18 @@ check('同一门连练不减收益：换门只给正激励，不罚专精', func
   alt.skills.jian.unlocked = true;
   alt.skills.tuna.unlocked = true;
   const seq = ['jian', 'tuna', 'jian', 'tuna', 'jian', 'tuna'];
-  const altGains = seq.map(function (id) {
-    return game.applyPractice(alt, id, 'A', { difficulty: 'easy', score: 0 }).gain;
+  const altGains = [];
+  const altQi = [];
+  seq.forEach(function (id) {
+    const rr = game.applyPractice(alt, id, 'A', { difficulty: 'easy', score: 0 });
+    altGains.push(rr.gain);
+    altQi.push(rr.qi);
   });
   const sum = function (a) { return a.reduce(function (x, y) { return x + y; }, 0); };
-  // 轮换只该多拿 15% 的「触类旁通」，不该像旧机制那样拉开 56%。
+  // 换门加成只进灵气灵石，熟练度是评级定额：两条线都不该被连练惩罚。
   assert.ok(sum(gains) >= sum(altGains) * 0.85,
-    '连练与轮换的差距超过换门加成（' + sum(gains) + ' vs ' + sum(altGains) + '）');
-  assert.ok(altGains[1] > altGains[0], '换门那一局没拿到触类旁通');
+    '连练与轮换的熟练度差距超过换门加成（' + sum(gains) + ' vs ' + sum(altGains) + '）');
+  assert.ok(altQi[1] > altQi[0], '换门那一局没拿到触类旁通');
   const r = game.applyPractice(solo, 'jian', 'A', { difficulty: 'easy', score: 0 });
   assert.strictEqual(r.restless, undefined, '结算里不该再出现递减文案的数据');
   assert.strictEqual(r.crossBonus, 1, '同一门连练不该算换门');

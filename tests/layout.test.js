@@ -1280,7 +1280,8 @@ check('境界衰减：文案只从 copy.js 出，讲清人物境界与三成落�
   assert.ok(/copy\.decayText\(/.test(eng), '图鉴又自己拼衰减文案');
   assert.ok(!/收益只剩三成/.test(page) && !/收益仅剩 30%/.test(eng), '还有硬编码的衰减句');
   const below = copy.decayText('below', '金丹');
-  assert.ok(/人物境界/.test(below) && /熟练度收益仅剩 30%/.test(below), '没说清衰减的是熟练度');
+  assert.ok(/人物境界/.test(below) && /灵气灵石产出仅剩 30%/.test(below), '没说清衰减的是资源');
+  assert.ok(/熟练度照给/.test(below), '没写明熟练度不受境界衰减');
   assert.ok(/属性加成照拿/.test(below) && /评级门槛不变/.test(below), '没排除属性与评级的误解');
   assert.ok(/已超/.test(copy.decayText('above', '元婴')), '超过上限那条没区分');
   assert.ok(/照样能练/.test(copy.decayText('above', '元婴')), '超过上限那条没写明「还能练」，会被读成这门作废了');

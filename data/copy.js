@@ -29,7 +29,7 @@ const TERMS = [
     { key: 'tier', name: '段位', group: '成长', desc: '熟练度的六级：未入门 → 入门 → 小成 → 大成 → 圆满 → 大圆满。' },
     { key: 'rank', name: '品阶', group: '成长', desc: '功法分天地玄黄四阶，决定收益倍率、属性系数与可修境界，不决定难度。' },
     { key: 'sStreak', name: '连 S 晋级', group: '成长', desc: '同一门功法连续完成 3 局 S 评级，熟练度直接补到下一段位门槛。' },
-    { key: 'decay', name: '境界衰减', group: '成长', desc: '境界超过功法可修上限后，参悟熟练度收益只剩三成；还能练，但该换更高阶的功法了。' },
+    { key: 'decay', name: '境界衰减', group: '成长', desc: '境界超过功法可修上限后，参悟的灵气灵石产出只剩三成；熟练度照给，但该换更高阶的功法了。' },
     { key: 'fene', name: '份例', group: '成长', desc: '每天参悟满 3 次可领的每日奖励：灵气 +30、灵石 +10。' },
     { key: 'offline', name: '闭关收获', group: '成长', desc: '离开期间照常攒的灵气与熟练度，最多累计 8 小时，回来时弹给你。' },
     { key: 'breakthrough', name: '蓄力停区', group: '成长', desc: '突破境界时的一局小游戏：长按蓄力，松手停在朱线区间内才算过关。' },
@@ -219,7 +219,7 @@ function decayText(kind, realmName) {
     const head = kind === 'above'
         ? '人物境界已超本门可修上限「' + realmName + '」，照样能练'
         : '人物境界未到「' + realmName + '」门槛';
-    return head + '，熟练度收益仅剩 30%；属性加成照拿，评级门槛不变。';
+    return head + '，灵气灵石产出仅剩 30%；熟练度照给，属性加成照拿，评级门槛不变。';
 }
 
 // 参悟准备页的收益口径：只奖不罚。开局前就说清这一局会不会吃到换门加成，

@@ -46,7 +46,7 @@ const TOPICS = {
                     '每门功法给的属性 = 功法加成 × 熟练度段位 × 品阶系数；入门 ×1 → 小成 ×1.8 → 大成 ×2.8 → 圆满 ×4 → 大圆满 ×5。',
                     '多学一门最见效：藏经阁能换就换，切磋首胜与机缘也会给功法。',
                     '突破境界给全体属性加成：筑基 +6% / 金丹 +14% / 元婴 +24%。',
-                    '功法练到大成（熟练度 1000）起，特效才生效；品阶越高属性系数越大。',
+                    '功法练到大成（熟练度 6000）起，特效才生效；品阶只影响属性、灵气灵石与可修境界，不加速熟练度。',
                     '战力只影响切磋与突破门槛，不参与参悟收益。换着门练有触类旁通加成，同一门连练也不减收益。',
                 ],
             },
@@ -115,7 +115,7 @@ const TOPICS = {
                 title: '功法图鉴',
                 lines: [
                     '点开任意一张卡片展开全本：玩法规则、盘面符号、练成收益、本门新法、习得路径。',
-                    '未习得也能查全本，锁的只是「开练」和熟练度收益 —— 先读清楚再决定要不要解开。',
+                    '未习得也能查全本，锁的只是「开练」与参悟所得 —— 先读清楚再决定要不要解开。',
                     '列表默认把「离下一段最近、又能拿全额收益」的排在前面；境界不符的与已圆满的依次靠后。卡片只留三字正名、品阶、段位与属性，玩法名和整段规则都在这里。',
                 ],
             },
@@ -477,8 +477,13 @@ function practiceTopic(opts) {
             diffLines.push(d.name + ' · 门槛 ' + d.need + ' · 收益 ×' + d.mult.toFixed(2));
         });
         diffLines.push('默认打本门最高已解锁档：门槛到了就说明这一门的本事到了，不必再手动挑。');
-        diffLines.push('刻意退回低档也能练，但熟练度只剩 ×' + practiceData.DIFF_BELOW_CAP.toFixed(1)
-            + '，S 也不计连晋——低档是练手，不是刷分。');
+        diffLines.push('刻意退回低档也能练，但每低一档熟练度与资源就再折半：'
+            + [1, 2, 3, 4].map(function (n) {
+                return '低 ' + n + ' 档 ' + practiceData.factorText(Math.pow(practiceData.DIFF_BELOW_CAP, n));
+              }).join('、')
+            + '；S 也不计连晋——低档是练手，不是刷分。');
+        diffLines.push('比如刚解锁普通时打简单是 ×0.5；再解锁困难，简单变 ×0.25、普通变 ×0.5。'
+            + '只有本门最高已解锁档才算全额。');
         diffLines.push('连 3 局 S 直接把熟练度补到下一段位门槛。段位门槛与难度门槛同源，'
             + '所以看起来就像「3 局 S 开一档」；下一档早开了，它就只是往下一段补。');
         sections.push({ key: 'difficulty', title: '难度与收益', lines: diffLines });
@@ -492,8 +497,8 @@ function practiceTopic(opts) {
             const chain = skillData.chainOfType(skill.type);
             const lines = [
                 tier.label + '：' + tier.desc,
-                '熟练度收益 ×' + tier.reward.toFixed(2) + '，属性系数 ×' + tier.attr.toFixed(2)
-                + '；收益不衰减的上限是「' + maxRealm + '」。',
+                '灵气灵石产出 ×' + tier.resource.toFixed(2) + '，属性系数 ×' + tier.attr.toFixed(2)
+                + '；熟练度与品阶无关，收益不衰减的境界上限是「' + maxRealm + '」。',
             ];
             if (chain.items.length > 1) {
                 lines.push(skill.type + '一脉：' + chain.items.map(function (it) {

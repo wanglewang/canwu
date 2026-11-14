@@ -260,7 +260,7 @@ Page({
     // 难度默认值 = 本门最高已解锁档，每次进这一页都按熟练度重算。
     // 手动选过的档只在这一页停留期间有效；一旦跨过新门槛（最高档变了），
     // 就清掉手选、回到新档——解锁新档是玩家练出来的结果，第一局就该打它。
-    // 想练手可以随时点回低档，但低档收益折半、S 也不计连晋（见 belowCapText）。
+    // 想练手可以随时点回低档，但每低一档收益再折半、S 也不计连晋（见 belowCapText）。
     const maxIdx = practiceData.diffIndexOf(rec.prof);
     if (maxIdx > this.maxIdxSeen) this.diffOverride = '';
     this.maxIdxSeen = maxIdx;
@@ -394,7 +394,7 @@ Page({
       rankChar: tier.name,
       rankColor: tier.color,
       // 品阶卡收成标题行一小段：倍率是要用的数，星级与一脉属于图鉴，不占开局前这一屏。
-      rankRewardText: '×' + tier.reward.toFixed(2),
+      rankRewardText: '×' + tier.resource.toFixed(2),   // 品阶只放大灵气灵石，不加速熟练度
       decayTip: decayTip,
       bestText: bestText,
       streakText: streakText,
@@ -1123,22 +1123,22 @@ Page({
       const r = store.commitCritical(function (s) {
         return engine.applyPractice(s, skillId, grade, { difficulty: diffKey, score: res.score || 0 });
       });
-      const multText = r.tierLabel + ' ×' + r.tierReward.toFixed(2)
+      // 熟练度是评级定额，没有倍率；这一串全是灵气灵石的产出倍率，别让玩家以为它也在放大熟练度。
+      const multText = r.tierLabel + ' ×' + r.tierResource.toFixed(2)
         + ' · ' + r.diffName + ' ×' + r.diffMult.toFixed(2)
-        + ' · ' + grade + ' ×' + r.gradeFactor.toFixed(2)
-        + (r.decayed ? ' · 衰减 ×0.3' : '');
+        + (r.decayed ? ' · 境界 ×0.3' : '');
       const lines = r.wiped
         // 走火不是「得 0 分」，是这一局不作数：一排 +0 会让人以为自己算错了。
         ? [{ k: '收益', v: '无 · 走火' }, { k: '局内得分', v: String(res.score || 0) }]
         : [
           // 三连晋级那一笔也算熟练度入账，演出数字得跟实际增长对得上。
-          { k: '熟练度', v: '+' + r.totalGain },
+          { k: '熟练度', v: r.totalGain > 0 ? '+' + r.totalGain : '已圆满' },
           { k: '灵气', v: '+' + r.qi },
           { k: '局内得分', v: String(res.score || 0) },
         ];
       if (r.promotionGain > 0) lines.splice(1, 0, { k: '其中直接晋级', v: '+' + r.promotionGain });
       if (r.stone > 0) lines.push({ k: '灵石', v: '+' + r.stone });
-      lines.push({ k: '倍率构成', v: multText });
+      lines.push({ k: '资源倍率', v: multText });
       // 走火没给加成：这行留着会让玩家以为「崩了还蹭到了 30 分钟加速」。
       if (!r.wiped) lines.push({ k: '挂机加速', v: '×' + r.buffMultiplier.toFixed(1) + ' · 30 分钟' });
       lines.push({ k: '当前熟练度', v: String(r.profAfter) });
@@ -1160,7 +1160,9 @@ Page({
       }
       // 折减要当场说：面板上选了简单档、结算只给一半，不解释就像算错了。
       if (r.diffBelowCap) {
-        notes.push('本档低于已解锁的「' + r.diffCapName + '」：熟练度按 ×' + r.diffBelowCapFactor.toFixed(1)
+        // 折减系数由 lowDiffFactor 同源给，别在这里再算一遍；0.0625 也要原样显示。
+        notes.push('本档比已解锁的「' + r.diffCapName + '」低 ' + r.diffBelowGap
+          + ' 档：每低一档再折半，熟练度与资源都按 ' + practiceData.factorText(r.diffBelowCapFactor)
           + ' 计，S 也不计连晋；回「' + r.diffCapName + '」打才全额。');
       }
       if (r.promotion && !r.promotion.maxed) {
@@ -1180,8 +1182,8 @@ Page({
       if (r.tierUp) notes.push('【' + r.skillName + '】升段至「' + r.tierName + '」，属性加成提高。');
       if (r.cross) notes.push('触类旁通：换了门功法，熟练度 ×' + r.crossBonus.toFixed(2) + '。');
       if (r.diffFellBack) notes.push('所选难度尚未解锁，已按「' + r.diffMaxName + '」结算。');
-      if (r.decayed) notes.push('境界不符（' + r.realmReason + '）：熟练度收益只剩 30%。');
-      if (r.capped) notes.push('总倍率已封顶 ×' + r.coreMult.toFixed(2) + '，再叠也不再加成。');
+      if (r.decayed) notes.push('境界不符（' + r.realmReason + '）：灵气灵石产出只剩 30%，熟练度照给。');
+      if (r.capped) notes.push('资源倍率已封顶 ×' + r.coreMult.toFixed(2) + '，再叠也不再加成。');
       if (r.newRecord) {
         notes.push(r.prevBest > 0
           ? '破了本门纪录：' + (res.score || 0) + ' 分，此前最佳 ' + r.prevBest + ' 分。'
@@ -1232,7 +1234,8 @@ Page({
       // 这一行是准备页上唯一还看得见的上一局结论，所以写短、写准：
       // 走火/收功各自一个词，别再拼「这一局没走完」那种一读就断的短语。
       const briefTitle = rv.kind === 'abandon' ? '收功' : (grade === 'F' ? '走火' : rv.gradeTitle);
-      recordBrief = '上局 · ' + (briefTitle || '') + (gain ? ' · ' + gain + ' 熟练度' : '');
+      recordBrief = '上局 · ' + (briefTitle || '')
+        + (gain ? ' · ' + (gain === '已圆满' ? '熟练度已圆满' : gain + ' 熟练度') : '');
     }
     this.clearCountdown();
     this.setData({ showResult: true, result: rv, recordBrief: recordBrief, started: false, boardHeld: false });

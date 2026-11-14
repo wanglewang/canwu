@@ -394,11 +394,12 @@ function checkDaily(state) {
 
 function pickIdleSkill(state) {
   const last = state.lastPractice.skillId;
-  if (last && state.skills[last] && state.skills[last].unlocked && state.skills[last].prof < 2500) return last;
+  // 24000 是「圆满」门槛：挂机优先喂还没练到圆满的门，练满之后让位给别的功法。
+  if (last && state.skills[last] && state.skills[last].unlocked && state.skills[last].prof < worldData.TIERS[4].threshold) return last;
   for (let i = 0; i < skillData.SKILLS.length; i += 1) {
     const s = skillData.SKILLS[i];
     const rec = state.skills[s.id];
-    if (rec && rec.unlocked && rec.prof < 2500) return s.id;
+    if (rec && rec.unlocked && rec.prof < worldData.TIERS[4].threshold) return s.id;
   }
   return skillData.SKILLS[0].id;
 }
@@ -502,8 +503,9 @@ function applyPractice(state, skillId, grade, options) {
   const cross = !!state.lastPractice.skillId && state.lastPractice.skillId !== skillId;
   const crossBonus = cross ? worldData.CROSS_BONUS : 1;
 
-  // 一个维度只管一件事：品阶管倍率、难度档管倍率与对局参数、评级管这一局打得好不好、境界管衰减。
-  // 四个系数连乘后按 MAX_MULTIPLIER 封顶，避免「天阶 + 绝境 + S」把熟练度曲线一次打穿。
+  // 一个维度只管一件事：难度档管倍率与对局参数、评级管这一局打得好不好、境界管衰减。
+  // 品阶不进熟练度公式——「高级功法练得更快」会让低阶功法在成长线上被直接淘汰，
+  // 也和「难度跟人走」自相矛盾；品阶的价值在战力（attr）与资源（resource）。
   const tier = practiceData.tierOf(skill.tier);
   const w = worldData.getWorld(state.worldId);
   const realmNow = state.realmIndex + 1;
@@ -525,17 +527,26 @@ function applyPractice(state, skillId, grade, options) {
   const maxIdx = practiceData.diffIndexOf(rec.prof);
   const fellBack = wantIdx > maxIdx;
   const diff = practiceData.DIFFICULTIES[Math.min(wantIdx, maxIdx)];
-  // 低于本门最高已解锁档：熟练度折半，且这一局的 S 不计连晋。
-  // 两件事共用同一个判定（「只有最高已解锁档才算真功夫」），不写成两套口径。
-  const belowCap = practiceData.belowCapOf(rec.prof, diff.key);
-  const diffMult = belowCap ? diff.mult * practiceData.DIFF_BELOW_CAP : diff.mult;
+  // 低于本门最高已解锁档：每低一档，熟练度与资源一起再折半，且这一局的 S 不计连晋。
+  // 三件事共用 lowDiffFactor() 一个判定，玩家只需记「只有最高已解锁档才算全额」。
+  const lowFactor = practiceData.lowDiffFactor(rec.prof, diff.key);
+  const belowCap = lowFactor < 1;
+  const diffGap = practiceData.diffGapOf(rec.prof, diff.key);
+  const diffMult = diff.mult * lowFactor;
 
-  const coreRaw = tier.reward * diffMult * factor * realmDecay;
-  const coreMult = Math.min(worldData.MAX_MULTIPLIER, coreRaw);
-  const capped = coreRaw > worldData.MAX_MULTIPLIER + 1e-9;
+  // 熟练度是评级定额（C 10 / B 17 / A 20 / S 25），只吃上面这一个低档折减；
+  // 不乘品阶、不乘难度倍率、不乘境界、不乘属性。非走火局至少给 1 点，
+  // 免得连退四档时「10 × 0.0625」被四舍五入成 0，玩家以为这一局白打。
+  // 到 PROF_MAX 后熟练度封顶，但资源、纪录、连 S 照常给：大圆满是数值毕业，不是不许再练。
+  const profBase = worldData.PROF_GRADE[grade] || 0;
+  const rawGain = (wiped || !profBase) ? 0 : Math.max(1, Math.round(profBase * lowFactor));
+  const gain = Math.min(rawGain, Math.max(0, worldData.PROF_MAX - rec.prof));
 
-  // 「每局至少给 1 点」不适用于走火：作废就是 0，不是 1。
-  const gain = wiped ? 0 : Math.max(1, Math.round(method.base * coreMult * wuFactor * (1 + practiceBonus) * crossBonus));
+  // 原来的四连乘整个搬到资源：品阶 resource × 难度 mult × 境界衰减 × 悟性 × 触类旁通。
+  // 高档仍值得打（灵气灵石更厚、局内纪录更好），只是不再让熟练度坐火箭。
+  const resRaw = tier.resource * diffMult * realmDecay * wuFactor * (1 + practiceBonus) * crossBonus;
+  const resMult = Math.min(worldData.MAX_MULTIPLIER, resRaw);
+  const capped = resRaw > worldData.MAX_MULTIPLIER + 1e-9;
 
   // 局内得分第一次真正进入养成：记住本门最佳，给重复参悟一个可追的目标。
   if (!state.records) state.records = {};
@@ -575,7 +586,9 @@ function applyPractice(state, skillId, grade, options) {
     // 以「本局开场时的段位」为基准晋一段：若这局正常收益已经跨过门槛，就只补差额，
     // 不会因为一次 S 恰好升段又白送下一段。
     const nextTier = worldData.TIERS[beforeTier + 1];
-    if (nextTier) {
+    // 大圆满是熟练度硬顶 99999，最后这一段（圆满 24000 → 99999，76000 点）只能靠绝境一局局实打。
+    // 不堵这个口子，三连 S 会直接白送整段，9999 局的标定当场作废。
+    if (nextTier && nextTier.threshold < worldData.PROF_MAX) {
       const added = Math.max(0, nextTier.threshold - rec.prof);
       rec.prof += added;
       promotion = {
@@ -584,6 +597,7 @@ function applyPractice(state, skillId, grade, options) {
         toName: nextTier.name,
         threshold: nextTier.threshold,
         maxed: false,
+        atFinalTier: false,
       };
     } else {
       promotion = {
@@ -591,7 +605,8 @@ function applyPractice(state, skillId, grade, options) {
         fromName: worldData.TIERS[beforeTier].name,
         toName: '',
         threshold: rec.prof,
-        maxed: true,
+        maxed: !nextTier,
+        atFinalTier: !!nextTier,
       };
     }
     streakNow = 0;   // 领过晋级就重新数，避免每局都白送一段
@@ -600,8 +615,10 @@ function applyPractice(state, skillId, grade, options) {
 
   // 走火连资源与挂机加成都不给：熟练度、灵气、灵石、buff 是同一笔「这一局的收益」，
   // 只砍其中一半会让人以为「崩了还能蹭加成」。
-  const qi = wiped ? 0 : Math.round(8 + factor * 10);
-  const stone = wiped ? 0 : (grade === 'S' ? 3 : grade === 'A' ? 2 : grade === 'B' ? 1 : 0);
+  // method.base 改作灵气基数（/4 后与旧常数 8 等价），各玩法资源略有厚薄；
+  // 评级仍在基数里给一截，剩下全交给 resMult。
+  const qi = wiped ? 0 : Math.round((method.base / 4 + factor * 10) * resMult);
+  const stone = wiped ? 0 : Math.round((grade === 'S' ? 3 : grade === 'A' ? 2 : grade === 'B' ? 1 : 0) * resMult);
   state.resources.qi += qi;
   state.resources.stone += stone;
 
@@ -625,11 +642,16 @@ function applyPractice(state, skillId, grade, options) {
     addLog(state, promotion && !promotion.maxed
       ? skill.name + ' 三连圆满，直接晋至「' + worldData.TIERS[afterTier].name + '」'
       : skill.name + ' 参悟至「' + worldData.TIERS[afterTier].name + '」', 'tier');
+  } else if (promotion && promotion.atFinalTier) {
+    addLog(state, skill.name + ' 三连圆满，大圆满须绝境一局局实打', 'tier');
   } else if (promotion && promotion.maxed) {
     addLog(state, skill.name + ' 三连圆满，本门已至大圆满', 'tier');
   } else if (wiped) {
     // 不能说「熟练度 +0」：玩家会以为是自己眼睛看错了，而不是这一局作废。
     addLog(state, '参悟 ' + skill.name + ' 走火，这一局没有收益', 'practice');
+  } else if (gain === 0 && rec.prof >= worldData.PROF_MAX) {
+    // 到顶后不许写「熟练度 +0」，那读起来像 bug。
+    addLog(state, '参悟 ' + skill.name + '，熟练度已圆满，本局只记资源与战绩', 'practice');
   } else {
     addLog(state, '参悟 ' + skill.name + '，熟练度 +' + gain + '（' + grade + ' 档）', 'practice');
   }
@@ -689,19 +711,20 @@ function applyPractice(state, skillId, grade, options) {
     tierName: worldData.TIERS[afterTier].name,
     cross: cross,
     crossBonus: crossBonus,
-    // 倍率构成：品阶 × 难度档 × 评级 × 境界衰减，封顶后才是实际入账的倍率。
+    // 熟练度倍率只有「难度 × 评级 × 境界衰减」；品阶的 resource 另管灵气灵石，不进这一串。
     tierKey: tier.key,
     tierLabel: tier.label,
-    tierReward: tier.reward,
+    tierResource: tier.resource,
     tierColor: tier.color,
     diffKey: diff.key,
     diffName: diff.name,
-    // 结算报的是「这一局实际入账的倍率」：低档折半后就是 ×0.65，不是面板上的 ×1.30。
+    // 结算报的是「这一局实际入账的资源倍率」：按档差折减后可能远低于面板上的标称倍率。
     diffMult: diffMult,
     diffMultRaw: diff.mult,
-    // 低于本门最高已解锁档：熟练度已折半、S 也不计连晋，结算要把这句说出来。
+    // 低于本门最高已解锁档：熟练度与资源已按档差折减、S 也不计连晋，结算要如实报出档差与系数。
     diffBelowCap: belowCap,
-    diffBelowCapFactor: practiceData.DIFF_BELOW_CAP,
+    diffBelowCapFactor: lowFactor,
+    diffBelowGap: diffGap,
     diffCapName: practiceData.DIFFICULTIES[maxIdx].name,
     diffFellBack: fellBack,
     diffMaxName: practiceData.DIFFICULTIES[maxIdx].name,
@@ -713,8 +736,9 @@ function applyPractice(state, skillId, grade, options) {
     realmReason: realmDecay === 1 ? '' : (realmReady ? '已超「' + maxRealmName + '」上限' : '未到「' + needRealmName + '」门槛'),
     maxRealmName: maxRealmName,
     needRealmName: needRealmName,
-    coreRaw: Math.round(coreRaw * 100) / 100,
-    coreMult: Math.round(coreMult * 100) / 100,
+    coreRaw: Math.round(resRaw * 100) / 100,
+    coreMult: Math.round(resMult * 100) / 100,
+    profGrade: rawGain,
     capped: capped,
     gradeFactor: factor,
     newRecord: newRecord,
@@ -1212,8 +1236,8 @@ function getSkillList(state) {
       tierStars: tier.stars,
       starsText: starsTextOf(tier.stars),
       tierDesc: tier.desc,
-      tierReward: tier.reward,
-      rewardText: '熟练度 ×' + tier.reward.toFixed(2),
+      tierResource: tier.resource,
+      rewardText: '产出 ×' + tier.resource.toFixed(2),
       // 可修境界：未达门槛或超过上限，收益都衰减到 30%，熟练度仍可涨。
       // realmReady 才是「能不能修习」；页面不许拿 decayed 去当门槛用。
       maxRealm: tier.maxRealm,
@@ -1291,7 +1315,7 @@ function getSkillDetail(state, id) {
     effectNote: base.effectUnlocked ? '已生效' : '习得并练至大成后生效',
     gainLines: [
       { label: '属性加成', value: base.bonusText, note: '习得即有，随熟练度与品阶增长' },
-      { label: '熟练度收益', value: base.rewardText, note: base.maxRealmName + '以内不衰减' },
+      { label: '资源产出', value: base.rewardText, note: base.maxRealmName + '以内不衰减' },
       { label: '大成特效', value: base.effectText, note: base.effectUnlocked ? '已生效' : '习得并练至大成后生效' },
     ],
   });
@@ -1385,7 +1409,7 @@ function getFamilies(state) {
         tierColor: tier.color,
         starsText: starsTextOf(tier.stars),
         gameName: method.gameName,
-        rewardText: '×' + tier.reward.toFixed(2),
+        rewardText: '×' + tier.resource.toFixed(2),
         unlocked: !!rec.unlocked,
       });
     }
@@ -1402,7 +1426,7 @@ function getFamilies(state) {
         tierColor: tiers[r].color,
         starsText: starsTextOf(tiers[r].stars),
         gameName: '',
-        rewardText: '×' + tiers[r].reward.toFixed(2),
+        rewardText: '×' + tiers[r].resource.toFixed(2),
         unlocked: false,
         empty: true,
       });

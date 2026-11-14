@@ -16,12 +16,12 @@
 // 同理，「丹道·凝露方」练的是一条竖向河道采露，与炼丹无关，已按玩法改为「水术·凝露诀」；
 // 丹道这一门暂时空缺，留给以后真正炼丹的功课。
 // id 是稳定键（存档、纪录都按它索引），改文案时不要动 id。
-// base 是熟练度收益基数，按各玩法的通关难度分别配平。
+// base 是灵气基数（/4 后即 8–14），按各玩法的通关难度分别配平；熟练度走 world.PROF_GRADE 定额，不用 base。
 //
 // 一个维度只管一件事：
 //   类型 → 玩什么（游戏族，见 FAMILIES）
 //   兵器 → 怎么动（刀法走 click；剑 profile 预留，先不做剑法）
-//   品阶 → 收益倍率与属性加成（见 TIERS，天地玄黄）
+//   品阶 → 战力加成与灵气灵石倍率（见 TIERS，天地玄黄；不加速熟练度）
 //   熟练度 → 可选难度档（见 DIFFICULTIES）
 //   境界 → 可修上限与收益衰减（品阶的 maxRealm）
 
@@ -248,16 +248,18 @@ function familyOf(type) {
   return FAMILIES[type] || { core: '', note: '', kind: 'skill' };
 }
 
-// ---------------------------------------------------------------- 品阶：管收益
-// 天地玄黄只决定三件事：熟练度收益倍率、属性加成系数、可修境界上限。
-// 高品阶又快又强，门槛靠获取方式与境界限制来制衡。
+// ---------------------------------------------------------------- 品阶：管战力与资源，不碰熟练度
+// 熟练度是「这一门练得多熟」，只由本局难度、评级、境界衰减与触类旁通决定；
+// 让高级功法练得更快，等于把低阶功法从成长线上直接淘汰，也和「难度跟人走」自相矛盾。
+// 天地玄黄因此只决定三件事：灵气灵石倍率（resource）、属性加成系数（attr）、可修境界上限。
+// 高品阶更强、产出更厚，门槛靠获取方式与境界限制来制衡，但不加速熟练度。
 // needRealm 是学习门槛（1 炼气 / 2 筑基 / 3 金丹 / 4 元婴），maxRealm 是收益不衰减的上限。
 
 const TIERS = [
-  { key: 'huang', name: '黄', label: '黄阶', stars: 1, reward: 1.00, attr: 1.00, needRealm: 1, maxRealm: 2, color: '#8a8f83', desc: '最常见的外门功课，便宜、够用，前期靠它起步。' },
-  { key: 'xuan', name: '玄', label: '玄阶', stars: 2, reward: 1.50, attr: 1.30, needRealm: 2, maxRealm: 3, color: '#3d8c74', desc: '藏经阁里换得到的中阶功法，收益高出一截。' },
-  { key: 'di', name: '地', label: '地阶', stars: 3, reward: 2.20, attr: 1.70, needRealm: 3, maxRealm: 4, color: '#b8893b', desc: '多从切磋首胜里得的高阶功法，属性加成明显。' },
-  { key: 'tian', name: '天', label: '天阶', stars: 4, reward: 3.20, attr: 2.20, needRealm: 4, maxRealm: 9, color: '#b4453c', desc: '压箱底的绝学，收益最高，也最难得到。' },
+  { key: 'huang', name: '黄', label: '黄阶', stars: 1, resource: 1.00, attr: 1.00, needRealm: 1, maxRealm: 2, color: '#8a8f83', desc: '最常见的外门功课，便宜、够用，前期靠它起步。' },
+  { key: 'xuan', name: '玄', label: '玄阶', stars: 2, resource: 1.50, attr: 1.30, needRealm: 2, maxRealm: 3, color: '#3d8c74', desc: '藏经阁里换得到的中阶功法，灵气灵石更厚。' },
+  { key: 'di', name: '地', label: '地阶', stars: 3, resource: 2.20, attr: 1.70, needRealm: 3, maxRealm: 4, color: '#b8893b', desc: '多从切磋首胜里得的高阶功法，属性加成明显。' },
+  { key: 'tian', name: '天', label: '天阶', stars: 4, resource: 3.20, attr: 2.20, needRealm: 4, maxRealm: 9, color: '#b4453c', desc: '压箱底的绝学，战力与产出最高，也最难得到。' },
 ];
 
 const TIER_MAP = {};
@@ -278,10 +280,10 @@ function tierIndexOf(key) {
 
 const DIFFICULTIES = [
   { key: 'easy', name: '简单', need: 0, mult: 1.00, pace: 1.18, windowPace: 1.50, goal: 0.85, gear: 'normal', depth: 0, desc: '节奏最缓、目标最宽，先把这一门的手感练稳。' },
-  { key: 'normal', name: '普通', need: 400, mult: 1.30, pace: 1.00, windowPace: 1.21, goal: 1.00, gear: 'normal', depth: 1, desc: '标准节奏与目标，小成之后才开。' },
-  { key: 'hard', name: '困难', need: 1000, mult: 1.70, pace: 0.88, windowPace: 1.00, goal: 1.12, gear: 'hard', depth: 2, desc: '节奏收紧、目标抬高，失误的余地更小。' },
-  { key: 'expert', name: '极难', need: 2500, mult: 2.10, pace: 0.78, windowPace: 0.83, goal: 1.22, gear: 'hard', depth: 3, desc: '几乎没有容错，一乱就掉档。' },
-  { key: 'desperate', name: '绝境', need: 6000, mult: 2.60, pace: 0.70, windowPace: 0.64, goal: 1.32, gear: 'hard', depth: 4, desc: '给练到极处的人：最快节奏、最高目标、最高倍率。' },
+  { key: 'normal', name: '普通', need: 300, mult: 1.30, pace: 1.00, windowPace: 1.21, goal: 1.00, gear: 'normal', depth: 1, desc: '标准节奏与目标，入门之后才开。' },
+  { key: 'hard', name: '困难', need: 1500, mult: 1.70, pace: 0.88, windowPace: 1.00, goal: 1.12, gear: 'hard', depth: 2, desc: '节奏收紧、目标抬高，失误的余地更小。' },
+  { key: 'expert', name: '极难', need: 6000, mult: 2.10, pace: 0.78, windowPace: 0.83, goal: 1.22, gear: 'hard', depth: 3, desc: '几乎没有容错，一乱就掉档。' },
+  { key: 'desperate', name: '绝境', need: 24000, mult: 2.60, pace: 0.70, windowPace: 0.64, goal: 1.32, gear: 'hard', depth: 4, desc: '给练到极处的人：最快节奏、最高目标、最高倍率。' },
 ];
 
 const DIFF_MAP = {};
@@ -296,16 +298,15 @@ function diffKeyIndex(key) {
   return d ? DIFFICULTIES.indexOf(d) : 0;
 }
 
-// 低于「本门最高已解锁档」时的熟练度折减。
+// 低于「本门最高已解锁档」时，每低一档就把熟练度与资源再打一次对折。
 //
 // 为什么要有这一条：难度档是事前承诺，不是面板上的装饰。解锁了普通档却一直刷简单档，
-// 等于既拿难度倍率又躲开难度本身——模拟里「只刷简单」曾经反超「逐档升」（8424 vs 7339）。
-// 只把连 S 停掉不够：正常收益那一路仍在按 ×1.00 走。
+// 等于既拿难度倍率又躲开难度本身——模拟里「只刷简单」曾经反超「逐档升」。
+// 只把连 S 停掉不够：正常收益那一路仍在按全额走。
 //
-// 取 0.5 而不是按落差叠乘：一条规则只能有一个数字，玩家才记得住。
-// 折半之后界线正好可讲——黄阶简单档 S = 1.00×0.5×1.5 = 0.75，
-// 普通档 C = 1.30×0.6 = 0.78：普通档打个 C，也比简单档 S 多。
-// 熟练度不到 400 时简单档就是最高档，本项自动不生效，新手不受罚。
+// 按落差累进：解锁普通后打简单 ×0.5；再解锁困难，简单 ×0.25、普通 ×0.5；
+// 绝境都开了还回头刷简单就只剩 ×0.0625。「差几档折几次半」一句话讲完，
+// 不需要记第二套规则。熟练度不到 300 时简单档就是最高档，本项不生效，新手不受罚。
 const DIFF_BELOW_CAP = 0.5;
 
 // 这门功法当前熟练度实际解锁到第几档。
@@ -322,25 +323,38 @@ function bestDifficulty(prof) {
   return DIFFICULTIES[diffIndexOf(prof)].key;
 }
 
-// 这一档是不是「低于本门最高已解锁档」。收益折半与连 S 是否计数共用这一个判定：
-// 玩家只需记一句话——只有最高已解锁档才算真功夫。
+// 这一档比本门最高已解锁档低几档：0 = 就是最高档，1 = 低一档，以此类推。
+function diffGapOf(prof, diffKey) {
+  return Math.max(0, diffIndexOf(prof) - diffKeyIndex(diffKey));
+}
+
+// 实得系数 = 0.5^档差。熟练度、资源倍率、连 S 判定全从这一个函数取，
+// 玩家只需记一句「只有最高已解锁档才算全额；每退一档再折半」。
+function lowDiffFactor(prof, diffKey) {
+  return Math.pow(DIFF_BELOW_CAP, diffGapOf(prof, diffKey));
+}
+
+// 0.0625 也要原样显示，toFixed(2) 会把它写成 0.06 骗人。
+function factorText(f) {
+  return '×' + String(Math.round(f * 10000) / 10000);
+}
+
 function belowCapOf(prof, diffKey) {
-  return diffKeyIndex(diffKey) < diffIndexOf(prof);
+  return diffGapOf(prof, diffKey) > 0;
 }
 
-// 实际生效的难度倍率：低于最高档时折半。结算与准备页都从这里取，别各算一遍。
+// 实际生效的难度倍率：每低一档再折半。结算与准备页都从这里取，别各算一遍。
 function effectiveMultOf(prof, diffKey) {
-  return belowCapOf(prof, diffKey)
-    ? difficultyOf(diffKey).mult * DIFF_BELOW_CAP
-    : difficultyOf(diffKey).mult;
+  return difficultyOf(diffKey).mult * lowDiffFactor(prof, diffKey);
 }
 
-// 准备页那一行折减提示：说清折的是哪一半、代价是什么，只在真的折减时出现。
+// 准备页那一行折减提示：说清低了几档、折成多少，只在真的折减时出现。
 function belowCapText(prof, diffKey) {
-  if (!belowCapOf(prof, diffKey)) return '';
+  const gap = diffGapOf(prof, diffKey);
+  if (!gap) return '';
   const cap = DIFFICULTIES[diffIndexOf(prof)];
-  return '低于已解锁的「' + cap.name + '」：熟练度 ×' + DIFF_BELOW_CAP.toFixed(1)
-    + '，S 也不计连晋。'
+  return '比已解锁的「' + cap.name + '」低 ' + gap + ' 档：每低一档再折半，熟练度与资源都只剩 '
+    + factorText(lowDiffFactor(prof, diffKey)) + '，S 也不计连晋。'
     + '想快些练，回到「' + cap.name + '」打。';
 }
 
@@ -355,7 +369,7 @@ function difficultyList(prof, current) {
       multText: '×' + d.mult.toFixed(2),
       mult: d.mult,
       // 选中低档时，胶囊上直接给实得倍率，别让玩家以为还是 ×1.30。
-      realMultText: '×' + (i < idx ? d.mult * DIFF_BELOW_CAP : d.mult).toFixed(2),
+      realMultText: '×' + (d.mult * Math.pow(DIFF_BELOW_CAP, Math.max(0, idx - i))).toFixed(2),
       below: i < idx,
       need: d.need,
       desc: d.desc,
@@ -765,6 +779,9 @@ module.exports = {
   diffIndexOf: diffIndexOf,
   bestDifficulty: bestDifficulty,
   belowCapOf: belowCapOf,
+  diffGapOf: diffGapOf,
+  lowDiffFactor: lowDiffFactor,
+  factorText: factorText,
   effectiveMultOf: effectiveMultOf,
   belowCapText: belowCapText,
   DIFF_BELOW_CAP: DIFF_BELOW_CAP,

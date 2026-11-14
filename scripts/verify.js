@@ -751,7 +751,7 @@ if (!fs.existsSync(checklistPath)) {
   else checked += 1;
   // 低档折减与默认档是同一根尺子的两面，文档必须写成真源里的那个数，
   // 否则以后照文档调数值，玩家看到的和代码算的就对不上。
-  const belowCapLine = '低档折减 ×' + practiceData.DIFF_BELOW_CAP.toFixed(1);
+  const belowCapLine = '每低一档折半 ×' + practiceData.DIFF_BELOW_CAP.toFixed(1);
   if (doc.indexOf(belowCapLine) < 0) errors.push('自检清单的低档折减与 DIFF_BELOW_CAP 不一致（应为 ' + belowCapLine + '）');
   else checked += 1;
   if (doc.indexOf('最高已解锁档') < 0) errors.push('自检清单没写「默认档 = 本门最高已解锁档」');
