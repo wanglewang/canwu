@@ -118,7 +118,9 @@ const PRACTICE_METHODS = [
   {
     id: 'harvest', name: '换苗引秀', game: 'match', theme: 'harvest', twist: 'harvest',
     desc: '在灵畦里互换相邻两株，凑齐三株同色即采收；新苗落下还能再连锁。',
-    tip: '换不出三连少 2 息',
+    // 这份是不带 params 的测试探针与「未选档」兜底，取简单档的值；局内与准备页一律走 tipFor()。
+    // 由 tests/rank.test.js 守着它必须等于 tipFor(..., 'easy')，不许两处漂成不同的数。
+    tip: '换不出三连少 1 息',
     base: 34,
     params: { duration: 60, cols: 6, rows: 6, kinds: 5, flashMs: 760 },
   },
@@ -364,9 +366,50 @@ function difficultyList(prof, current) {
   });
 }
 
-// 三秀同收的评级线：基数 + 每档增量。玩法层（match.js 的 sLimit）与准备页
-// 都从这一份数取，不许一边算 620 + depth×150、另一边照着再抄一遍。
-const MATCH_S = { base: 620, step: 150 };
+// 五档的「时辰」共用一根尺子：所有带 duration / timeLimit 的玩法逐档收 3%。
+// 以前档位只拧动画速度（flashMs / dropMs），时辰一动不动——玩家看不出这一档紧在哪。
+// 三秀同收 / 九宫填数各有自己的整表（下面会覆盖），其余限时玩法一律走这里。
+// 收 3% 而不是一成，是为了不把「高档」变成「来不及看清盘」；逐档累计到绝境是 88%。
+const TIME_LEVELS = [1, 0.97, 0.94, 0.91, 0.88];
+
+// 下面四张表是「审计找出来的区分度欠账」：这四门原本只有**一个**玩家看得见的参数
+// 在五档间变化，其余全靠评级线在结算时乘个数。补的每一个数都由玩法层真的读：
+//   mines → 心神盏数（HUD 上有几盏灯）；merge → 起手几块（开局盘面就少几格空地）；
+//   schulte → 点错罚几秒（局内已经这么写）；pushbox → 推数预算系数（capPushes 直接读）。
+// 不许为了过审计往 params 里塞一个玩法层不读的字段，那是假区分度。
+const MINES_HEARTS = [3, 3, 3, 2, 2];
+const MERGE_START_TILES = [2, 2, 3, 3, 4];
+const PUSHBOX_CAP_FACTORS = [2.2, 2.0, 1.9, 1.75, 1.6];
+
+// 三秀同收的五档：盘面（花色）、时辰、三处罚息与评级线，一张表管全。
+// 旧版只有「S 线 620 + depth×150」在变，60 息 / 5 色 / 罚 2 息四档全写死——
+// 真控制器跑 12 局的结果：高手五档 12/12 全 S、常人绝境 10/12 S，等于同一局打五遍。
+// 现在每档只收紧一到两个数（对应十二原则第三节「递增曲线平缓，无断崖」）：
+//   简单→普通 收时辰与罚息；普通→困难 多一色；困难→极难 收时辰与罚息；极难→绝境 再多一色。
+// sLine 不是「越难越高」，而是按**本档实测可得分**标定：花色越多，随机盘面凑出三连的
+// 概率越低、连锁越短，同样的分数含金量不同。落点是「高手约 75–95% 拿得到、常人 5–25%」，
+// 由 scripts/difficulty-audit.js 与 tests/rank.test.js 一起守，不许再拍脑袋 +150。
+const MATCH_LEVELS = [
+  { kinds: 5, duration: 68, missCost: 1, shuffleCost: 2, hintCost: 1, sLine: 1900 },
+  { kinds: 5, duration: 60, missCost: 2, shuffleCost: 3, hintCost: 2, sLine: 1750 },
+  { kinds: 6, duration: 58, missCost: 2, shuffleCost: 3, hintCost: 2, sLine: 1400 },
+  { kinds: 6, duration: 55, missCost: 3, shuffleCost: 4, hintCost: 3, sLine: 1300 },
+  { kinds: 7, duration: 52, missCost: 3, shuffleCost: 4, hintCost: 3, sLine: 950 },
+];
+
+function matchLevelOf(diffKey) {
+  return MATCH_LEVELS[difficultyOf(diffKey).depth];
+}
+
+// 局内那行代价句要跟着本档罚息走：以前写死「少 2 息」，改了档就变成假话。
+// 只有三秀同收的罚息按档变，其余门沿用 method.tip 这一份真源。
+function tipFor(method, diffKey) {
+  if (!method) return '';
+  if (method.game === 'match') {
+    return '换不出三连少 ' + matchLevelOf(diffKey).missCost + ' 息';
+  }
+  return method.tip;
+}
 
 // 阵灯推演的档位表：盘面规格 / 最优步数下限 / 步数预算。
 // 以前是「限时 36 秒解尽量多盘」，按解开盘数评级；现在改成一盘推演、按步数评级，
@@ -437,14 +480,17 @@ const BIGGEST_LEVELS = [
 
 function sLineOf(method, diffKey) {
   if (!method || method.game !== 'match') return 0;
-  return MATCH_S.base + difficultyOf(diffKey).depth * MATCH_S.step;
+  return matchLevelOf(diffKey).sLine;
 }
 
 // 准备页那一整行 S 线文案：分数线与盘数线口径不同，别在页面 JS 里各拼一遍。
 function sLineText(method, diffKey) {
   if (!method) return '';
   if (method.game === 'match') {
-    return '本档 S 线 ' + sLineOf(method, diffKey) + ' 分 · 评级只看总分，无效互换只少息、不扣分';
+    const lv = matchLevelOf(diffKey);
+    // 评级线随盘面变难而略降，这句必须当场说明，不然玩家会以为算错了。
+    return '本档 ' + lv.kinds + ' 色 · ' + lv.duration + ' 息 · 换不出少 ' + lv.missCost + ' 息'
+      + ' · S 线 ' + lv.sLine + ' 分（盘面越难，同样分数越难得）；评级只看总分';
   }
   if (method.game === 'lights') {
     const lv = lightsLevelOf(diffKey);
@@ -470,6 +516,8 @@ const FIELD_LABELS = {
   chainGoal: '连生目标', maxRound: '口诀轮数', segments: '步法段数', beats: '息数',
   scramble: '打乱步数', mines: '禁制数', pairs: '气窍对数', decoys: '影子数',
   startLen: '起始字数', baseLen: '每步长度', steps: '最少步数',
+  duration: '时辰', timeLimit: '时辰', hearts: '心神', startTiles: '起手块',
+  penaltySec: '点错罚', capFactor: '推数预算',
 };
 
 function capFor(key, src) {
@@ -504,13 +552,24 @@ function buildParams(method, diffKey) {
     const k = GOAL_KEYS[i];
     if (typeof out[k] === 'number') out[k] = Math.max(1, Math.min(capFor(k, out), Math.round(out[k] * d.goal)));
   }
+  // 时辰按档收紧：这是「这一档到底紧在哪」最直白的一条，玩家一进局就看得见倒计时。
+  // 放在各门整表注入之前，好让三秀同收 / 九宫填数用自己那张表覆盖。
+  const timeScale = TIME_LEVELS[d.depth];
+  if (typeof out.duration === 'number') out.duration = Math.max(8, Math.round(out.duration * timeScale));
+  if (typeof out.timeLimit === 'number') out.timeLimit = Math.max(8, Math.round(out.timeLimit * timeScale));
   // depth 是「第几档」（0–4），不做任何缩放，直接透传。
   // gear 只有 normal / hard 两值，玩法拿它分不出困难与绝境，容易一档一个样。
   out.depth = d.depth;
-  // 评级线只在三秀同收这一门用得上，由同一份常量注入 params，玩法层不再自己写死。
+  // 三秀同收的五档整表注入：玩法层只读 params，不再自己拼 620 + depth×150。
+  // 这几个键不在 PACE / GOAL 缩放名单里，免得被 pace 又乘一遍（花色与罚息是整数）。
   if (method && method.game === 'match') {
-    out.sBase = MATCH_S.base;
-    out.sStep = MATCH_S.step;
+    const lv = matchLevelOf(diffKey);
+    out.kinds = lv.kinds;
+    out.duration = lv.duration;
+    out.missCost = lv.missCost;
+    out.shuffleCost = lv.shuffleCost;
+    out.hintCost = lv.hintCost;
+    out.sLine = lv.sLine;
   }
   // 阵灯推演按「已走步数 / 最优步数」评级，盘面规格与步数预算由这一份表按档注入。
   if (method && method.game === 'lights') {
@@ -543,6 +602,11 @@ function buildParams(method, diffKey) {
     out.count = BIGGEST_LEVELS[d.depth].count;
     out.rounds = BIGGEST_LEVELS[d.depth].rounds;
   }
+  // 四门原本只有一个可见参数在变：把第二个数按档注入，玩法层逐个读走（见上方表注释）。
+  if (method && method.game === 'mines') out.hearts = MINES_HEARTS[d.depth];
+  if (method && method.game === 'merge') out.startTiles = MERGE_START_TILES[d.depth];
+  if (method && method.game === 'schulte') out.penaltySec = SCHULTE_PENALTIES[d.depth];
+  if (method && method.game === 'pushbox') out.capFactor = PUSHBOX_CAP_FACTORS[d.depth];
   // steps 是「这盘最少几步」这类按档递增的量：params 里写的是简单档的值，每档 +1。
   if (typeof out.steps === 'number') out.steps += d.depth;
   if (typeof out[SPEED_KEY] === 'number') out[SPEED_KEY] = Math.round(out[SPEED_KEY] / d.pace * 10000) / 10000;
@@ -556,6 +620,9 @@ const HIDDEN_FIELDS = ['window', 'speed'];
 
 function fmtField(key, value) {
   if (MS_FIELDS.indexOf(key) >= 0) return (value / 1000).toFixed(2) + ' 秒';
+  if (key === 'duration' || key === 'timeLimit' || key === 'penaltySec') return Math.round(value) + ' 秒';
+  if (key === 'hearts') return Math.round(value) + ' 盏';
+  if (key === 'capFactor') return '×' + value.toFixed(2);
   return String(Math.round(value));
 }
 
@@ -565,7 +632,10 @@ function diffDetail(method, diffKey) {
   const base = buildParams(method, 'easy');
   const now = buildParams(method, diffKey);
   const changes = [];
-  const ordered = PACE_KEYS.concat(WINDOW_KEYS, GOAL_KEYS, ['steps', SPEED_KEY]).filter(function (k) {
+  // 时辰与四门新注入的档位参数也要进「本档紧在哪」：不然准备页写了「入门基准」，
+  // 盘上的倒计时 / 心神 / 起手块却真的变了，说明和局内对不上。
+  const ordered = PACE_KEYS.concat(WINDOW_KEYS, GOAL_KEYS,
+    ['duration', 'timeLimit', 'hearts', 'startTiles', 'penaltySec', 'capFactor', 'steps', SPEED_KEY]).filter(function (k) {
     return HIDDEN_FIELDS.indexOf(k) < 0;
   });
   for (let i = 0; i < ordered.length && changes.length < 3; i += 1) {
@@ -581,7 +651,11 @@ function diffDetail(method, diffKey) {
   // 阵灯推演的难度不是「快慢」而是「盘面多大、预算多紧」，按时间类字段拼 brief 只会
   // 拼出一句「入门基准」。这一门单独说清规格与预算，准备页的难度说明才不会自相矛盾。
   let brief;
-  if (method && method.game === 'lights') {
+  if (method && method.game === 'match') {
+    const lv = matchLevelOf(diffKey);
+    brief = lv.kinds + ' 色 · ' + lv.duration + ' 息 · 换不出少 ' + lv.missCost + ' 息'
+      + ' · 重排少 ' + lv.shuffleCost + ' 息 · S ' + lv.sLine + ' 分';
+  } else if (method && method.game === 'lights') {
     const lv = lightsLevelOf(diffKey);
     brief = lv.size + '×' + lv.size + ' 盘 · 最优 ' + lv.min + ' 步起 · 预算 ' + lv.cap + ' 步';
   } else if (method && method.game === 'sudoku') {
@@ -591,11 +665,11 @@ function diffDetail(method, diffKey) {
     const lv = klotskiLevelOf(diffKey);
     brief = '4×4 小盘 · 最优 ' + lv.minOpt + '～' + lv.maxOpt + ' 步';
   } else if (method && method.game === 'merge') {
-    brief = '本档要合出 ' + now.target + ' 一块';
+    brief = '本档要合出 ' + now.target + ' 一块 · 起手 ' + now.startTiles + ' 块';
   } else if (method && method.game === 'schulte') {
     brief = now.size + '×' + now.size + ' 盘 · ' + now.size * now.size + ' 个数 · 点错罚 ' + SCHULTE_PENALTIES[d.depth] + ' 秒';
   } else if (method && method.game === 'pushbox') {
-    brief = '第 ' + (now.level + 1) + ' 张石图 · 推数越少越好';
+    brief = '第 ' + (now.level + 1) + ' 张石图 · 推数预算 ×' + now.capFactor.toFixed(2) + ' · 越少越好';
   } else if (method && method.game === 'biggest') {
     brief = '本档 ' + now.rounds + ' 轮 · 每轮盘上 ' + now.count + ' 个数';
   } else {
@@ -653,9 +727,12 @@ const STAGE_RULES = {
     { at: 3, name: '稳基', short: '落石放慢一拍', desc: '大成起落石间隔放宽一拍，留出转石的时间' },
     { at: 5, name: '层叠', short: '化层多一成', desc: '大圆满起每化一层的得分再高一成' },
   ],
+  // 十二原则第十一节：阶段新法要「加规则」而不是「减难度」，便利必须留明码代价。
+  // 所以「照畦不扣息 / 重排不扣息」改成「各少扣 1 息」——仍然要付，只是练到后面更划算；
+  // 连锁加成也改成「连锁三层起才额外加成」，得先打出连锁才拿得到，不是白送。
   harvest: [
-    { at: 3, name: '照畦', short: '提示不扣息', desc: '大成起「照畦」提示不再扣息，卡局时不必再省这两息' },
-    { at: 5, name: '连收', short: '连锁加成提高', desc: '大圆满起连锁加成提高、死局重排不扣息，一局能滚出更长的连锁' },
+    { at: 3, name: '照畦', short: '提示少扣 1 息', desc: '大成起「照畦」少扣 1 息（仍要付），卡局时不必再为这两息犹豫' },
+    { at: 5, name: '连收', short: '三层起加成', desc: '大圆满起连锁第 3 层起额外加成、重排少扣 1 息：奖励打出长连锁，不是白送分' },
   ],
 };
 
@@ -668,7 +745,13 @@ module.exports = {
   METHOD_MAP: METHOD_MAP,
   GAME_LABELS: GAME_LABELS,
   HINT_LABELS: HINT_LABELS,
-  MATCH_S: MATCH_S,
+  MATCH_LEVELS: MATCH_LEVELS,
+  matchLevelOf: matchLevelOf,
+  tipFor: tipFor,
+  TIME_LEVELS: TIME_LEVELS,
+  MINES_HEARTS: MINES_HEARTS,
+  MERGE_START_TILES: MERGE_START_TILES,
+  PUSHBOX_CAP_FACTORS: PUSHBOX_CAP_FACTORS,
   FAMILIES: FAMILIES,
   TIERS: TIERS,
   DIFFICULTIES: DIFFICULTIES,

@@ -29,6 +29,8 @@ function create(ctx) {
   const n = cols * rows;
   const lim = linesOf(p);
   const target = lim[0];
+  // 起手块数按档递增：少一格空地，同数就更难凑到一处，高档不是只把目标数字改大。
+  const startTiles = Math.max(2, Math.min(5, p.startTiles || 2));
   const costText = ctx.tip || '推不动就完了：盘满且相邻没有同数';
 
   const bag = C.TimerBag();
@@ -230,8 +232,7 @@ function create(ctx) {
     grid = new Array(n).fill(0);
     score = 0;
     moves = 0;
-    spawn();
-    spawn();
+    for (let k = 0; k < startTiles; k += 1) spawn();
     paint();
     syncHud();
     render();
@@ -252,7 +253,8 @@ function create(ctx) {
 function lines(p) {
   const lim = linesOf(p);
   return {
-    rule: '按最大那一块合到多大评级（合出本档目标块即收功）',
+    rule: '按最大那一块合到多大评级（本档起手 '
+      + Math.max(2, Math.min(5, (p && p.startTiles) || 2)) + ' 块 · 合出目标块即收功）',
     items: [
       'S：合出 ' + lim[0] + ' 一块',
       'A：合出 ' + lim[1] + ' 一块',

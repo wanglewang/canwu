@@ -8,6 +8,10 @@
 const C = require('./common.js');
 
 const ELEMENTS = ['木', '火', '土', '金', '水'];
+// sprite 的五行格是 22 金 / 23 木 / 24 水 / 25 火 / 26 土，和环灯的元素次序不同。
+// 按 ELEMENTS 的下标查这张表，别写 22 + i——那样「木」会画成金元宝、「火」画成嫩芽，
+// 相生次序在图上就是反的，玩家越照着图认越错。tests/layout.test.js 逐个比对。
+const ELEMENT_EMBLEM = [23, 25, 26, 22, 24];
 
 function create(ctx) {
   const p = ctx.params || {};
@@ -26,7 +30,9 @@ function create(ctx) {
   vm.timeText = C.mmss(duration);
   vm.scoreText = '连生 0';
   vm.orbit = {
-    lamps: ELEMENTS.map(function (g, i) { return { id: 'e' + i, label: g, tone: i + 1, cls: '' }; }),
+    lamps: ELEMENTS.map(function (g, i) {
+      return { id: 'e' + i, label: g, tone: i + 1, cls: '', emblem: ELEMENT_EMBLEM[i] };
+    }),
     current: 0,
     currentText: ELEMENTS[0],
     chain: 0,
@@ -191,4 +197,8 @@ function lines(p, gear) {
   };
 }
 
-module.exports = { id: 'wuxing', name: '五行相生', create: create, lines: lines };
+module.exports = {
+  id: 'wuxing', name: '五行相生', create: create, lines: lines,
+  ELEMENTS: ELEMENTS,
+  ELEMENT_EMBLEM: ELEMENT_EMBLEM,
+};

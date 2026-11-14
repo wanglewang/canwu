@@ -188,6 +188,7 @@ function createTeach(ctx) {
       vm.cells[i].cls = board[i] ? 'cell cell--lit' : 'cell cell--off';
       vm.cells[i].label = board[i] ? (theme.glyph || '●') : OFF_GLYPH;
       vm.cells[i].tone = 0;
+      vm.cells[i].emblem = board[i] ? 9 : 10;
     }
     // 该点的那一格自己会呼吸：不写「点这里」，也让玩家一眼知道下一手在哪。
     if (!done) vm.cells[TEACH_STEPS[step]].cls += ' cell--teach-next';
@@ -330,11 +331,13 @@ function create(ctx) {
         vm.cells[i].cls = board[i] ? 'cell cell--dead cell--dead-lit' : 'cell cell--dead';
         vm.cells[i].label = DEAD_GLYPH;
         vm.cells[i].tone = 0;
+        vm.cells[i].emblem = 11;
         continue;
       }
       vm.cells[i].cls = board[i] ? 'cell cell--lit' : 'cell cell--off';
       vm.cells[i].label = board[i] ? (theme.glyph || '●') : OFF_GLYPH;
       vm.cells[i].tone = 0;
+      vm.cells[i].emblem = board[i] ? 9 : 10;
     }
   }
 
@@ -547,8 +550,10 @@ function create(ctx) {
     const k = clicks[0];
     const prevCls = vm.cells[k].cls;
     const prevLabel = vm.cells[k].label;
+    const prevEmblem = vm.cells[k].emblem;
     vm.cells[k].cls = 'cell cell--hint';
     vm.cells[k].label = HINT_GLYPH;
+    vm.cells[k].emblem = 12;
     vm.status = '阵眼感应：这一格该点 · 本盘最高 A';
     syncHud();
     render();
@@ -556,6 +561,7 @@ function create(ctx) {
       if (done) return;
       vm.cells[k].cls = prevCls;
       vm.cells[k].label = prevLabel;
+      vm.cells[k].emblem = prevEmblem;
       render();
     }, HINT_MS);
   }

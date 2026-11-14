@@ -78,14 +78,17 @@ function create(ctx) {
         vm.cells[i].cls = 'cell cell--matched';
         vm.cells[i].label = deck[i];
         vm.cells[i].tone = 0;
+        vm.cells[i].emblem = SIGNS.indexOf(deck[i]) + 1;
       } else if (faceUp[i]) {
         vm.cells[i].cls = 'cell cell--flipped';
         vm.cells[i].label = deck[i];
         vm.cells[i].tone = 1 + (SIGNS.indexOf(deck[i]) % 5);
+        vm.cells[i].emblem = SIGNS.indexOf(deck[i]) + 1;
       } else {
         vm.cells[i].cls = 'cell cell--card';
         vm.cells[i].label = theme.motif || '观';
         vm.cells[i].tone = 0;
+        vm.cells[i].emblem = 20;
       }
     }
   }
@@ -184,10 +187,11 @@ function create(ctx) {
     }
     if (pick.length < 2) return;
     hints -= 1;
-    const prev = pick.map(function (i) { return { cls: vm.cells[i].cls, label: vm.cells[i].label }; });
+    const prev = pick.map(function (i) { return { cls: vm.cells[i].cls, label: vm.cells[i].label, emblem: vm.cells[i].emblem }; });
     for (let k = 0; k < pick.length; k += 1) {
       vm.cells[pick[k]].cls = 'cell cell--hint';
       vm.cells[pick[k]].label = deck[pick[k]];
+      vm.cells[pick[k]].emblem = SIGNS.indexOf(deck[pick[k]]) + 1;
     }
     vm.status = '入定照见一对（剩 ' + hints + ' 次）';
     C.flash(vm, '卦象显形', 'gold');
@@ -198,6 +202,7 @@ function create(ctx) {
       for (let k = 0; k < pick.length; k += 1) {
         vm.cells[pick[k]].cls = prev[k].cls;
         vm.cells[pick[k]].label = prev[k].label;
+        vm.cells[pick[k]].emblem = prev[k].emblem;
       }
       render();
     }, 1600);

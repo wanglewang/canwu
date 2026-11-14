@@ -372,7 +372,8 @@ Page({
       title: skill.name,
       subtitle: skill.desc,
       gameName: minigames.gameName(method.game),
-      tip: method.tip,
+      // 与局内那一行同源：三秀同收的罚息按档变，这里不许留一句写死的「少 2 息」。
+      tip: practiceData.tipFor(method, diffKey),
       ruleText: ruleText,
       tierName: info.name,
       tierColor: info.color,
@@ -428,7 +429,8 @@ Page({
       gameId = method.game;
       params = practiceData.buildParams(method, this.data.difficulty);
       methodName = method.name;
-      tip = method.tip;
+      // 代价句里的罚息随难度档变（三秀同收），不能用写死在功法表里的那一句。
+      tip = practiceData.tipFor(method, this.data.difficulty);
       tier = engine.tierIndex(state.skills[this.skillId].prof);
     }
     const perks = this.mode === 'breakthrough'

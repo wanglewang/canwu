@@ -10,7 +10,9 @@
 
 const C = require('./common.js');
 
-const GLYPHS = ['✿', '❋', '✦', '◆', '●'];
+// 八张灵纹牌都在 styles/crest.wxss 里有图；这里只留数据语义（测试与读屏），不上屏。
+// 绝境档会用到第 7 张，所以这一份必须和 sprite 的 8 格对齐。
+const GLYPHS = ['✿', '❋', '✦', '◆', '●', '▲', '■', '✧'];
 
 // 所有横 / 竖 ≥3 连的格子。纯函数：判定与测试共用，改规则不会让断言悄悄失效。
 function matchesOf(board, cols, rows) {
@@ -124,16 +126,20 @@ function create(ctx) {
   const rows = Math.max(4, p.rows || 6);
   const n = cols * rows;
   const kinds = Math.min(GLYPHS.length, Math.max(3, p.kinds || 5));
-  const depth = Math.max(0, Math.min(4, typeof p.depth === 'number' ? p.depth : 0));
   const stage = typeof perks.tier === 'number' ? perks.tier : 0;
+  // 五档各改什么，全部由 data/practice.js 的 MATCH_LEVELS 注入；这里一个数字都不写死，
+  // 否则准备页写「本档 55 息」、局内却按 60 息跑，玩家会以为规则骗人。
   const duration = Math.max(25, p.duration || 60);
+  const missCost = Math.max(1, p.missCost || 2);
+  const shuffleCost = Math.max(1, p.shuffleCost || 3);
   const hintMs = Math.max(200, p.flashMs || 760);
-  const freeHint = stage >= 3;
-  const freeShuffle = stage >= 5;
-  const chainBonus = stage >= 5 ? 0.5 : 0;
-  // 代价句由准备页的 method.tip 传进来，局内一直挂在 hint 上。以前 syncHud()
-  // 每帧都把它冲成纯计数，玩家整局都看不到「换不出要少 2 息」，等于规则只在准备页写着。
-  const costText = ctx.tip || '换不出三连少 2 息';
+  // 阶段新法只把代价打薄，不取消代价（十二原则第十一节：便利必须有明码代价）。
+  const hintCost = Math.max(1, (p.hintCost || 2) - (stage >= 3 ? 1 : 0));
+  const realShuffleCost = Math.max(1, shuffleCost - (stage >= 5 ? 1 : 0));
+  const chainBonus = stage >= 5 ? 0.25 : 0;
+  // 代价句由准备页按本档罚息生成（tipFor），局内一直挂在 hint 上。以前写死「少 2 息」，
+  // 改了难度档就成假话；现在连浮字也取 missCost，三个地方说的是同一个数。
+  const costText = ctx.tip || ('换不出三连少 ' + missCost + ' 息');
 
   const vm = C.makeVm(cols, n, '换两株相邻灵草，三株同色连成一线就收走', costText);
   vm.timeText = C.mmss(duration);
@@ -144,7 +150,7 @@ function create(ctx) {
 
   // 一格三连 12 分，连锁每层 ×(1 + 0.5×(层数-1))；一局打得顺能收十几次。
   // S 线的基数与每档增量由 data/practice.js 的 params 同源送入，准备页照同一份数写给玩家看。
-  const lim = gradeLimits(p, depth);
+  const lim = gradeLimits(p);
   const sLimit = lim.s;
   const aLimit = lim.a;
   const bLimit = lim.b;
@@ -225,8 +231,8 @@ function create(ctx) {
       if (!matchesOf(board, cols, rows).length && findMove(board, cols, rows)) break;
     }
     shuffles += 1;
-    if (!freeShuffle) left = Math.max(0, left - 3);
-    C.flash(vm, freeShuffle ? '灵畦自整 · 不扣息' : '灵畦自整 · 少 3 息', 'good');
+    left = Math.max(0, left - realShuffleCost);
+    C.flash(vm, '灵畦自整 · 少 ' + realShuffleCost + ' 息', 'good');
   }
 
   function resolve() {
@@ -238,7 +244,8 @@ function create(ctx) {
       if (!hits.length) break;
       chain += 1;
       harvested += hits.length;
-      const mult = 1 + (chain - 1) * (0.5 + chainBonus);
+      // 大圆满的「连收」只在第 3 层起额外加成：先打出长连锁才拿得到，不是每局白送。
+      const mult = 1 + (chain - 1) * 0.5 + (chain >= 3 ? (chain - 2) * chainBonus : 0);
       const gain = Math.round(hits.length * 12 * mult);
       score += gain;
       for (let i = 0; i < hits.length; i += 1) board[hits[i]] = 0;
@@ -272,8 +279,8 @@ function create(ctx) {
       board[a] = va;
       board[index] = vb;
       mistakes += 1;
-      left = Math.max(0, left - 2);
-      C.flash(vm, '换不出三连 · 少 2 息', 'bad');
+      left = Math.max(0, left - missCost);
+      C.flash(vm, '换不出三连 · 少 ' + missCost + ' 息', 'bad');
     } else {
       resolve();
     }
@@ -289,8 +296,8 @@ function create(ctx) {
     if (!move) { reshuffle(); paint(); syncHud(); render(); return; }
     clearHint();
     hintPair = move;
-    if (!freeHint) left = Math.max(0, left - 2);
-    vm.status = freeHint ? '照畦：换这两株' : '照畦：少 2 息，换这两株';
+    left = Math.max(0, left - hintCost);
+    vm.status = '照畦：少 ' + hintCost + ' 息，换这两株';
     paint();
     syncHud();
     render();
@@ -333,16 +340,18 @@ function create(ctx) {
   });
 }
 
-function gradeLimits(p, depth) {
-  const s = ((p && p.sBase) || 620) + depth * ((p && p.sStep) || 150);
+// 评级线的唯一出处：整张档位表在数据层，玩法层只接 p.sLine。
+// 这条线随盘面变难而略降是刻意的——多一色，随机盘面凑三连的概率与连锁长度都掉一截，
+// 再用同一条绝对分数线，高档就变成「要点得比低档还快」，而不是「要看得更准」。
+function gradeLimits(p) {
+  const s = Math.max(1, (p && p.sLine) || 1750);
   return { s: s, a: Math.ceil(s * 0.68), b: Math.ceil(s * 0.40) };
 }
 
 function lines(p) {
-  const depth = Math.max(0, Math.min(4, (p && p.depth) || 0));
-  const lim = gradeLimits(p, depth);
+  const lim = gradeLimits(p);
   return {
-    rule: '按本局总分（无效互换只少息、不扣分）',
+    rule: '按本局总分（无效互换只少息、不扣分；本档盘面与时辰见准备页难度栏）',
     items: ['S ≥ ' + lim.s + ' 分', 'A ≥ ' + lim.a + ' 分', 'B ≥ ' + lim.b + ' 分', '其余为 C'],
   };
 }

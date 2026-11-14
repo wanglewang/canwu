@@ -156,6 +156,7 @@ function create(ctx) {
     const idx = sequence[i];
     vm.cells[idx].cls = 'cell cell--lit';
     vm.cells[idx].label = glyph;
+    vm.cells[idx].emblem = 20;
     vm.meter = { label: '口诀次第', value: i + 1, max: sequence.length };
     render();
     flashTimer = bag.after(function () {
@@ -286,6 +287,7 @@ function create(ctx) {
     inputIndex += 1;
     vm.cells[index].cls = 'cell cell--ok';
     vm.cells[index].label = glyph;
+    vm.cells[index].emblem = 20;
     vm.meter = { label: '已复述', value: inputIndex, max: sequence.length };
     if (inputIndex >= sequence.length) { completeRound(); return; }
     render();

@@ -63,6 +63,7 @@ function create(ctx) {
     for (let i = 0; i < lit.length; i += 1) {
       vm.cells[lit[i]].label = '';
       vm.cells[lit[i]].cls = 'cell';
+      vm.cells[lit[i]].emblem = 0;
     }
     lit = [];
   }
@@ -83,9 +84,11 @@ function create(ctx) {
       if (i === 0) {
         vm.cells[k].cls = 'cell cell--gold' + (fast ? ' cell--hot' : '');
         vm.cells[k].label = theme.glyph || '剑';
+        vm.cells[k].emblem = 18;
       } else {
         vm.cells[k].cls = 'cell cell--decoy';
         vm.cells[k].label = '影';
+        vm.cells[k].emblem = 19;
       }
     }
     syncHud();
@@ -134,6 +137,7 @@ function create(ctx) {
     fast = false;
     vm.cells[index].cls = 'cell cell--bad';
     vm.cells[index].label = '';
+    vm.cells[index].emblem = 0;
     vm.status = theme.miss || '误截虚影';
     C.flash(vm, '截错 -1 · 少一息', 'bad');
     syncHud();

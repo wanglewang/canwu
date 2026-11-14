@@ -223,6 +223,7 @@ function create(ctx) {
         h: s.h * 25,
         sel: i === selected,
         main: i === 0,
+        emblem: s.id === 'main' ? 20 : 0,
       });
     }
     vm.klotski = { cols: cols, rows: rows, blocks: blocks, exitC: Math.floor((cols - 2) / 2) };

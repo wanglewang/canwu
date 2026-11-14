@@ -1155,12 +1155,17 @@ check('三秀同收：局内 hint 必须留住代价句，不许被纯计数覆�
   const m = read('minigames/match.js');
   const pd = require('../data/practice.js');
   const tip = pd.getMethod('harvest').tip;
-  assert.ok(/少 2 息/.test(tip), '准备页代价句没写清罚多少：' + tip);
+  assert.ok(/少 \d+ 息/.test(tip), '准备页代价句没写清罚多少：' + tip);
   assert.ok(/const costText = ctx\.tip \|\|/.test(m), '局内没接住准备页的代价句');
   assert.ok(/vm\.hint = costText \+/.test(m), 'syncHud 又把 hint 冲成纯计数了');
   assert.ok(!/vm\.hint = '照畦/.test(m), 'hint 又变回提示按钮的说明');
   const page = read('pages/practice/practice.js');
-  assert.ok(/tip = method\.tip/.test(page), '准备页没把代价句传给玩法');
+  assert.ok(/tip = practiceData\.tipFor\(/.test(page), '准备页没把按档代价句传给玩法');
+  assert.ok(!/tip: method\.tip/.test(page), '参悟页还有一处写死的功法表代价句没跟着档走');
+  // 罚息按档变，代价句不能还是那句写死的「少 2 息」。
+  assert.ok(/少 1 息/.test(pd.tipFor(pd.getMethod('harvest'), 'easy'))
+    && /少 3 息/.test(pd.tipFor(pd.getMethod('harvest'), 'desperate')),
+    '代价句没跟着本档罚息走');
 });
 
 check('「错换」已统一为「无效互换」：玩家可见文件不留旧词', function () {
@@ -1179,15 +1184,19 @@ check('「错换」已统一为「无效互换」：玩家可见文件不留旧�
 check('三秀同收：S 线与提示按钮名各只有一份真源', function () {
   const pd = require('../data/practice.js');
   const method = pd.getMethod('harvest');
-  assert.strictEqual(pd.sLineOf(method, 'easy'), 620, '简单档 S 线变了');
-  assert.strictEqual(pd.sLineOf(method, 'hard'), 920, '困难档 S 线没跟着 depth 抬');
+  assert.strictEqual(pd.sLineOf(method, 'easy'), 1900, '简单档 S 线变了');
+  assert.strictEqual(pd.sLineOf(method, 'hard'), 1400, '困难档 S 线没按本档盘面标定');
+  // 盘面越难，绝对分数线越低；这不是倒退，是同一把尺子量不同盘会骗人。
+  const lines = ['easy', 'normal', 'hard', 'expert', 'desperate'].map(function (k) { return pd.sLineOf(method, k); });
+  assert.ok(lines.every(function (v, i) { return i === 0 || v <= lines[i - 1]; }), '评级线没按盘面难度逐档标定');
+  assert.strictEqual(new Set(lines).size, 5, '五档评级线还有并列的');
   assert.strictEqual(pd.sLineOf(pd.getMethod('linkpair'), 'easy'), 0, '非三消玩法不该有 S 线');
-  assert.strictEqual(pd.buildParams(method, 'hard').sBase, pd.MATCH_S.base, '玩法层没拿到同源 S 线');
+  assert.strictEqual(pd.buildParams(method, 'hard').sLine, pd.sLineOf(method, 'hard'), '玩法层没拿到同源 S 线');
   // 门槛只能出现在 gradeLimits 一处：create 里只许调它，不许再自己写 620 / 150 这种数。
-  assert.ok(/lim = gradeLimits\(p, depth\)/.test(read('minigames/match.js')),
+  assert.ok(/lim = gradeLimits\(p\)/.test(read('minigames/match.js')),
     'match.js 又把 S 线写死在玩法层');
-  assert.ok(/\(p && p\.sBase\) \|\| 620/.test(read('minigames/match.js')),
-    'match.js 的 gradeLimits 没从 params 取 S 线基数');
+  assert.ok(/p && p\.sLine/.test(read('minigames/match.js')),
+    'match.js 的 gradeLimits 没从 params 取本档 S 线');
   assert.ok(/goalText/.test(read('pages/practice/practice.wxml')), '准备页没显示本档 S 线');
   assert.ok(/goalText: sLine/.test(read('pages/practice/practice.js')), '准备页没从同源数生成 S 线文案');
   const gd = require('../data/guides.js').guideOf('match');
@@ -1640,6 +1649,84 @@ check('收牌迸溅与选中跳动：只动 transform / opacity，都是一次�
   assert.ok(/\.cell--chip\.cell--sel \.cell__crest \{/.test(crest), '选中跳动没挂在纹样上');
   const selRule = (css.match(/\.cell--chip\.cell--sel \{[^}]*\}/) || [''])[0];
   assert.ok(selRule && !/transform/.test(selRule), '选中态动了格子本身的 transform，会和按压反馈打架');
+});
+
+check('19 门盘面图案化：果器纹 / 卦象器物纹 / 数字纸纹三层覆盖，盘上不留汉字', function () {
+  const pd = require('../data/practice.js');
+  const wxml = read('pages/practice/practice.wxml');
+  // 渲染优先级只有一条链：灵纹牌画 crest → 其余盘画 emblem → 都不是才退回文字。
+  // 少了 elif 那一层，汉字 / dingbat 就会重新上屏。
+  const crestAt = wxml.indexOf('class="cell__crest crest--{{item.crest}}"');
+  const emblemAt = wxml.indexOf('class="cell__emblem emblem--{{item.emblem}}"');
+  const labelAt = wxml.indexOf('<text wx:else>{{item.label}}</text>', emblemAt);
+  assert.ok(crestAt > 0 && emblemAt > crestAt && labelAt > emblemAt,
+    '格子的 crest → emblem → label 三层渲染顺序被拆开了');
+  assert.ok(/<view wx:if="\{\{item\.crest\}\}"/.test(wxml)
+    && /<view wx:elif="\{\{item\.emblem\}\}"/.test(wxml),
+    'crest / emblem 不是同一条 if-elif 链，汉字会重新上屏');
+  assert.ok(/item\.emblem\}\}" class="klotski__emblem/.test(wxml), '华容道主块没画图案');
+  assert.ok(/item\.emblem\}\}" class="orbit__emblem/.test(wxml), '五行环灯没画图案');
+
+  // 运行时探针：开局那一帧，凡是 label 还留着汉字的格子，必须已经有 emblem 顶上去；
+  // 数字 / 形状盘允许纯文字，但绝不能是汉字。华容道块与五行环灯同理。
+  const han = /[一-龥]/;
+  for (const m of pd.PRACTICE_METHODS) {
+    const M = require('../minigames/' + m.game + '.js');
+    let vm = null;
+    const c = M.create({
+      params: pd.buildParams(m, 'easy'), perks: { tier: 0 }, theme: {},
+      tip: m.tip, render: function (v) { vm = v; }, finish: function () { },
+    });
+    c.start();
+    c.destroy();
+    for (const cell of vm.cells || []) {
+      if (han.test(cell.label || '') && !cell.emblem) {
+        assert.fail(m.game + ' 盘面还有没被图案盖住的汉字：' + cell.label);
+      }
+    }
+    for (const b of (vm.klotski && vm.klotski.blocks) || []) {
+      if (han.test(b.label || '') && !b.emblem) assert.fail('华容道块还写着汉字：' + b.label);
+    }
+    for (const l of (vm.orbit && vm.orbit.lamps) || []) {
+      if (han.test(l.label || '') && !l.emblem) assert.fail('五行环灯还写着汉字：' + l.label);
+    }
+  }
+
+  // 全覆盖的另一半：数字 / 形状盘不换内容，但纸纹角花与一次性命中金圈要真的在。
+  const css = read('pages/practice/practice.wxss');
+  assert.ok(/@import "\.\.\/\.\.\/styles\/crest\.wxss"/.test(css)
+    && /@import "\.\.\/\.\.\/styles\/emblems\.wxss"/.test(css), '两张 sprite 样式没导进参悟页');
+  assert.ok(/\.cell::before \{/.test(css) && /linear-gradient\(135deg/.test(css), '全盘四角纸纹没画');
+  assert.ok(/@keyframes cellEtch/.test(css), '命中一次性金圈没画');
+  const etch = (css.match(/@keyframes cellEtch \{[\s\S]*?\n\}/) || [''])[0];
+  assert.ok(/opacity/.test(etch) && /transform/.test(etch), '金圈动了会重排的属性');
+  assert.ok(!/infinite/.test(etch), '金圈变成了常驻循环动画，动效预算会爆');
+});
+
+check('26 格器纹 sprite：单份 base64、三处容器、五行图案语义不错位', function () {
+  const css = read('styles/emblems.wxss');
+  const png = fs.readFileSync(path.join(ROOT, 'assets/emblems.png'));
+  assert.strictEqual(png.readUInt32BE(16), 1664, 'sprite 宽度不是 26×64');
+  assert.strictEqual(png.readUInt32BE(20), 64, 'sprite 高度不是 64');
+  const classes = (css.match(/\.emblem--\d+/g) || []).filter(function (v, i, a) { return a.indexOf(v) === i; });
+  assert.strictEqual(classes.length, 26, '26 格图案没配齐');
+  // 小程序 WXSS 不能引用包内图片，只能内联；base64 只许出现一次，否则包体翻倍。
+  assert.strictEqual((css.match(/data:image\/png;base64,/g) || []).length, 1, 'base64 被内联了多份');
+  for (const sel of ['.cell__emblem', '.klotski__emblem', '.orbit__emblem']) {
+    assert.ok(css.indexOf(sel) >= 0, '缺容器：' + sel);
+  }
+  assert.ok(/filter: brightness\(0\) invert\(1\)/.test(css), '深色格上的图案没翻白，会看不清');
+  // 源文件只是用来生成样式，不该进小程序包。
+  const cfg = JSON.parse(read('project.config.json'));
+  assert.ok(cfg.packOptions.ignore.some(function (x) { return x.value === 'assets/emblems.png'; }),
+    'assets/emblems.png 没排除出打包');
+
+  // sprite 的五行格是 22 金 / 23 木 / 24 水 / 25 火 / 26 土，环灯次序是木火土金水。
+  // 写 22+i 会让「木」画成元宝，相生次序在图上整个反过来。
+  const w = require('../minigames/wuxing.js');
+  assert.deepStrictEqual(w.ELEMENTS, ['木', '火', '土', '金', '水']);
+  assert.deepStrictEqual(w.ELEMENT_EMBLEM, [23, 25, 26, 22, 24], '五行图案与元素语义错位');
+  assert.ok(!/emblem: 22 \+ i/.test(read('minigames/wuxing.js')), '又写回按下标顺排图案了');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

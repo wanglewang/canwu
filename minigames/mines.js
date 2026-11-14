@@ -41,7 +41,9 @@ function create(ctx) {
   const mineCount = Math.min(n - 9, Math.max(3, Math.round(p.mines || 6)));
   const tier = perks.tier || 0;
   const sensedCount = tier >= 5 ? 5 : (tier >= 3 || perks.easy ? 3 : 0);
-  const maxHearts = HEARTS_BY_DEPTH[depth];
+  // 心神盏数按档收紧：由 buildParams 注入（MINES_HEARTS），HUD 上的灯就是这一档的容错。
+  // 模块仍留一份兜底，好让测试探针不带 params 直接 create 也能开出一盘。
+  const maxHearts = typeof p.hearts === 'number' ? p.hearts : HEARTS_BY_DEPTH[depth];
   // 提示区只留规则，操作速记交给 guides 的 inline（两行都在讲「长按钉阵钉」是重复的）。
   // 代价句来自准备页的 method.tip；「此盘已验过」是无猜保证，两者都是规则，一起留在提示区。
   const costText = ctx.tip || '误触折 1 盏心神，耗尽即收功';
@@ -263,18 +265,22 @@ function create(ctx) {
         // 数字按大小分色（1/2/3+ 三档）：扫一眼就能看出 1 与 2 的边界，
         // 这是经典扫雷里唯一值得照搬的辅助，比把数字画成花纹更能读。
         vm.cells[i].tone = num >= 3 ? 3 : num;
+        vm.cells[i].emblem = 0;
       } else if (exposed[i] || sensedSet[i]) {
         vm.cells[i].cls = 'cell cell--mine';
         vm.cells[i].label = MINE_GLYPH;
         vm.cells[i].tone = 0;
+        vm.cells[i].emblem = 17;
       } else if (flags[i]) {
         vm.cells[i].cls = 'cell cell--flag';
         vm.cells[i].label = FLAG_GLYPH;
         vm.cells[i].tone = 0;
+        vm.cells[i].emblem = 16;
       } else {
         vm.cells[i].cls = 'cell cell--hidden';
         vm.cells[i].label = '';
         vm.cells[i].tone = 0;
+        vm.cells[i].emblem = 0;
       }
     }
   }
@@ -432,13 +438,19 @@ function create(ctx) {
   });
 }
 
-function lines() {
+function lines(p) {
+  const depth = Math.max(0, Math.min(4, (p && p.depth) || 0));
+  const hearts = (p && typeof p.hearts === 'number') ? p.hearts : HEARTS_BY_DEPTH[depth];
   return {
-    rule: '按探完全盘的用时（心神折了只扣结算分，不影响档位）',
-    items: ['S ≤ ' + GRADE_LINE[0] + ' 秒', 'A ≤ ' + GRADE_LINE[1] + ' 秒',
+    rule: '按探完全盘的用时（本档 ' + hearts + ' 盏心神，折了只扣结算分，不影响档位）',
+    items: ['本档 ' + ((p && p.mines) || 6) + ' 处禁制 · ' + hearts + ' 盏心神',
+      'S ≤ ' + GRADE_LINE[0] + ' 秒', 'A ≤ ' + GRADE_LINE[1] + ' 秒',
       'B ≤ ' + GRADE_LINE[2] + ' 秒', '其余为 C'],
-    fail: '三盏心神全折（禁制没探完）→ 走火 F，这一局没有收益',
+    fail: '本档 ' + hearts + ' 盏心神全折（禁制没探完）→ 走火 F，这一局没有收益',
   };
 }
 
-module.exports = { id: 'mines', name: '数格辨禁', create: create, lines: lines };
+module.exports = {
+  id: 'mines', name: '数格辨禁', create: create, lines: lines,
+  HEARTS_BY_DEPTH: HEARTS_BY_DEPTH,
+};

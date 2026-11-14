@@ -12,6 +12,7 @@ const game = require('../utils/game.js');
 const practice = require('../data/practice.js');
 const skills = require('../data/skills.js');
 const world = require('../data/world.js');
+const index = require('../minigames/index.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -530,6 +531,95 @@ check('九套经典玩法都挂黄阶，价格也按品阶阶梯走', function (
       assert.ok(h.source.cost.qi <= x.source.cost.qi, h.name + ' 卖得比玄阶 ' + x.name + ' 还贵');
       assert.ok(h.source.cost.stone <= x.source.cost.stone, h.name + ' 灵石比玄阶还贵');
     }
+  }
+});
+
+// ---------------------------------------------------------------- 五档区分度
+// 这一组是「简单 / 普通 / 困难 / 极难 / 绝境」到底有没有真的分档的常驻守卫。
+// scripts/difficulty-audit.js 是给人看的只读报告，这里才是 npm run check 会跑的断言。
+
+check('三秀同收：五档整表同管盘面、时辰、罚息与 S 线，不再只改分数线', function () {
+  const lv = practice.MATCH_LEVELS;
+  assert.strictEqual(lv.length, 5, '五档表不是五档');
+  for (let i = 1; i < lv.length; i += 1) {
+    assert.ok(lv[i].kinds >= lv[i - 1].kinds, '第 ' + (i + 1) + ' 档花色反而少了');
+    assert.ok(lv[i].duration < lv[i - 1].duration, '第 ' + (i + 1) + ' 档时辰没收紧');
+    assert.ok(lv[i].missCost >= lv[i - 1].missCost, '第 ' + (i + 1) + ' 档罚息反而轻了');
+    assert.ok(lv[i].hintCost >= lv[i - 1].hintCost && lv[i].shuffleCost >= lv[i - 1].shuffleCost,
+      '第 ' + (i + 1) + ' 档辅助代价反而轻了');
+    // 按本档实测标定：盘面更难，同样分数更难得，S 线应当略降而不是 +150。
+    assert.ok(lv[i].sLine < lv[i - 1].sLine, '第 ' + (i + 1) + ' 档 S 线还在随档抬高');
+  }
+  assert.ok(lv[4].kinds > lv[0].kinds && lv[0].duration > lv[4].duration,
+    '绝境与简单的盘面拉不开：花色 / 时辰都没变');
+
+  const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const method = practice.getMethod('harvest');
+  assert.strictEqual(method.tip, practice.tipFor(method, 'easy'),
+    '功法表里的兜底代价句和简单档罚息分叉了');
+  keys.forEach(function (k, i) {
+    const p = practice.buildParams(method, k);
+    assert.strictEqual(p.kinds, lv[i].kinds, k + ' 的花色没送进玩法层');
+    assert.strictEqual(p.duration, lv[i].duration, k + ' 的时辰没送进玩法层');
+    assert.strictEqual(p.missCost, lv[i].missCost, k + ' 的罚息没送进玩法层');
+    assert.strictEqual(p.sLine, lv[i].sLine, k + ' 的 S 线没送进玩法层');
+    assert.strictEqual(practice.sLineOf(method, k), lv[i].sLine, k + ' 的 S 线不是同一份真源');
+    assert.ok(practice.tipFor(method, k).indexOf('少 ' + lv[i].missCost + ' 息') >= 0,
+      k + ' 的代价句还在写别的档的罚息');
+    assert.ok(practice.sLineText(method, k).indexOf('盘面越难') >= 0,
+      k + ' 的说明没讲清「S 线为什么反而低」');
+  });
+  // 代价句按档变，不许五档共用一句写死的「少 2 息」。
+  assert.strictEqual(new Set(keys.map(function (k) { return practice.tipFor(method, k); })).size, 3);
+  assert.strictEqual(practice.tipFor(practice.getMethod('forge'), 'easy'),
+    practice.tipFor(practice.getMethod('forge'), 'desperate'), '别的门不该被按档改写代价句');
+});
+
+check('时辰尺子与四门补的档位参数都只收紧不放宽，且玩法层真的拿得到', function () {
+  assert.deepStrictEqual(practice.TIME_LEVELS, [1, 0.97, 0.94, 0.91, 0.88], '时辰尺子被改了');
+  assert.deepStrictEqual(practice.MINES_HEARTS, [3, 3, 3, 2, 2]);
+  assert.deepStrictEqual(practice.MERGE_START_TILES, [2, 2, 3, 3, 4]);
+  assert.deepStrictEqual(practice.PUSHBOX_CAP_FACTORS, [2.2, 2.0, 1.9, 1.75, 1.6]);
+  const mines = require('../minigames/mines.js');
+  assert.deepStrictEqual(mines.HEARTS_BY_DEPTH, practice.MINES_HEARTS,
+    '心神表的两份真源分叉了');
+  const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const get = function (id, key, field) {
+    return practice.buildParams(practice.getMethod(id), key)[field];
+  };
+  for (let i = 0; i < keys.length; i += 1) {
+    assert.strictEqual(get('tanlei', keys[i], 'hearts'), practice.MINES_HEARTS[i]);
+    assert.strictEqual(get('heyuan', keys[i], 'startTiles'), practice.MERGE_START_TILES[i]);
+    assert.strictEqual(get('shumu', keys[i], 'penaltySec'), practice.SCHULTE_PENALTIES[i]);
+    assert.strictEqual(get('tuisuo', keys[i], 'capFactor'), practice.PUSHBOX_CAP_FACTORS[i]);
+  }
+  // 时辰收紧对带限时的门生效，但准备页不许再写「入门基准」。
+  assert.ok(get('forge', 'easy', 'duration') > get('forge', 'desperate', 'duration'));
+  assert.ok(get('stones', 'easy', 'timeLimit') > get('stones', 'desperate', 'timeLimit'));
+  const detail = practice.diffDetail(practice.getMethod('tanlei'), 'desperate');
+  assert.ok(detail.changes.length >= 2, '绝境档的难度说明没写出两处收紧');
+});
+
+check('十九门五档都至少两个可见参数在变，且评级线或盘面规格给出对照', function () {
+  const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const internal = ['depth', 'gear', 'sBase', 'sStep'];
+  for (const m of practice.PRACTICE_METHODS) {
+    const ps = keys.map(function (k) { return practice.buildParams(m, k); });
+    const all = new Set();
+    ps.forEach(function (p) { Object.keys(p).forEach(function (k) { all.add(k); }); });
+    const vary = [];
+    all.forEach(function (k) {
+      if (internal.indexOf(k) >= 0) return;
+      if (new Set(ps.map(function (p) { return JSON.stringify(p[k]); })).size > 1) vary.push(k);
+    });
+    assert.ok(vary.length >= 2,
+      m.id + '（' + practice.GAME_LABELS[m.game] + '）五档只有 ' + vary.length + ' 个可见参数在变：' + vary.join(','));
+    const variants = new Set(ps.map(function (p, i) {
+      return (index.MODULES[m.game].lines(p, practice.difficultyOf(keys[i]).gear).items || []).join('|');
+    })).size;
+    const boardChanged = vary.some(function (k) { return /size|holes|minSteps|capSteps|level/.test(k); });
+    assert.ok(variants > 1 || boardChanged,
+      m.id + ' 的说明页五档写同一行，玩家没法对照');
   }
 });
 

@@ -411,7 +411,10 @@ check('每门玩法都给出本档 S/A/B/C 四条线，说明页与局内同源'
       assert.ok(!/undefined|NaN/.test(text), m.id + ' 的 ' + dk + ' 档线算出了空值：' + text);
       assert.ok(/C/.test(text), m.id + ' 没写 C 的条件');
     }
-    // 数值型门槛还要随档变难：分数类抬高、时间类收紧，两者都是「档越高越难」。
+    // 数值型门槛要随档重标定——但方向不统一：按用时的玩法收时间，按分数的玩法
+    // 也可能**降**线（三秀同收按本档可得分标定，7 色 52 息的 950 分比 5 色 68 息
+    // 的 1900 分更难拿）。所以这里只验「五档写的是不是同一行」，不验谁大谁小；
+    // 谁大谁小由 tests/rank.test.js 的 MATCH_LEVELS 专条守。
     // 段数与步数类（步法 / 燃灯）本身不随档变，只能靠盘面规格变难，这里不强行要求。
     // gear（normal / hard）要跟着档走：剑法的时长、五行的目标都按它再收一次。
     const easy = mod.lines(data.buildParams(m, 'easy'), data.difficultyOf('easy').gear);
@@ -419,8 +422,8 @@ check('每门玩法都给出本档 S/A/B/C 四条线，说明页与局内同源'
     const nums = function (r) {
       return r.items.join(' ').match(/\d+(\.\d+)?/g) || [];
     };
-    // 只有「按分数」的门会把线抬高；按用时的三门（递推 / 探禁 / 翻牌）评级线是固定的，
-    // 难度由盘面变快与错一步更贵来体现，线不变才是对的。
+    // 只有按分数 / 盘面规格的门才会让这几行数字随档变；纯按用时的几门评级线固定，
+    // 难度由时辰、变阵间隔、心神盏数体现，线不变才是对的（本档事实另写在首行）。
     if (/分/.test(easy.items.join('')) && /分/.test(hard.items.join(''))) {
       const joinText = nums(easy).join(',') + '|' + nums(hard).join(',');
       assert.ok(joinText.split('|')[0] !== joinText.split('|')[1],

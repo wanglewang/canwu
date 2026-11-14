@@ -286,9 +286,10 @@
             <view class="cell__arrow-shaft"></view>
           </view>
           <view wx:if="{{item.end}}" class="cell__end {{item.endLive ? 'cell__end--live' : ''}}"></view>
-          <!-- 灵纹牌画的是纹样（crest），其余玩法仍是字形 / 数字。纹样由 wxss 画，
-               不用字体里的 ✦ ✿：那类字符在部分安卓上会被系统换成彩色 emoji。 -->
+          <!-- 盘面图案分两支：灵纹牌（crest）画果 / 器，其余玩法（emblem）画卦象 / 器物。
+               都不用字体里的 ✦ ✿ 或汉字：前者在部分安卓上会被换成彩色 emoji，后者违反盘面不写汉字。 -->
           <view wx:if="{{item.crest}}" class="cell__crest crest--{{item.crest}}"></view>
+          <view wx:elif="{{item.emblem}}" class="cell__emblem emblem--{{item.emblem}}"></view>
           <text wx:else>{{item.label}}</text>
         </view>
         <!-- 收牌迸溅：收走的那一格在原位炸开一小把，颜色跟着那张牌的纹样走。
@@ -312,6 +313,7 @@
           style="left:{{item.x}}%;top:{{item.y}}%;width:{{item.w}}%;height:{{item.h}}%"
           data-i="{{index}}" bindtap="onBlockTap">
           <view wx:if="{{item.main}}" class="klotski__core"></view>
+          <view wx:if="{{item.emblem}}" class="klotski__emblem emblem--{{item.emblem}}"></view>
         </view>
       </view>
 
@@ -327,7 +329,8 @@
           <text class="tiny">{{vm.orbit.rule}}</text>
         </view>
         <view wx:for="{{vm.orbit.lamps}}" wx:key="id" class="orbit__lamp orbit__lamp--{{index}} orbit__lamp--t{{item.tone}} {{item.cls}}" data-index="{{index}}" bindtap="onCellTap">
-          <text>{{item.label}}</text>
+          <view wx:if="{{item.emblem}}" class="orbit__emblem emblem--{{item.emblem}}"></view>
+          <text wx:else>{{item.label}}</text>
         </view>
       </view>
 

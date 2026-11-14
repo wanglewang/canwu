@@ -333,19 +333,24 @@ function create(ctx) {
       if (isWall(g.walls, cols, i)) {
         cell.cls = 'cell cell--wall';
         cell.label = '';
+        cell.emblem = 0;
       } else if (boxes.indexOf(i) >= 0) {
         const ok = onGoal(i);
         cell.cls = ok ? 'cell cell--boxed cell--on-goal' : 'cell cell--boxed';
         cell.label = ok ? '▩' : '▣';
+        cell.emblem = 13;
       } else if (i === player) {
         cell.cls = onGoal(i) ? 'cell cell--man cell--on-goal' : 'cell cell--man';
         cell.label = '☉';
+        cell.emblem = 15;
       } else if (onGoal(i)) {
         cell.cls = 'cell cell--goal';
         cell.label = '○';
+        cell.emblem = 14;
       } else {
         cell.cls = 'cell cell--floor';
         cell.label = '';
+        cell.emblem = 0;
       }
     }
     vm.pushbox = {

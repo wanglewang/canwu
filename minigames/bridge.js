@@ -73,15 +73,20 @@ function create(ctx) {
         vm.cells[i].cls = 'cell cell--trail';
         vm.cells[i].label = '采';
         vm.cells[i].tone = 0;
+        vm.cells[i].emblem = 21;
       } else if (row > activeRow) {
         vm.cells[i].cls = 'cell cell--fog';
         vm.cells[i].label = '';
         vm.cells[i].tone = 0;
+        vm.cells[i].emblem = 0;
       } else {
         const t = tones[i] || 1;
         vm.cells[i].cls = 'cell cell--stone cell--t' + t;
-        vm.cells[i].label = NUM[t] || String(t);
+        // 露石上的纹数用阿拉伯数字：盘面不写汉字（一二三也是汉字），而 NUM 那套
+        // 中文数词只留给 HUD 的浮字与横幅，玩家在盘上不该还得读字。
+        vm.cells[i].label = String(t);
         vm.cells[i].tone = t;
+        vm.cells[i].emblem = 0;
       }
     }
   }
@@ -201,10 +206,15 @@ function create(ctx) {
   });
 }
 
-function lines() {
+function lines(p) {
+  // 四档的 S/A/B 线是「按用时」的固定尺子，但本档时辰与变阵间隔确实不同：
+  // 说明页先摆这两个数，玩家才看得出高档紧在哪，而不是五档读起来一个样。
+  const limit = (p && p.timeLimit) || 45;
+  const shuffle = (p && p.shuffleMs) || 3200;
   return {
     rule: '按采到对岸的用时（越快越高；采错只少一盏心神）',
-    items: ['S ≤ ' + GRADE_LINE[0] + ' 秒', 'A ≤ ' + GRADE_LINE[1] + ' 秒',
+    items: ['本档 ' + limit + ' 秒 · 水流约每 ' + (shuffle / 1000).toFixed(1) + ' 秒变阵',
+      'S ≤ ' + GRADE_LINE[0] + ' 秒', 'A ≤ ' + GRADE_LINE[1] + ' 秒',
       'B ≤ ' + GRADE_LINE[2] + ' 秒', '其余为 C'],
     fail: '时间到或心神耗尽还没采到顶层 → 走火 F，这一局没有收益',
   };

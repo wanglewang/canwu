@@ -39,7 +39,9 @@ function create(ctx) {
   const size = Math.max(3, Math.min(6, p.size || SIZES[depth]));
   const n = size * size;
   const lim = linesOf(Object.assign({}, p, { depth: depth, size: size }));
-  const penaltySec = PENALTIES[depth];
+  // 罚时由 buildParams 按档注入（与 PENALTIES 同源，verify 逐项比对）；
+  // 不带 params 的测试探针仍走模块里那张兜底表。
+  const penaltySec = typeof p.penaltySec === 'number' ? p.penaltySec : PENALTIES[depth];
   const timeLimit = Math.max(lim[0] + 10, p.timeLimit || Math.round(lim[2] * 1.35));
   const costText = ctx.tip ? ctx.tip + ' · 本档 ' + penaltySec + ' 秒' : '点错不换格，罚 ' + penaltySec + ' 秒';
 
@@ -190,7 +192,8 @@ function lines(p) {
   return {
     rule: '按用时评级（含点错的罚时；点完整盘才算完成）',
     items: [
-      size + '×' + size + ' 盘 · ' + size * size + ' 个数 · 点错罚 ' + PENALTIES[depth] + ' 秒',
+      size + '×' + size + ' 盘 · ' + size * size + ' 个数 · 点错罚 '
+        + ((p && typeof p.penaltySec === 'number') ? p.penaltySec : PENALTIES[depth]) + ' 秒',
       'S：' + lim[0] + ' 秒内点完',
       'A：' + lim[1] + ' 秒内',
       'B：' + lim[2] + ' 秒内',

@@ -11,6 +11,8 @@
 /* 灵纹牌上的八种图案：一张内联的 sprite + 切位，单独放一个文件，
    免得这三十来 KB 的 base64 混在页面样式里，改起来看不清别的规则。 */
 @import "../../styles/crest.wxss";
+/* 卦象 / 器物一族的图案：另一张 sprite，同样单独放文件，免得 base64 混进页面规则。 */
+@import "../../styles/emblems.wxss";
 
 /* 功法头不做盒子：标题直接落在墨底上，只用一条发丝线收口。
    原先是一张深卡叠在墨底上，两层深色几乎同值，看不出层次还多一圈圆角。 */
@@ -517,6 +519,46 @@
    盘上格子是这一屏唯一的输入面，没有按压反馈时玩家会怀疑「是不是没点上」。 */
 .cell--press {
     transform: scale(0.962);
+}
+
+/* ---------- 全盘花纹：19 套玩法共用的纸面质感 ----------
+   数字盘与形状盘没有可替换的图案（数字是信息、箭头是方向），它们的「不简陋」
+   靠这一层：四角一枚浅色角花 + 牌面本身已有的瓷白渐亮，不新增图片、不盖内容。
+   用伪元素而不是改 .cell 的 background-image：很多状态类（.cell--lit / --dead）
+   会用 background 简写清掉图片，写进底盘会被状态色擦掉。 */
+.cell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+        linear-gradient(135deg, rgba(116, 94, 58, 0.42) 0, rgba(116, 94, 58, 0.42) 6rpx, rgba(116, 94, 58, 0) 6rpx) top left / 15rpx 15rpx no-repeat,
+        linear-gradient(225deg, rgba(116, 94, 58, 0.42) 0, rgba(116, 94, 58, 0.42) 6rpx, rgba(116, 94, 58, 0) 6rpx) top right / 15rpx 15rpx no-repeat,
+        linear-gradient(45deg, rgba(116, 94, 58, 0.42) 0, rgba(116, 94, 58, 0.42) 6rpx, rgba(116, 94, 58, 0) 6rpx) bottom left / 15rpx 15rpx no-repeat,
+        linear-gradient(315deg, rgba(116, 94, 58, 0.42) 0, rgba(116, 94, 58, 0.42) 6rpx, rgba(116, 94, 58, 0) 6rpx) bottom right / 15rpx 15rpx no-repeat;
+    opacity: 0.42;
+}
+
+/* 命中一笔一次性金圈：只动 transform / opacity，不是常驻循环，也不占粒子预算。
+   类挂上去那一刻播一次，挂在 --ok / --gold / --hint 上覆盖「对了 / 收了 / 被提示」
+   三种最常见的判定；已终局的盘面不会再挂这些类。 */
+@keyframes cellEtch {
+    0% { opacity: 0.9; transform: scale(0.86); }
+    100% { opacity: 0; transform: scale(1.16); }
+}
+
+.cell--ok::after,
+.cell--gold::after,
+.cell--hint::after,
+.cell--hintpair::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 3rpx solid rgba(255, 240, 190, 0.9);
+    border-radius: inherit;
+    pointer-events: none;
+    animation: cellEtch 420ms ease-out 1 forwards;
 }
 
 .grid--c3 .cell { width: 33.3333%; height: 156rpx; }

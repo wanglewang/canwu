@@ -31,12 +31,15 @@ function shuffle(arr) {
 // arrow / end / endLive 是「刀路指向」的可选字段：-1 / false 表示这一格不画方向图形。
 // endLive 专给双锋用：两条路都有靶心，只有会呼吸的那个是真招。
 // 在 vm 协议里给默认值，格子结构才不会因为某套玩法挂过箭头而变得不一致。
-// crest 是「这一格画第几号纹样」：0 表示不画。灵纹牌（连连看 / 消消乐）用它，
+// crest 是「这一格画第几号纹样」：0 表示不画。灵纹牌（连连看 / 消消乐）用它。
+// emblem 同理，但给的是「卦象 / 器物」那一套图案：八卦、阵灯、石箱、阵钉……
+// 两者分开是因为灵纹牌的八张图与卦象 / 器物的语义不通用，混在一张 sprite 里会认错。
 // 纹样由 wxss 画，不放字体字符——✦ ✿ 这类 dingbat 在部分安卓上会被系统换成彩色 emoji，
-// 同一个盘面在两台手机上长两样。label 仍保留语义值（测试与读屏都靠它），只是不再上屏。
+// 同一个盘面在两台手机上长两样；八卦「乾坤震巽」这类汉字更是直接违反「盘面不写汉字」。
+// label 仍保留语义值（测试与读屏都靠它），只是不再上屏。
 function makeCells(n) {
   const a = [];
-  for (let i = 0; i < n; i += 1) a.push({ key: i, label: '', crest: 0, cls: 'cell', tone: 0, arrow: -1, end: false, endLive: false });
+  for (let i = 0; i < n; i += 1) a.push({ key: i, label: '', crest: 0, emblem: 0, cls: 'cell', tone: 0, arrow: -1, end: false, endLive: false });
   return a;
 }
 
@@ -44,6 +47,7 @@ function clearCells(cells) {
   for (let i = 0; i < cells.length; i += 1) {
     cells[i].label = '';
     cells[i].crest = 0;
+    cells[i].emblem = 0;
     cells[i].cls = 'cell';
     cells[i].tone = 0;
     cells[i].arrow = -1;
