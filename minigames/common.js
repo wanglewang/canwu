@@ -3,7 +3,7 @@
 // 小游戏公共工具。统一接口：create(ctx) -> controller
 // ctx = { params, difficulty, perks, tip, twist, theme, render(vm), finish(result) }
 // result = { grade: 'S'|'A'|'B'|'C'|'F', score, summary }
-// controller = { start, tap, longpress, swipe, move, setAspect, undo, hint, press, release, abandon, destroy }
+// controller = { start, tap, longpress, swipe, move, setAspect, undo, hint, reset, press, release, abandon, destroy }
 //   swipe(path, meta) 是「手指划过的格子序列 + 收势停留」，由页面用 touch 坐标命中并插值补全后送入；
 //     只有需要划的玩法（目前是顺光扫斩）实现它，其余走默认的 noop。
 //   move(dir) 是方向键，只有带 vm.extras.showPad 的玩法（俄罗斯方块）实现。
@@ -177,6 +177,7 @@ function makeVm(cols, cellCount, status, hint) {
     extras: {
       showUndo: false,
       showHint: false,
+      showReset: false,
       showCharge: false,
       showGrid: cellCount > 0,
       showRing: false,
@@ -205,6 +206,7 @@ function fillController(obj) {
     setAspect: noop,
     undo: noop,
     hint: noop,
+    reset: noop,
     press: noop,
     release: noop,
     abandon: noop,

@@ -345,6 +345,7 @@
 
   <view wx:if="{{barMode === 'tools'}}" class="sticky-bar sticky-bar--tools">
     <button wx:if="{{vm.extras.showUndo}}" class="btn btn--ghost btn--small" bindtap="onUndo">撤销</button>
+    <button wx:if="{{vm.extras.showReset}}" class="btn btn--ghost btn--small" bindtap="onReset">{{copy.actions.resetBoard}}</button>
     <button wx:if="{{vm.extras.showHint}}" class="btn btn--plain btn--small" bindtap="onHint">{{hintLabel}}</button>
   </view>
 

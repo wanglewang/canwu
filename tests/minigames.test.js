@@ -10,6 +10,7 @@ const skills = require('../data/skills.js');
 const guides = require('../data/guides.js');
 const weapons = require('../data/weapons.js');
 const worldData = require('../data/world.js');
+const lightsMod = require('../minigames/lights.js');
 
 let passed = 0;
 function check(name, fn) {
@@ -139,31 +140,6 @@ function solve(board, size) {
     if (all) return clicks;
   }
   return [];
-}
-
-// 阵灯：在「点得动的格子」里穷举，求这一盘最少几步（死门格不能点，但会被邻格翻转）。
-function minStepsOf(vm) {
-  const n = vm.cells.length;
-  const board = [];
-  const allowed = [];
-  for (let i = 0; i < n; i += 1) {
-    const cls = vm.cells[i].cls;
-    board.push(cls.indexOf('lit') >= 0);
-    if (cls.indexOf('cell--dead') < 0) allowed.push(i);
-  }
-  let best = 99;
-  const total = 1 << allowed.length;
-  for (let mask = 0; mask < total; mask += 1) {
-    let k = 0;
-    for (let i = 0; i < allowed.length; i += 1) if (mask & (1 << i)) k += 1;
-    if (k >= best) continue;
-    const b = board.slice();
-    for (let i = 0; i < allowed.length; i += 1) if (mask & (1 << i)) toggle(b, vm.cols, allowed[i]);
-    let all = true;
-    for (let i = 0; i < n; i += 1) if (!b[i]) { all = false; break; }
-    if (all) best = k;
-  }
-  return best;
 }
 
 function actionFor(game) {
@@ -762,125 +738,173 @@ check('记序复现：叠印的解锁段位与准备页说明一致（圆满，�
   } finally { restoreClock(); }
 });
 
-check('阵灯推演：难度档只改「这盘最少几步」，盘子始终 3×3', function () {
+check('阵灯推演：五档按盘面规格与步数预算递进，不再塞限时', function () {
+  const m = data.getMethod('arrayEye');
+  const sizes = [];
+  const caps = [];
+  for (let i = 0; i < data.DIFFICULTIES.length; i += 1) {
+    const p = data.buildParams(m, data.DIFFICULTIES[i].key);
+    assert.strictEqual(typeof p.duration, 'undefined', '还在往这一门传限时，步数制不该有倒计时');
+    assert.ok(p.capSteps > p.minSteps, '步数预算没有比最优步数下限宽');
+    sizes.push(p.size);
+    caps.push(p.capSteps);
+  }
+  assert.deepStrictEqual(sizes, [3, 3, 4, 4, 5], '盘面规格没有逐档放大：' + sizes.join('/'));
+  for (let i = 1; i < caps.length; i += 1) {
+    assert.ok(caps[i] > caps[i - 1], '步数预算没有逐档放宽：' + caps.join('/'));
+  }
+});
+
+check('阵灯推演：五档开出来的盘都解得开，且最优步数落在该档区间', function () {
   installClock();
   try {
     const m = data.getMethod('arrayEye');
-    const got = [];
-    for (let i = 0; i < data.DIFFICULTIES.length; i += 1) {
-      const p = data.buildParams(m, data.DIFFICULTIES[i].key);
-      const ctx = makeCtx(m, {}, p);
-      ctx.c.start();
-      assert.strictEqual(ctx.st.vm.cells.length, 9, '盘面尺寸被难度改变了');
-      const best = minStepsOf(ctx.st.vm);
-      assert.strictEqual(best, p.steps,
-        data.DIFFICULTIES[i].name + ' 这盘最少 ' + best + ' 步，参数写的是 ' + p.steps);
-      got.push(best);
-      ctx.c.destroy();
+    for (let d = 0; d < data.DIFFICULTIES.length; d += 1) {
+      const p = data.buildParams(m, data.DIFFICULTIES[d].key);
+      for (let round = 0; round < 4; round += 1) {
+        const ctx = makeCtx(m, {}, p);
+        ctx.c.start();
+        const vm = ctx.st.vm;
+        assert.strictEqual(vm.cells.length, p.size * p.size, '格子数与盘面规格不符');
+        const board = vm.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; });
+        const allowed = [];
+        for (let i = 0; i < vm.cells.length; i += 1) allowed.push(i);
+        const plan = lightsMod.solve(board, p.size, allowed);
+        assert.ok(plan && plan.length > 0,
+          data.DIFFICULTIES[d].name + ' 第 ' + (round + 1) + ' 盘开出来就是无解盘');
+        assert.ok(plan.length >= p.minSteps && plan.length <= p.minSteps + 2,
+          data.DIFFICULTIES[d].name + ' 的最优步数跑出该档区间：' + plan.length);
+        ctx.c.destroy();
+      }
     }
-    assert.deepStrictEqual(got, [2, 3, 4, 5, 6], '五档的最少步数没有逐档递增：' + got.join('/'));
   } finally { restoreClock(); }
 });
 
-check('阵灯推演：连续几盘都解得开，破阵那一拍过后才换盘', function () {
+check('阵灯推演：正好走最优解是 S，破阵即结算', function () {
   installClock();
   try {
     const m = data.getMethod('arrayEye');
-    const params = data.buildParams(m, 'desperate');
-    const ctx = makeCtx(m, {}, params);
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
     ctx.c.start();
-    let solved = 0;
-    for (let round = 0; round < 3; round += 1) {
+    const vm = ctx.st.vm;
+    const board = vm.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; });
+    const allowed = [];
+    for (let i = 0; i < vm.cells.length; i += 1) allowed.push(i);
+    const plan = lightsMod.solve(board, vm.cols, allowed);
+    for (let i = 0; i < plan.length; i += 1) ctx.c.tap(plan[i]);
+    assert.ok(ctx.st.finished, '解开之后没有结算');
+    assert.strictEqual(ctx.st.finished.grade, 'S', '一步没浪费却不是 S：' + ctx.st.finished.grade);
+    assert.ok(/最优/.test(ctx.st.finished.summary), '结算没讲最优步数：' + ctx.st.finished.summary);
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('阵灯推演：步数用尽还没全亮即阵溃，只算 C', function () {
+  installClock();
+  try {
+    const m = data.getMethod('arrayEye');
+    // 预算收到 5 步：3×3 是唯一解，每次点一格「不在解里」的就不会提前破阵。
+    const ctx = makeCtx(m, {}, { size: 3, minSteps: 2, capSteps: 5 });
+    ctx.c.start();
+    let guard = 0;
+    while (!ctx.st.finished && guard < 20) {
       const vm = ctx.st.vm;
-      let best = null;
-      const board = [];
-      const allowed = [];
-      for (let i = 0; i < vm.cells.length; i += 1) {
-        board.push(vm.cells[i].cls.indexOf('lit') >= 0);
-        allowed.push(i);
-      }
-      const total = 1 << allowed.length;
-      for (let mask = 0; mask < total && best === null; mask += 1) {
-        const b = board.slice();
-        let k = 0;
-        for (let i = 0; i < allowed.length; i += 1) if (mask & (1 << i)) { k += 1; toggle(b, vm.cols, allowed[i]); }
-        let all = true;
-        for (let i = 0; i < b.length; i += 1) if (!b[i]) { all = false; break; }
-        if (all) { best = { mask: mask, k: k }; }
-      }
-      assert.ok(best !== null, '第 ' + (round + 1) + ' 盘无解');
+      const board = vm.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; });
+      const allowed = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+      const plan = lightsMod.solve(board, 3, allowed);
+      let pick = -1;
       for (let i = 0; i < allowed.length; i += 1) {
-        if (best.mask & (1 << i)) ctx.c.tap(allowed[i]);
+        if (plan.indexOf(allowed[i]) < 0) { pick = allowed[i]; break; }
       }
-      solved += 1;
-      assert.ok(ctx.st.vm.scoreText.indexOf('已解 ' + solved) >= 0, '解开一盘没有计数');
-      advance(750);   // 破阵停顿 640ms；等它过完才换盘，否则下一轮的点会被 paused 挡掉
+      assert.ok(pick >= 0, '找不出一步不在解里的格，无法验证阵溃');
+      ctx.c.tap(pick);
+      guard += 1;
     }
+    assert.ok(ctx.st.finished, '步数用尽了还没结算');
+    assert.strictEqual(ctx.st.finished.grade, 'C', '阵溃不是 C 档：' + ctx.st.finished.grade);
+    assert.ok(/阵溃/.test(ctx.st.finished.summary), '结算没写阵溃：' + ctx.st.finished.summary);
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
 
-check('阵灯推演：破阵有整盘金光与破阵浮字，这一拍不计时', function () {
+check('阵灯推演：用一次阵眼感应，本盘最高只到 A', function () {
   installClock();
   try {
-    const ctx = makeCtx(data.getMethod('arrayEye'));
+    const m = data.getMethod('arrayEye');
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
     ctx.c.start();
-    let vm = ctx.st.vm;
-    for (let guard = 0; guard < 40; guard += 1) {
-      const board = vm.cells.map(function (x) { return x.cls.indexOf('cell--lit') >= 0; });
-      const plan = solve(board, vm.cols);
-      if (!plan || plan.length === 0) break;
-      ctx.c.tap(plan[0]);
-      vm = ctx.st.vm;
-      if (vm.fx && vm.fx.tone === 'gold') break;
-    }
-    assert.ok(vm.fx && vm.fx.tone === 'gold', '破阵那一击没有走最亮的一档浮字');
-    assert.ok(vm.fx.text.indexOf('破阵') >= 0, '浮字没写破阵：' + vm.fx.text);
-    assert.ok(vm.banner.indexOf('破阵') >= 0, '金框 banner 没有破阵提示');
-    assert.ok(vm.status.indexOf('破阵') >= 0, '状态行没有破阵提示');
-    assert.strictEqual(
-      vm.cells.filter(function (c) { return c.cls.indexOf('cell--solved') >= 0; }).length,
-      vm.cells.length, '整盘没有一次性泛金');
-    const timeAtSolved = vm.timeText;
-    advance(480);
-    assert.strictEqual(ctx.st.vm.timeText, timeAtSolved, '破阵那一拍扣了局内时辰');
-    assert.ok(ctx.st.vm.banner.indexOf('破阵') >= 0, '还没换盘金框就收了');
-    advance(300);
-    assert.ok(ctx.st.vm.banner.indexOf('破阵') < 0, '换盘后还挂着破阵金框');
-    assert.ok(ctx.st.vm.cells.every(function (c) { return c.cls.indexOf('cell--solved') < 0; }),
-      '换盘后整盘泛金没撤掉');
-    ctx.c.destroy();
-  } finally { restoreClock(); }
-});
-
-check('阵灯推演：阵眼感应花三秒', function () {
-  installClock();
-  try {
-    const ctx = makeCtx(data.getMethod('arrayEye'));
-    ctx.c.start();
-    advance(500);
-    const before = ctx.st.vm.timeText;
     ctx.c.hint();
-    advance(200);
-    assert.ok(ctx.st.vm.status.indexOf('3 秒') >= 0, '提示没有说明代价：' + ctx.st.vm.status);
-    assert.notStrictEqual(ctx.st.vm.timeText, before, '提示没有扣时间');
+    assert.ok(ctx.st.vm.status.indexOf('最高 A') >= 0, '感应没有交代代价：' + ctx.st.vm.status);
+    advance(1600);   // 感应照出的那一格是临时高亮，等它收回再读盘面
+    const vm = ctx.st.vm;
+    const board = vm.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; });
+    const allowed = [];
+    for (let i = 0; i < vm.cells.length; i += 1) allowed.push(i);
+    const plan = lightsMod.solve(board, vm.cols, allowed);
+    for (let i = 0; i < plan.length; i += 1) ctx.c.tap(plan[i]);
+    assert.strictEqual(ctx.st.finished.grade, 'A', '用了感应却还是 S：' + ctx.st.finished.grade);
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
 
-check('阵灯推演：解亮一盘立刻起下一盘', function () {
+check('阵灯推演：重置阵局回开局、步数清零，但本盘同样封顶 A', function () {
+  installClock();
+  try {
+    const m = data.getMethod('arrayEye');
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
+    ctx.c.start();
+    const vm0 = ctx.st.vm;
+    const board0 = vm0.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; }).join(',');
+    const allowed = [];
+    for (let i = 0; i < vm0.cells.length; i += 1) allowed.push(i);
+    const plan0 = lightsMod.solve(
+      vm0.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; }), vm0.cols, allowed);
+    let stray = -1;
+    for (let i = 0; i < allowed.length; i += 1) {
+      if (plan0.indexOf(allowed[i]) < 0) { stray = allowed[i]; break; }
+    }
+    ctx.c.tap(stray);
+    assert.ok(/已走 1 步/.test(ctx.st.vm.goal), '走了一步却没记账：' + ctx.st.vm.goal);
+    ctx.c.reset();
+    const vm1 = ctx.st.vm;
+    assert.strictEqual(
+      vm1.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; }).join(','), board0,
+      '重置没有回到本局开局盘面');
+    assert.ok(/已走 0 步/.test(vm1.goal), '重置没有把步数清零：' + vm1.goal);
+    assert.ok(vm1.status.indexOf('最高 A') >= 0, '重置没有交代代价：' + vm1.status);
+    const plan = lightsMod.solve(
+      vm1.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; }), vm1.cols, allowed);
+    for (let i = 0; i < plan.length; i += 1) ctx.c.tap(plan[i]);
+    assert.strictEqual(ctx.st.finished.grade, 'A', '重置过却还是 S：' + ctx.st.finished.grade);
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('阵灯推演：破阵有整盘金光与破阵浮字，且一局只推一盘', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('arrayEye'));
     ctx.c.start();
-    drive(ctx, 'lights', 16000, 60);
-    const s = ctx.st.vm.scoreText;
-    assert.ok(/已解 [1-9]/.test(s), '限时连解没有累计解阵数：' + s);
+    const vm = ctx.st.vm;
+    const board = vm.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; });
+    const allowed = [];
+    for (let i = 0; i < vm.cells.length; i += 1) allowed.push(i);
+    const plan = lightsMod.solve(board, vm.cols, allowed);
+    for (let i = 0; i < plan.length - 1; i += 1) ctx.c.tap(plan[i]);
+    ctx.c.tap(plan[plan.length - 1]);
+    const now = ctx.st.vm;
+    assert.ok(now.fx && now.fx.tone === 'gold', '破阵那一击没有走最亮的一档浮字');
+    assert.ok(now.fx.text.indexOf('破阵') >= 0, '浮字没写破阵：' + now.fx.text);
+    assert.ok(now.banner.indexOf('破阵') >= 0, '金框 banner 没有破阵提示');
+    assert.strictEqual(
+      now.cells.filter(function (c) { return c.cls.indexOf('cell--solved') >= 0; }).length,
+      now.cells.length, '整盘没有一次性泛金');
+    assert.strictEqual(now.phase, 'done', '破阵之后还停在对局中，应直接结算');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
 
-check('阵灯推演：大成开死门，点到整盘复位并罚时', function () {
+check('阵灯推演：大成开死门，点到整盘复位并罚 3 步', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('arrayEye'), { tier: 3 });
@@ -890,10 +914,9 @@ check('阵灯推演：大成开死门，点到整盘复位并罚时', function (
       if (ctx.st.vm.cells[i].cls.indexOf('cell--dead') >= 0) { deadAt = i; break; }
     }
     assert.ok(deadAt >= 0, '大成之后盘上没有死门');
-    const before = ctx.st.vm.timeText;
     ctx.c.tap(deadAt);
     assert.ok(ctx.st.vm.status.indexOf('死门') >= 0 || ctx.st.vm.fx.text.indexOf('死门') >= 0, '点死门没有反馈');
-    assert.notStrictEqual(ctx.st.vm.timeText, before);
+    assert.ok(/已走 3 步/.test(ctx.st.vm.goal), '死门没有罚 3 步：' + ctx.st.vm.goal);
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
@@ -904,15 +927,25 @@ check('阵灯推演：点一格，被翻的五格同步闪一拍，跑完即收'
     const ctx = makeCtx(data.getMethod('arrayEye'));
     ctx.c.start();
     advance(100);
-    // 简单档最优解是 2 步，点任意一格都不会当场破阵，正好能看这一手的范围。
-    ctx.c.tap(4);
+    // 挑一格「不在最优解里」的点，这样不会当场破阵，正好能看这一手的翻转范围。
+    const vm0 = ctx.st.vm;
+    const board0 = vm0.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; });
+    const all = [];
+    for (let i = 0; i < vm0.cells.length; i += 1) all.push(i);
+    const plan = lightsMod.solve(board0, vm0.cols, all);
+    let pick = 4;
+    for (let i = 0; i < all.length; i += 1) {
+      if (plan.indexOf(all[i]) < 0) { pick = all[i]; break; }
+    }
+    ctx.c.tap(pick);
     let vm = ctx.st.vm;
     assert.strictEqual(vm.phase, 'playing', '点一格不该直接结算');
     const flipped = [];
     for (let i = 0; i < vm.cells.length; i += 1) {
       if (/cell--flip[ab]/.test(vm.cells[i].cls)) flipped.push(i);
     }
-    assert.strictEqual(flipped.join(','), '1,3,4,5,7',
+    assert.strictEqual(flipped.join(','),
+      lightsMod.effectOf(pick, vm.cols).slice().sort(function (a, b) { return a - b; }).join(','),
       '闪烁范围不是中心 + 四邻：' + flipped.join(','));
     advance(300);
     vm = ctx.st.vm;

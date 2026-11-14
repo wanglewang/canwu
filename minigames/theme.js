@@ -45,7 +45,7 @@ const THEMES = {
     // 亮起的阵灯画成实心圆点，不再往盘面写「阵」字：二元状态只靠形状与颜色分。
     // 「阵眼」只留给提示技能：开局横幅与印章不再用这个词，免得玩家把横幅当成提示。
     bg: '#ece7f6', frame: '#faf7ff', glyph: '●', motif: '灯',
-    hit: '阵灯转明', miss: '推演偏了', banner: '九灯待明', praise: '一眼破阵', solved: '破阵',
+    hit: '阵灯转明', miss: '推演偏了', banner: '阵灯待明', praise: '一眼破阵', solved: '破阵',
   },
   wuxing: {
     key: 'wuxing', name: '五灯', accent: '#9c7427', soft: '#f4e9cf', ink: '#66501c',
@@ -129,8 +129,8 @@ const TWIST_INFO = {
     desc: '照卷轴上的步位，用四个键按序踏完。踏错重来。',
   },
   arrayEye: {
-    name: '限时连解',
-    desc: '解亮一盘有破阵金光与一拍不计时，随后换下一盘；每盘最少要几步写在盘上。',
+    name: '推演限步',
+    desc: '一局只推一盘，步数预算写在上头；走得越接近最优，评级越高。',
   },
   wuxing: {
     name: '相生接龙',

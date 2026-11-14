@@ -67,10 +67,11 @@ const PRACTICE_METHODS = [
   },
   {
     id: 'arrayEye', name: '参悟阵眼', game: 'lights', theme: 'arrayEye', twist: 'arrayEye',
-    desc: '点一格翻转它与上下左右四格，让九盏阵灯同时亮起；破阵有一拍金光与提示，不计时辰。',
-    tip: '触死门复位并罚 3 秒',
+    desc: '点一格翻转它与上下左右四格，把整盘阵灯同时点亮。盘面规格与步数预算写在下面的档位表里。',
+    tip: '触死门复位并罚 3 步',
     base: 42,
-    params: { size: 3, steps: 2, duration: 36 },
+    // 盘面规格 / 最优步数下限 / 步数预算由 LIGHTS_LEVELS 按难度档注入，这里不再写死 3×3。
+    params: {},
   },
   {
     id: 'wuxing', name: '排布阵灯', game: 'wuxing', theme: 'wuxing', twist: 'wuxing',
@@ -263,21 +264,23 @@ function difficultyList(prof, current) {
 // 都从这一份数取，不许一边算 620 + depth×150、另一边照着再抄一遍。
 const MATCH_S = { base: 620, step: 150 };
 
-// 阵灯推演的达标盘数：[S, A, B]，下标是难度档 depth。
-// 步数越多每盘越慢，所以档位越高要求的盘数越少。按假时钟标定：机器人（读盘 0.4s /
-// 每步 0.4s）能解 12 / 11 / 10 / 10 / 9 盘，真人节奏（读盘 2.5s / 每步 0.9s）能解
-// 11 / 8 / 7 / 6 / 5 盘；S 取真人的七五折，B 兜住新手第一局。
-// 玩法层（lights.js 的 gradeOf）与准备页都从这一份数取，不许各抄一遍。
-const LIGHTS_TARGETS = [
-  [9, 6, 3],
-  [7, 4, 2],
-  [6, 4, 2],
-  [5, 3, 2],
-  [4, 3, 2],
+// 阵灯推演的档位表：盘面规格 / 最优步数下限 / 步数预算。
+// 以前是「限时 36 秒解尽量多盘」，按解开盘数评级；现在改成一盘推演、按步数评级，
+// 所以这一门比的是「省」，不是「快」——和静心诀（记序列）、三秀诀（消消乐）彻底分开。
+// 规格按档递增：3×3 先把联动关系看懂，4×4 状态空间上一个量级，5×5 是拇指够得着的上限。
+// 最优步数下限不写死：生成时解出来多长就是多长，落在 [min, min+2] 里才算数。
+// 规格与「最优步数下限」都要单调递增：只放大盘面不够，4×4 上三两步就解开的盘
+// 反而比 3×3 上四步的还轻松，档位会看起来倒挂。预算按最优步数留出三档余量。
+const LIGHTS_LEVELS = [
+  { size: 3, min: 2, cap: 9 },
+  { size: 3, min: 3, cap: 12 },
+  { size: 4, min: 4, cap: 16 },
+  { size: 4, min: 5, cap: 18 },
+  { size: 5, min: 5, cap: 22 },
 ];
 
-function lightsTargetsOf(diffKey) {
-  return LIGHTS_TARGETS[difficultyOf(diffKey).depth];
+function lightsLevelOf(diffKey) {
+  return LIGHTS_LEVELS[difficultyOf(diffKey).depth];
 }
 
 function sLineOf(method, diffKey) {
@@ -292,7 +295,8 @@ function sLineText(method, diffKey) {
     return '本档 S 线 ' + sLineOf(method, diffKey) + ' 分 · 评级只看总分，无效互换只少息、不扣分';
   }
   if (method.game === 'lights') {
-    return '本档 S 线 解 ' + lightsTargetsOf(diffKey)[0] + ' 盘 · 评级只看解开的盘数';
+    const lv = lightsLevelOf(diffKey);
+    return '本档 ' + lv.size + '×' + lv.size + ' 盘 · 步数预算 ' + lv.cap + ' 步 · 一步不浪费才入 S';
   }
   return '';
 }
@@ -356,9 +360,12 @@ function buildParams(method, diffKey) {
     out.sBase = MATCH_S.base;
     out.sStep = MATCH_S.step;
   }
-  // 阵灯推演按「解开的盘数」评级，达标盘数同样由这一份表按档注入。
+  // 阵灯推演按「已走步数 / 最优步数」评级，盘面规格与步数预算由这一份表按档注入。
   if (method && method.game === 'lights') {
-    out.boardTargets = lightsTargetsOf(diffKey).slice();
+    const lv = lightsLevelOf(diffKey);
+    out.size = lv.size;
+    out.minSteps = lv.min;
+    out.capSteps = lv.cap;
   }
   // steps 是「这盘最少几步」这类按档递增的量：params 里写的是简单档的值，每档 +1。
   if (typeof out.steps === 'number') out.steps += d.depth;
@@ -395,9 +402,17 @@ function diffDetail(method, diffKey) {
       text: FIELD_LABELS[k] + ' ' + fmtField(k, base[k]) + ' → ' + fmtField(k, now[k]),
     });
   }
-  const brief = changes.length
-    ? changes.map(function (c) { return c.text; }).join(' · ')
-    : '入门基准：节奏最缓、目标最宽，先把这一门的手感练稳。';
+  // 阵灯推演的难度不是「快慢」而是「盘面多大、预算多紧」，按时间类字段拼 brief 只会
+  // 拼出一句「入门基准」。这一门单独说清规格与预算，准备页的难度说明才不会自相矛盾。
+  let brief;
+  if (method && method.game === 'lights') {
+    const lv = lightsLevelOf(diffKey);
+    brief = lv.size + '×' + lv.size + ' 盘 · 最优 ' + lv.min + ' 步起 · 预算 ' + lv.cap + ' 步';
+  } else {
+    brief = changes.length
+      ? changes.map(function (c) { return c.text; }).join(' · ')
+      : '入门基准：节奏最缓、目标最宽，先把这一门的手感练稳。';
+  }
   return {
     key: d.key,
     name: d.name,
@@ -425,7 +440,7 @@ const STAGE_RULES = {
     { at: 4, name: '叠印', short: '同一格连点两下', hard: true, desc: '第 5 轮起，口诀里会出现重复的格子' },
   ],
   arrayEye: [
-    { at: 3, name: '死门', short: '✕ 格点不得', hard: true, desc: '盘上多一格暗红 ✕ 死门，点到整盘复位并罚 3 秒' },
+    { at: 3, name: '死门', short: '✕ 格点不得', hard: true, desc: '盘上多一格暗红 ✕ 死门，点到整盘复位并罚 3 步' },
     { at: 4, name: '双门', short: '死门两处', hard: true, desc: '死门增至两格；想专心推演可在准备页关掉' },
   ],
   forge: [
@@ -481,8 +496,8 @@ module.exports = {
   diffDetail: diffDetail,
   sLineOf: sLineOf,
   sLineText: sLineText,
-  lightsTargetsOf: lightsTargetsOf,
-  LIGHTS_TARGETS: LIGHTS_TARGETS,
+  lightsLevelOf: lightsLevelOf,
+  LIGHTS_LEVELS: LIGHTS_LEVELS,
   hintLabelOf: hintLabelOf,
   stageRulesOf: stageRulesOf,
 };

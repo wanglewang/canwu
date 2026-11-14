@@ -753,6 +753,11 @@ Page({
     this.controller.hint();
     sfx.play('tick');
   },
+  onReset: function () {
+    if (!this.controller) return;
+    this.controller.reset();
+    sfx.play('tap');
+  },
   onPress: function () { if (this.controller) this.controller.press(); },
   onRelease: function () { if (this.controller) this.controller.release(); },
   onChargeTap: function () { if (this.controller) this.controller.tap(0); },

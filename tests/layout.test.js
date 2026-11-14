@@ -573,7 +573,7 @@ check('局内代价句用阿拉伯数字，与 HUD 的「余 12.3 息」同一�
   }
   assert.deepStrictEqual(bad, [], '代价句里还有中文数词：' + bad.join(' / '));
   assert.ok(/折 1 盏心神/.test(read('minigames/memory.js')), '记序复现的浮字又写成「一盏」');
-  assert.ok(/罚 3 秒/.test(read('minigames/lights.js')), '阵灯推演的浮字又写成「三秒」');
+  assert.ok(/罚 3 步/.test(read('minigames/lights.js')), '阵灯推演的浮字又写成「三步」');
 });
 
 check('斜向擦角：插值只认中心内圈，抬手仍用整格命中补定', function () {
@@ -1131,11 +1131,12 @@ check('阵灯推演：代价句按阶段出现，盘面只画图形不写汉字'
     return vm;
   }
   const base = boot({ tier: 0 });
-  assert.ok(/阵眼感应花 3 秒/.test(base.hint), '简单档没讲阵眼感应的代价：' + base.hint);
+  assert.ok(/最高 A/.test(base.hint), '简单档没讲阵眼感应的代价：' + base.hint);
+  assert.ok(/预算 \d+ 步/.test(base.hint), '简单档没讲步数预算：' + base.hint);
   assert.ok(!/死门/.test(base.hint), '未解锁死门就提前讲死门了：' + base.hint);
   const high = boot({ tier: 4 });
-  assert.ok(/触死门复位并罚 3 秒/.test(high.hint), '大成档没讲死门代价：' + high.hint);
-  assert.ok(/阵眼感应花 3 秒/.test(high.hint), '大成档把阵眼感应的代价丢了');
+  assert.ok(/触死门复位并罚 3 步/.test(high.hint), '大成档没讲死门代价：' + high.hint);
+  assert.ok(/最高 A/.test(high.hint), '大成档把阵眼感应的代价丢了');
 
   const src = read('minigames/lights.js');
   assert.ok(/OFF_GLYPH = '○'/.test(src) && /DEAD_GLYPH = '✕'/.test(src), '盘面符号没换成图形');
@@ -1148,7 +1149,8 @@ check('阵灯推演：代价句按阶段出现，盘面只画图形不写汉字'
   const gd = require('../data/guides.js').guideOf('lights');
   assert.ok(/● \/ ○/.test(gd.terms.map(function (t) { return t.name; }).join('')), '名词速查没讲图形');
   assert.ok(gd.inline.indexOf('忌') < 0, '速记又提前写死门');
-  assert.ok(/只看解开的盘数/.test(gd.scoring), '评级口径没写清只看盘数');
+  assert.ok(/已走步数 \/ 最优步数/.test(gd.scoring), '评级口径没写清按步数比');
+  assert.ok(/阵溃/.test(gd.scoring), '评级口径没写清阵溃');
 });
 
 check('燃灯诀：简介对齐熄灯谜题，死门误触有独立触感', function () {
@@ -1203,8 +1205,8 @@ check('13 套玩法的代价句在局内真的看得见（运行时探针）', f
       params: pd.buildParams(m, 'easy'), perks: { tier: 0 }, theme: {},
       tip: m.tip, render: function (v) { vm = v; }, finish: function () { },
     });
-    // 死门是大成才解锁的进阶规则，未解锁时阵灯推演只讲阵眼感应的代价，不提前讲死门。
-    const expected = m.game === 'lights' ? '阵眼感应花 3 秒' : m.tip;
+    // 死门是大成才解锁的进阶规则，未解锁时阵灯推演只讲阵眼感应与步数预算的代价，不提前讲死门。
+    const expected = m.game === 'lights' ? '最高 A' : m.tip;
     assert.ok(vm.hint.indexOf(expected) >= 0,
       m.game + ' 开局后代价句不见了：' + vm.hint);
     c.destroy();
@@ -1285,41 +1287,44 @@ check('玩家可见文案不写「看详情 / 去看看」这类口语前缀', f
   assert.ok(/copy\.actions\.allAchievements/.test(read('pages/profile/profile.wxml')), '成就入口没走文案真源');
 });
 
-check('阵灯破阵：四路反馈齐备、停顿不计时、规则写进游戏内', function () {
+check('阵灯破阵：四路反馈齐备、破阵即结算、规则写进游戏内', function () {
   const lights = read('minigames/lights.js');
   const wxss = read('pages/practice/practice.wxss');
   const themes = require('../minigames/theme.js');
   const guides = require('../data/guides.js');
-  const pause = /const RESET_PAUSE = (\d+)/.exec(lights);
-  assert.ok(pause && Number(pause[1]) >= 500, '破阵停顿太短，玩家读不完提示');
   assert.ok(/C\.flash\(vm, vm\.status, 'gold'\)/.test(lights), '破阵没走最亮的一档浮字');
   assert.ok(/cell--solved/.test(lights) && /@keyframes solvedGlow/.test(wxss), '整盘一次性泛金没落地');
-  assert.ok(/theme\.banner \|\| ''/.test(lights), '换盘没把一次性金框收回去');
   assert.strictEqual(themes.themeOf('arrayEye', 'lights').solved, '破阵', '破阵文案没进主题真源');
-  assert.ok(/不计时/.test(guides.GUIDES.lights.steps.join('')), '玩法说明没讲破阵这一拍不计时');
+  const said = guides.GUIDES.lights.steps.join('') + guides.GUIDES.lights.scoring;
+  assert.ok(/正好走最优是 S/.test(said), '说明没讲 S 口径');
+  assert.ok(/阵溃/.test(said), '说明没讲阵溃');
+  assert.ok(/重置阵局/.test(said), '说明没讲重置阵局的代价');
   for (const f of ['data/practice.js', 'minigames/theme.js', 'data/guides.js']) {
-    assert.ok(!/立刻换下一盘/.test(read(f)), f + ' 还写着「立刻换下一盘」的旧口径');
+    assert.ok(!/立刻换下一盘|限时连解/.test(read(f)), f + ' 还写着限时连解的旧口径');
   }
 });
 
-check('阵灯推演：本档 S 线盘数同源、阵眼术语收敛、HUD 步数成对照', function () {
+check('阵灯推演：盘面规格与步数预算同源、阵眼术语收敛、HUD 步数成对照', function () {
   const pd = require('../data/practice.js');
   const lights = read('minigames/lights.js');
   const themes = require('../minigames/theme.js');
   const skills = require('../data/skills.js');
-  const guides = require('../data/guides.js');
   const method = pd.getMethod('arrayEye');
   const skill = skills.SKILLS.filter(function (s) { return s.method === 'arrayEye'; })[0];
 
-  // 达标盘数只有一份表：准备页那行与玩法层共用，换难度档跟着变。
-  assert.ok(Array.isArray(pd.LIGHTS_TARGETS)
-    && pd.LIGHTS_TARGETS.length === pd.DIFFICULTIES.length, '达标盘数表没盖住全部难度档');
-  assert.strictEqual(pd.lightsTargetsOf('hard')[0], 6, '困难档 S 线盘数变了');
-  assert.strictEqual(JSON.stringify(pd.buildParams(method, 'hard').boardTargets),
-    JSON.stringify(pd.LIGHTS_TARGETS[2]), '玩法层没拿到按档注入的达标盘数');
-  assert.ok(/Array\.isArray\(p\.boardTargets\)/.test(lights)
-    && !/const TARGETS = \[/.test(lights), 'lights.js 又抄了一份达标盘数');
-  assert.ok(/本档 S 线 解 9 盘/.test(pd.sLineText(method, 'easy')), '准备页没写出本档要解几盘');
+  // 规格与预算只有一份表：准备页那行与玩法层共用，换难度档跟着变。
+  assert.ok(Array.isArray(pd.LIGHTS_LEVELS)
+    && pd.LIGHTS_LEVELS.length === pd.DIFFICULTIES.length, '档位表没盖住全部难度档');
+  assert.strictEqual(pd.lightsLevelOf('hard').size, 4, '困难档盘面规格变了');
+  assert.strictEqual(pd.lightsLevelOf('desperate').size, 5, '绝境档盘面规格变了');
+  const hp = pd.buildParams(method, 'hard');
+  assert.deepStrictEqual([hp.size, hp.minSteps, hp.capSteps],
+    [pd.LIGHTS_LEVELS[2].size, pd.LIGHTS_LEVELS[2].min, pd.LIGHTS_LEVELS[2].cap],
+    '玩法层没拿到按档注入的盘面规格与预算');
+  assert.ok(/p\.size/.test(lights) && !/const LIGHTS_LEVELS|const LIGHTS_TARGETS/.test(lights),
+    'lights.js 又抄了一份档位表');
+  assert.ok(/本档 3×3 盘 · 步数预算 9 步 · 一步不浪费才入 S/.test(pd.sLineText(method, 'easy')),
+    '准备页没写出本档规格、预算与 S 口径');
   assert.ok(/goalText: sLine/.test(read('pages/practice/practice.js')), '准备页的 S 线没走同源文案');
 
   // 「阵眼」只留给提示技能：开局横幅、印章、风味与特效不再混用这个词。
@@ -1328,13 +1333,15 @@ check('阵灯推演：本档 S 线盘数同源、阵眼术语收敛、HUD 步数
   assert.ok(!/阵眼/.test(skill.flavor + skill.effect.text), '风味与特效名还在用「阵眼」');
   assert.strictEqual(pd.HINT_LABELS.lights, '阵眼感应', '提示技能名不该跟着改');
 
-  // HUD 步数改成「已走 / 最优」对照，说明里也要讲清它不参与评级。
-  assert.ok(/' \+ moves \+ ' \/ ' \+ steps \+ ' 步'/.test(lights), 'HUD 没把已走步数并进对照');
+  // HUD 摆「已走 / 最优」对照，说明里也要讲清它不参与评级。
+  assert.ok(/已走 ' \+ moves \+ ' 步/.test(lights) && /最优 ' \+ optimal \+ ' 步/.test(lights),
+    'HUD 没把已走步数并进对照');
   assert.ok(!/本盘最少/.test(lights), 'HUD 还摆着容易误读的「本盘最少 N 步」');
-  const terms = guides.GUIDES.lights.terms.map(function (t) { return t.name; }).join('');
-  assert.ok(/X \/ N 步/.test(terms), '名词速查没解释步数对照');
-  assert.ok(/不参与评级/.test(guides.GUIDES.lights.steps.join('') + guides.GUIDES.lights.scoring),
-    '没讲清步数不参与评级');
+  const gd = require('../data/guides.js').guideOf('lights');
+  const terms = gd.terms.map(function (t) { return t.name; }).join('');
+  assert.ok(/最优 N 步/.test(terms), '名词速查没讲最优步数');
+  assert.ok(/已走步数 \/ 最优步数/.test(gd.scoring), '没讲清按步数评级');
+  assert.ok(!/不参与评级/.test(gd.scoring), '还在说步数不参与评级，现在它就是评级依据');
 });
 
 check('阵灯推演：翻转范围微光是一次性动画，不占常驻预算', function () {

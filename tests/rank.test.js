@@ -244,6 +244,8 @@ check('藏经阁按品阶拦境界：炼气买不了玄阶', function () {
 
 check('难度档缩放不碰盘面尺寸，且各档参数确有区分', function () {
   for (const m of practice.PRACTICE_METHODS) {
+    // 阵灯推演的规格按档递增（3×3 → 4×4 → 5×5），由 LIGHTS_LEVELS 管，见下一条断言。
+    if (m.game === 'lights') continue;
     const easy = practice.buildParams(m, 'easy');
     const hard = practice.buildParams(m, 'desperate');
     let changed = false;
@@ -254,6 +256,23 @@ check('难度档缩放不碰盘面尺寸，且各档参数确有区分', functio
     }
     assert.ok(changed, m.id + ' 各难度档参数没有区分度');
   }
+});
+
+check('阵灯推演的规格与预算逐档递增，且预算宽于最优步数下限', function () {
+  let prevSize = 0;
+  let prevCap = 0;
+  for (const d of practice.DIFFICULTIES) {
+    const lv = practice.lightsLevelOf(d.key);
+    assert.ok(lv.size >= prevSize, d.name + ' 的盘面规格比上一档还小');
+    assert.ok(lv.cap > prevCap, d.name + ' 的步数预算没有放宽');
+    assert.ok(lv.cap > lv.min + 2, d.name + ' 的预算太紧，A/B 档没留余量');
+    prevSize = lv.size;
+    prevCap = lv.cap;
+  }
+  const p = practice.buildParams(practice.getMethod('arrayEye'), 'desperate');
+  assert.deepStrictEqual([p.size, p.minSteps, p.capSteps],
+    [practice.LIGHTS_LEVELS[4].size, practice.LIGHTS_LEVELS[4].min, practice.LIGHTS_LEVELS[4].cap],
+    '绝境档没拿到 5×5 与对应预算');
 });
 
 check('节奏不越过触屏安全下限', function () {
