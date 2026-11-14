@@ -1,6 +1,7 @@
 'use strict';
 
 const { cloud } = require('../../utils/cloud.js');
+const copy = require('../../data/copy.js');
 
 Page({
     data: {
@@ -8,6 +9,7 @@ Page({
         error: '',
         reason: '',
         showEmail: false,
+        copy: copy.UI,
     },
 
     onLoad(query) {
@@ -15,6 +17,17 @@ Page({
         let reason = '';
         try { reason = decodeURIComponent(raw); } catch (e) { reason = raw; }
         this.setData({ reason: reason });
+    },
+
+    // 先不登录：直接用本机进度。标记由 app 落盘，冷启动不会再挡这一页。
+    onGuest() {
+        if (this.data.busy) return;
+        getApp().enterGuest();
+        wx.switchTab({ url: '/pages/index/index' });
+    },
+
+    onPrivacy() {
+        wx.navigateTo({ url: '/pages/help/help?topic=privacy' });
     },
 
     toggleEmail() {

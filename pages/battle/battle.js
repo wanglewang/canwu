@@ -5,6 +5,7 @@ const engine = require('../../utils/game.js');
 const share = require('../../utils/share.js');
 const copy = require('../../data/copy.js');
 const nav = require('../../data/navigation.js');
+const privacy = require('../../utils/privacy.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -72,21 +73,26 @@ Page({
   },
 
   onCopyCode: function () {
-    wx.setClipboardData({
-      data: this.data.myCode,
-      success: function () { toast('战力码已复制，发给朋友试试'); },
-      fail: function () { toast('复制失败，请长按手动复制'); },
-    });
+    const self = this;
+    privacy.guard(function () {
+      wx.setClipboardData({
+        data: self.data.myCode,
+        success: function () { toast('战力码已复制，发给朋友试试'); },
+        fail: function () { toast('复制失败，请长按手动复制'); },
+      });
+    }, function () { toast('同意隐私保护指引后即可复制'); });
   },
 
   onPasteCode: function () {
     const self = this;
-    wx.getClipboardData({
-      success: function (res) {
-        self.setData({ inputCode: (res.data || '').trim() });
-      },
-      fail: function () { toast('读取剪贴板失败'); },
-    });
+    privacy.guard(function () {
+      wx.getClipboardData({
+        success: function (res) {
+          self.setData({ inputCode: (res.data || '').trim() });
+        },
+        fail: function () { toast('读取剪贴板失败'); },
+      });
+    }, function () { toast('同意隐私保护指引后即可读取剪贴板'); });
   },
 
   onInputCode: function (event) {

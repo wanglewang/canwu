@@ -111,6 +111,7 @@
         <button class="imm-btn--ghost imm-btn--block imm-btn--sm mt12" bindtap="onGoGuide">修行指南 ›</button>
         <view class="divider"></view>
         <text class="fold-row__desc">当前账号：{{accountLabel || '读取中'}}</text>
+        <button wx:if="{{guest}}" class="imm-btn--ghost imm-btn--block imm-btn--sm mt12" bindtap="onGoLogin">{{copy.actions.goLogin}} ›</button>
         <view class="btn-row btn-row--tight">
           <button class="imm-btn--ghost imm-btn--sm" bindtap="onExportSave">导出存档</button>
           <button class="imm-btn--ghost imm-btn--sm" bindtap="openImport">导入存档</button>
@@ -119,6 +120,13 @@
         <view class="btn-row btn-row--tight">
           <button class="imm-btn--ghost imm-btn--sm imm-btn--danger" bindtap="onReset">重置存档</button>
           <button class="imm-btn--ghost imm-btn--sm imm-btn--danger" bindtap="onSignOut">退出登录</button>
+        </view>
+        <view class="divider"></view>
+        <!-- 发布必备：客服入口与协议入口。客服消息在后台开通，这里的按钮先就位。 -->
+        <button class="imm-btn--ghost imm-btn--block imm-btn--sm" open-type="contact">{{copy.actions.contact}}</button>
+        <view class="row--wrap mt12">
+          <text class="text-link pressable" hover-class="pressable--on" bindtap="onOpenPrivacy">{{copy.actions.privacy}} ›</text>
+          <text class="fold-row__desc">{{versionLabel}}</text>
         </view>
       </view>
     </view>

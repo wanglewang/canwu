@@ -71,6 +71,46 @@ if (!/<portrait/.test(profileTpl) || /__avatar/.test(profileTpl)) {
   errors.push('人物页形象不再只走道相组件：__avatar 又出现了');
 } else checked += 1;
 
+// 1c. 发布必备的合规件：隐私授权、协议入口、客服、游客入口。
+// 剪贴板与昵称输入在未同意隐私指引时会静默失败（errno 112），症状和「点了没反应」一样，
+// 所以约定是「剪贴板调用必须包在 privacy.guard 里」，这里按调用数核对，不靠人记。
+const appJsonEarly = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'));
+if (appJsonEarly.__usePrivacyCheck__ !== true) {
+  errors.push('app.json 没打开 __usePrivacyCheck__：隐私接口被拦时不会弹授权框');
+} else checked += 1;
+
+const privacySrc = fs.readFileSync(path.join(ROOT, 'utils/privacy.js'), 'utf8');
+if (!/requirePrivacyAuthorize/.test(privacySrc) || !/function guard/.test(privacySrc)) {
+  errors.push('utils/privacy.js 没有走 requirePrivacyAuthorize 或没有 guard');
+} else checked += 1;
+
+for (const page of ['pages/profile/profile.js', 'pages/battle/battle.js']) {
+  const src = fs.readFileSync(path.join(ROOT, page), 'utf8');
+  const calls = (src.match(/wx\.(?:set|get)ClipboardData/g) || []).length;
+  const guards = (src.match(/privacy\.guard\(/g) || []).length;
+  if (!/utils\/privacy\.js/.test(src)) errors.push(page + ' 没接隐私授权模块');
+  else if (guards < calls) errors.push(page + ' 有剪贴板调用没包进 privacy.guard（' + calls + ' 处调用 / ' + guards + ' 个守卫）');
+  else checked += 1;
+}
+
+// 协议入口：登录页与人物页各一个，审核会点这两处。
+for (const page of ['pages/login/login.js', 'pages/profile/profile.js']) {
+  if (!/topic=privacy/.test(fs.readFileSync(path.join(ROOT, page), 'utf8'))) errors.push(page + ' 没有隐私与协议入口');
+  else checked += 1;
+}
+const profileTplForLegal = fs.readFileSync(path.join(ROOT, 'pages/profile/profile.wxml'), 'utf8');
+if (!/open-type="contact"/.test(profileTplForLegal)) errors.push('人物页没有客服入口（open-type="contact"）');
+else checked += 1;
+
+// 游客入口：不登录也要能进来，否则审核与玩家都卡在门口。
+const appSrc = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+if (!/enterGuest/.test(appSrc) || !/canwu_guest/.test(appSrc)) {
+  errors.push('app.js 缺游客态：没有 enterGuest 或没有落盘标记（冷启动会再挡一次登录页）');
+} else checked += 1;
+if (!/onGuest/.test(fs.readFileSync(path.join(ROOT, 'pages/login/login.js'), 'utf8'))) {
+  errors.push('登录页没有「先不登录」入口');
+} else checked += 1;
+
 // 2. 所有 JS 通过 node --check
 for (const f of files.filter(function (x) { return x.endsWith('.js'); })) {
   const r = spawnSync(process.execPath, ['--check', f], { encoding: 'utf8' });
@@ -78,8 +118,8 @@ for (const f of files.filter(function (x) { return x.endsWith('.js'); })) {
   else checked += 1;
 }
 
-// 3. app.json 页面四件套齐全
-const appJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'));
+// 3. app.json 页面四件套齐全（appJsonEarly 已在 1c 里读过，这里复用）
+const appJson = appJsonEarly;
 for (const page of appJson.pages) {
   for (const ext of ['.js', '.json', '.wxml', '.wxss']) {
     if (!fs.existsSync(path.join(ROOT, page + ext))) errors.push('页面文件缺失: ' + page + ext);

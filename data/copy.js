@@ -92,6 +92,10 @@ const UI = {
         goSkills: '去功法页',
         goBattle: '去切磋',
         goHome: '去攒资源',
+        // 发布必备的四个词：游客入口、去登录、客服、协议。
+        goLogin: '登录以同步',
+        contact: '联络执事',
+        privacy: '隐私与协议',
         // 切磋与秘境各一支动作：同一件事用同一个词，两页不再各写一遍。
         challenge: '挑战',
         rechallenge: '再战',
@@ -128,6 +132,12 @@ const UI = {
     // 页面名只有一处真源：data/navigation.js 的 PAGE_TITLES（导航标题、tabBar、
     // 说明页标题都从那儿取）。这里曾有一份 copy.pages 同名表，与它并存时
     // 改一处必忘另一处，已删。
+
+    // 登录页：主按钮之外只多两句——游客入口与协议那句。
+    login: {
+        guest: '先不登录 · 本机玩',
+        agree: '登录即表示同意',
+    },
 
     // 区块标题：用白话说清里面是什么，不用「就差一点 / 近况」这类含糊词。
     sections: {

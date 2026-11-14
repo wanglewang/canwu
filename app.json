@@ -32,6 +32,7 @@
     ]
   },
   "style": "v2",
+  "__usePrivacyCheck__": true,
   "darkmode": true,
   "themeLocation": "theme.json",
   "sitemapLocation": "sitemap.json",

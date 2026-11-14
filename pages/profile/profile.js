@@ -8,12 +8,25 @@ const social = require('../../utils/cloud-social.js');
 const share = require('../../utils/share.js');
 const sfx = require('../../utils/sfx.js');
 const copy = require('../../data/copy.js');
+const privacy = require('../../utils/privacy.js');
 const nav = require('../../data/navigation.js');
 
 const SFX_LABEL = { low: '轻', mid: '中', off: '关' };
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
+}
+
+// 版本号只用来给玩家报「你在哪个版本」，出问题好对账。
+// 开发者工具里 getAccountInfoSync().miniProgram.version 是空串，此时报「开发版」。
+function appVersion() {
+  try {
+    const info = wx.getAccountInfoSync();
+    const v = info && info.miniProgram && info.miniProgram.version;
+    return v ? 'v' + v : '开发版';
+  } catch (e) {
+    return '开发版';
+  }
 }
 
 function timeLabel(ts) {
@@ -46,6 +59,8 @@ Page({
     attrsLine: '',
     statsLine: '',
     accountLabel: '',
+    guest: false,
+    versionLabel: '',
     syncLabel: '',
     syncTone: 'ok',
     achievements: [],
@@ -71,7 +86,7 @@ Page({
   onLoad: function () {
     this.listener = this.refresh.bind(this);
     store.subscribe(this.listener);
-    this.setData({ sfxLabel: SFX_LABEL[sfx.level()] || '轻' });
+    this.setData({ sfxLabel: SFX_LABEL[sfx.level()] || '轻', versionLabel: appVersion() });
     this.refresh();
     this.loadAccount();
   },
@@ -85,13 +100,18 @@ Page({
   onUnload: function () { store.unsubscribe(this.listener); },
 
   loadAccount: async function () {
+    // 游客没有会话，问一次必然是失败；直接按「本机进度」报，别让账号那行显示「已登录」。
+    if (getApp().globalData.guest) {
+      this.setData({ accountLabel: '本机进度 · 未登录', guest: true });
+      return;
+    }
     try {
       const result = await getApp().ensureSession();
       const user = result && result.data && result.data.user;
       const label = user && (user.email || user.name) ? (user.email || user.name) : '已登录';
-      this.setData({ accountLabel: label });
+      this.setData({ accountLabel: label, guest: false });
     } catch (e) {
-      this.setData({ accountLabel: '已登录' });
+      this.setData({ accountLabel: '已登录', guest: false });
     }
   },
 
@@ -170,11 +190,17 @@ Page({
   onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('profile') }); },
 
   openRoleEditor: function () {
-    const s = store.get();
-    this.setData({
-      showRoleEditor: true,
-      draftName: s.roleName || '',
-      draftPortrait: s.portrait || 0,
+    const self = this;
+    // 弹窗里那个输入框是 type="nickname"，同样属于隐私接口：
+    // 没过授权就开，输入框会静默带不出微信昵称，玩家只会以为是自己手机的问题。
+    privacy.ensure().then(function (ok) {
+      if (!ok) { toast('同意隐私保护指引后才能立道号'); return; }
+      const s = store.get();
+      self.setData({
+        showRoleEditor: true,
+        draftName: s.roleName || '',
+        draftPortrait: s.portrait || 0,
+      });
     });
   },
 
@@ -200,6 +226,14 @@ Page({
 
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
 
+  onOpenPrivacy: function () { wx.navigateTo({ url: '/pages/help/help?topic=privacy' }); },
+
+  // 游客想去登录：先摘掉游客标记，再进登录页（那边还能再选一次本机玩）。
+  onGoLogin: function () {
+    getApp().leaveGuest();
+    wx.reLaunch({ url: '/pages/login/login' });
+  },
+
   onToggleSfx: function () {
     const self = this;
     const keys = ['low', 'mid', 'off'];
@@ -223,11 +257,14 @@ Page({
   },
 
   onCopyCode: function () {
-    wx.setClipboardData({
-      data: this.data.myCode,
-      success: function () { toast('战力码已复制'); },
-      fail: function () { toast('复制失败'); },
-    });
+    const self = this;
+    privacy.guard(function () {
+      wx.setClipboardData({
+        data: self.data.myCode,
+        success: function () { toast('战力码已复制'); },
+        fail: function () { toast('复制失败'); },
+      });
+    }, function () { toast('同意隐私保护指引后即可复制'); });
   },
 
   onCopyCardText: function () {
@@ -243,11 +280,13 @@ Page({
       '战力码 ' + this.data.myCode,
       copy.BRAND.slogan,
     ];
-    wx.setClipboardData({
-      data: lines.join('\n'),
-      success: function () { toast('道牒文案已复制，去晒吧'); },
-      fail: function () { toast('复制失败'); },
-    });
+    privacy.guard(function () {
+      wx.setClipboardData({
+        data: lines.join('\n'),
+        success: function () { toast('道牒文案已复制，去晒吧'); },
+        fail: function () { toast('复制失败'); },
+      });
+    }, function () { toast('同意隐私保护指引后即可复制'); });
   },
 
   onMakeCard: function () {
@@ -359,12 +398,15 @@ Page({
 
   onExportSave: function () {
     const code = engine.exportSaveCode(store.get());
+    // 存档码要落到剪贴板：被拒时仍然把码显示出来，玩家可以长按手动复制。
+    privacy.guard(function () {
+      wx.setClipboardData({
+        data: code,
+        success: function () { toast('存档码已复制，记得存到别处'); },
+        fail: function () { toast('存档码已显示，请长按复制'); },
+      });
+    }, function () { toast('同意隐私保护指引后自动复制；现在可长按手动复制'); });
     this.setData({ showSaveCode: true, saveCode: code });
-    wx.setClipboardData({
-      data: code,
-      success: function () { toast('存档码已复制，记得存到别处'); },
-      fail: function () { toast('存档码已显示，请长按复制'); },
-    });
   },
 
   closeSaveCode: function () { this.setData({ showSaveCode: false }); },
@@ -376,10 +418,12 @@ Page({
 
   onPasteImport: function () {
     const self = this;
-    wx.getClipboardData({
-      success: function (res) { self.setData({ importCode: (res.data || '').trim() }); },
-      fail: function () { toast('读取剪贴板失败'); },
-    });
+    privacy.guard(function () {
+      wx.getClipboardData({
+        success: function (res) { self.setData({ importCode: (res.data || '').trim() }); },
+        fail: function () { toast('读取剪贴板失败'); },
+      });
+    }, function () { toast('同意隐私保护指引后即可读取剪贴板'); });
   },
 
   onImportSave: function () {

@@ -21,7 +21,9 @@ Page({
             : helpData.topicOf(q.topic);
         // 「说明」页是共用容器，导航栏留空会把「你现在看的是哪一页」丢掉，
         // 所以标题按主题动态给出「人物 · 说明」——这一层就够了，页内不再画第二个标题。
-        wx.setNavigationBarTitle({ title: topic.title + ' · 说明' });
+        // 页级说明带「· 说明」后缀（人物 · 说明）；隐私与协议本身就是完整标题，
+        // 由主题自己给 navTitle，不再拼后缀。
+        wx.setNavigationBarTitle({ title: topic.navTitle || (topic.title + ' · 说明') });
         this.setData({
             title: topic.title,
             lead: topic.lead,

@@ -69,6 +69,39 @@
 
 /* 次入口做成细描边按钮，和金色主按钮形成「主 / 次」两支；
    只写下划线的文字链在墨底上太弱，整页就只剩几行字的感觉。 */
+/* 游客入口：细描边的次操作，压在主按钮下面一格，不与微信登录抢视线 */
+.login-guest {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: var(--sp-6);
+    width: 100%;
+    height: var(--touch-sm);
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-md);
+    background-color: transparent;
+}
+
+.login-guest__text {
+    font-size: var(--fs-body-sm);
+    line-height: 1;
+    color: var(--c-imm-text-2);
+}
+
+/* 协议：一行小字，整行可点，不做成按钮，免得和上面的操作抢层级 */
+.login-legal {
+    display: flex;
+    justify-content: center;
+    margin-top: var(--sp-8);
+    font-size: var(--fs-note);
+    line-height: var(--lh-body);
+}
+
+.login-legal__text { color: var(--c-imm-text-3); }
+
+.login-legal__link { color: var(--c-imm-gold); }
+
 .login-alt {
     display: flex;
     align-items: center;

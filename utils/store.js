@@ -23,6 +23,8 @@ let cloudVersion = null;
 let serverUpdatedAt = '';
 let syncing = false;
 let syncingPromise = null;
+// 游客态：没有账号，云端这一层整体停用。
+let guestMode = false;
 
 function notify() {
   for (let i = 0; i < listeners.length; i += 1) {
@@ -48,7 +50,8 @@ function clearPending() {
 function saveLocal() {
   if (!state) return;
   game.save(state);
-  markPending();
+  // 游客没有云端可写，留 pending 会让页面上那条同步条一直说「有改动待同步」。
+  if (!guestMode) markPending();
 }
 
 function recordSync(ok, message) {
@@ -62,9 +65,21 @@ function recordSync(ok, message) {
   game.writeStorage('canwu_sync_error_v1', lastCloudError);
 }
 
+// 游客开关。不这么做的话，游客每改一次存档都会往云端发一次必然失败的请求，
+// 主页与人物页那条同步条就会把「没登录」显示成「连不上云端」。
+function setGuest(on) {
+  guestMode = !!on;
+  if (!guestMode) return;
+  lastCloudError = '';
+  hasConflict = false;
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  clearPending();
+}
+
 function getSyncStatus() {
   const meta = game.readStorage(SYNC_KEY);
   return {
+    guest: guestMode,
     pending: !!readPending(),
     error: lastCloudError,
     conflict: hasConflict,
@@ -83,7 +98,7 @@ function getCloudError() {
 }
 
 function scheduleCloudSave() {
-  if (!cloudAdapter) return;
+  if (guestMode || !cloudAdapter) return;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(function () {
     saveTimer = null;
@@ -93,6 +108,8 @@ function scheduleCloudSave() {
 
 // 并发的 flush 复用同一个在途请求，既不丢写，也不会让调用方拿到「正在同步中」这种假失败。
 async function flushCloud() {
+  // 游客没有账号可写：当作「无事可做」，不是失败，别在页面上留一条红线。
+  if (guestMode) return { ok: true, skipped: true };
   if (!cloudAdapter || !state) return { ok: false, message: '云端存档未初始化' };
   if (saveTimer) {
     clearTimeout(saveTimer);
@@ -333,6 +350,7 @@ module.exports = {
   unsubscribe: unsubscribe,
   consumeOfflineReport: consumeOfflineReport,
   setCloudAdapter: setCloudAdapter,
+  setGuest: setGuest,
   getCloudError: getCloudError,
   getSyncStatus: getSyncStatus,
   hydrate: hydrate,

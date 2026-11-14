@@ -8,6 +8,25 @@ function toast(title) {
   if (typeof wx !== 'undefined' && wx.showToast) wx.showToast({ title: title, icon: 'none', duration: 2200 });
 }
 
+// 游客标记：在登录页选了「先不登录」就落一个盘，冷启动直接进主页。
+// 不落盘的话，每次杀掉小程再进来都会被挡在登录页——那是把人赶走最快的方式。
+const GUEST_KEY = 'canwu_guest_v1';
+
+function readGuest() {
+  try {
+    if (typeof wx === 'undefined' || !wx.getStorageSync) return false;
+    return wx.getStorageSync(GUEST_KEY) === 1;
+  } catch (e) { return false; }
+}
+
+function writeGuest(on) {
+  try {
+    if (typeof wx === 'undefined') return;
+    if (on) wx.setStorageSync(GUEST_KEY, 1);
+    else if (wx.removeStorageSync) wx.removeStorageSync(GUEST_KEY);
+  } catch (e) { /* 存不进去就本次会话有效，不影响开局 */ }
+}
+
 App({
     globalData: {
         appName: '参悟',
@@ -17,11 +36,15 @@ App({
         // 上次对着练的是哪一门：功法页、主页吸底、换门都会写它，
         // 参悟页没带 ?skillId（例如从结算「再来一局」回来）时用它兜底。
         lastSkillId: '',
+        // 游客：没有账号，只玩本机进度。云端这一层在 store 里整体停用。
+        guest: false,
     },
 
     onLaunch() {
         store.setCloudAdapter(cloudSave);
         store.init();               // 同步：先给页面一份本地缓存，避免白屏
+        this.globalData.guest = readGuest();
+        store.setGuest(this.globalData.guest);
         this.bootstrapped = false;
         this.awaitingLogin = false;
         this.bootstrapPromise = null;
@@ -61,6 +84,14 @@ App({
         const status = result.status;
 
         if (status === 'signed-out') {
+            // 上次选了「先不登录」：本机进度照常可玩，不再挡一道登录页。
+            if (this.globalData.guest) {
+                this.bootstrapped = true;
+                this.awaitingLogin = false;
+                this.globalData.offline = false;
+                store.settle();
+                return { status: 'guest', message: '' };
+            }
             this.bootstrapped = false;
             this.awaitingLogin = true;
             this.globalData.offline = false;
@@ -74,6 +105,12 @@ App({
             return result;
         }
 
+        // 确实有账号了：之前的游客标记作废，存档重新走云端。
+        if (this.globalData.guest) {
+            this.globalData.guest = false;
+            writeGuest(false);
+            store.setGuest(false);
+        }
         this.bootstrapped = true;
         this.awaitingLogin = false;
         this.globalData.offline = status === 'offline';
@@ -158,6 +195,25 @@ App({
         } else {
             this.scheduleRetry();
         }
+    },
+
+    // 登录页「先不登录」：本机进度直接开玩，不建会话、不写云端。
+    enterGuest() {
+        this.globalData.guest = true;
+        this.globalData.offline = false;
+        this.bootstrapped = true;
+        this.awaitingLogin = false;
+        writeGuest(true);
+        store.setGuest(true);
+        store.settle();
+    },
+
+    // 游客主动去登录：先摘标记再进登录页；即使临阵改主意，登录页还能再点「先不登录」。
+    leaveGuest() {
+        this.globalData.guest = false;
+        this.awaitingLogin = true;
+        writeGuest(false);
+        store.setGuest(false);
     },
 
     ensureSession() {

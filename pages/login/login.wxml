@@ -7,6 +7,12 @@
     <button class="btn-wechat" bindtap="onWechatLogin" disabled="{{busy}}" loading="{{busy}}">微信一键登录</button>
     <text class="login-hint">不设密码，用微信身份直接开始</text>
 
+    <!-- 游客入口：审核不看「不登录就进不去」，玩家也不该被挡在门口。
+         本机进度本来就能离线玩，这里只是把这条路显式给出来。 -->
+    <view class="login-guest pressable" hover-class="pressable--on" bindtap="onGuest">
+      <text class="login-guest__text">{{copy.login.guest}}</text>
+    </view>
+
     <view class="login-alt" hover-class="pressable" bindtap="toggleEmail">
         <text class="login-alt-text">{{showEmail ? '收起邮箱登录' : '使用邮箱验证码登录'}}</text>
     </view>
@@ -20,4 +26,9 @@
     <text class="login-error" wx:if="{{reason}}">{{reason}}</text>
     <text class="login-error" wx:if="{{error}}">{{error}}</text>
     <text class="login-busy" wx:if="{{busy}}">正在读取云端存档…</text>
+
+    <view class="login-legal pressable" hover-class="pressable--on" bindtap="onPrivacy">
+      <text class="login-legal__text">{{copy.login.agree}}</text>
+      <text class="login-legal__link">《{{copy.actions.privacy}}》</text>
+    </view>
 </view>
