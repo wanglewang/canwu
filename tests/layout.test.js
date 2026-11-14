@@ -759,8 +759,8 @@ check('三连 S 直接晋级：准备页有进度、结算页有回执、指南�
   assert.ok(/title: '二 · 离线挂机收益规则'/.test(guide), '新增专节后章节编号没顺延');
 });
 
-check('页面骨架统一：四 tab + 子页用仙箓皮肤，导航只留原生一层', function () {
-  const main = ['index', 'cultivate', 'skills', 'profile', 'battle', 'shop', 'board', 'titles', 'guide', 'help', 'log'];
+check('页面骨架统一：三 tab + 子页用仙箓皮肤，导航只留原生一层', function () {
+  const main = ['index', 'cultivate', 'skills', 'profile', 'battle', 'board', 'titles', 'guide', 'help', 'log'];
   for (const name of main) {
     const wxml = read('pages/' + name + '/' + name + '.wxml');
     assert.ok(/^<view class="pg pg--imm/m.test(wxml), name + ' 根节点不是 .pg--imm');
@@ -791,7 +791,7 @@ check('页面骨架统一：四 tab + 子页用仙箓皮肤，导航只留原生
 check('加载 / 空 / 错误状态统一用 .state 占位，不再白屏', function () {
   const index = read('pages/index/index.wxml');
   assert.ok(/class="state"/.test(index) && /\{\{copy\.errorTitle\}\}/.test(index), '洞府页状态占位不完整');
-  for (const name of ['skills', 'battle', 'profile', 'shop', 'board']) {
+  for (const name of ['skills', 'battle', 'profile', 'board']) {
     assert.ok(/class="state[ "]/.test(read('pages/' + name + '/' + name + '.wxml')),
       name + ' 数据未就绪时没有状态占位');
   }
@@ -841,11 +841,12 @@ check('全局基础层与常规页样式不写裸色值，尺寸走令牌', func
 
 check('导航栏标题简洁统一，tab 页不重复 tabBar，配色交给主题变量', function () {
   const titles = ['仙门切磋', '参悟', '登录', '修行指南', '修行日志',
-    '藏经阁', '战力仙榜', '称号簿'];
+    '战力仙榜', '称号簿'];
   const appCfg = require('../app.json');
   const tabs = appCfg.tabBar.list.map(function (t) { return t.pagePath; });
-  // 说明页的标题在 onLoad 里按主题动态设置（人物 · 说明），json 里留空。
-  const dynamic = ['pages/help/help'];
+  // 说明页的标题在 onLoad 里按主题动态设置（人物 · 说明）；
+  // 功法详情页的标题是这一门的正名（进哪门写哪门），两处 json 都留空。
+  const dynamic = ['pages/help/help', 'pages/cultivate/cultivate'];
   for (const p of pageFiles('.json')) {
     const cfg = JSON.parse(read(p.rel));
     const page = p.rel.replace(/\.json$/, '');
@@ -891,13 +892,13 @@ check('文案真源：跨页复用文案只在 data/copy.js 写一次', function
     assert.ok(/require\('\.\.\/\.\.\/data\/copy\.js'\)/.test(js), name + ' 没有引用文案真源');
     assert.ok(/copy: copy\.UI/.test(js), name + ' 没有把文案挂进 data');
   }
-  // 参悟 / 修炼 是两个动作，不许当同义词：
-  //   start    = 在练功台打一局（换熟练度）
-  //   practice = 去练功台（挑功法、看进度）
-  assert.ok(copy.UI.actions.start === '开始参悟' && copy.UI.actions.practice === '去修炼',
-    '同一动作的按钮说法又被改散了');
+  // 「参悟」是入口，「开始参悟」才是打一局，两级不许混成一个词：
+  //   practice = 从功法列表点进这一门的详情（不开局，还要选难度）
+  //   start    = 在详情页里真的打一局（换熟练度）
+  assert.ok(copy.UI.actions.start === '开始参悟', '打一局的按钮不叫「开始参悟」');
+  assert.ok(copy.UI.actions.practice === '参悟', '进详情的按钮不叫「参悟」');
   assert.notStrictEqual(copy.UI.actions.start, copy.UI.actions.practice,
-    '「开始参悟」和「去修炼」变成了同一个词，开局与导流又混在一起');
+    '两个动作又叫成一个名字了');
   for (const bad of ['正在推演气机', '正在翻检藏经阁', '正在整理论道台', '正在展开道牒',
     '就差一点', '参 悟 · 等是保底，练才是加速']) {
     assert.ok(all.indexOf(bad) < 0, '旧文案口径又回来了：' + bad);
@@ -951,18 +952,28 @@ check('术语解释：组件、词典与指南速查读同一份数据', functio
 check('信息架构：主页只做导航，说明独立成页，低频内容默认折叠', function () {
   const nav = require('../data/navigation.js');
   const appJson = require('../app.json');
-  assert.strictEqual(appJson.tabBar.list.length, 4, 'tabBar 不是四页结构');
+  assert.strictEqual(appJson.tabBar.list.length, 3, 'tabBar 不是三页结构');
   assert.deepStrictEqual(appJson.tabBar.list.map(function (x) { return x.text; }),
-    ['主页', '修炼', '功法', '人物'], '四个 tab 的名称或顺序不对');
-  assert.strictEqual(nav.TILES.length, 6, '主页六宫格不是 6 个入口');
+    ['主页', '功法', '人物'], '三个 tab 的名称或顺序不对');
+  // 修炼不再是 tab：它是功法卡片点进去的详情子页，所以不该出现在 tabBar 里。
+  // 留成 tab 的话，「点哪门功法进哪门的静室」就做不到——tab 页不能带 query。
+  assert.ok(appJson.tabBar.list.every(function (t) { return t.pagePath !== 'pages/cultivate/cultivate'; }),
+    '修炼又回到 tabBar 了：那样点功法卡片只能进「上一次练的那门」');
+  assert.strictEqual(nav.TILES.length, 5, '主页宫格不是 5 个入口');
   const index = read('pages/index/index.wxml');
-  assert.ok(/class="imm-grid"/.test(index) && /bindtap="onTile"/.test(index), '主页没有六宫格导航');
+  assert.ok(/class="imm-grid"/.test(index) && /bindtap="onTile"/.test(index), '主页没有宫格导航');
   assert.strictEqual((index.match(/bindtap="onQuickPractice"/g) || []).length, 1,
     '主页主行动入口重复：吸底按钮之外不该再放一个');
   assert.ok(index.indexOf('近况') < 0 && index.indexOf('就差一点') < 0, '主页仍有含糊区块标题');
   assert.ok(!/class="card card--ink rec-card"/.test(index), '主页还留着整张「今日之课」长卡');
   const skills = read('pages/skills/skills.wxml');
-  assert.ok(/bindtap="onTab"/.test(skills) && /\{\{tab ===/.test(skills), '功法页没有「已习得 / 未习得」两态');
+  assert.ok(/bindtap="onTab"/.test(skills) && /\{\{tab ===/.test(skills), '功法页没有两个分区');
+  // 一个容器两个分区，不再有第二个「功法列表页」：藏经阁并进来了。
+  assert.ok(/copy\.skillsTabs\.learned/.test(skills) && /copy\.skillsTabs\.shop/.test(skills),
+    '功法页的两个分区不是「已持玉简 / 藏经阁」');
+  assert.ok(appJson.pages.indexOf('pages/shop/shop') < 0, '藏经阁又变成独立页面了');
+  assert.ok(nav.TILES.every(function (t) { return t.url !== '/pages/shop/shop'; }),
+    '主页宫格里还有藏经阁那一格');
   const battle = read('pages/battle/battle.wxml');
   assert.ok(/onToggleCode/.test(battle) && /\{\{codeOpen\}\}/.test(battle), '战力码没折叠');
   const profile = read('pages/profile/profile.wxml');
@@ -1086,21 +1097,21 @@ check('图鉴文案走文案真源，解释统一收进「说明」页', functio
   assert.ok(copy.UI.actions.viewDetail && copy.UI.actions.goBattle, '动作文案没进真源');
 });
 
-check('主页六宫格各进各的子页，不再借道别的 tab', function () {
+check('主页宫格各进各的子页，不再借道别的 tab', function () {
   const nav = require('../data/navigation.js');
   const app = JSON.parse(read('app.json'));
   const tabs = app.tabBar.list.map(function (t) { return t.pagePath; });
-  assert.strictEqual(nav.TILES.length, 6, '六宫格不再是六格');
+  assert.strictEqual(nav.TILES.length, 5, '主页宫格不再是五格');
   const urls = nav.TILES.map(function (t) { return t.url; });
-  assert.strictEqual(new Set(urls).size, urls.length, '六宫格有重复去处');
+  assert.strictEqual(new Set(urls).size, urls.length, '宫格有重复去处');
   for (const t of nav.TILES) {
     const rel = t.url.replace(/^\//, '');
     assert.ok(app.pages.indexOf(rel) >= 0, t.label + ' 指向不存在的页面');
     // 关键：不能一格「看着是子页、点进去跳到别的 tab」。
     assert.ok(tabs.indexOf(rel) < 0, t.label + ' 仍然跳去 tab 页 ' + rel);
   }
-  // 三个新子页都是独立四件套，且页面里不再自绘返回。
-  for (const name of ['shop', 'board', 'titles']) {
+  // 子页都是独立四件套，且页面里不再自绘返回。
+  for (const name of ['cultivate', 'board', 'titles']) {
     for (const ext of ['.js', '.json', '.wxml', '.wxss']) {
       assert.ok(fs.existsSync(path.join(ROOT, 'pages/' + name + '/' + name + ext)), name + ' 缺 ' + ext);
     }
@@ -1242,11 +1253,11 @@ check('境界衰减：文案只从 copy.js 出，讲清人物境界与三成落�
 check('「练不了」只由学习门槛决定：收益上限不许拿去拦人', function () {
   // 金丹期练黄阶是这条的活样本：黄阶上限只到筑基，把上限当门槛就会说「需炼气境界方能修习」。
   const wxml = read('pages/skills/skills.wxml');
-  const shop = read('pages/shop/shop.js');
+  const js = read('pages/skills/skills.js');
   assert.ok(/wx:if="\{\{!detail\.realmReady\}\}"[^>]*>需「/.test(wxml),
     '功法图鉴的门槛句没挂 realmReady');
-  assert.ok(!/realmOk/.test(wxml) && !/realmOk/.test(shop), '又把门槛与收益合成一个布尔了');
-  assert.ok(/realmReady/.test(shop), '藏经阁没按学习门槛判断能不能换');
+  assert.ok(!/realmOk/.test(wxml) && !/realmOk/.test(js), '又把门槛与收益合成一个布尔了');
+  assert.ok(/realmReady/.test(js), '藏经阁分区的排序没按学习门槛判断');
 });
 
 check('评级中文名只有一份真源，且避开段位词', function () {
@@ -1311,7 +1322,13 @@ check('功法页默认排序与主页推荐同一份口径', function () {
   assert.ok(/engine\.recommendScore/.test(js), '功法页没走推荐排序真源');
   assert.ok(/function recommendScore/.test(engine) && /recommendScore: recommendScore/.test(engine),
     '排序口径没有单一真源');
-  assert.strictEqual((js.match(/\.sort\(/g) || []).length, 1, '功法页又写了第二套排序规则');
+  // 已持玉简按「离下一段多近」排，与主页「今日之课」同源。
+  assert.ok(/learned\.sort\([\s\S]{0,240}recommendScore/.test(js),
+    '已持玉简的排序没走 recommendScore：会和主页推荐对不上');
+  // 藏经阁分区是兑换顺序，不是推荐顺序：换得起的不该被「离圆满最近但买不起」的顶下去。
+  assert.ok(/pending\.sort\(/.test(js), '藏经阁分区没有自己的排序');
+  assert.ok(!/pending\.sort\([\s\S]{0,240}recommendScore/.test(js),
+    '藏经阁分区改用推荐排序了：换得起的会被换不起的顶到下面');
 });
 
 check('功法卡片紧凑单行：名字不竖排、按钮不抢宽度、阶段色走令牌', function () {
@@ -1328,21 +1345,51 @@ check('功法卡片紧凑单行：名字不竖排、按钮不抢宽度、阶段�
   assert.ok(!/skill-name|skill-game|skill-sub|detailText|catchtap="openDetail"/.test(wxml + js),
     '又回到「一行塞名字 + 玩法名 + 品阶 + 详情链接」的挤压布局');
   assert.ok(/item\.cardName/.test(wxml) && /item\.metaText/.test(wxml), '卡片没用重排后的字段');
-  assert.ok(/metaText: metaText/.test(js) && /stageText \+ ' · ' \+ bonusText/.test(js),
-    '元信息没收敛成「段位 · 属性」一行');
-  assert.ok(!/s\.gameName/.test(js), '列表又把玩法名塞回来，小屏会截掉属性');
+  assert.ok(/metaText: metaText/.test(js), '卡片没用统一的元信息字段');
+  // 两个分区各写一行：已持讲「练到哪了」，藏经阁讲「这一门怎么玩」。
+  // 已持那行不许塞玩法名——小屏会先截掉属性；藏经阁那行没有熟练度可讲，只讲玩法。
+  assert.ok(js.indexOf("s.profTierName + ' ' + s.percent + '% · ' + bonusText") >= 0,
+    '已持卡片的元信息没写成「段位 进度 · 属性」一行');
+  assert.ok(js.indexOf("s.methodName + ' · ' + s.gameName") >= 0,
+    '藏经阁卡片的元信息没写成「参悟方式 · 盘面」');
   assert.ok(/barTone/.test(js) && /item\.barTone/.test(wxml), '进度条没按阶段分档');
   assert.ok(/imm-bar--gold/.test(wxss) && /imm-bar--dim/.test(wxss), '阶段色类名没落地');
   assert.ok(!/#[0-9a-fA-F]{3,8}/.test(wxss), '功法页 wxss 又写了裸色值');
   assert.ok(!/copy\.hints\./.test(wxml), '功法页又把提示长句印回列表');
 });
 
-check('功法页两态用「未习得」，不再含糊地叫「可解锁」', function () {
+check('功法页两个分区叫「已持玉简 / 藏经阁」，不再另立一个兑换页', function () {
   const copy = require('../data/copy.js');
   const wxml = read('pages/skills/skills.wxml');
-  assert.strictEqual(copy.UI.skillsTabs.locked, '未习得');
-  assert.ok(/copy\.skillsTabs\.(learned|locked)/.test(wxml), '两态文案没走真源');
-  assert.ok(!/可解锁/.test(wxml), '功法页 tab 还写着「可解锁」');
+  assert.strictEqual(copy.UI.skillsTabs.learned, '已持玉简');
+  assert.strictEqual(copy.UI.skillsTabs.shop, '藏经阁');
+  assert.ok(/copy\.skillsTabs\.learned/.test(wxml) && /copy\.skillsTabs\.shop/.test(wxml),
+    '两个分区的文案没走真源');
+  assert.ok(!/可解锁|未习得/.test(wxml), '功法页 tab 还写着「可解锁 / 未习得」');
+});
+
+check('藏经阁分区装全部未习得，不是只装能换的那 12 门', function () {
+  const js = read('pages/skills/skills.js');
+  // 19 门里只有 12 门挂在藏经阁卖，另 4 门（五行 / 凝露 / 断岳 / 太虚）靠切磋首胜，
+  // 3 门初始赠送。若这一区只装 canBuy 的，那 4 门在没拿到之前就没有图鉴与路径可看——
+  // 合并时最容易挨的一刀，正是「反正按钮只对能换的画，那就先滤一道」。
+  assert.ok(js.indexOf('if (s.unlocked) learned.push(s);') >= 0,
+    '已持与未得没有分开归堆');
+  assert.ok(js.indexOf('else pending.push(s);') >= 0,
+    '未习得的门没有全部进藏经阁分区');
+  assert.ok(!/if\s*\(\s*!s\.canBuy\s*\)\s*continue/.test(js),
+    '藏经阁分区把「不能兑换的门」滤掉了：那 4 门切磋来源的图鉴会消失');
+});
+
+check('功法详情页带 ?id 进，标题写这一门的正名，换功法不跳页', function () {
+  const js = read('pages/cultivate/cultivate.js');
+  const cfg = JSON.parse(read('pages/cultivate/cultivate.json'));
+  assert.ok(/options && options\.id/.test(js), '详情页不认 ?id：点哪门都进同一门');
+  assert.ok(/setNavigationBarTitle/.test(js), '详情页标题没按这一门的正名设置');
+  assert.ok(!cfg.navigationBarTitleText, '详情页 json 写了固定标题，会盖掉功法名');
+  assert.ok(/onToggleSwap/.test(js) && /onSwapTo/.test(js), '换功法又退回列表页了，页内弹层没了');
+  assert.ok(/wx\.navigateTo\(\{ url: '\/pages\/practice\/practice\?skillId=' \+ d\.id \}\)/.test(js),
+    '开始参悟没把这一门的 id 带给参悟页');
 });
 
 check('玩家可见文案不写「看详情 / 去看看」这类口语前缀', function () {

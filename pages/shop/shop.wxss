@@ -1,2 +1,0 @@
-/* 藏经阁：上面身家，下面一张列表。没有别的装饰。 */
-.imm-row__sub + .imm-row__sub { margin-top: 4rpx; }

@@ -253,8 +253,6 @@ Page({
 
   onGoTitles: function () { wx.navigateTo({ url: '/pages/titles/titles' }); },
 
-  onGoShop: function () { wx.navigateTo({ url: '/pages/shop/shop' }); },
-
   onToggleWorld: function () {
     this.setData({ worldOpen: !this.data.worldOpen });
   },

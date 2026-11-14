@@ -6,6 +6,10 @@ const copy = require('../../data/copy.js');
 const nav = require('../../data/navigation.js');
 const skillsData = require('../../data/skills.js');
 
+function toast(title) {
+  wx.showToast({ title: title, icon: 'none', duration: 1800 });
+}
+
 // 图鉴详情统一从引擎出：页面只补「当前资源够不够」这类即时状态。
 function detailOf(state, id) {
   const d = engine.getSkillDetail(state, id);
@@ -19,10 +23,11 @@ function detailOf(state, id) {
 }
 
 // 弹窗右下角永远给一个能点的动作：未习得不等于死路。
-// 已习得 → 去练功台；能换 → 去藏经阁；其余看解锁条件指向哪。
+// 已习得 → 进这一门的静室（功法详情）；能换 → 就地换掉，不再跳一个藏经阁页面；
+// 其余看解锁条件指向哪（切磋 / 攒资源 / 回主页）。
 function primaryOf(d) {
   if (d.unlocked) return { kind: 'cultivate', text: copy.UI.actions.practice, disabled: false };
-  if (d.canBuy) return { kind: 'shop', text: copy.UI.actions.openShop, disabled: false };
+  if (d.canBuy) return { kind: 'buy', text: copy.UI.actions.buy, disabled: false };
   return { kind: d.unlock.action || 'home', text: d.unlock.actionText || copy.UI.actions.goHome, disabled: false };
 }
 
@@ -32,7 +37,9 @@ Page({
     tab: 'learned',
     cards: [],
     learnedCount: 0,
-    lockedCount: 0,
+    shopCount: 0,
+    qi: 0,
+    stone: 0,
     showDetail: false,
     detail: null,
     guideOpen: false,
@@ -45,16 +52,30 @@ Page({
     this.refresh();
   },
 
-  onShow: function () { this.refresh(); },
+  // 别处（指南页、人物页）想让玩家落在哪个分区，切过来前先写 globalData.skillsTab。
+  // tab 页不能带 query，这是 switchTab 唯一的传参办法；读完即清，免得下次再进还停在那儿。
+  onShow: function () {
+    const app = getApp();
+    const want = app.globalData.skillsTab;
+    if (want === 'learned' || want === 'shop') {
+      app.globalData.skillsTab = '';
+      this.setData({ tab: want }, this.refresh.bind(this));
+      return;
+    }
+    this.refresh();
+  },
 
   onUnload: function () { store.unsubscribe(this.listener); },
 
+  // 一个页面两个分区：已持玉简（到手可练）/ 藏经阁（还没拿到，看怎么得）。
+  // 藏经阁装的是**全部**未习得功法——含切磋首胜、境界前置那几门，不只可兑换的 12 门，
+  // 否则那 4 门的图鉴与获取途径就没有别处可看了。
   refresh: function () {
     const state = store.get();
     const ov = engine.getOverview(state);
     const list = engine.getSkillList(state);
     const learned = [];
-    const locked = [];
+    const pending = [];
     for (let i = 0; i < list.length; i += 1) {
       const s = list[i];
       s.costText = s.cost ? copy.formatCost(s.cost.qi, s.cost.stone) : '';
@@ -62,7 +83,7 @@ Page({
       s.stateText = s.unlocked ? copy.UI.states.learned
         : (s.canBuy ? copy.UI.states.buyable : s.unlock.label);
       if (s.unlocked) learned.push(s);
-      else locked.push(s);
+      else pending.push(s);
     }
     // 默认排序与主页「今日之课」共用 engine.recommendScore：离下一段最近的在前，
     // 按阶段跨度归一；不另写「品阶 / 进度绝对值」一套，免得高熟练度功法永远霸榜。
@@ -71,14 +92,26 @@ Page({
       if (d !== 0) return d;
       return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0);
     });
-    const source = this.data.tab === 'learned' ? learned : locked;
+    // 藏经阁分区：换得起的在前，其次够不着但能换的，最后是境界没到 / 只能靠切磋的。
+    // 与旧藏经阁页同一套排序，玩家换了地方找同一门功法，顺序不该变。
+    const rank = function (s) {
+      if (s.canBuy && s.affordable && s.realmReady) return 0;
+      if (s.canBuy) return 1;
+      return 2;
+    };
+    pending.sort(function (a, b) {
+      const d = rank(a) - rank(b);
+      if (d !== 0) return d;
+      return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0);
+    });
+    const source = this.data.tab === 'learned' ? learned : pending;
     const cards = source.map(function (s) {
-      const stageText = s.unlocked ? s.profTierName + ' ' + s.percent + '%'
-        : (s.canBuy ? '藏经阁可换' : '未修炼');
       const bonusText = s.bonusText || s.effectText;
-      // 一行元信息只放段位与属性。玩法名与整段规则都在图鉴里，列表不塞第四样东西，
-      // 免得小屏把最该看见的属性截掉，或又把名字挤成一字一行。
-      const metaText = stageText + ' · ' + bonusText;
+      // 已持：一行写「段位 + 进度 + 属性」，进度条再画一遍，扫一眼就知道差多少。
+      // 未得：一行写「玩法 + 盘面」，另一行写代价或获取途径——这一层只回答「怎么拿到」。
+      const metaText = s.unlocked
+        ? s.profTierName + ' ' + s.percent + '% · ' + bonusText
+        : s.methodName + ' · ' + s.gameName;
       return {
         id: s.id,
         // 左侧方标已写出类别，列表只留三字正名，不再重复一遍「心法 ·」。
@@ -86,11 +119,11 @@ Page({
         mark: s.type.slice(0, 1),
         tierLabel: s.tierLabel,
         metaText: metaText,
+        costText: s.unlocked ? '' : (s.canBuy ? s.costText : s.stateText),
         percent: s.percent,
         // 阶段只分三档、颜色全走 tokens：未入门弱化 / 常规青玉 / 大成以上旧金。
         barTone: s.tierIndex === 0 ? 'imm-bar--dim' : (s.tierIndex >= 3 ? 'imm-bar--gold' : ''),
-        actionText: s.unlocked ? copy.UI.actions.practice
-          : (s.canBuy ? copy.UI.actions.openShop : copy.UI.actions.viewDetail),
+        actionText: s.unlocked ? copy.UI.actions.practice : (s.canBuy ? copy.UI.actions.buy : ''),
         unlocked: s.unlocked,
         canBuy: s.canBuy,
       };
@@ -101,7 +134,9 @@ Page({
       ov: ov,
       cards: cards,
       learnedCount: learned.length,
-      lockedCount: locked.length,
+      shopCount: pending.length,
+      qi: state.resources.qi,
+      stone: state.resources.stone,
       detail: detail,
       showDetail: !!detail,
     });
@@ -117,27 +152,36 @@ Page({
     this.setData({ showDetail: true, detail: d, guideOpen: false });
   },
 
+  // 整行点击分两种：已持的进这一门的静室；没拿到的开图鉴（锁的只是开练，不是查阅）。
   openDetail: function (event) {
-    this.showDetailFor(event.currentTarget.dataset.id);
+    const id = event.currentTarget.dataset.id;
+    const card = this.data.cards.filter(function (c) { return c.id === id; })[0];
+    if (card && card.unlocked) { this.goDetail(id); return; }
+    this.showDetailFor(id);
+  },
+
+  goDetail: function (id) {
+    getApp().globalData.lastSkillId = id;
+    wx.navigateTo({ url: '/pages/cultivate/cultivate?id=' + id });
   },
 
   // 卡片右侧按钮：
-  //   已习得 → 选定这门并回练功台（不在功法页直接开局，免得跳过难度与规则确认）；
-  //   可兑换 → 去藏经阁（花钱的地方只留一个）；
-  //   其余 → 开图鉴看还差什么。
+  //   已持 → 参悟（进详情页，那里有规则与难度，不在列表里直接开局）；
+  //   可换 → 就地换取，不再跳页面。
   onCardAction: function (event) {
     const id = event.currentTarget.dataset.id;
     const card = this.data.cards.filter(function (c) { return c.id === id; })[0];
-    if (card && card.unlocked) {
-      getApp().globalData.lastSkillId = id;
-      wx.switchTab({ url: '/pages/cultivate/cultivate' });
-      return;
-    }
-    if (card && card.canBuy) {
-      wx.navigateTo({ url: '/pages/shop/shop' });
-      return;
-    }
+    if (!card) return;
+    if (card.unlocked) { this.goDetail(id); return; }
+    if (card.canBuy) { this.buy(id); return; }
     this.showDetailFor(id);
+  },
+
+  buy: function (id) {
+    const r = store.commitCritical(function (s) { return engine.buySkill(s, id); });
+    if (r.ok) getApp().globalData.lastSkillId = id;
+    toast(r.ok ? '习得《' + r.name + '》，已归入已持玉简' : r.msg);
+    this.refresh();
   },
 
   closeDetail: function () {
@@ -154,16 +198,10 @@ Page({
     const kind = d.primary.kind;
     const id = d.id;
     this.closeDetail();
-    if (kind === 'cultivate') {
-      getApp().globalData.lastSkillId = id;
-      wx.switchTab({ url: '/pages/cultivate/cultivate' });
-    } else if (kind === 'shop') {
-      wx.navigateTo({ url: '/pages/shop/shop' });
-    } else if (kind === 'battle') {
-      wx.navigateTo({ url: '/pages/battle/battle' });
-    } else {
-      wx.switchTab({ url: '/pages/index/index' });
-    }
+    if (kind === 'cultivate') this.goDetail(id);
+    else if (kind === 'buy') this.buy(id);
+    else if (kind === 'battle') wx.navigateTo({ url: '/pages/battle/battle' });
+    else wx.switchTab({ url: '/pages/index/index' });
   },
 
   onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('skills') }); },

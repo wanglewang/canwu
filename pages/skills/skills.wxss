@@ -45,6 +45,21 @@
     text-overflow: ellipsis;
 }
 
+/* 藏经阁分区第三行：代价或获取途径。用金色弱一档，和上面那行「玩法 · 盘面」分开读。 */
+.sk-cost {
+    display: block;
+    color: var(--c-imm-gold-dim);
+    font-size: var(--fs-caption);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 身家条贴着标签走：上下留白比常规 panel 小一半，免得把列表挤下去。 */
+.sk-wallet {
+    padding: var(--sp-4) var(--sp-5);
+}
+
 /* 阶段只分三档，颜色全由语义令牌给：未入门弱化、大成以上旧金，常规仍是青玉。 */
 .imm-bar--dim .imm-bar__fill { background: var(--c-imm-text-3); }
 .imm-bar--gold .imm-bar__fill { background: var(--c-imm-gold); }

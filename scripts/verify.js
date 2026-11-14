@@ -382,9 +382,10 @@ for (const mode of ['light', 'dark']) {
 
 // 导航栏标题：tab 页一律留空（页名由底部 tabBar 承担，顶部再写一遍就是同一行字出现两次）；
 // 子页必须用统一命名表里的页面名；配色交给 app.json 的 @变量（页面写死会在暗色下穿帮）。
-const TITLES = ['仙门切磋', '参悟', '登录', '修行指南', '修行日志', '藏经阁', '战力仙榜', '称号簿'];
+const TITLES = ['仙门切磋', '参悟', '登录', '修行指南', '修行日志', '战力仙榜', '称号簿'];
 // 说明页是共用容器，导航标题在 onLoad 里按主题动态给出「人物 · 说明」，json 里必须留空。
-const DYNAMIC_TITLES = ['pages/help/help'];
+// 功法详情页（pages/cultivate）的标题是这一门的正名，进哪门写哪门，json 里必须留空。
+const DYNAMIC_TITLES = ['pages/help/help', 'pages/cultivate/cultivate'];
 const tabPages = appJson.tabBar.list.map(function (t) { return t.pagePath; });
 if (appJson.window.navigationBarTitleText) {
   errors.push('app.json window 写了导航标题，tab 页漏写就会回落成它：' + appJson.window.navigationBarTitleText);
@@ -501,11 +502,11 @@ for (const page of appJson.pages) {
   else checked += 1;
 }
 
-// 11. 四页信息架构：tabBar 与导航真源一致、说明真源覆盖每页、解释不回页面
+// 11. 三页信息架构：tabBar 与导航真源一致、说明真源覆盖每页、解释不回页面
 const nav = require(path.join(ROOT, 'data/navigation.js'));
 const helpData = require(path.join(ROOT, 'data/help.js'));
 const tabPaths = appJson.tabBar.list.map(function (x) { return x.pagePath; });
-if (tabPaths.length !== 4) errors.push('四个 tab 的结构被改动');
+if (tabPaths.length !== 3) errors.push('三个 tab 的结构被改动');
 else checked += 1;
 for (let i = 0; i < nav.TAB_ORDER.length; i += 1) {
   const expect = 'pages/' + nav.TAB_ORDER[i] + '/' + nav.TAB_ORDER[i];
@@ -517,7 +518,7 @@ for (let i = 0; i < nav.TAB_ORDER.length; i += 1) {
     errors.push('tabBar 第 ' + (i + 1) + ' 项的文案与导航真源不一致：' + appJson.tabBar.list[i].text);
   } else checked += 1;
 }
-if (nav.TILES.length !== 6) errors.push('主页六宫格不是 6 个入口');
+if (nav.TILES.length !== 5) errors.push('主页宫格不是 5 个入口');
 else checked += 1;
 for (const tile of nav.TILES) {
   const target = tile.url.replace(/^\//, '');

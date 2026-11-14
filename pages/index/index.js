@@ -18,7 +18,7 @@ Page({
     breakPercent: 0,
     hintText: '',
     quickSkillId: '',
-    quickLabel: '去修炼',
+    quickLabel: '去参悟',
     dailyReady: false,
     dailyGain: '',
     syncLabel: '',
@@ -100,8 +100,8 @@ Page({
       dailyReady: dailyReady,
       dailyGain: copy.formatGain(ov.daily.qi, ov.daily.stone),
       quickSkillId: rec.id || (learned.length > 0 ? learned[0].id : ''),
-      // 「去修炼」到练功台，「开始参悟」才开一局：两个词分别代表两件事，不再混用。
-      quickLabel: rec.id ? '去修炼 · ' + rec.name : copy.UI.actions.goSkills,
+      // 「参悟」进这一门的详情，「开始参悟」才开一局：两个词分别代表两件事，不再混用。
+      quickLabel: rec.id ? '参悟 · ' + rec.name : copy.UI.actions.goSkills,
     });
   },
 
@@ -127,7 +127,7 @@ Page({
     if (tile) nav.openTile(getApp(), tile);
   },
 
-  // 主页是把人送进练功台，不替人开局：难度档、规则速记、上一局评价都在修炼页。
+  // 主页把人送进那一门功法的静室，不替人开局：难度档、规则速记、上一局评价都在详情页。
   onQuickPractice: function () {
     const id = this.data.quickSkillId;
     if (!id) {
@@ -135,7 +135,8 @@ Page({
       return;
     }
     getApp().globalData.lastSkillId = id;
-    wx.switchTab({ url: '/pages/cultivate/cultivate' });
+    // 修炼不是 tab 了：直接进这一门的静室（功法详情），在那儿开始参悟。
+    wx.navigateTo({ url: '/pages/cultivate/cultivate?id=' + id });
   },
 
   onBreakthrough: function () {

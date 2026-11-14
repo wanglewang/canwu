@@ -172,9 +172,13 @@
 .imm-hint__pin { color: var(--c-imm-gold); flex: none; }
 
 /* ---------- 宫格：一整块 3×2 细线格，而不是六个小盒 ---------- */
+/* 宫格：三个入口一行。现在只有五个入口（藏经阁并进了功法页），
+   所以第一行 3 个、第二行 2 个并居中；最后一行只有两格，右侧那条竖线要收掉，
+   否则右边会多出一道悬空的边框。 */
 .imm-grid {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     margin-top: var(--sp-5);
     border: 1rpx solid var(--c-imm-line);
     border-radius: var(--r-lg);
@@ -190,7 +194,9 @@
 }
 
 .imm-tile:nth-child(3n) { border-right: 0; }
-.imm-tile:nth-last-child(-n + 3) { border-bottom: 0; }
+/* 五格布局：第 5 格是第二行的末格，右边框同样要收掉；末行两格没有下边框。 */
+.imm-tile:nth-last-child(1) { border-right: 0; }
+.imm-tile:nth-last-child(-n + 2) { border-bottom: 0; }
 
 .imm-tile__inner {
     display: flex;

@@ -1,7 +1,25 @@
 <view class="pg pg--imm">
   <view class="imm-tabs">
     <view class="imm-tab {{tab === 'learned' ? 'imm-tab--on' : ''}} pressable" hover-class="pressable--on" data-tab="learned" bindtap="onTab">{{copy.skillsTabs.learned}} {{learnedCount}}</view>
-    <view class="imm-tab {{tab === 'locked' ? 'imm-tab--on' : ''}} pressable" hover-class="pressable--on" data-tab="locked" bindtap="onTab">{{copy.skillsTabs.locked}} {{lockedCount}}</view>
+    <view class="imm-tab {{tab === 'shop' ? 'imm-tab--on' : ''}} pressable" hover-class="pressable--on" data-tab="shop" bindtap="onTab">{{copy.skillsTabs.shop}} {{shopCount}}</view>
+  </view>
+
+  <!-- 藏经阁分区才报身家：已持玉简里看的是熟练度，不是还有多少灵气。 -->
+  <view wx:if="{{tab === 'shop'}}" class="imm-panel sk-wallet">
+    <view class="imm-stats">
+      <view class="imm-stat">
+        <text class="imm-stat__label">灵 气</text>
+        <text class="imm-stat__value">{{qi}}</text>
+      </view>
+      <view class="imm-stat">
+        <text class="imm-stat__label">灵 石</text>
+        <text class="imm-stat__value">{{stone}}</text>
+      </view>
+      <view class="imm-stat">
+        <text class="imm-stat__label">未 得</text>
+        <text class="imm-stat__value">{{shopCount}}</text>
+      </view>
+    </view>
   </view>
 
   <view wx:if="{{!ov}}" class="state">
@@ -22,15 +40,17 @@
           <text class="imm-chip sk-tier">{{item.tierLabel}}</text>
         </view>
         <text class="imm-row__sub sk-meta">{{item.metaText}}</text>
+        <!-- 藏经阁分区：这一行只回答「怎么拿到」——能换的写代价，不能换的写获取途径。 -->
+        <text wx:if="{{item.costText}}" class="imm-row__sub sk-cost">{{item.costText}}</text>
         <view wx:if="{{item.percent > 0}}" class="imm-bar imm-bar--thin {{item.barTone}}">
           <view class="imm-bar__fill" style="width:{{item.percent}}%"></view>
         </view>
       </view>
-      <button class="imm-btn--ghost imm-btn--sm sk-act" data-id="{{item.id}}" catchtap="onCardAction">{{item.actionText}}</button>
+      <button wx:if="{{item.actionText}}" class="imm-btn--ghost imm-btn--sm sk-act" data-id="{{item.id}}" catchtap="onCardAction">{{item.actionText}}</button>
     </view>
   </view>
 
-  <!-- 图鉴：未习得也能查全本，锁的只有开练。分节短、可展开，不再一口气堆全文。 -->
+  <!-- 图鉴：还没拿到的也能查全本，锁的只有开练。分节短、可展开，不再一口气堆全文。 -->
   <view class="mask" wx:if="{{showDetail && detail}}" bindtap="closeDetail">
     <view class="modal modal--codex" catchtap="noop">
       <view class="row--between">

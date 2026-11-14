@@ -40,9 +40,9 @@ const SECTIONS = [
             '灵气来自挂机、参悟、切磋和每日份例；灵石来自高评级参悟、切磋首胜和每日份例。',
             '参悟评级 S / A / B 分别额外给 3 / 2 / 1 枚灵石，C 与 F 不给。',
             '每天参悟满 3 次，可在洞府领份例：灵气 +30、灵石 +10。',
-            '两种资源都用来换功法，但同一次兑换两样都要，所以别只顾攒一样；兑换在藏经阁。',
+            '两种资源都用来换功法，但同一次兑换两样都要，所以别只顾攒一样；兑换在功法页的「藏经阁」分区。',
         ],
-        action: { label: A.openShop, kind: 'page', url: '/pages/shop/shop' },
+        action: { label: A.goSkills, kind: 'tabSkills', tab: 'shop' },
     },
     {
         title: '四 · 战力从哪来',
@@ -87,7 +87,7 @@ const SECTIONS = [
             '每门功法记一个局内最佳分数，结算会显示得分与是否破纪录。高分本身不额外加熟练度，收益仍由评级与倍率构成决定。',
             '阵眼感应与入定照见每局各两次；数格辨禁误触时扣一盏心神并让那处禁制显形（简单到困难三盏、极难与绝境两盏），耗尽才收功；循纹递推采错露石同样扣心神。',
         ],
-        action: { label: A.practice, kind: 'tab', url: '/pages/cultivate/cultivate' },
+        action: { label: A.goSkills, kind: 'tabSkills', tab: 'learned' },
     },
     {
         title: '七 · 三连 S 直接晋级',
@@ -215,8 +215,13 @@ Page({
         const i = Number(event.currentTarget.dataset.index);
         const act = this.data.sections[i].action;
         if (!act) return;
-        if (act.kind === 'tab') wx.switchTab({ url: act.url });
-        else wx.navigateTo({ url: act.url });
+        // 藏品与功法都在功法页：先记下去向，切过去时由功法页自己认这个标记。
+        if (act.kind === 'tabSkills') {
+            getApp().globalData.skillsTab = act.tab || 'learned';
+            wx.switchTab({ url: '/pages/skills/skills' });
+            return;
+        }
+        wx.navigateTo({ url: act.url });
     },
 
     onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('guide') }); },

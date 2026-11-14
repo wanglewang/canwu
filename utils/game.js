@@ -1087,9 +1087,9 @@ function unlockInfo(state, skill) {
       cleared: cleared,
     };
   }
-  // 机缘不可控，能做的就是「去练」。旧版给的是 action: 'practice'，页面没有这个分支，
-  // 点了落到主页，等于按钮是死的；统一成去练功台。
-  return { kind: 'chance', label: '机缘可得', text: '参悟时小概率拾得残卷', hint: '多练几局，缘分到了自然来', action: 'cultivate', actionText: '去修炼', percent: 0 };
+  // 机缘不可控，能做的就是「去练几局」。修炼降为功法详情子页之后没有「随便练一门」的页面了，
+  // 所以这里指回主页：主页吸底就是「参悟 · 推荐功法」，一步能开局。
+  return { kind: 'chance', label: '机缘可得', text: '参悟时小概率拾得残卷', hint: '多练几局，缘分到了自然来', action: 'home', actionText: '去参悟', percent: 0 };
 }
 
 function getOverview(state) {
