@@ -925,7 +925,7 @@ Page({
     // F 有两种来历，处置完全不同：
     //   ① 玩家点「收功」→ 这一局作废，不进结算，连 S 原样不动；
     //   ② 玩法自己判负（阵溃 / 心神耗尽 / 时辰到没通完）→ 是一局打完的结果，
-    //      按「走火」正常结算（×0.20），连 S 断。
+    //      按「走火」结算：零收益（熟练度 / 灵气 / 灵石 / 加成都不给），连 S 断。
     // 突破局只有一种 F：气机一乱，走 ①。
     if (grade === 'F' && (this.aborting || this.mode === 'breakthrough')) {
       if (this.mode === 'breakthrough') {
@@ -975,16 +975,20 @@ Page({
         + ' · ' + r.diffName + ' ×' + r.diffMult.toFixed(2)
         + ' · ' + grade + ' ×' + r.gradeFactor.toFixed(2)
         + (r.decayed ? ' · 衰减 ×0.3' : '');
-      const lines = [
-        // 三连晋级那一笔也算熟练度入账，演出数字得跟实际增长对得上。
-        { k: '熟练度', v: '+' + r.totalGain },
-        { k: '灵气', v: '+' + r.qi },
-        { k: '局内得分', v: String(res.score || 0) },
-      ];
+      const lines = r.wiped
+        // 走火不是「得 0 分」，是这一局不作数：一排 +0 会让人以为自己算错了。
+        ? [{ k: '收益', v: '无 · 走火' }, { k: '局内得分', v: String(res.score || 0) }]
+        : [
+          // 三连晋级那一笔也算熟练度入账，演出数字得跟实际增长对得上。
+          { k: '熟练度', v: '+' + r.totalGain },
+          { k: '灵气', v: '+' + r.qi },
+          { k: '局内得分', v: String(res.score || 0) },
+        ];
       if (r.promotionGain > 0) lines.splice(1, 0, { k: '其中直接晋级', v: '+' + r.promotionGain });
       if (r.stone > 0) lines.push({ k: '灵石', v: '+' + r.stone });
       lines.push({ k: '倍率构成', v: multText });
-      lines.push({ k: '挂机加速', v: '×' + r.buffMultiplier.toFixed(1) + ' · 30 分钟' });
+      // 走火没给加成：这行留着会让玩家以为「崩了还蹭到了 30 分钟加速」。
+      if (!r.wiped) lines.push({ k: '挂机加速', v: '×' + r.buffMultiplier.toFixed(1) + ' · 30 分钟' });
       lines.push({ k: '当前熟练度', v: String(r.profAfter) });
       // 战力是阶梯值：只跟段位系数与境界加成走，段位不跳它就一分不动。
       // 所以不能只报「这局涨了多少战力」（大多数局都是 0，等于每局告诉玩家白练），
@@ -1000,7 +1004,7 @@ Page({
       const notes = Array.isArray(res.notes) ? res.notes.slice() : [];
       // 走火不是「成绩差」，是没走完：先把理由摆在最前，玩家才知道这一局到底栽在哪。
       if (grade === 'F') {
-        notes.unshift('这一局没走完，按「走火」只算两成收益（×' + r.gradeFactor.toFixed(2) + '）。');
+        notes.unshift('这一局没走完，按「走火」不计收益：熟练度、灵气、灵石与挂机加成都不给，连 S 也断。');
       }
       // 折减要当场说：面板上选了简单档、结算只给一半，不解释就像算错了。
       if (r.diffBelowCap) {
@@ -1038,7 +1042,7 @@ Page({
         grade: grade,
         gradeColor: color,
         // 走火时 headline 与 gradeTitle 都会写「走火」，标题行会重复两遍；
-        // 这里让副标题改说「这一局没走完」，把「为什么只给两成」留在 notes 里。
+        // 这里让副标题改说「这一局没走完」，把「为什么一分不给」留在 notes 里。
         gradeTitle: grade === 'F' ? '这一局没走完' : gradeTitle,
         headline: grade === 'F'
           ? '走火'

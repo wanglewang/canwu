@@ -196,8 +196,23 @@ for (const s of skillMod.SKILLS) {
   if (errors.length === errsBeforeRealm) checked += 1;
 }
 
-// 8b-3. C / F 的门数口径：文档写「有失败态的十二门 / 没有失败态的七门」，这个数必须现算。
-// 加一门玩法、或给某门补上去掉 fail 线，都该让文档同步——分组错了，读者就会把「时辰到」
+// 8b-2c. 走火（F）是整局作废，不是「最低一档」：倍率必须是 0，
+// 玩家看到的说法必须是「没有收益」，不许再写回「两成」这种打折口径。
+{
+  const worldMod = require('../data/world.js');
+  if (worldMod.GRADE_FACTOR.F !== 0) errors.push('GRADE_FACTOR.F 不是 0：走火该整局作废，不是打两折');
+  else checked += 1;
+  let doubled = 0;
+  for (const f of files.filter(function (x) { return /minigames[\\/][a-z]+\.js$/.test(x); })) {
+    if (fs.readFileSync(f, 'utf8').indexOf('两成') >= 0) {
+      errors.push(rel(f) + ' 的说明文案又写回了「两成收益」：走火是零收益');
+      doubled += 1;
+    }
+  }
+  if (!doubled) checked += 1;
+}
+
+// 8b-3. C / F 的门数口径：文档写「有失败态的十二门 / 没有失败态的七门」，这个数必须现算。// 加一门玩法、或给某门补上去掉 fail 线，都该让文档同步——分组错了，读者就会把「时辰到」
 // 当成「还能拿 C」，判负的语义立刻失真。
 const gameMod = require('../minigames/index.js');
 const CN_DIGIT = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];

@@ -161,15 +161,16 @@ check('参悟吸底条只在有操作时出现', function () {
 check('两种 F 分开处置：收功作废，走火照常结算', function () {
   // 同一条 grade === 'F' 有两个来历，处置必须不同：
   //   ① 玩家点「收功」→ 整局作废，不进 applyPractice，连 S 不动；
-  //   ② 玩法判负（阵溃 / 心神尽 / 时辰到）→ 一局打完的结果，按走火结算、断连。
+  //   ② 玩法判负（阵溃 / 心神尽 / 时辰到）→ 一局打完的结果，进结算、断连，但零收益。
   // 旧写法把所有 F 都当 ①，于是「蓄力偏离」「阵溃」也被显示成「中途收功 · 这回不算数」，
-  // 而且一分收益都没有——打崩了却连两成都不给，与「走火」的语义正好相反。
+  // 玩家既看不到自己栽在哪，也拿不到结算卡。
   const js = read('pages/practice/practice.js');
   assert.ok(/this\.aborting = false/.test(js), '新一局没清掉收功标记');
   assert.ok(/self\.aborting = true/.test(js), '玩家收功时没置位，结算分不出是哪种 F');
   assert.ok(/grade === 'F' && \(this\.aborting \|\| this\.mode === 'breakthrough'\)/.test(js),
     '所有 F 都被当成收功，走火拿不到结算');
-  assert.ok(/没走完，按「走火」只算两成收益/.test(js), '走火结算没说清只算两成');
+  assert.ok(/没走完，按「走火」不计收益/.test(js), '走火结算没写清「一分不给」');
+  assert.ok(/r\.wiped/.test(js), '结算卡没把走火与正常局分开，会显示一排 +0');
   assert.ok(!/连 S 进度也会断/.test(js), '收功确认框还在说连 S 会断（实际原样保留）');
 });
 

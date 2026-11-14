@@ -65,7 +65,7 @@ check('熟练度六阶与难度档门槛对齐', function () {
 });
 
 check('评级倍率按设计文档压低，S 不再一家独大', function () {
-  assert.deepStrictEqual(world.GRADE_FACTOR, { S: 1.5, A: 1.2, B: 1.0, C: 0.6, F: 0.2 });
+  assert.deepStrictEqual(world.GRADE_FACTOR, { S: 1.5, A: 1.2, B: 1.0, C: 0.6, F: 0 });
   assert.strictEqual(world.MAX_MULTIPLIER, 13);
   assert.strictEqual(world.REALM_DECAY, 0.3);
   assert.ok(world.GRADE_FACTOR.S < practice.DIFFICULTIES[4].mult, 'S 倍率不该盖过最高难度档');
@@ -254,22 +254,33 @@ check('折减只看「是不是最高档」，不看落差：低两档也是 ×0
   });
 });
 
-check('走火：F 算一局，照常结算但只算两成、连 S 断', function () {
+check('走火：F 算一局，但零收益——熟练度、资源、加成都不给，连 S 断', function () {
   // F 有两种来历，这里测的是「玩到一半被判负」的那种：
-  // 它是一局真实打完的结果，所以要进结算（有极少收益）、要断连。
-  // 主动收功根本不调 applyPractice，连 S 原样不动，不归这条管。
+  // 它是一局真实打完的结果，所以要进结算（报价、断连），但结论是这一局作废——
+  // 不是「最低一档」，所以一分收益都没有。主动收功根本不调 applyPractice，不归这条管。
   const s = freshState('jingxin', 1200, 1);
   s.sStreak.jingxin = 2;
+  const qiBefore = s.resources.qi;
+  const stoneBefore = s.resources.stone;
+  const profBefore = s.skills.jingxin.prof;
   const r = game.applyPractice(s, 'jingxin', 'F', { difficulty: 'hard', score: 0 });
-  assert.strictEqual(r.gradeFactor, world.GRADE_FACTOR.F, '走火没用 F 的倍率');
+  assert.strictEqual(r.gradeFactor, 0, '走火倍率不是 0');
+  assert.strictEqual(r.wiped, true, '走火没被标记成整局作废');
+  assert.strictEqual(r.gain, 0, '走火还给了熟练度');
+  assert.strictEqual(s.skills.jingxin.prof, profBefore, '走火把熟练度写进存档了');
+  assert.strictEqual(r.qi, 0, '走火还给了灵气');
+  assert.strictEqual(r.stone, 0, '走火还给了灵石');
+  assert.strictEqual(s.resources.qi, qiBefore, '走火把灵气写进存档了');
+  assert.strictEqual(s.resources.stone, stoneBefore, '走火把灵石写进存档了');
+  assert.strictEqual(s.buff.multiplier, 1, '走火还给了挂机加成');
   assert.strictEqual(r.sStreak, 0, '走火没有断连');
   assert.strictEqual(s.sStreak.jingxin, 0, '走火后存档里的连 S 没清');
-  assert.ok(r.gain >= 1, '走火一分收益都没有，崩一局等于白打');
 
-  // 同一门、同一档，S 与 F 的收益比就是 1.5 / 0.2 = 7.5 倍。
+  // 对照：同一门、同一档打出 S，熟练度与资源都得有——F 与 S 不是「差几倍」，是「有」和「没有」。
   const s2 = freshState('jingxin', 1200, 1);
   const rs = game.applyPractice(s2, 'jingxin', 'S', { difficulty: 'hard', score: 0 });
-  assert.ok(rs.gain > r.gain * 5, 'S 与走火的收益差距不对：' + rs.gain + ' vs ' + r.gain);
+  assert.ok(rs.gain > 0, 'S 没有熟练度收益');
+  assert.ok(rs.qi > 0 && rs.stone > 0, 'S 没有资源收益');
 
   // 走火不立纪录：没走完的这一局不该成为「本门最佳」。
   assert.strictEqual(s.records.jingxin, undefined, '走火被写成了本门纪录');
@@ -341,9 +352,12 @@ check('境界衰减：未到门槛与超过上限都只剩 30%', function () {
 });
 
 check('衰减后的收益仍大于 0，不会让功法突然作废', function () {
+  // 境界衰减（×0.3）与走火（×0）是两件事：前者是「还能练、拿得少」，后者是「整局作废」。
+  // 所以这条要用有评级的 B 档来测衰减，不能借 F——F 归零是设计，不是衰减打出来的。
   const old = freshState('jian', 0, 2);
-  const r = game.applyPractice(old, 'jian', 'F', { difficulty: 'easy', score: 0 });
-  assert.ok(r.gain >= 1);
+  const r = game.applyPractice(old, 'jian', 'B', { difficulty: 'easy', score: 0 });
+  assert.strictEqual(r.realmDecay, world.REALM_DECAY, '金丹期练黄阶没有衰减');
+  assert.ok(r.gain >= 1, '境界衰减把收益打到 0，等于功法作废');
 });
 
 check('属性加成乘品阶系数：同段位下天阶高于黄阶', function () {

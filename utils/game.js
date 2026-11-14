@@ -492,7 +492,11 @@ function applyPractice(state, skillId, grade, options) {
   // 先记下开场值，结算时才能如实说「这一局涨了没有」，而不是含糊带过。
   const powerBefore = powerDetail(state).total;
 
-  const factor = worldData.GRADE_FACTOR[grade] || 0.6;
+  // 走火（F）是「这一局作废」，不是「最低一档」：倍率 0，整局不给任何东西。
+  // 注意倍率为 0 时不能用 `||` 兜底——0 会被当成「没配」，静默落回 0.6。
+  const rawFactor = worldData.GRADE_FACTOR[grade];
+  const factor = typeof rawFactor === 'number' ? rawFactor : 0.6;
+  const wiped = factor === 0;
   const attrs = computeAttributes(state);
   const wuFactor = Math.min(1.6, 1 + (attrs.wu || 0) / 200);
   const practiceBonus = effectValue(state, 'practice');
@@ -534,7 +538,8 @@ function applyPractice(state, skillId, grade, options) {
   const coreMult = Math.min(worldData.MAX_MULTIPLIER, coreRaw);
   const capped = coreRaw > worldData.MAX_MULTIPLIER + 1e-9;
 
-  const gain = Math.max(1, Math.round(method.base * coreMult * wuFactor * (1 + practiceBonus) * crossBonus));
+  // 「每局至少给 1 点」不适用于走火：作废就是 0，不是 1。
+  const gain = wiped ? 0 : Math.max(1, Math.round(method.base * coreMult * wuFactor * (1 + practiceBonus) * crossBonus));
 
   // 局内得分第一次真正进入养成：记住本门最佳，给重复参悟一个可追的目标。
   if (!state.records) state.records = {};
@@ -597,18 +602,22 @@ function applyPractice(state, skillId, grade, options) {
   }
   state.sStreak[skillId] = streakNow;
 
-  const qi = Math.round(8 + factor * 10);
-  const stone = grade === 'S' ? 3 : grade === 'A' ? 2 : grade === 'B' ? 1 : 0;
+  // 走火连资源与挂机加成都不给：熟练度、灵气、灵石、buff 是同一笔「这一局的收益」，
+  // 只砍其中一半会让人以为「崩了还能蹭加成」。
+  const qi = wiped ? 0 : Math.round(8 + factor * 10);
+  const stone = wiped ? 0 : (grade === 'S' ? 3 : grade === 'A' ? 2 : grade === 'B' ? 1 : 0);
   state.resources.qi += qi;
   state.resources.stone += stone;
 
-  const newMult = grade === 'S' ? 1.8 : grade === 'A' ? 1.5 : grade === 'B' ? 1.25 : 1.1;
-  const until = Date.now() + 30 * 60 * 1000;
-  const cur = state.buff || { multiplier: 1, until: 0 };
-  if (cur.until > Date.now() && cur.multiplier > newMult) {
-    state.buff = { multiplier: cur.multiplier, until: Math.max(cur.until, until) };
-  } else {
-    state.buff = { multiplier: newMult, until: until };
+  if (!wiped) {
+    const newMult = grade === 'S' ? 1.8 : grade === 'A' ? 1.5 : grade === 'B' ? 1.25 : 1.1;
+    const until = Date.now() + 30 * 60 * 1000;
+    const cur = state.buff || { multiplier: 1, until: 0 };
+    if (cur.until > Date.now() && cur.multiplier > newMult) {
+      state.buff = { multiplier: cur.multiplier, until: Math.max(cur.until, until) };
+    } else {
+      state.buff = { multiplier: newMult, until: until };
+    }
   }
 
   state.stats.practiceCount += 1;
@@ -622,13 +631,17 @@ function applyPractice(state, skillId, grade, options) {
       : skill.name + ' 参悟至「' + worldData.TIERS[afterTier].name + '」', 'tier');
   } else if (promotion && promotion.maxed) {
     addLog(state, skill.name + ' 三连圆满，本门已至大圆满', 'tier');
+  } else if (wiped) {
+    // 不能说「熟练度 +0」：玩家会以为是自己眼睛看错了，而不是这一局作废。
+    addLog(state, '参悟 ' + skill.name + ' 走火，这一局没有收益', 'practice');
   } else {
     addLog(state, '参悟 ' + skill.name + '，熟练度 +' + gain + '（' + grade + ' 档）', 'practice');
   }
 
-  // 机缘事件：小概率额外收获，也是技能获取途径之一
+  // 机缘事件：小概率额外收获，也是技能获取途径之一。
+  // 走火不触发：整局作废却还能从石缝里摸到灵石，等于零收益只是句空话。
   let fortune = null;
-  if (Math.random() < 0.06) {
+  if (!wiped && Math.random() < 0.06) {
     const r = Math.random();
     const locked = [];
     for (let i = 0; i < skillData.SKILLS.length; i += 1) {
@@ -654,6 +667,8 @@ function applyPractice(state, skillId, grade, options) {
   return {
     ok: true,
     grade: grade,
+    // 走火＝作废：页面据此把收益行显示成「无」，而不是一排 +0。
+    wiped: wiped,
     gradeTitle: copy.GRADE_TITLE[grade] || '粗浅',
     gradeColor: worldData.GRADE_COLOR[grade] || '#8a8f83',
     skillName: skill.name,
