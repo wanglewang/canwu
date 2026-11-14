@@ -1226,8 +1226,12 @@ check('收益只奖不罚：连练递减全站清零，换门倍率有单一真�
   assert.ok(/copy\.practiceNote/.test(read('pages/practice/practice.js'))
     && /repeatNote/.test(read('pages/practice/practice.wxml')),
     '准备页没把「连练不减收益」写在开局前');
-  assert.ok(/WARN 只刷简单的熟练度反超/.test(read('scripts/simulate.js')),
-    '曲线重标定后暴露的已知问题没被如实记录');
+  // 只刷简单反超逐档升的坑已经修掉（简单档在小成后不计连 S），
+  // 现在既要它别再出现，也要有断言把它钉住。
+  assert.ok(!/WARN 只刷简单的熟练度反超/.test(read('scripts/simulate.js')),
+    '反超问题已修，模拟里不该还挂着这条 WARN');
+  assert.ok(/只刷简单的总熟练度不该反超逐档升/.test(read('scripts/simulate.js')),
+    '没有断言守着「只刷简单不许反超逐档升」');
 });
 
 check('功法页默认排序与主页推荐同一份口径', function () {

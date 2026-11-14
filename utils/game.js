@@ -526,10 +526,14 @@ function applyPractice(state, skillId, grade, options) {
   // 三连 S 直接晋级：连续完成的 3 局都拿到 S，就把熟练度直接补到下一阶段门槛。
   // 「直接晋级」= 升一个熟练度段位（未入门→入门→小成→大成→圆满→大圆满），
   // 不是加一句文案里的奖励；已至大圆满则不再补。中途收功（F）不算完成，连 S 不增不减。
+  // 简单档只负责把新手送进门：段位到小成（也就是已经能选普通档）之后，
+  // 简单档的 S 不再计连 S。否则最容易的档位反而成了刷熟练度的最优解——
+  // 收益模拟里「只刷简单」会反超「逐档升」，等于把玩家往回推。
+  const streakCounts = diff.depth >= 1 || beforeTier < 2;
   if (!state.sStreak) state.sStreak = {};
   const streakBefore = Math.min(S_STREAK_GOAL - 1, Math.floor(num(state.sStreak[skillId], 0)));
   let streakNow = streakBefore;
-  if (grade !== 'F') streakNow = grade === 'S' ? streakBefore + 1 : 0;
+  if (streakCounts && grade !== 'F') streakNow = grade === 'S' ? streakBefore + 1 : 0;
 
   rec.prof += gain;
   let promotion = null;

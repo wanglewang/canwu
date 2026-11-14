@@ -62,7 +62,7 @@ check('熟练度六阶与难度档门槛对齐', function () {
 
 check('评级倍率按设计文档压低，S 不再一家独大', function () {
   assert.deepStrictEqual(world.GRADE_FACTOR, { S: 1.5, A: 1.2, B: 1.0, C: 0.6, F: 0.2 });
-  assert.strictEqual(world.MAX_MULTIPLIER, 8);
+  assert.strictEqual(world.MAX_MULTIPLIER, 13);
   assert.strictEqual(world.REALM_DECAY, 0.3);
   assert.ok(world.GRADE_FACTOR.S < practice.DIFFICULTIES[4].mult, 'S 倍率不该盖过最高难度档');
 });
@@ -182,14 +182,23 @@ check('越权选高档自动回落到已解锁的最高档', function () {
   assert.strictEqual(r.diffMaxName, '简单');
 });
 
-check('总倍率封顶：天阶 + 绝境 + S 被压在 8 倍', function () {
+check('封顶只防叠加失控：正常最高组合不被压，天阶三档收益仍递增', function () {
   const s = freshState('taixu', 6000, 3);
   s.realmIndex = 3;
   const r = game.applyPractice(s, 'taixu', 'S', { difficulty: 'desperate', score: 0 });
   assert.strictEqual(r.tierKey, 'tian');
-  assert.strictEqual(r.capped, true);
-  assert.strictEqual(r.coreMult, world.MAX_MULTIPLIER);
-  assert.ok(r.coreRaw > world.MAX_MULTIPLIER);
+  // 12.48 是正常参数下的天花板。封顶压到 8.0 时，天阶的困难 / 极难 / 绝境收益
+  // 全部并列 8.0，最高两档就只剩挑战意义、没有收益意义——那是把难度档做废。
+  assert.strictEqual(r.capped, false, '正常最高组合被总倍率封顶压住了');
+  assert.ok(r.coreRaw <= world.MAX_MULTIPLIER, '封顶值低于正常最高组合');
+  const got = [];
+  for (const d of ['hard', 'expert', 'desperate']) {
+    const st = freshState('taixu', 6000, 3);
+    st.realmIndex = 3;
+    got.push(game.applyPractice(st, 'taixu', 'S', { difficulty: d }).coreRaw);
+  }
+  assert.ok(got[1] > got[0] && got[2] > got[1],
+    '天阶各难度档收益没有一档比一档高：' + got.join(' / '));
 });
 
 check('境界衰减：未到门槛与超过上限都只剩 30%', function () {

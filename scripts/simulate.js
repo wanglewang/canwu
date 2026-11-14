@@ -127,19 +127,29 @@ expect(decayed.total < auto.total * 0.5, '黄阶在金丹后明显衰减（' + d
 expect(tian.prof >= 6000, '天阶 ' + RUNS + ' 局能练到大圆满（' + tian.prof + '）');
 expect(tian.prof <= 80000, '天阶 ' + RUNS + ' 局数值不失控（' + tian.prof + '）');
 
-// 单局最高收益不能离谱：天阶 + 绝境 + S 已被 MAX_MULTIPLIER 压住。
+// 封顶只防以后新增系数叠加，不许压正常组合：压到 8.0 时天阶的困难 / 极难 / 绝境
+// 收益全部并列 8.0，最高两档就只剩挑战意义、没有收益意义。原来这里只验了单个品阶的
+// 期望，正好漏掉这一类，现在按品阶逐档验一遍。
 const topState = game.createNewState();
 topState.skills.taixu.unlocked = true;
 topState.skills.taixu.prof = 6000;
 topState.realmIndex = 3;
 const top = game.applyPractice(topState, 'taixu', 'S', { difficulty: 'desperate', score: 0 });
-expect(top.capped === true && top.coreMult === world.MAX_MULTIPLIER, '极端组合被总倍率上限压住（×' + top.coreMult + '）');
-
-// 已知问题，只报告不判失败：简单档 S 概率高，三连 S 的补额更容易触发，
-// 熟练度可能反超逐档升；但正常收益（上表第一列）仍是逐档升更高。
-if (easy.prof > auto.prof) {
-  console.log('  WARN 只刷简单的熟练度反超逐档升：连 S 晋级补额在低难度更易触发，见 README 已知问题');
+expect(!top.capped, '正常最高组合（天阶 · 绝境 · S = ×' + top.coreRaw + '）不该被封顶压住');
+for (const tier of practice.TIERS) {
+  const raws = practice.DIFFICULTIES.map(function (d) {
+    return tier.reward * d.mult * world.GRADE_FACTOR.S;
+  });
+  const mono = raws.every(function (v, i) { return i === 0 || v > raws[i - 1]; });
+  expect(mono && raws[raws.length - 1] <= world.MAX_MULTIPLIER,
+    tier.label + '：五档 S 收益一档比一档高且不撞封顶（'
+    + raws.map(function (v) { return v.toFixed(2); }).join(' < ') + '）');
 }
+
+// 简单档的 S 只在「还没到小成」时计连 S：一旦能选普通档，最容易的档位就不再产出补额。
+// 这条守的是「奖励要奖励难度」——修之前只刷简单靠补额反超逐档升（8424 vs 7339）。
+expect(easy.prof <= auto.prof,
+  '只刷简单的总熟练度不该反超逐档升（' + easy.prof + ' vs ' + auto.prof + '）');
 
 console.log(bad === 0 ? '\n收益曲线检查全部通过' : '\n有 ' + bad + ' 项不达标，需要调数值');
 process.exit(bad === 0 ? 0 : 1);
