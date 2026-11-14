@@ -14,6 +14,7 @@ const lightsMod = require('../minigames/lights.js');
 const sudokuMod = require('../minigames/sudoku.js');
 const klotskiMod = require('../minigames/klotski.js');
 const pushboxMod = require('../minigames/pushbox.js');
+const schulteMod = require('../minigames/schulte.js');
 
 let passed = 0;
 function check(name, fn) {
@@ -2021,6 +2022,49 @@ check('太虚诀：时辰到还没通完就是走火 F', function () {
     assert.strictEqual(ctx.st.finished.grade, 'F', '没通完却给了 ' + ctx.st.finished.grade);
     assert.ok(/只通了/.test(ctx.st.finished.summary), '结算没说清通了几对：' + ctx.st.finished.summary);
     ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('顺序点格：盘上不标「下一个在哪」，难度靠格子数与罚时', function () {
+  installClock();
+  try {
+    const method = data.getMethod('shumu');
+    const sizes = [];
+    for (let depth = 0; depth < 5; depth += 1) {
+      const params = data.buildParams(method, data.DIFFICULTIES[depth].key);
+      const ctx = makeCtx(method, {}, params);
+      ctx.c.start();
+      const vm = ctx.st.vm;
+      const n = vm.cells.length;
+      sizes.push(n);
+      // 开局：盘上只有「没点过的数」，没有任何一格被标成「下一个」。
+      // 一旦替玩家描出目标格，这一门就退化成「点发亮的格子」，舒尔特方格练的目光扫盘全没了。
+      const marked = vm.cells.filter(function (x) { return /cell--next|cell--lit|cell--hint|cell--hot/.test(x.cls); });
+      assert.strictEqual(marked.length, 0, '第 ' + (depth + 1) + ' 档开局就替玩家标了位置');
+      const labels = vm.cells.map(function (x) { return Number(x.label); }).sort(function (a, b) { return a - b; });
+      assert.deepStrictEqual(labels, Array.from({ length: n }, function (_, i) { return i + 1; }), '盘上不是 1…N 各一次');
+
+      // 点错一格的代价随档加重：简单 2 秒，绝境 5 秒。
+      const wrongIdx = vm.schulte.order.indexOf(n);
+      ctx.c.tap(wrongIdx);
+      assert.strictEqual(vm.scoreText, '用时 ' + schulteMod.PENALTIES[depth] + ' 秒',
+        '第 ' + (depth + 1) + ' 档点错没有按 ' + schulteMod.PENALTIES[depth] + ' 秒罚时');
+
+      // 按序点完：中途任何一步都不许冒出新的「下一个」标记。
+      for (let v = 1; v <= n; v += 1) {
+        const idx = vm.schulte.order.indexOf(v);
+        ctx.c.tap(idx);
+        const stray = vm.cells.filter(function (x) { return /cell--next/.test(x.cls); });
+        assert.strictEqual(stray.length, 0, '点完 ' + v + ' 之后又把下一个标出来了');
+      }
+      assert.ok(ctx.st.finished, '点完整盘没有结算');
+      ctx.c.destroy();
+    }
+    // 格子数随档不降，且到 6×6 封顶——再大手机上看不清数字，难度就成了猜。
+    for (let i = 1; i < sizes.length; i += 1) {
+      assert.ok(sizes[i] >= sizes[i - 1], '第 ' + (i + 1) + ' 档格子比上一档还少：' + sizes.join('/'));
+    }
+    assert.ok(sizes[sizes.length - 1] <= 36, '盘面超过 6×6：' + sizes.join('/'));
   } finally { restoreClock(); }
 });
 

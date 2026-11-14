@@ -7,22 +7,29 @@
 // 与「辨伪择真」的区别：剑法是「认准一个真招」，这里是「按序把一整个盘走完」。
 //
 // 一局一盘：N×N 格上打乱写着 1 到 N²，按序点过去，点完即完成。
-// 点错不换格，只罚 2 秒并重记一次错；时辰到还没点完是走火 F。
+// 点错不换格，罚时并重记一次错；时辰到还没点完是走火 F。
 // 评级只看用时（含罚时），三条线由本模块 linesOf 按盘面尺寸与本档推——格子越多越长、档越高越紧。
+//
+// 盘面上**不标「下一个在哪」**：HUD 报的是「下一个几」，位置得自己扫出来。
+// 这一门练的就是目光按序扫过整盘、不乱不回头；一旦替玩家把目标格圈亮，
+// 就只剩「点发亮的格子」，与舒尔特方格本身无关了。难度全部由「格子多少 + 罚时 + 时限」承担。
 
 const C = require('./common.js');
 
-const WRONG_PENALTY = 2;
-
-const SIZES = [4, 5, 5, 6, 6];
+// 格子数随档递增，到 6×6 封顶：7×7 在 4.7 寸屏上每格只剩 98rpx、字 20rpx，
+// 数字看不清就成了「猜」而不是「找」。到顶之后难度改由罚时与时限收紧。
+const SIZES = [4, 5, 6, 6, 6];
+// 点错的代价随档加重：简单档手滑不心疼，绝境档一次手滑就吃掉半条 S 线。
+const PENALTIES = [2, 2, 3, 4, 5];
+// 每格的时间预算（含找 + 点）：简单档最宽，越往后越紧。
+const PER_CELL = [1.15, 1.05, 0.95, 0.88, 0.80];
 
 function linesOf(p) {
   const depth = Math.max(0, Math.min(4, (p && p.depth) || 0));
   const size = Math.max(3, Math.min(6, p && p.size ? p.size : SIZES[depth]));
   const n = size * size;
-  // 一格约 0.9 秒起步：4×4 十四秒上下，6×6 四十几秒。档越高线越紧。
-  const s = Math.round(n * (0.9 - depth * 0.06));
-  return [Math.max(8, s), Math.max(12, Math.round(s * 1.5)), Math.max(16, Math.round(s * 2.2))];
+  const s = Math.round(n * PER_CELL[depth]);
+  return [Math.max(8, s), Math.max(12, Math.round(s * 1.45)), Math.max(16, Math.round(s * 2.1))];
 }
 
 function create(ctx) {
@@ -32,8 +39,9 @@ function create(ctx) {
   const size = Math.max(3, Math.min(6, p.size || SIZES[depth]));
   const n = size * size;
   const lim = linesOf(Object.assign({}, p, { depth: depth, size: size }));
+  const penaltySec = PENALTIES[depth];
   const timeLimit = Math.max(lim[0] + 10, p.timeLimit || Math.round(lim[2] * 1.35));
-  const costText = ctx.tip || '点错不换格，罚 ' + WRONG_PENALTY + ' 秒';
+  const costText = ctx.tip ? ctx.tip + ' · 本档 ' + penaltySec + ' 秒' : '点错不换格，罚 ' + penaltySec + ' 秒';
 
   const bag = C.TimerBag();
   const vm = C.makeVm(size, n, '按 1 到 ' + n + ' 的顺序点过去', costText);
@@ -60,8 +68,8 @@ function create(ctx) {
       cell.end = false;
       cell.label = String(v);
       cell.tone = 0;
+      // 不标「下一个在哪」：点过的变灰，没点的与待找的一视同仁。
       if (v < next) cell.cls = 'cell cell--gone';
-      else if (v === next) cell.cls = 'cell cell--num cell--next';
       else cell.cls = 'cell cell--num';
     }
     vm.schulte = { size: size, order: order.slice(), next: next };
@@ -106,7 +114,7 @@ function create(ctx) {
     const g = gradeOf();
     if (g === 'S') notes.push('用时 ' + used() + ' 秒，进了 S 线（' + lim[0] + ' 秒）。');
     else notes.push('用时 ' + used() + ' 秒 · S 线 ' + lim[0] + ' 秒、A 线 ' + lim[1] + ' 秒。');
-    if (wrong) notes.push('点错 ' + wrong + ' 次，罚了 ' + penalty + ' 秒：错的都在邻格，别用手指记位置，用眼睛找下一个数。');
+    if (wrong) notes.push('点错 ' + wrong + ' 次，罚了 ' + penalty + ' 秒：别用手指追着数走，目光放中间、用余光扫四周找下一个数。');
     return notes;
   }
 
@@ -150,8 +158,8 @@ function create(ctx) {
       if (index < 0 || index >= n) return;
       if (order[index] !== next) {
         wrong += 1;
-        penalty += WRONG_PENALTY;
-        C.flash(vm, '该点 ' + next + ' · 罚 ' + WRONG_PENALTY + ' 秒', 'bad');
+        penalty += penaltySec;
+        C.flash(vm, '该点 ' + next + ' · 罚 ' + penaltySec + ' 秒', 'bad');
         paint();
         syncHud();
         render();
@@ -177,9 +185,12 @@ function create(ctx) {
 
 function lines(p) {
   const lim = linesOf(p);
+  const depth = Math.max(0, Math.min(4, (p && p.depth) || 0));
+  const size = Math.max(3, Math.min(6, p && p.size ? p.size : SIZES[depth]));
   return {
     rule: '按用时评级（含点错的罚时；点完整盘才算完成）',
     items: [
+      size + '×' + size + ' 盘 · ' + size * size + ' 个数 · 点错罚 ' + PENALTIES[depth] + ' 秒',
       'S：' + lim[0] + ' 秒内点完',
       'A：' + lim[1] + ' 秒内',
       'B：' + lim[2] + ' 秒内',
@@ -195,4 +206,5 @@ module.exports = {
   create: create,
   lines: lines,
   SIZES: SIZES,
+  PENALTIES: PENALTIES,
 };

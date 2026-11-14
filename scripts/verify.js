@@ -265,6 +265,7 @@ for (const key of Object.keys(themeMod.THEMES)) {
 const fallbackPairs = [
   ['merge', 'TARGETS', 'MERGE_TARGETS'],
   ['schulte', 'SIZES', 'SCHULTE_SIZES'],
+  ['schulte', 'PENALTIES', 'SCHULTE_PENALTIES'],
 ];
 for (const [game, modKey, dataKey] of fallbackPairs) {
   const modVal = gameMod.MODULES[game] && gameMod.MODULES[game][modKey];
@@ -279,6 +280,31 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
       + biggestMod.COUNTS[i] + '/' + biggestMod.ROUNDS[i] + ' vs ' + lv.count + '/' + lv.rounds);
   } else checked += 1;
 });
+
+// 8b-6. 顺序点格不许替玩家标出「下一个在哪」。目标格一旦被描边，这一门就退化成
+// 「点发亮的格子」——舒尔特方格练的是目光按序扫过整盘，替它找位置等于把功课做完。
+for (const f of ['minigames/schulte.js', 'pages/practice/practice.wxss']) {
+  const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
+  if (src.indexOf('cell--next') >= 0) errors.push(f + ' 又给「下一个」标位置了：顺序点格的位置得玩家自己扫');
+  else checked += 1;
+}
+
+// 8b-7. 逐数诀的难度只由「格子多少 + 罚时 + 时限」承担，三件事都得随档变重，
+// 但盘面到 6×6 封顶（7×7 在 4.7 寸屏上每格不到 100rpx，数字看不清就成了猜）。
+{
+  const sizes = practiceMod.SCHULTE_SIZES;
+  const pens = practiceMod.SCHULTE_PENALTIES;
+  if (sizes.length !== 5 || pens.length !== 5) errors.push('逐数诀的档位表不是五档');
+  else checked += 1;
+  for (let i = 1; i < 5; i += 1) {
+    if (sizes[i] < sizes[i - 1]) errors.push('逐数诀第 ' + i + ' 档比上一档格子还少：被调反了');
+    else checked += 1;
+    if (pens[i] < pens[i - 1]) errors.push('逐数诀第 ' + i + ' 档点错罚时反而更轻：被调反了');
+    else checked += 1;
+  }
+  if (sizes[sizes.length - 1] > 6) errors.push('逐数诀盘面超过 6×6：小屏上数字看不清，难度会变成猜');
+  else checked += 1;
+}
 
 // 8c. 图鉴详情：未习得功法也必须能取到完整玩法与习得路径。
 const engineMod = require('../utils/game.js');

@@ -142,7 +142,7 @@ const PRACTICE_METHODS = [
   {
     id: 'shumu', name: '循数疾点', game: 'schulte', theme: 'shumu', twist: 'shumu',
     desc: '盘上的数散乱摆着，从 1 顺着点到最后，点完即完成。',
-    tip: '点错不换格，罚 2 秒',
+    tip: '点错按档罚时',
     base: 32,
     params: {},
   },
@@ -422,7 +422,10 @@ function klotskiLevelOf(diffKey) {
 // 「这一档换成了什么」，不然高档位那行会照旧写「入门基准」。
 // 模块里的默认表只在没带参数时兜底（测试探针直接 create 就是走那条路）。
 const MERGE_TARGETS = [128, 256, 256, 512, 1024];
-const SCHULTE_SIZES = [4, 5, 5, 6, 6];
+const SCHULTE_SIZES = [4, 5, 6, 6, 6];
+// 与 minigames/schulte.js 的 PENALTIES 同值：这里只给准备页写「这一档罚几秒」，
+// 局内判定仍以模块为准，两边由 verify 比对锁死（与 MERGE_TARGETS 同一套做法）。
+const SCHULTE_PENALTIES = [2, 2, 3, 4, 5];
 const PUSHBOX_LEVELS = [0, 1, 2, 3, 4];
 const BIGGEST_LEVELS = [
   { count: 9, rounds: 8 },
@@ -590,7 +593,7 @@ function diffDetail(method, diffKey) {
   } else if (method && method.game === 'merge') {
     brief = '本档要合出 ' + now.target + ' 一块';
   } else if (method && method.game === 'schulte') {
-    brief = now.size + '×' + now.size + ' 盘 · 共 ' + now.size * now.size + ' 个数';
+    brief = now.size + '×' + now.size + ' 盘 · ' + now.size * now.size + ' 个数 · 点错罚 ' + SCHULTE_PENALTIES[d.depth] + ' 秒';
   } else if (method && method.game === 'pushbox') {
     brief = '第 ' + (now.level + 1) + ' 张石图 · 推数越少越好';
   } else if (method && method.game === 'biggest') {
@@ -698,6 +701,7 @@ module.exports = {
   // verify 会逐个比对模块导出的同名常量。
   MERGE_TARGETS: MERGE_TARGETS,
   SCHULTE_SIZES: SCHULTE_SIZES,
+  SCHULTE_PENALTIES: SCHULTE_PENALTIES,
   PUSHBOX_LEVELS: PUSHBOX_LEVELS,
   BIGGEST_LEVELS: BIGGEST_LEVELS,
   hintLabelOf: hintLabelOf,
