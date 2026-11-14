@@ -174,6 +174,8 @@ function create(ctx) {
         + (i === selected ? ' cell--sel' : '')
         + (hintPair && (hintPair[0] === i || hintPair[1] === i) ? ' cell--hintpair' : '');
       cell.label = GLYPHS[board[i] - 1] || GLYPHS[0];
+      // 同连连看：盘面画的是纹样，label 只留数据语义。
+      cell.crest = board[i];
       cell.tone = board[i];
     }
     vm.match = { board: board.slice(), cols: cols, rows: rows, first: selected };

@@ -286,7 +286,10 @@
             <view class="cell__arrow-shaft"></view>
           </view>
           <view wx:if="{{item.end}}" class="cell__end {{item.endLive ? 'cell__end--live' : ''}}"></view>
-          <text>{{item.label}}</text>
+          <!-- 灵纹牌画的是纹样（crest），其余玩法仍是字形 / 数字。纹样由 wxss 画，
+               不用字体里的 ✦ ✿：那类字符在部分安卓上会被系统换成彩色 emoji。 -->
+          <view wx:if="{{item.crest}}" class="cell__crest crest--{{item.crest}}"></view>
+          <text wx:else>{{item.label}}</text>
         </view>
         <!-- 划刀玩法的透明触摸层：盖住静态格子，用手势坐标还原一条连续轨迹 -->
         <view wx:if="{{vm.extras.showSwipe && started}}" class="swipe-layer" bindtouchstart="onBoardTouchStart" catchtouchmove="onBoardTouchMove" bindtouchend="onBoardTouchEnd" bindtouchcancel="onBoardTouchEnd"></view>

@@ -168,8 +168,10 @@ function create(ctx) {
       cell.arrow = -1;
       cell.end = false;
       if (!v) {
-        cell.cls = 'cell cell--gone';
+        // 收走的一对要把牌位留空：仍是这张盘上的位置，只是没有牌了。
+        cell.cls = 'cell cell--chip cell--gone';
         cell.label = '';
+        cell.crest = 0;
         cell.tone = 0;
         continue;
       }
@@ -177,6 +179,8 @@ function create(ctx) {
         + (i === selected ? ' cell--sel' : '')
         + (hintPair && (hintPair[0] === i || hintPair[1] === i) ? ' cell--hintpair' : '');
       cell.label = GLYPHS[v - 1];
+      // 上屏的是纹样不是字形：crest 交给 wxss 画，label 只在数据里留个可读的代号。
+      cell.crest = v;
       cell.tone = v;
     }
     vm.link = { first: selected, board: board.slice(), cols: cols, rows: rows, pairs: pairs };

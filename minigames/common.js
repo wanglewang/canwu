@@ -31,15 +31,19 @@ function shuffle(arr) {
 // arrow / end / endLive 是「刀路指向」的可选字段：-1 / false 表示这一格不画方向图形。
 // endLive 专给双锋用：两条路都有靶心，只有会呼吸的那个是真招。
 // 在 vm 协议里给默认值，格子结构才不会因为某套玩法挂过箭头而变得不一致。
+// crest 是「这一格画第几号纹样」：0 表示不画。灵纹牌（连连看 / 消消乐）用它，
+// 纹样由 wxss 画，不放字体字符——✦ ✿ 这类 dingbat 在部分安卓上会被系统换成彩色 emoji，
+// 同一个盘面在两台手机上长两样。label 仍保留语义值（测试与读屏都靠它），只是不再上屏。
 function makeCells(n) {
   const a = [];
-  for (let i = 0; i < n; i += 1) a.push({ key: i, label: '', cls: 'cell', tone: 0, arrow: -1, end: false, endLive: false });
+  for (let i = 0; i < n; i += 1) a.push({ key: i, label: '', crest: 0, cls: 'cell', tone: 0, arrow: -1, end: false, endLive: false });
   return a;
 }
 
 function clearCells(cells) {
   for (let i = 0; i < cells.length; i += 1) {
     cells[i].label = '';
+    cells[i].crest = 0;
     cells[i].cls = 'cell';
     cells[i].tone = 0;
     cells[i].arrow = -1;
