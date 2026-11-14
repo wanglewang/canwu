@@ -1808,4 +1808,51 @@ check('预留的剑 profile 与剑法主题仍零刀字，等做剑法时可直�
   clean('snatch 失手浮字', themes.THEMES.snatch.miss);
 });
 
+check('阵灯推演：首局手把手两步走完就全亮，点错不推进', function () {
+  installClock();
+  try {
+    const teach = index.MODULES.lights.teach;
+    assert.ok(teach, '燃灯诀没有教学脚本');
+    assert.deepStrictEqual(teach.steps, [4, 0], '教学步骤被改了（第一手必须先点正中）');
+    const startBoard = teach.board();
+    assert.strictEqual(startBoard.filter(Boolean).length, 5,
+      '教学盘初始亮灯数不对（应是全亮反推两手后剩五盏）');
+
+    let vm = null;
+    let done = 0;
+    const c = index.createTeach('lights', {
+      theme: themes.themeOf('arrayEye', 'lights'),
+      render: function (v) { vm = v; },
+      done: function () { done += 1; },
+    });
+    assert.ok(vm && vm.tutorial === true, '教学 vm 没标 tutorial，页面会当成正式局');
+    assert.strictEqual(vm.extras.showHint, false, '教学里不该给提示按钮');
+    assert.ok(vm.cells[4].cls.indexOf('cell--teach-next') >= 0, '第一手没标出正中那一格');
+
+    // 点错不推进：只提示，不动盘面。
+    c.tap(8);
+    assert.ok(vm.teachText.indexOf('先点那一格') >= 0, '点错没有提示');
+    assert.ok(vm.cells[4].cls.indexOf('cell--teach-next') >= 0, '点错把目标格弄丢了');
+
+    c.tap(4);
+    assert.ok(vm.cells[0].cls.indexOf('cell--teach-next') >= 0, '第二步没把目标换到左上');
+    c.tap(0);
+    const lit = vm.cells.filter(function (x) { return x.cls.indexOf('cell--lit') >= 0; }).length;
+    assert.strictEqual(lit, 9, '两步走完没有全亮');
+
+    // 全亮后停一拍再交棒：这一拍是给玩家看清「破阵长什么样」的。
+    advance(500);
+    assert.strictEqual(done, 0, '教学没停就切走了');
+    advance(500);
+    assert.strictEqual(done, 1, '教学走完没有交棒给正式局');
+    c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('首局手把手只给「自带脚本」的玩法，不是所有玩法硬塞过场', function () {
+  assert.strictEqual(index.hasTeach('lights'), true, '燃灯诀应该有教学脚本');
+  assert.strictEqual(index.hasTeach('click'), false, '没写脚本的玩法不该被塞引导');
+  assert.strictEqual(index.createTeach('click', {}), null, '没有脚本却返回了控制器');
+});
+
 console.log('\n小游戏层断言全部通过（' + passed + ' 项）');

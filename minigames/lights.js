@@ -129,6 +129,132 @@ function solve(board, size, allowed) {
   return clicks;
 }
 
+// ---------------------------------------------------------------- 首局手把手
+// 新手引导不做「先读三页再玩」的弹窗：直接把玩家放到一盘两步就能解的小阵上。
+// 第一手让他看见「点一格，自己和四邻一起翻」，第二手让他看见「刚翻暗的四邻又回来」——
+// 这两手就是这一门的全部规则，比任何一段解释都快。
+//
+// 教学盘与真实对局同构（同样 3×3、同样 ● / ○、同样点哪翻哪），所以手感能直接迁移；
+// 但它不计步、不结算、不进纪录、不进连 S——教学不是一局，输赢都不该写进存档。
+// 只有一门功法第一次开局会进，跳过或走完都算「看过」，之后不再出现。
+const TEACH_SIZE = 3;
+// 两步解：先点正中（真的翻五格），再点左上（角上只翻三格）。顺序不能反——
+// 第一手必须让玩家看见「五格同时变」，第二手顺手把「边角翻得少」也教了。
+// 初始盘 = 全亮反推这两手，正好只剩四盏灭（先点后点都一样，翻面是可交换的）。
+const TEACH_STEPS = [4, 0];
+const TEACH_TEXT = [
+  '点亮正中这一格 · 它和上下左右五格一起翻面',
+  '再点左上 · 刚被翻暗的两邻一起回来',
+];
+const TEACH_DONE = '五格与三格都翻过 · 全阵亮起即破阵';
+const TEACH_HOLD_MS = 900;   // 全亮后停一拍，让玩家看清结果再进正式局
+
+function teachBoard() {
+  const n = TEACH_SIZE * TEACH_SIZE;
+  const b = new Array(n).fill(true);
+  toggleAt(b, TEACH_SIZE, TEACH_STEPS[0]);
+  toggleAt(b, TEACH_SIZE, TEACH_STEPS[1]);
+  return b;
+}
+
+// 独立于对局的小控制器：接口与真局一致（start / tap / destroy），页面不必分两套写法。
+function createTeach(ctx) {
+  const theme = ctx.theme || {};
+  const n = TEACH_SIZE * TEACH_SIZE;
+  const board = teachBoard();
+  let step = 0;
+  let done = false;
+  let timer = null;
+
+  const vm = C.makeVm(TEACH_SIZE, n, '教学 · 让全阵亮起', '点一格会翻它和上下左右');
+  vm.phase = 'playing';
+  vm.tutorial = true;
+  vm.teachTotal = TEACH_STEPS.length;
+  // 教学中没有「步数」，也不该出现评级徽章与进度条：那些是正式局才有的压力。
+  vm.extras.showHint = false;
+  vm.extras.showReset = false;
+  vm.extras.showGradeNow = false;
+  vm.extras.showProgress = false;
+  vm.timeText = '教学 · 不计步';
+
+  function litCount() {
+    let k = 0;
+    for (let i = 0; i < n; i += 1) if (board[i]) k += 1;
+    return k;
+  }
+
+  function paint() {
+    for (let i = 0; i < n; i += 1) {
+      vm.cells[i].cls = board[i] ? 'cell cell--lit' : 'cell cell--off';
+      vm.cells[i].label = board[i] ? (theme.glyph || '●') : OFF_GLYPH;
+      vm.cells[i].tone = 0;
+    }
+    // 该点的那一格自己会呼吸：不写「点这里」，也让玩家一眼知道下一手在哪。
+    if (!done) vm.cells[TEACH_STEPS[step]].cls += ' cell--teach-next';
+  }
+
+  function sync() {
+    const lit = litCount();
+    vm.teachStep = Math.min(step + 1, TEACH_STEPS.length);
+    vm.teachText = done ? TEACH_DONE : TEACH_TEXT[step];
+    vm.goal = '教学 · 第 ' + vm.teachStep + ' / ' + TEACH_STEPS.length + ' 步';
+    vm.progress = C.pct(lit, n);
+    vm.progressText = '已亮 ' + lit + ' / ' + n + ' 盏';
+    vm.status = vm.teachText;
+    vm.scoreText = '教学中';
+    vm.banner = '';
+  }
+
+  paint();
+  sync();
+  ctx.render(vm);
+
+  return C.fillController({
+    start: function () { /* 教学盘开局即已摆好，不需要再起手 */ },
+    tap: function (index) {
+      if (done) return;
+      if (index !== TEACH_STEPS[step]) {
+        vm.teachText = '先点那一格 · 它正在呼吸';
+        C.flash(vm, '先点发光的那一格', 'bad');
+        ctx.render(vm);
+        return;
+      }
+      toggleAt(board, TEACH_SIZE, index);
+      step += 1;
+      if (step >= TEACH_STEPS.length) {
+        done = true;
+        paint();
+        sync();
+        C.flash(vm, TEACH_DONE, 'gold');
+        ctx.render(vm);
+        // 停一拍再进正式局：全亮的那个画面本身就是「破阵是什么样」的答案。
+        timer = setTimeout(function () {
+          timer = null;
+          ctx.done();
+        }, TEACH_HOLD_MS);
+        return;
+      }
+      paint();
+      sync();
+      C.flash(vm, step === 1 ? '一次翻了五盏 · 亮暗同时变' : '四邻一起回来', 'good');
+      ctx.render(vm);
+    },
+    destroy: function () {
+      done = true;
+      if (timer) { clearTimeout(timer); timer = null; }
+    },
+  });
+}
+
+const teach = {
+  size: TEACH_SIZE,
+  steps: TEACH_STEPS.slice(),
+  texts: TEACH_TEXT.slice(),
+  doneText: TEACH_DONE,
+  board: teachBoard,
+  create: createTeach,
+};
+
 // ---------------------------------------------------------------- 对局
 function create(ctx) {
   const p = ctx.params || {};
@@ -278,6 +404,31 @@ function create(ctx) {
     vm.status = '第 ' + (size) + '×' + size + ' 盘 · 让全阵亮起';
   }
 
+  // 结算不只报一个字母：玩家最想知道的是「我为什么不是 S」。
+  // 评级只看步数，所以就把「走了几步 / 最优几步 / 差在哪」直接写出来，
+  // 用了辅助也如实说是辅助封的顶，而不是让玩家以为自己推错了。
+  function gradeNotes() {
+    const notes = [];
+    if (failed) {
+      notes.push('阵溃：' + capSteps + ' 步预算走完，阵还没全亮。');
+      notes.push('这一盘最优只要 ' + optimal + ' 步；下一局先想好要动哪几格，别一格一格试。');
+      return notes;
+    }
+    const gap = moves - optimal;
+    if (gap <= 0) {
+      notes.push('正好走最优 ' + optimal + ' 步，一步没浪费。');
+    } else if (gap <= 2) {
+      notes.push('比最优多走 ' + gap + ' 步（最优 ' + optimal + ' 步）· S 要一步不差。');
+    } else if (moves <= optimal * 2) {
+      notes.push('走了 ' + moves + ' 步，最优 ' + optimal + ' 步 · A 线是多两步以内。');
+    } else {
+      notes.push('走了 ' + moves + ' 步，超过最优的两倍（' + optimal * 2 + ' 步）。');
+    }
+    if (hintUsed) notes.push('用过阵眼感应，本盘最高只到 A。');
+    if (resetUsed) notes.push('重置过阵局，本盘最高只到 A。');
+    return notes;
+  }
+
   function finish(summary) {
     if (done) return;
     done = true;
@@ -287,7 +438,7 @@ function create(ctx) {
     vm.banner = grade === 'S' ? (theme.praise || '一眼破阵') : '';
     render();
     const score = failed ? 0 : Math.max(0, capSteps - moves) * 10;
-    ctx.finish({ grade: grade, score: score, summary: summary });
+    ctx.finish({ grade: grade, score: score, summary: summary, notes: gradeNotes() });
   }
 
   function checkFail() {
@@ -426,4 +577,11 @@ function create(ctx) {
   });
 }
 
-module.exports = { id: 'lights', name: '阵灯推演', create: create, solve: solve, effectOf: effectOf };
+module.exports = {
+  id: 'lights',
+  name: '阵灯推演',
+  create: create,
+  solve: solve,
+  effectOf: effectOf,
+  teach: teach,
+};

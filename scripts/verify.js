@@ -451,6 +451,11 @@ if (!fs.existsSync(checklistPath)) {
   // 结算主按钮是上一轮刚定的「留在本页」，文档不许写回「再来一局」当默认动作。
   if (doc.indexOf('留在本页') < 0) errors.push('自检清单没写结算主按钮「留在本页」');
   else checked += 1;
+  // 新手引导的口径：首局手把手，不是「读完再玩」的弹窗，也不许再写回「明确不做」。
+  if (doc.indexOf('首局手把手') < 0) errors.push('自检清单没写首局手把手的引导口径');
+  else checked += 1;
+  if (/分步新手引导[^\n]*明确不做/.test(doc)) errors.push('自检清单还把新手引导写成「明确不做」');
+  else checked += 1;
 
   // 文档里点名的文件都得真实存在，别指向已删除的模块。
   const seenRefs = {};

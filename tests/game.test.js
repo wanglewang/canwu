@@ -332,4 +332,24 @@ check('功法页排序与主页推荐同源，境界不符的整段压后', func
   assert.ok(firstDecayed > lastFull, '境界不符的功法没被整段压到后面');
 });
 
+check('首局引导标记：与技能同级存，老档读出来是「没看过」', function () {
+  const s = game.createNewState();
+  assert.strictEqual(game.hasOnboarded(s, 'jian'), false, '新档不该已经标记看过引导');
+
+  game.markOnboarded(s, 'jian');
+  assert.strictEqual(game.hasOnboarded(s, 'jian'), true);
+  // 存档回环：标记过的那门还在，别的门不受影响。
+  const back = game.normalizeState(JSON.parse(JSON.stringify(s)));
+  assert.strictEqual(game.hasOnboarded(back, 'jian'), true, '引导标记被 normalizeState 丢了');
+  assert.strictEqual(game.hasOnboarded(back, 'jingxin'), false, '标记串到别的门去了');
+
+  // 老存档没有这个键：默认 false，等于老玩家第一次进也会看到一次引导。
+  const old = game.createNewState();
+  delete old.skills.jian.onboarded;
+  old.version = 4;
+  const migrated = game.normalizeState(old);
+  assert.strictEqual(migrated.version, 5);
+  assert.strictEqual(game.hasOnboarded(migrated, 'jian'), false);
+});
+
 console.log('\ngame.test: ' + passed + ' assertions passed');

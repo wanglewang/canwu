@@ -1383,4 +1383,50 @@ check('参悟结算：留在本页、回看战绩、倒计时可反悔', functio
   assert.ok(/goalText/.test(wxml), '准备页没显示本档 S 线');
 });
 
+check('首局手把手：盘上引导而不是全屏弹窗，跳过有入口、文案走真源', function () {
+  const wxml = read('pages/practice/practice.wxml');
+  const js = read('pages/practice/practice.js');
+  const copy = require('../data/copy.js');
+  const game = require('../utils/game.js');
+  const index = require('../minigames/index.js');
+
+  // 引导必须贴在盘面上，不能是盖住整页的遮罩：要教的就是「点这一格会发生什么」，
+  // 遮住盘面的教程等于把要教的东西挡在外面。
+  const teachTag = /<view wx:if="\{\{tutorial\}\}" class="teach">/.exec(wxml);
+  assert.ok(teachTag, '引导卡没挂在局内卡片里');
+  const playAt = wxml.indexOf('class="card pr-play"');
+  const maskAt = wxml.indexOf('<view class="mask"');
+  assert.ok(playAt >= 0 && maskAt > playAt, '没找到局内卡片或结算遮罩');
+  assert.ok(teachTag.index > playAt && teachTag.index < maskAt, '引导卡跑到遮罩里去了，会盖住盘面');
+  assert.ok(/catchtap="onSkipTeach"/.test(wxml), '引导没有跳过入口');
+  assert.ok(/onSkipTeach: function/.test(js), '跳过入口没有对应方法');
+  assert.strictEqual(copy.UI.actions.skipTeach, '跳过引导');
+  assert.ok(wxml.indexOf('跳过引导') < 0, '引导文案被写死在 WXML 里');
+
+  // 第一次开局先走教学，只对自带脚本的玩法生效；走完必须落存档，否则每次进来都弹。
+  assert.ok(/canTeach: function/.test(js) && /minigames\.hasTeach/.test(js), '页面没接教学判断');
+  assert.ok(/if \(this\.canTeach\(\)\) \{ this\.startTeach\(\); return; \}/.test(js), '开局没先走引导');
+  assert.ok(/engine\.markOnboarded/.test(js), '走完引导没写存档');
+  assert.ok(/engine\.hasOnboarded/.test(js), '没读存档判断是否已看过');
+  assert.strictEqual(index.hasTeach('lights'), true, '燃灯诀没有教学脚本');
+  assert.ok(game.markOnboarded && game.hasOnboarded, '引擎没有引导标记接口');
+
+  // 教学盘不该出现评级、重置与收功：那是一局才有的压力。
+  const lights = read('minigames/lights.js');
+  assert.ok(/showGradeNow = false/.test(lights) && /showReset = false/.test(lights), '教学盘还挂着正式局的控件');
+  assert.ok(/不计步/.test(lights), '教学盘没写清不计步');
+  assert.ok(/!tutorial/.test(wxml), '局内 HUD 没被教学态挡掉');
+});
+
+check('阵灯推演：结算说清「为什么不是 S」，用了辅助如实说明', function () {
+  const lights = read('minigames/lights.js');
+  const js = read('pages/practice/practice.js');
+  assert.ok(/function gradeNotes/.test(lights), '没有评级依据');
+  assert.ok(/正好走最优/.test(lights) && /S 要一步不差/.test(lights), '没写清 S 的条件');
+  assert.ok(/最高只到 A/.test(lights), '用了辅助没说封顶');
+  assert.ok(/阵溃：/.test(lights) && /最优只要/.test(lights), '阵溃没给下一步');
+  assert.ok(/notes: gradeNotes\(\)/.test(lights), '评级依据没交给结算');
+  assert.ok(/Array\.isArray\(res\.notes\)/.test(js), '结算没接玩法层的说明');
+});
+
 console.log('\n布局断言全部通过：' + passed + ' 项');

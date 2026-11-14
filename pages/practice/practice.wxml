@@ -175,7 +175,17 @@
   </view>
 
   <view wx:if="{{started && !showResult && vm}}" class="card pr-play">
-    <view wx:if="{{!sceneOn}}" class="hud">
+    <!-- 首局手把手：不盖整屏、不遮盘面，就一张窄条说清这一手做什么。
+         跳过直接进正式局——引导是「带着玩一次」，不是「读完才能玩」。 -->
+    <view wx:if="{{tutorial}}" class="teach">
+      <view class="row--between teach__head">
+        <text class="tag tag--gold">教学 · 第 {{vm.teachStep}} / {{vm.teachTotal}} 步</text>
+        <text class="text-link text-link--muted teach__skip pressable" hover-class="pressable--on" catchtap="onSkipTeach">{{copy.actions.skipTeach}} ›</text>
+      </view>
+      <text class="body teach__text">{{vm.teachText}}</text>
+    </view>
+
+    <view wx:if="{{!sceneOn && !tutorial}}" class="hud">
       <view class="row--between hud__top">
         <view class="hud__id">
           <text class="eyebrow hud__skill">{{title}}<text wx:if="{{diffName}}"> · {{diffName}}</text></text>
@@ -207,7 +217,7 @@
     <!-- 样板玩法的游戏化 HUD：香炷计息、命灯、刀势刻度、局内得分。
          这里原来把得分写成「灵石」——灵石是能换功法的资源，局内分数一分灵石都不是，
          同一局里「灵石 608」和结算「灵石 +3」会当场打架，改用与结算一致的「得分」。 -->
-    <view wx:else class="scene-hud">
+    <view wx:elif="{{!tutorial}}" class="scene-hud">
       <view class="scene-hud__top">
         <view class="scene-hud__id">
           <text class="scene-hud__name">{{title}} · {{diffName}}</text>
@@ -240,9 +250,9 @@
       </view>
     </view>
 
-    <text wx:if="{{vm.banner}}" class="banner mt12" style="{{sceneOn ? 'color:' + stage.glow + ';border-color:' + stage.deep : ''}}">{{vm.banner}}</text>
+    <text wx:if="{{vm.banner && !tutorial}}" class="banner mt12" style="{{sceneOn ? 'color:' + stage.glow + ';border-color:' + stage.deep : ''}}">{{vm.banner}}</text>
 
-    <view class="pr-hint">
+    <view wx:if="{{!tutorial}}" class="pr-hint">
       <text class="tiny">{{vm.hint}}</text>
       <view wx:if="{{guide}}" class="pr-hint__terms"><text class="tiny">{{guide.inline}}</text></view>
     </view>

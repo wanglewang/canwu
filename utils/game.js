@@ -60,7 +60,9 @@ function createNewState() {
   const skills = {};
   for (let i = 0; i < skillData.SKILLS.length; i += 1) {
     const s = skillData.SKILLS[i];
-    skills[s.id] = { unlocked: s.source.kind === 'start', prof: 0 };
+    // onboarded：这门功法看过首局手把手没有。与 unlocked / prof 同级放，不新增顶层字段；
+    // 老存档没有这个键，读出来就是 false，等于「还没看过」，会正常触发一次引导。
+    skills[s.id] = { unlocked: s.source.kind === 'start', prof: 0, onboarded: false };
   }
   return {
     version: SAVE_VERSION,
@@ -144,6 +146,7 @@ function normalizeState(input) {
     base.skills[s.id] = {
       unlocked: !!r.unlocked,
       prof: Math.floor(num(r.prof, 0)),
+      onboarded: !!r.onboarded,
     };
   }
   if (raw.resources) {
@@ -321,6 +324,19 @@ function twistsOff(state, skillId) {
   const all = state && state.twists;
   const list = all && all[skillId];
   return Array.isArray(list) ? list : [];
+}
+
+// 首局引导：只跟「这门功法」走，不跟玩法走。一门功法只有第一次开局会进引导，
+// 之后哪怕是隔了几个月回来练，也不再弹——引导是入门那一次的事，不是每次的门槛。
+function hasOnboarded(state, skillId) {
+  const rec = state && state.skills && state.skills[skillId];
+  return !!(rec && rec.onboarded);
+}
+
+function markOnboarded(state, skillId) {
+  const rec = state && state.skills && state.skills[skillId];
+  if (rec) rec.onboarded = true;
+  return !!(rec && rec.onboarded);
 }
 
 function setTwist(state, skillId, name, enabled) {
@@ -1442,6 +1458,8 @@ module.exports = {
   computePower: computePower,
   twistsOff: twistsOff,
   setTwist: setTwist,
+  hasOnboarded: hasOnboarded,
+  markOnboarded: markOnboarded,
   computeMetrics: computeMetrics,
   checkTitles: checkTitles,
   checkDaily: checkDaily,

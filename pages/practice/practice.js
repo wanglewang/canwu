@@ -72,6 +72,8 @@ Page({
     meterPercent: 0,
     countdown: 0,
     started: false,
+    // 首局手把手：true 时页面渲染教学卡与教学盘，不渲染真局 HUD，也不结算。
+    tutorial: false,
     showResult: false,
     result: null,
     barMode: '',
@@ -103,6 +105,8 @@ Page({
   onLoad: function (query) {
     this.pageAlive = true;
     this.controller = null;
+    // 教学盘是独立控制器：它不结算、不进存档，只负责把「点一格翻五格」演一遍。
+    this.teachController = null;
     this.countdownTimers = [];
     this.needsRebuild = false;
     this.lastFxKey = 0;
@@ -152,6 +156,7 @@ Page({
   onHide: function () {
     this.clearCountdown();
     this.clearSettleTimers();
+    this.stopTeach();
     if (this.controller) this.controller.destroy();
     sfx.stopAll();
     if (!this.data.showResult) {
@@ -167,6 +172,7 @@ Page({
     this.pageAlive = false;
     this.clearCountdown();
     this.clearSettleTimers();
+    this.stopTeach();
     if (this.controller) this.controller.destroy();
     this.controller = null;
     sfx.stopAll();
@@ -499,6 +505,8 @@ Page({
     const vm = this.data.vm;
     let mode = '';
     if (this.data.showResult) mode = '';
+    // 教学盘没有「收功」也没有提示按钮：它连一步都不计，底栏不该出现任何可点项。
+    else if (this.data.tutorial) mode = '';
     else if (this.data.started) mode = vm && (vm.extras.showUndo || vm.extras.showHint) ? 'tools' : '';
     else mode = 'start';
     if (mode !== this.data.barMode) this.setData({ barMode: mode });
@@ -510,8 +518,65 @@ Page({
     if (this.data.countdown !== 0) this.setData({ countdown: 0 });
   },
 
+  // 首局手把手：这门功法第一次开局，先进一盘不计步的小阵，而不是 3-2-1 直接上。
+  // 只对「模块自带 teach 脚本」的玩法生效；没脚本的玩法照旧开局，不硬塞过场。
+  canTeach: function () {
+    if (this.mode !== 'practice' || !this.skillId) return false;
+    if (engine.hasOnboarded(store.get(), this.skillId)) return false;
+    return !!(this.gameId && minigames.hasTeach(this.gameId));
+  },
+
+  startTeach: function () {
+    const self = this;
+    this.clearCountdown();
+    this.stopTeach();
+    if (this.controller) { this.controller.destroy(); this.controller = null; }
+    this.teachController = minigames.createTeach(this.gameId, {
+      theme: this.theme,
+      render: function (vm) {
+        if (!self.pageAlive) return;
+        // 教学盘没有命灯、刻度与连击：只给盘面 + 一句该怎么做。
+        self.setData({
+          vm: vm, tutorial: true, started: true,
+          chargeWidth: 0, heartList: [], meterPercent: 0, burstList: [],
+        });
+        self.syncBar();
+      },
+      done: function () { self.finishTeach(false); },
+    });
+    if (!this.teachController) { this.teachController = null; return; }
+    this.setData({ tutorial: true, started: true, showResult: false });
+    this.teachController.start();
+  },
+
+  stopTeach: function () {
+    if (this.teachController) {
+      this.teachController.destroy();
+      this.teachController = null;
+    }
+    if (this.data.tutorial) this.setData({ tutorial: false });
+  },
+
+  // 跳过与走完同一条路：记下「这门看过引导」，回准备页重建真局再起手。
+  // 跳过不做二次确认——它本来就不是门槛，玩家说看懂了就该放他走。
+  finishTeach: function (skipped) {
+    const self = this;
+    this.stopTeach();
+    store.commitCritical(function (s) { return engine.markOnboarded(s, self.skillId); });
+    this.setData({ tutorial: false, started: false, vm: null, burstList: [] });
+    this.buildGame();
+    if (skipped) sfx.play('tap');
+    this.onStart();
+  },
+
+  onSkipTeach: function () {
+    if (!this.data.tutorial) return;
+    this.finishTeach(true);
+  },
+
   onStart: function () {
     if (!this.controller || this.data.started || this.data.countdown > 0) return;
+    if (this.canTeach()) { this.startTeach(); return; }
     const self = this;
     this.clearCountdown();
     this.setData({ countdown: 3 });
@@ -608,11 +673,17 @@ Page({
   },
 
   onCellTap: function (event) {
+    const index = Number(event.currentTarget.dataset.index || 0);
+    // 教学盘点的是教学控制器：真局 controller 这时已经被销毁，不能让它接这一下。
+    if (this.data.tutorial) {
+      if (this.teachController) this.teachController.tap(index);
+      return;
+    }
     if (!this.controller) return;
     // 划刀玩法由透明触摸层接管，静态格子的 tap 一律不判，避免划完抬手又补一次点击。
     if (this.data.vm && this.data.vm.extras.showSwipe) return;
     const before = this.lastFxKey;
-    this.controller.tap(Number(event.currentTarget.dataset.index || 0));
+    this.controller.tap(index);
     // 玩法没给浮字（点空、翻已开的格子）就补一声轻响，让每次触碰都有回应。
     if (this.lastFxKey === before) sfx.play('tap');
     // 步法键连按同一个方向时，光看画面容易怀疑「这一下点上没有」，补一次极轻的触感。
@@ -622,6 +693,7 @@ Page({
   },
 
   onCellLongPress: function (event) {
+    if (this.data.tutorial) return;
     if (!this.controller) return;
     if (this.data.vm && this.data.vm.extras.showSwipe) return;
     const before = this.lastFxKey;
@@ -762,6 +834,7 @@ Page({
   onRelease: function () { if (this.controller) this.controller.release(); },
   onChargeTap: function () { if (this.controller) this.controller.tap(0); },
   onAbandon: function () {
+    if (this.data.tutorial) return;
     if (!this.controller || this.data.showResult) return;
     const self = this;
     wx.showModal({
@@ -852,7 +925,9 @@ Page({
       if (!btAfter.maxed) {
         lines.push({ k: '距离「' + btAfter.nextName + '」', v: '还差 ' + Math.max(0, btAfter.need - r.powerAfter) + ' 战力' });
       }
-      const notes = [];
+      // 玩法层可以带自己的评级依据（燃灯诀写「走了几步 / 最优几步 / 为什么不是 S」）。
+      // 它排在最前：玩家最先想知道的是这一局本身，而不是连 S 进度。
+      const notes = Array.isArray(res.notes) ? res.notes.slice() : [];
       if (r.promotion && !r.promotion.maxed) {
         notes.push(r.promotion.added > 0
           ? '三连 S 圆满：熟练度直接补到「' + r.promotion.toName + '」门槛（+' + r.promotion.added + '），下一轮重新数。'

@@ -35,6 +35,20 @@ function createGame(gameId, ctx) {
   return mod.create(ctx);
 }
 
+// 首局手把手：不是每套玩法都有，模块自己导出 teach 才算有。
+// 没有脚本的玩法直接跳过引导进正式局——引导是给「第一手看不懂」的玩法补的，
+// 不是给所有玩法硬塞一段过场。
+function hasTeach(gameId) {
+  const mod = MODULES[gameId];
+  return !!(mod && mod.teach && typeof mod.teach.create === 'function');
+}
+
+function createTeach(gameId, ctx) {
+  const mod = MODULES[gameId];
+  if (!mod || !mod.teach || typeof mod.teach.create !== 'function') return null;
+  return mod.teach.create(ctx);
+}
+
 function gameName(gameId) { return GAME_NAMES[gameId] || '顺光扫斩'; }
 
 module.exports = {
@@ -43,4 +57,6 @@ module.exports = {
   PRACTICE_GAMES: PRACTICE_GAMES,
   createGame: createGame,
   gameName: gameName,
+  hasTeach: hasTeach,
+  createTeach: createTeach,
 };
