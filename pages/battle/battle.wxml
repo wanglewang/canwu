@@ -36,17 +36,6 @@
     </view>
   </view>
 
-  <!-- 秘境已经是独立一页：这里只留一行指路，不再重复那三段列表。 -->
-  <view class="imm-list">
-    <view class="imm-row pressable" hover-class="pressable--on" bindtap="onGoSecret">
-      <view class="imm-row__body">
-        <text class="imm-row__name">{{copy.pages.secret.title}}</text>
-        <text class="imm-row__sub">只产灵气与灵石，不掉功法</text>
-      </view>
-      <text class="imm-row__value">{{copy.actions.goSecret}} ›</text>
-    </view>
-  </view>
-
   <view class="imm-sec-title">{{copy.sections.duel}}</view>
   <view class="imm-list">
     <view class="imm-row pressable" hover-class="pressable--on" bindtap="onToggleCode">

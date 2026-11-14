@@ -91,7 +91,6 @@ const UI = {
         viewDetail: '详情 ›',
         goSkills: '去功法页',
         goBattle: '去切磋',
-        goSecret: '去秘境',
         goHome: '去攒资源',
         // 切磋与秘境各一支动作：同一件事用同一个词，两页不再各写一遍。
         challenge: '挑战',
@@ -126,19 +125,9 @@ const UI = {
         shop: '藏经阁',
     },
 
-    // 页面标题：主页面只显示金线标题，不再有眉标与说明句。
-    // tabBar 文案与顺序由 data/navigation.js 管，这里只保留二级页可用的同名口径。
-    pages: {
-        index: { title: '主页' },
-        cultivate: { title: '功法详情' },
-        skills: { title: '功法' },
-        profile: { title: '人物' },
-        battle: { title: '仙门切磋' },
-        secret: { title: '秘境探索' },
-        guide: { title: '玩法与数值' },
-        help: { title: '说明' },
-        log: { title: '修行日志' },
-    },
+    // 页面名只有一处真源：data/navigation.js 的 PAGE_TITLES（导航标题、tabBar、
+    // 说明页标题都从那儿取）。这里曾有一份 copy.pages 同名表，与它并存时
+    // 改一处必忘另一处，已删。
 
     // 区块标题：用白话说清里面是什么，不用「就差一点 / 近况」这类含糊词。
     sections: {

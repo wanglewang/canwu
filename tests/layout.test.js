@@ -284,7 +284,7 @@ check('切磋与秘境拆成两页：各自只排自己的列表，按钮层级�
   // 同门那一段是一个 wx:for 里的行内按钮（六位对手共用一行模板），不再有第二个列表。
   assert.strictEqual(fights, 1, '切磋页出现了第二个对手列表（秘境是不是又搬回来了）');
   assert.ok(battle.indexOf('入秘境') < 0, '秘境列表又回到切磋页了：两页各排一份必然有一页先改');
-  assert.ok(battle.indexOf('onGoSecret') >= 0, '切磋页没有通往秘境的指路');
+  assert.ok(battle.indexOf('onGoSecret') < 0, '切磋页又留了一条去秘境的指路：秘境在自己的宫格里，不必在别页再开一个门');
   // 秘境行必须是细描边的次操作，不能和「挑战」同为金色实心。
   let walks = 0;
   for (const line of secret.split('\n')) {
@@ -299,8 +299,8 @@ check('切磋与秘境拆成两页：各自只排自己的列表，按钮层级�
     assert.ok(/<duel-result\b/.test(src), '对决结算没走共用组件');
     assert.ok(!/class="modal"/.test(src), '页面里又自绘了一份结算弹窗');
   }
-  // 秘境页不再复述对手名单，只留一行去切磋的指路。
-  assert.ok(secret.indexOf('onGoBattle') >= 0 && secret.indexOf('战力码') < 0, '秘境页又把切磋那份东西抄过来了');
+  // 秘境页不复述对手名单，也不在页尾再开一个去切磋的门：两页都由主页宫格进。
+  assert.ok(secret.indexOf('onGoBattle') < 0 && secret.indexOf('战力码') < 0, '秘境页又把切磋那份东西抄过来了');
 });
 
 check('不再使用会被 .btn-row 覆盖的 mt12 / mt16 组合', function () {

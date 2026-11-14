@@ -3,6 +3,7 @@
     "pages/index/index",
     "pages/skills/skills",
     "pages/profile/profile",
+    "pages/cultivate/cultivate",
     "pages/battle/battle",
     "pages/secret/secret",
     "pages/board/board",

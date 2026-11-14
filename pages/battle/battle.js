@@ -58,8 +58,6 @@ Page({
 
   onGoBoard: function () { wx.navigateTo({ url: '/pages/board/board' }); },
 
-  onGoSecret: function () { wx.navigateTo({ url: '/pages/secret/secret' }); },
-
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
 
   onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('battle') }); },

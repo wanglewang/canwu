@@ -68,6 +68,38 @@ for (const page of appJson.pages) {
   }
 }
 
+// 3b. 磁盘上的每个页面目录都必须注册进 app.json.pages。
+// 只查「注册了但文件缺失」是不够的：功法详情页从 tab 降为子页时，pages 数组里那一行
+// 被顺手一起删了，四件套齐全、旧断言全绿，真机上 wx.navigateTo 找不到页面直接静默失败
+// ——「点参悟没反应 / 功法详情打不开」就是这么来的。
+const pageDirs = fs.readdirSync(path.join(ROOT, 'pages')).filter(function (n) {
+  return fs.statSync(path.join(ROOT, 'pages', n)).isDirectory();
+});
+for (const dir of pageDirs) {
+  const page = 'pages/' + dir + '/' + dir;
+  if (appJson.pages.indexOf(page) < 0) errors.push('页面目录没在 app.json.pages 注册，跳转会静默失败: ' + page);
+  else checked += 1;
+}
+
+// 3c. 代码里写死的跳转目标必须是注册过的页面。上一条守着「目录忘了注册」，
+// 这条守着「手滑写成别的名字」——两者在真机上都是同一个症状：点了没反应。
+const routeFiles = files.filter(function (f) {
+  const r = rel(f);
+  return /\.(js|wxml)$/.test(r) && /^(pages|utils|components|data)\//.test(r);
+});
+for (const f of routeFiles) {
+  const src = fs.readFileSync(f, 'utf8');
+  const re = /\/pages\/([a-z]+)\/([a-z]+)/g;
+  let m = re.exec(src);
+  while (m) {
+    const target = 'pages/' + m[1] + '/' + m[2];
+    if (appJson.pages.indexOf(target) < 0) {
+      errors.push('跳转目标不是注册页面: ' + target + '（' + rel(f) + '）');
+    } else checked += 1;
+    m = re.exec(src);
+  }
+}
+
 // 4. 组件四件套
 const components = new Set();
 for (const page of appJson.pages) {

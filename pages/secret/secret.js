@@ -61,8 +61,6 @@ Page({
     this.setData({ showResult: false, result: null });
   },
 
-  onGoBattle: function () { wx.navigateTo({ url: '/pages/battle/battle' }); },
-
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
 
   onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('secret') }); },
