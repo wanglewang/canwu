@@ -482,6 +482,12 @@ function practiceTopic(opts) {
                 return '低 ' + n + ' 档 ' + practiceData.factorText(Math.pow(practiceData.DIFF_BELOW_CAP, n));
               }).join('、')
             + '；S 也不计连晋——低档是练手，不是刷分。');
+        diffLines.push('熟练度是整数点，折半要逐档算：每低一档就除以 2 再四舍五入，拿这个整数接着除，'
+            + '不是先乘总系数最后取整一次。以 S（' + worldData.PROF_GRADE.S + ' 点）/ C（'
+            + worldData.PROF_GRADE.C + ' 点）为例，低 0～4 档依次是 '
+            + practiceData.profLadder(worldData.PROF_GRADE.S).join(' / ') + ' 与 '
+            + practiceData.profLadder(worldData.PROF_GRADE.C).join(' / ')
+            + ' 点；资源是倍率，按上面的系数一次折完。');
         diffLines.push('比如刚解锁普通时打简单是 ×0.5；再解锁困难，简单变 ×0.25、普通变 ×0.5。'
             + '只有本门最高已解锁档才算全额。');
         diffLines.push('连 3 局 S 直接把熟练度补到下一段位门槛。段位门槛与难度门槛同源，'

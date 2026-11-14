@@ -528,18 +528,19 @@ function applyPractice(state, skillId, grade, options) {
   const fellBack = wantIdx > maxIdx;
   const diff = practiceData.DIFFICULTIES[Math.min(wantIdx, maxIdx)];
   // 低于本门最高已解锁档：每低一档，熟练度与资源一起再折半，且这一局的 S 不计连晋。
-  // 三件事共用 lowDiffFactor() 一个判定，玩家只需记「只有最高已解锁档才算全额」。
+  // 三件事共用 diffGapOf() 一个判定：资源与连 S 取 lowDiffFactor() 的连续系数，
+  // 熟练度是整数点，另外走 profBelowCap() 逐档「÷2 + 四舍五入」。
   const lowFactor = practiceData.lowDiffFactor(rec.prof, diff.key);
   const belowCap = lowFactor < 1;
   const diffGap = practiceData.diffGapOf(rec.prof, diff.key);
   const diffMult = diff.mult * lowFactor;
 
   // 熟练度是评级定额（C 10 / B 17 / A 20 / S 25），只吃上面这一个低档折减；
-  // 不乘品阶、不乘难度倍率、不乘境界、不乘属性。非走火局至少给 1 点，
-  // 免得连退四档时「10 × 0.0625」被四舍五入成 0，玩家以为这一局白打。
+  // 不乘品阶、不乘难度倍率、不乘境界、不乘属性。折减按「每档 ÷2 后四舍五入」逐档取整，
+  // 一步一个整数，玩家拿结算卡就能复算；也不会像 10 × 0.0625 那样出现归零。
   // 到 PROF_MAX 后熟练度封顶，但资源、纪录、连 S 照常给：大圆满是数值毕业，不是不许再练。
   const profBase = worldData.PROF_GRADE[grade] || 0;
-  const rawGain = (wiped || !profBase) ? 0 : Math.max(1, Math.round(profBase * lowFactor));
+  const rawGain = (wiped || !profBase) ? 0 : practiceData.profBelowCap(profBase, rec.prof, diff.key);
   const gain = Math.min(rawGain, Math.max(0, worldData.PROF_MAX - rec.prof));
 
   // 原来的四连乘整个搬到资源：品阶 resource × 难度 mult × 境界衰减 × 悟性 × 触类旁通。

@@ -210,7 +210,9 @@ check('退回低档：每低一档熟练度与资源再折半，S 不计连晋�
   assert.strictEqual(r.diffBelowCapFactor, 0.25, '结算系数不是 0.5²');
   assert.strictEqual(r.diffMult, 0.25, '结算倍率没按档差报');
   assert.strictEqual(r.diffMultRaw, 1, '原始档位倍率丢了');
-  assert.strictEqual(r.gain, Math.round(world.PROF_GRADE.S * 0.25), '熟练度没按档差折两次半');
+  assert.strictEqual(r.gain, practice.profBelowCap(world.PROF_GRADE.S, prof, 'easy'),
+    '熟练度没按档差逐档 ÷2 四舍五入');
+  assert.strictEqual(r.gain, 7, 'S 低两档应是 25 → 13 → 7，不是 25 × 0.25 一次取整的 6');
   assert.strictEqual(r.sStreak, 0, '折减档的 S 计进了连晋');
   assert.strictEqual(low.sStreak.jingxin, 0, '折减档的 S 写进了存档');
 
@@ -228,7 +230,8 @@ check('退回低档：每低一档熟练度与资源再折半，S 不计连晋�
   const normalC = game.applyPractice(midC, 'jingxin', 'C', { difficulty: 'normal', score: 0 });
   assert.ok(easyS.qi < normalC.qi,
     '折半后简单档 S（' + easyS.qi + ' 灵气）仍不低于普通档 C（' + normalC.qi + '）');
-  assert.strictEqual(easyS.gain, Math.round(world.PROF_GRADE.S * 0.5), '简单档 S 的熟练度没折半');
+  assert.strictEqual(easyS.gain, practice.profBelowCap(world.PROF_GRADE.S, 300, 'easy'),
+    '简单档 S 的熟练度没按 ÷2 四舍五入折半');
 
   // 熟练度还没到 300 时，简单档就是最高档：不折减，新手不受罚。
   const rookie = freshState('jingxin', 120, 1);
@@ -259,13 +262,13 @@ check('折减按落差累进：解锁困难后简单 ×0.25、普通 ×0.5，绝
     assert.ok(eff[i] > eff[i - 1], '折减后第 ' + (i + 1) + ' 档不高于第 ' + i + ' 档（倍率倒挂）');
   }
 
-  // 熟练度吃的是同一个系数：越退越薄，但非走火局至少给 1 点，不能显示成白打。
+  // 熟练度吃的是同一个档差，但按整数点逐档 ÷2 四舍五入：越退越薄，且不会归零。
   const gains = [];
   practice.DIFFICULTIES.forEach(function (d, i) {
     const s = freshState('jingxin', prof, 1);
     const r = game.applyPractice(s, 'jingxin', 'C', { difficulty: d.key, score: 0 });
-    assert.strictEqual(r.gain, Math.max(1, Math.round(world.PROF_GRADE.C * factors[i])),
-      d.name + ' 的熟练度没按 ' + factors[i] + ' 折');
+    assert.strictEqual(r.gain, practice.profBelowCap(world.PROF_GRADE.C, prof, d.key),
+      d.name + ' 的熟练度没按 ' + factors[i] + ' 逐档折');
     gains.push(r.gain);
   });
   for (let i = 1; i < gains.length; i += 1) {
@@ -282,6 +285,33 @@ check('折减按落差累进：解锁困难后简单 ×0.25、普通 ×0.5，绝
     assert.strictEqual(r.sStreak, 0, key + ' 的 S 计进了连晋');
     assert.strictEqual(s.sStreak.jingxin || 0, 0, key + ' 的 S 写进了存档');
   });
+});
+
+check('低档熟练度：每档 ÷2 后四舍五入，不是最后取整一次', function () {
+  // 玩家定的口径：除以 2 就四舍五入，拿得到的整数继续除下一次，退到最低档也不会归零。
+  const ladder = {
+    S: [25, 13, 7, 4, 2],
+    A: [20, 10, 5, 3, 2],
+    B: [17, 9, 5, 3, 2],
+    C: [10, 5, 3, 2, 1],
+  };
+  const capProf = practice.DIFFICULTIES[practice.DIFFICULTIES.length - 1].need;
+  Object.keys(ladder).forEach(function (g) {
+    assert.deepStrictEqual(practice.profLadder(world.PROF_GRADE[g]), ladder[g],
+      g + ' 的逐档折减不是「除以 2 后四舍五入」');
+    ladder[g].forEach(function (want, gap) {
+      const key = practice.DIFFICULTIES[practice.DIFFICULTIES.length - 1 - gap].key;
+      assert.strictEqual(practice.profBelowCap(world.PROF_GRADE[g], capProf, key), want,
+        g + ' 低 ' + gap + ' 档算错了');
+    });
+  });
+  // 必须真的和「先乘 0.5^档差、最后取整一次」分得开，否则这条规则等于没改。
+  assert.notStrictEqual(practice.profBelowCap(25, 1500, 'easy'), Math.round(25 * 0.25),
+    '逐档取整与一次性取整撞在一起，取整规则没生效');
+  // 走火仍是 0 点，不被折减改写。
+  const s = freshState('jingxin', capProf, 1);
+  const r = game.applyPractice(s, 'jingxin', 'F', { difficulty: 'easy', score: 0 });
+  assert.strictEqual(r.gain, 0, '走火还给了熟练度');
 });
 
 check('走火：F 算一局，但零收益——熟练度、资源、加成都不给，连 S 断', function () {

@@ -2,7 +2,7 @@
 
 // 收益曲线模拟：验证两条线互不串台。
 //   ① 熟练度 = 评级定额（C 10 / B 17 / A 20 / S 25 / F 0），只吃「退回低档按档差折半」，
-//      不吃品阶、难度倍率、境界、属性任何倍率；
+//      且每档除以 2 后四舍五入、拿整数继续除；不吃品阶、难度倍率、境界、属性任何倍率；
 //   ② 品阶 × 难度 × 境界 × 悟性 × 触类旁通，只连乘进灵气灵石。
 // 用法：npm run sim（也可 node scripts/simulate.js）。固定种子的伪随机只用来模拟评级分布，
 // 目的是在改数值前后可复现地比较曲线，不是预言真机数据。
@@ -184,7 +184,7 @@ for (const d of practice.DIFFICULTIES) {
   expect(r.gain === world.PROF_GRADE.C,
     d.name + ' 档 C 仍是 ' + world.PROF_GRADE.C + ' 点（实为 ' + r.gain + '）');
 }
-// ②b 退回低档：每低一档，熟练度与资源一起再折半（0.5^档差）。
+// ②b 退回低档：资源按 0.5^档差一次折完，熟练度逐档 ÷2 后四舍五入。
 const ladder = [0.0625, 0.125, 0.25, 0.5, 1];
 practice.DIFFICULTIES.forEach(function (d, i) {
   const st = game.createNewState();
@@ -192,9 +192,12 @@ practice.DIFFICULTIES.forEach(function (d, i) {
   st.skills.jian.prof = 24000;   // 最高已解锁档 = 绝境
   const r = game.applyPractice(st, 'jian', 'C', { difficulty: d.key, score: 0 });
   expect(r.diffBelowCapFactor === ladder[i]
-    && r.gain === Math.max(1, Math.round(world.PROF_GRADE.C * ladder[i])),
-    d.name + ' 按档差折减不对（系数 ' + r.diffBelowCapFactor + '，熟练度 ' + r.gain + '）');
+    && r.gain === practice.profBelowCap(world.PROF_GRADE.C, 24000, d.key),
+    d.name + ' 折减复算：资源 ×' + r.diffBelowCapFactor + '，熟练度 ' + r.gain + ' 点');
 });
+expect(practice.profLadder(world.PROF_GRADE.C).join(' / ') === '10 / 5 / 3 / 2 / 1',
+  'C 逐档「÷2 四舍五入」= '
+  + practice.profLadder(world.PROF_GRADE.C).join(' / ') + ' 点');
 const tierIds = { huang: 'jian', xuan: 'jingxin', di: 'wuxingzhen', tian: 'taixu' };
 for (const tier of practice.TIERS) {
   const s = game.createNewState();

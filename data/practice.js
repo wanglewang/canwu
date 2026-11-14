@@ -307,6 +307,8 @@ function diffKeyIndex(key) {
 // 按落差累进：解锁普通后打简单 ×0.5；再解锁困难，简单 ×0.25、普通 ×0.5；
 // 绝境都开了还回头刷简单就只剩 ×0.0625。「差几档折几次半」一句话讲完，
 // 不需要记第二套规则。熟练度不到 300 时简单档就是最高档，本项不生效，新手不受罚。
+// 熟练度是整数点，所以「折半」要逐档做：每除一次 2 就四舍五入一次，拿这个整数再除下一次。
+// 资源是浮点倍率，仍按总系数一次折完（两者在小数意义上等价，不必取整）。
 const DIFF_BELOW_CAP = 0.5;
 
 // 这门功法当前熟练度实际解锁到第几档。
@@ -334,6 +336,26 @@ function lowDiffFactor(prof, diffKey) {
   return Math.pow(DIFF_BELOW_CAP, diffGapOf(prof, diffKey));
 }
 
+// 熟练度折减的逐档对照表：低 0 / 1 / 2 / 3 / 4 档各给几点。
+// 每一步都是「÷2 再四舍五入」，不是「先乘 0.5^档差，最后取整一次」：
+// S 的 25 点低两档是 25 → 13 → 7，一次性算 25 × 0.25 = 6.25 只会给 6，
+// 玩家照「除以 2 四舍五入」复算会对不上结算卡。逐档取整也不会归零（1 ÷ 2 = 0.5 → 1），
+// 不再需要「至少给 1 点」的兜底。档差判定仍只有 diffGapOf() 一个。
+function profLadder(base) {
+  const out = [];
+  let n = Math.max(0, Math.round(Number(base) || 0));
+  for (let i = 0; i < DIFFICULTIES.length; i += 1) {
+    out.push(n);
+    n = Math.round(n / 2);
+  }
+  return out;
+}
+
+function profBelowCap(base, prof, diffKey) {
+  const ladder = profLadder(base);
+  return ladder[Math.min(diffGapOf(prof, diffKey), ladder.length - 1)];
+}
+
 // 0.0625 也要原样显示，toFixed(2) 会把它写成 0.06 骗人。
 function factorText(f) {
   return '×' + String(Math.round(f * 10000) / 10000);
@@ -353,8 +375,8 @@ function belowCapText(prof, diffKey) {
   const gap = diffGapOf(prof, diffKey);
   if (!gap) return '';
   const cap = DIFFICULTIES[diffIndexOf(prof)];
-  return '比已解锁的「' + cap.name + '」低 ' + gap + ' 档：每低一档再折半，熟练度与资源都只剩 '
-    + factorText(lowDiffFactor(prof, diffKey)) + '，S 也不计连晋。'
+  return '比已解锁的「' + cap.name + '」低 ' + gap + ' 档：每低一档再折半，资源按 '
+    + factorText(lowDiffFactor(prof, diffKey)) + ' 计；熟练度每档 ÷2 后四舍五入，S 也不计连晋。'
     + '想快些练，回到「' + cap.name + '」打。';
 }
 
@@ -781,6 +803,8 @@ module.exports = {
   belowCapOf: belowCapOf,
   diffGapOf: diffGapOf,
   lowDiffFactor: lowDiffFactor,
+  profLadder: profLadder,
+  profBelowCap: profBelowCap,
   factorText: factorText,
   effectiveMultOf: effectiveMultOf,
   belowCapText: belowCapText,

@@ -1161,9 +1161,10 @@ Page({
       // 折减要当场说：面板上选了简单档、结算只给一半，不解释就像算错了。
       if (r.diffBelowCap) {
         // 折减系数由 lowDiffFactor 同源给，别在这里再算一遍；0.0625 也要原样显示。
+        // 熟练度是整数点、逐档 ÷2 四舍五入，和资源的一次性系数不是同一套取整，分开说清。
         notes.push('本档比已解锁的「' + r.diffCapName + '」低 ' + r.diffBelowGap
-          + ' 档：每低一档再折半，熟练度与资源都按 ' + practiceData.factorText(r.diffBelowCapFactor)
-          + ' 计，S 也不计连晋；回「' + r.diffCapName + '」打才全额。');
+          + ' 档：每低一档再折半，资源按 ' + practiceData.factorText(r.diffBelowCapFactor)
+          + ' 计；熟练度每档 ÷2 后四舍五入，S 也不计连晋；回「' + r.diffCapName + '」打才全额。');
       }
       if (r.promotion && !r.promotion.maxed) {
         notes.push(r.promotion.added > 0
