@@ -206,11 +206,12 @@ function hintLabelOf(gameId) {
   return HINT_LABELS[gameId] || '提示';
 }
 
-// 游戏族：同类功法共用一套手感内核，族内按品阶递进出变体。
-// 只有新增「族」或新增变体才需要写代码，加功法只填数据。
+// 游戏族：功法类别的分类标签，管谱系、色板与文案口吻。
+// 玩法内核不按族复用——每门功法各有一套独立盘面（见 minigames/），同族也不共用。
+// 加一族 = 这里补一行；加一门功法 = 补数据 + 一个玩法模块 + 主题 + 说明。
 const FAMILIES = {
   刀法: { core: '顺光成路', note: '顺着箭头把刀扫到靶心，招长而折，容许多带两桩', kind: 'skill' },
-  剑法: { core: '辨光取真', note: '先不做剑法，眼下只余剑法·断岳诀一门，在数道剑光里截真招', kind: 'skill' },
+  剑法: { core: '辨光取真', note: '在数道剑光里截真招，只有一门', kind: 'skill' },
   阵法: { core: '盘上推演', note: '同族都在方盘上推演：勘禁位、排五行、点阵灯', kind: 'skill' },
   心法: { core: '记忆与节律', note: '三门主修各考一样：节拍、记性、配对', kind: 'main' },
   // 丹道暂时空缺：凝露那门练的是河石采露（水术），不是炼丹。等真有一门「配药、控火、
@@ -639,7 +640,7 @@ const STAGE_RULES = {
     { at: 3, name: '勘位', short: '开局标 3 处', desc: '大成起每局开局勘出 3 处禁位并标出' },
     { at: 5, name: '洞玄', short: '开局标 5 处', desc: '大圆满起每局开局勘出 5 处禁位' },
   ],
-  // 三套经典玩法是黄阶里的入门功课，阶段新法只给「看得更清 / 手更稳」的便利，
+  // 九套经典玩法是黄阶里的入门功课，阶段新法只给「看得更清 / 手更稳」的便利，
   // 不往经典规则里塞新花样——看一眼就会玩，才配叫简单。
   linkpair: [
     { at: 3, name: '照纹', short: '提示不扣息', desc: '大成起「照纹」提示不再扣息' },
@@ -692,6 +693,13 @@ module.exports = {
   SUDOKU_LEVELS: SUDOKU_LEVELS,
   klotskiLevelOf: klotskiLevelOf,
   KLOTSKI_LEVELS: KLOTSKI_LEVELS,
+  // 四门的「兜底值」真源：模块里各留一份不带 params 时的默认数组，
+  // 但必须是这一份的拷贝——两处一旦分叉，准备页写「合出 512」、局内却收 1024。
+  // verify 会逐个比对模块导出的同名常量。
+  MERGE_TARGETS: MERGE_TARGETS,
+  SCHULTE_SIZES: SCHULTE_SIZES,
+  PUSHBOX_LEVELS: PUSHBOX_LEVELS,
+  BIGGEST_LEVELS: BIGGEST_LEVELS,
   hintLabelOf: hintLabelOf,
   stageRulesOf: stageRulesOf,
 };

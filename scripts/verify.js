@@ -171,6 +171,75 @@ for (const s of skillMod.SKILLS) {
   }
 }
 
+// 8b-3. C / F 的门数口径：文档写「有失败态的十二门 / 没有失败态的七门」，这个数必须现算。
+// 加一门玩法、或给某门补上去掉 fail 线，都该让文档同步——分组错了，读者就会把「时辰到」
+// 当成「还能拿 C」，判负的语义立刻失真。
+const gameMod = require('../minigames/index.js');
+const CN_DIGIT = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+function cnCount(n) {
+  if (n <= 10) return CN_DIGIT[n];
+  if (n < 20) return '十' + CN_DIGIT[n - 10];
+  return String(n);
+}
+const failGames = [];
+const safeGames = [];
+for (const m of practiceMod.PRACTICE_METHODS) {
+  const mod = gameMod.MODULES[m.game];
+  let failLine = '';
+  try {
+    failLine = (mod.lines({}, {}) || {}).fail || '';
+  } catch (e) {
+    errors.push('玩法 ' + m.game + ' 的 lines() 在空参数下就抛错，说明页会白屏：' + e.message);
+  }
+  (failLine ? failGames : safeGames).push(m.game);
+}
+const docPairs = [
+  ['README.md', fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8')],
+  ['docs/checklist-puzzle.md', fs.readFileSync(path.join(ROOT, 'docs/checklist-puzzle.md'), 'utf8')],
+];
+for (const [name, src] of docPairs) {
+  if (src.indexOf('有失败态的' + cnCount(failGames.length) + '门') < 0) {
+    errors.push(name + ' 的 C/F 分组没跟上真源：现有 ' + failGames.length + ' 门有失败态（' + failGames.join(' / ') + '）');
+  } else checked += 1;
+  if (src.indexOf(cnCount(safeGames.length) + '门（刀法') < 0) {
+    errors.push(name + ' 的 C/F 分组没跟上真源：现有 ' + safeGames.length + ' 门无失败态');
+  } else checked += 1;
+}
+
+// 8b-4. 主题键 → 场景色板必须全覆盖。缺一行不会报错：stageTheme() 会静默落到
+// sword 兜底，结果盘面是青绿、辉光是剑法青蓝，两种颜色各说各话，只有真机才看得出来。
+const themeMod = require('../minigames/theme.js');
+const visualMod = require('../data/visual.js');
+const paletteKeys = new Set(Object.keys(visualMod.FAMILIES));
+for (const key of Object.keys(themeMod.THEMES)) {
+  if (!visualMod.FAMILY_OF[key]) {
+    errors.push('主题「' + key + '」没在 visual.FAMILY_OF 里登记色板，场景辉光会落到 sword 兜底');
+  } else if (!paletteKeys.has(visualMod.FAMILY_OF[key])) {
+    errors.push('主题「' + key + '」的色板「' + visualMod.FAMILY_OF[key] + '」不在四支之内');
+  } else checked += 1;
+}
+
+// 8b-5. 兜底值与真源同值：玩法模块在不带 params 时各留一份默认档表（测试与说明页会用到），
+// 它必须是 practice.js 那一份的拷贝。两处分叉时最典型的症状是「准备页写合出 512、局内要 1024」，
+// 而且只有真机连打两局才看得出来，静态断言比真机便宜得多。
+const fallbackPairs = [
+  ['merge', 'TARGETS', 'MERGE_TARGETS'],
+  ['schulte', 'SIZES', 'SCHULTE_SIZES'],
+];
+for (const [game, modKey, dataKey] of fallbackPairs) {
+  const modVal = gameMod.MODULES[game] && gameMod.MODULES[game][modKey];
+  if (JSON.stringify(modVal) !== JSON.stringify(practiceMod[dataKey])) {
+    errors.push(game + '.' + modKey + ' 与 practice.' + dataKey + ' 分叉了：' + JSON.stringify(modVal) + ' vs ' + JSON.stringify(practiceMod[dataKey]));
+  } else checked += 1;
+}
+const biggestMod = gameMod.MODULES.biggest;
+practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
+  if (biggestMod.COUNTS[i] !== lv.count || biggestMod.ROUNDS[i] !== lv.rounds) {
+    errors.push('biggest 第 ' + i + ' 档与 practice.BIGGEST_LEVELS 分叉：'
+      + biggestMod.COUNTS[i] + '/' + biggestMod.ROUNDS[i] + ' vs ' + lv.count + '/' + lv.rounds);
+  } else checked += 1;
+});
+
 // 8c. 图鉴详情：未习得功法也必须能取到完整玩法与习得路径。
 const engineMod = require('../utils/game.js');
 const freshState = engineMod.createNewState();
@@ -535,6 +604,14 @@ else checked += 1;
 if (errors.length > 0) {
   console.error('静态校验失败（' + errors.length + ' 项）:');
   for (const e of errors) console.error('  - ' + e);
+  process.exit(1);
+}
+// 文档里的项数必须等于本次实际检查数。这个数字最容易漏改：它每加一条断言都会变，
+// 而人只会记得改代码。放在最后是因为 checked 到这里才定稿——只提示不递归。
+const finalReadme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+if (finalReadme.indexOf(checked + ' 项') < 0) {
+  console.error('静态校验失败（1 项）:');
+  console.error('  - README 里的静态项数没同步：本次实际 ' + checked + ' 项，请搜「项静态」或「项，含」对齐');
   process.exit(1);
 }
 console.log('静态校验通过：' + checked + ' 项检查，0 错误');

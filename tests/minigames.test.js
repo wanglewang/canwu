@@ -1,6 +1,6 @@
 'use strict';
 
-// 小游戏层常驻断言：用假时钟把每一局真的跑完，验证 13 套玩法各自独立、机制互不复用、HUD 齐全。
+// 小游戏层常驻断言：用假时钟把每一局真的跑完，验证 19 套玩法各自独立、机制互不复用、HUD 齐全。
 // 零依赖，直接 node tests/minigames.test.js 即可跑。
 const assert = require('assert');
 const index = require('../minigames/index.js');
@@ -362,7 +362,7 @@ const LIMITS = {
   charge: [20000, 55],
 };
 
-// ---------------------------------------------------------------- 断言：十三门十三套
+// ---------------------------------------------------------------- 断言：十九门十九套
 check('19 套常规玩法 + 突破专用玩法全部注册', function () {
   assert.deepStrictEqual(Object.keys(index.MODULES).sort(), [
     'biggest', 'blocks', 'bridge', 'charge', 'click', 'hunt', 'klotski', 'lights', 'link',

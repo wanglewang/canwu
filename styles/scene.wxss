@@ -1,6 +1,7 @@
 /* 参悟 · 沉浸舞台
    三层场景 + 游戏化 HUD + 命中粒子 + 结算五段演出。
-   舞台固定深色，不跟随 prefers-color-scheme；外围页面仍走 app.wxss 的双主题。
+   舞台固定深色，不跟随 prefers-color-scheme；全站页面同样挂 .pg--imm 恒定额色，
+   只有 tokens.wxss 的暗色令牌服务没挂 .pg--imm 的基础层。
    全部由纯 CSS 色块与 transform/opacity 画出，零图片资源。
 
    本文件与 pages/practice/practice.wxss 的盘面色板是「页面规范」的白名单例外：

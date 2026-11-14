@@ -5,7 +5,8 @@ const practiceData = require('./practice.js');
 // 技能表。熟练度阈值走 world.js 的 TIERS，品阶与可修境界走 practice.js 的 TIERS。
 // effect.type：power 对战战力 / variance 对战波动 / practice 参悟收益 / offline 挂机收益
 // source.kind：start 初始 / shop 藏经阁 / battle 首胜掉落 / chance 机缘
-// kind：main 主修（心法，决定修炼速度）/ skill 技艺（刀法、剑法、阵法、丹道、身法、御灵、土术、灵植）
+// kind：main 主修（心法，决定修炼速度）/ skill 技艺（刀法、剑法、阵法、身法、御灵、土术、灵植、
+//       水术、术数、合术、目术、机巧、挪移、辨术——丹道这一类暂时空着，留给真正炼丹的功课）
 // tier：huang 黄 / xuan 玄 / di 地 / tian 天 —— 只决定收益倍率、属性加成与可修境界上限，不决定难度。
 // 难度由玩家在这门功法上的熟练度决定（见 data/practice.js 的 DIFFICULTIES）。
 
@@ -18,14 +19,17 @@ const practiceData = require('./practice.js');
 //   name = 类别(type) + '·' + 三字正名
 //   · 前缀严格取 type，一字不差，不再自造「剑诀 / 灵契」这类类别词；
 //   · 全表只用间隔号「·」，且只出现一次；
-//   · 正名一律 3 字，末字用体裁字（诀 / 步 / 符 / 阵 / 方 / 引），按载体取，不按品阶取；
+//   · 正名一律 3 字，末字用体裁字（诀 / 步 / 引），按载体取，不按品阶取；
 //   · 正名不得与参悟方式名、玩法名重复（三层命名各管一件事）；
 //   · 不用「入门 / 基础 / 小」这类等级词，品阶由 tier 与卡片角标表达，不写进名字。
 // id 是存档主键，改名字一律不动 id。对白 / 行文里可用简称，正式名只认这里的 name。
 const NAME_RULE = {
   sep: '·',
   titleLength: 3,
-  suffixes: ['诀', '步', '符', '阵', '方', '引'],
+  // 白名单只留在用的体裁字：撤掉一族（符箓）或改掉正名（凝露方 → 凝露诀）时，
+  // 旧字必须跟着删——留着它不会报错，但会让「XX·YY阵」这类名字蒙混过校验。
+  // validateNames 会反过来查「白名单里有没有谁一整个字没人用」，逼着一起收窄。
+  suffixes: ['诀', '步', '引'],
 };
 
 // 返回全部不合规说明；空数组表示命名规范全表通过。供静态校验与页面自检复用。
@@ -56,6 +60,15 @@ function validateNames() {
     if (title.indexOf(s.type) === 0) issues.push(s.id + '：正名不该重复类别词');
     if (seen[s.name]) issues.push(s.id + '：功法名与 ' + seen[s.name] + ' 重复');
     seen[s.name] = s.id;
+  }
+  // 白名单反向自检：体裁字表里每一字都得真有人用。撤族 / 改名后忘了收窄，
+  // 白名单会比现实宽，校验随之放水；这里让它自己报出来。
+  const usedSuffixes = {};
+  for (const type of Object.keys(suffixByType)) usedSuffixes[suffixByType[type]] = type;
+  for (const suffix of NAME_RULE.suffixes) {
+    if (!usedSuffixes[suffix]) {
+      issues.push('体裁字「' + suffix + '」在 NAME_RULE.suffixes 里已无人使用，请从白名单删掉');
+    }
   }
   return issues;
 }

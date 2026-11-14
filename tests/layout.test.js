@@ -715,24 +715,27 @@ check('「息」有解释：HUD、香炷与罚时都按它走，名词速查里�
     '玩法说明的盘上所见里也该有「息」');
 });
 
-check('三套经典玩法落地：注册、黄阶定位、盘面与方向键都接进页面', function () {
+check('九套经典玩法落地：注册、黄阶定位、盘面与方向键都接进页面', function () {
   const skills = read('data/skills.js');
   const practice = read('data/practice.js');
   const index = read('minigames/index.js');
   const wxml = read('pages/practice/practice.wxml');
   const js = read('pages/practice/practice.js');
   const guides = read('data/guides.js');
-  for (const id of ['lingqi', 'leiyue', 'sanxiu']) {
-    const re = new RegExp("id: '" + id + "'[^\\n]*tier: 'huang'");
-    assert.ok(re.test(skills), id + ' 没挂黄阶');
+  const classics = [
+    ['lingqi', 'link', '灵纹连线'], ['leiyue', 'blocks', '落石垒基'], ['sanxiu', 'match', '三秀同收'],
+    ['shudu', 'sudoku', '九宫填数'], ['heyuan', 'merge', '滑格相合'], ['shumu', 'schulte', '顺序点格'],
+    ['rongdao', 'klotski', '滑块让路'], ['tuisuo', 'pushbox', '推石入位'], ['zeda', 'biggest', '数中取大'],
+  ];
+  for (const [skillId, game, label] of classics) {
+    const re = new RegExp("id: '" + skillId + "'[^\\n]*tier: 'huang'");
+    assert.ok(re.test(skills), skillId + ' 没挂黄阶');
+    assert.ok(new RegExp(game + ": require\\('\\./" + game + "\\.js'\\)").test(index), game + ' 没进注册表');
+    assert.ok(new RegExp(game + ": '" + label + "'").test(practice), game + ' 的玩法名没登记');
+    assert.ok(new RegExp('\\b' + game + ': \\{').test(guides), game + ' 没有「怎么玩」说明');
   }
-  assert.ok(/link: require\('\.\/link\.js'\)/.test(index) && /blocks: require\('\.\/blocks\.js'\)/.test(index)
-    && /match: require\('\.\/match\.js'\)/.test(index), '三套新玩法没进注册表');
-  assert.ok(/link: '灵纹连线'/.test(practice) && /blocks: '落石垒基'/.test(practice)
-    && /match: '三秀同收'/.test(practice), '玩法名没登记');
   assert.ok(/onPad/.test(js) && /data-dir/.test(wxml) && /controller\.move\(dir\)/.test(js), '落石玩法没有方向键');
   assert.ok(/showPad/.test(wxml) && /grid--compact/.test(wxml), '盘面没接矮格与按键台');
-  assert.ok(/\blink: \{/.test(guides) && /\bblocks: \{/.test(guides) && /\bmatch: \{/.test(guides), '新玩法没有「怎么玩」说明');
 });
 
 check('三连 S 直接晋级：准备页有进度、结算页有回执、指南有专节', function () {
@@ -1025,7 +1028,7 @@ check('功法命名统一：类别·三字正名，前缀严格等于类别', fu
     assert.ok(!/入门|基础|初级|小|大/.test(parts[1]), s.id + ' 正名带了等级词');
     assert.ok(practice.FAMILIES[s.type], s.id + ' 类别不在游戏族表内');
   }
-  // 十三门里不许再出现「有的没前缀」或「前缀和类别对不上」。
+  // 十九门里不许再出现「有的没前缀」或「前缀和类别对不上」。
   assert.strictEqual(skills.SKILLS.length, 19, '功法数变了，命名断言要同步');
   const names = skills.SKILLS.map(function (s) { return s.name; });
   assert.strictEqual(new Set(names).size, names.length, '功法名重复');

@@ -71,7 +71,7 @@ check('评级倍率按设计文档压低，S 不再一家独大', function () {
   assert.ok(world.GRADE_FACTOR.S < practice.DIFFICULTIES[4].mult, 'S 倍率不该盖过最高难度档');
 });
 
-check('数据层：十三门功法、天地玄黄四阶都有人、分类合法', function () {
+check('数据层：十九门功法、天地玄黄四阶都有人、分类合法', function () {
   assert.strictEqual(skills.SKILLS.length, 19);
   const tiers = {};
   for (const s of skills.SKILLS) {
@@ -502,8 +502,9 @@ check('v3 存档升到 v5，熟练度与纪录原样保留', function () {
   assert.strictEqual(n.records.jian.score, 42);
 });
 
-check('三套经典玩法都挂黄阶，价格也按品阶阶梯走', function () {
-  for (const id of ['lingqi', 'leiyue', 'sanxiu']) {
+check('九套经典玩法都挂黄阶，价格也按品阶阶梯走', function () {
+  const classics = ['lingqi', 'leiyue', 'sanxiu', 'shudu', 'heyuan', 'shumu', 'rongdao', 'tuisuo', 'zeda'];
+  for (const id of classics) {
     assert.strictEqual(skills.getSkill(id).tier, 'huang', id + ' 不是黄阶');
   }
   const shop = skills.SKILLS.filter(function (x) { return x.source.kind === 'shop'; });
