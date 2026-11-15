@@ -93,10 +93,11 @@ docs/
     ├── 01-progression-curve.md      成长节奏：从开局到毕业要多久
     ├── 02-numbers-reference.md      数值总表（改数值前先看这里）
     ├── 03-difficulty-audit.md       难度区分度审计
-    └── 04-open-issues.md            已知问题、待真机验收、暂不做的
+    ├── 04-open-issues.md            已知问题、待真机验收、暂不做的
+    └── 05-axis-review.md            外来「精微层」方案评审：拒了什么、补了什么
 ```
 
-共 69 篇（含已有的 `checklist-puzzle.md`），已全部写完。
+共 70 篇（含已有的 `checklist-puzzle.md`），已全部写完。
 
 写完之后这份目录仍然不是静态的：`50-balance/04-open-issues.md` 是**当前欠账的活清单**，代码改了它要跟着改；各篇末尾的「待验」加起来有 248 条，全部是「静态断言回答不了、要真机或真人数据」的项。改动任何一块之前，先看那一篇末尾的「待验」，再看 `04` 里有没有相关的必修条目。
 
