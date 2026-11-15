@@ -1,0 +1,201 @@
+/* 本场运功：切磋 / 秘境页顶部的一块「三格印」。
+   三块牌子而不是三行文字 —— 玩家要在开局前一眼确认「这一场我带的是哪三式」，
+   竖排三行读起来比并排三块慢一拍。
+   三类只靠描边与字色区分（金 / 玉 / 灰），不铺底色：铺了底色就跟下面的
+   对手列表抢视觉，而那才是这一页真正要点的东西。 */
+
+.mp {
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1rpx solid var(--c-imm-line);
+  border-radius: var(--r-md);
+  background: var(--c-imm-panel);
+}
+
+.mp__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mp__head--on { opacity: 0.86; }
+
+.mp__head-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.mp__title {
+  color: var(--c-imm-text);
+  font-size: var(--fs-body);
+  letter-spacing: 2rpx;
+}
+
+.mp__hint {
+  color: var(--c-imm-text-3);
+  font-size: var(--fs-note);
+}
+
+.mp__toggle {
+  flex-shrink: 0;
+  color: var(--c-imm-gold);
+  font-size: var(--fs-note);
+}
+
+.mp__caret {
+  margin-left: 6rpx;
+  font-size: 20rpx;
+}
+
+/* ---------- 三格印 ---------- */
+
+.mp__slots {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.mp__slot {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8rpx;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 12rpx 10rpx;
+  border: 1rpx solid var(--c-imm-line);
+  border-radius: var(--r-sm);
+  background: var(--c-imm-tile);
+}
+
+/* 起手：旧金 —— 这一式是把战力推上去的，最该被看见。 */
+.mp__slot--open { border-color: var(--c-imm-gold-dim); }
+/* 守势：青玉 —— 全站青玉只标「进行中」，这里是「不会失手」，同一支冷色。 */
+.mp__slot--guard { border-color: var(--c-imm-jade-dim); }
+/* 养息：中性 —— 它省的是灵力，不是战力。 */
+.mp__slot--qi { border-color: var(--c-imm-line); }
+
+.mp__slot--empty {
+  border-style: dashed;
+  border-color: var(--c-imm-line-soft);
+  background: transparent;
+}
+
+.mp__seal {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 46rpx;
+  height: 46rpx;
+  border: 1rpx solid var(--c-imm-gold-dim);
+  border-radius: 8rpx;
+  color: var(--c-imm-gold);
+  /* 印面用衬线，跟盘面上的数字是同一套气息。 */
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 28rpx;
+  line-height: 1;
+}
+
+.mp__seal--guard { border-color: var(--c-imm-jade-dim); color: var(--c-imm-jade); }
+.mp__seal--qi { border-color: var(--c-imm-line); color: var(--c-imm-text-2); }
+.mp__seal--empty { border-style: dashed; border-color: var(--c-imm-line-soft); color: var(--c-imm-text-3); font-family: inherit; }
+.mp__seal--sm { width: 44rpx; height: 44rpx; font-size: 26rpx; }
+
+.mp__slot-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2rpx;
+}
+
+.mp__slot-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8rpx;
+  min-width: 0;
+}
+
+.mp__move {
+  flex-shrink: 0;
+  color: var(--c-imm-text);
+  font-size: var(--fs-body-sm);
+  letter-spacing: 1rpx;
+}
+
+.mp__move--empty { color: var(--c-imm-text-3); }
+
+.mp__act {
+  flex-shrink: 0;
+  color: var(--c-imm-text-3);
+  font-size: var(--fs-note);
+}
+
+.mp__val {
+  color: var(--c-imm-gold);
+  font-size: var(--fs-note);
+  /* 数值每场都在变，等宽才不跳。 */
+  font-variant-numeric: tabular-nums;
+}
+
+.mp__val--empty { color: var(--c-imm-text-3); }
+.mp__val--inline { margin-left: auto; }
+.mp__slot--guard .mp__val { color: var(--c-imm-jade); }
+.mp__slot--qi .mp__val { color: var(--c-imm-text-2); }
+
+/* ---------- 候选池 ---------- */
+
+.mp__pool {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1rpx solid var(--c-imm-line-soft);
+}
+
+.mp__item {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 12rpx 10rpx;
+  border: 1rpx solid transparent;
+  border-radius: var(--r-sm);
+}
+
+.mp__item + .mp__item { margin-top: 4rpx; }
+
+.mp__item--press { background: var(--c-imm-gold-soft); }
+
+/* 已运的那几式在池子里要认得出来：一道暗金描边 + 右侧「已运」。 */
+.mp__item--on { border-color: var(--c-imm-gold-dim); background: var(--c-imm-gold-soft); }
+
+.mp__item-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2rpx;
+}
+
+.mp__skill {
+  color: var(--c-imm-text-3);
+  font-size: var(--fs-note);
+}
+
+.mp__mark {
+  flex-shrink: 0;
+  /* 定宽：不定的话「＋」与「已运」两字宽度不同，整列右边缘会参差。 */
+  width: 56rpx;
+  color: var(--c-imm-text-3);
+  font-size: var(--fs-note);
+  text-align: right;
+}
+
+.mp__item--on .mp__mark { color: var(--c-imm-gold); }
+
+.mp__empty {
+  display: block;
+  color: var(--c-imm-text-3);
+  font-size: var(--fs-note);
+  line-height: 1.6;
+}

@@ -1,6 +1,7 @@
 {
   "navigationBarTitleText": "仙门切磋",
   "usingComponents": {
-    "duel-result": "../../components/duel-result/duel-result"
+    "duel-result": "../../components/duel-result/duel-result",
+    "move-picker": "../../components/move-picker/move-picker"
   }
 }

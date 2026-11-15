@@ -486,8 +486,15 @@ expect(!!firstBattle && firstBattle.firstClear && firstBattle.stone >= c0.reward
   '首胜另给 ' + economy.FIRST_CLEAR_STONE + ' 枚：这一场 ' + (firstBattle ? firstBattle.stone : 0) + ' 枚');
 const qiBeforeBattle = battleState.resources.qi;
 const second = game.battle(battleState, c0.id);
-expect(second.ok && battleState.resources.qi === qiBeforeBattle - economy.BATTLE_QI,
-  '再来一场仍先运功扣 ' + economy.BATTLE_QI + ' 点灵力');
+// 运功消耗不再是常数：养息式能把它压下来，所以断言的是「扣的与报的是同一个数」，
+// 而不是「一定扣 5」。报了 2 却扣 5，比数值偏了更难查。
+expect(second.ok && battleState.resources.qi === qiBeforeBattle - second.qiCost,
+  '再来一场仍先运功扣气：报 ' + (second.ok ? second.qiCost : '?') + ' 实扣 '
+  + (qiBeforeBattle - battleState.resources.qi));
+// 但压不穿底线：这一场永远要真的付掉几点灵力，否则切磋就成了白打。
+expect(second.ok && second.qiCost >= economy.BATTLE_QI - 3 && second.qiCost <= economy.BATTLE_QI,
+  '运功消耗 ' + (second.ok ? second.qiCost : '?') + ' 不在 '
+  + (economy.BATTLE_QI - 3) + '–' + economy.BATTLE_QI + ' 之间');
 expect(second.stoneFactor <= 1 && second.battleNo >= 2,
   '第 ' + second.battleNo + ' 场系数 ' + second.stoneFactor + '（首胜之后开始衰减）');
 const poorBattle = game.createNewState();

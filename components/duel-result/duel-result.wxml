@@ -3,10 +3,27 @@
     <text class="modal__title">{{view.headline}}</text>
     <text class="modal__sub">{{view.subline}}</text>
 
+    <!-- 运功三式：这一场到底出了哪几手。逐条落下来（animation-delay 错开），
+         让「放出功法」有一个先后，而不是一次性糊成一段说明。 -->
+    <view class="bout-set" wx:if="{{view.moves.length > 0}}">
+      <text class="bout-set__label">本场运功</text>
+      <view class="bout" wx:for="{{view.moves}}" wx:key="id" style="animation-delay:{{index * 120}}ms">
+        <text class="bout__seal bout__seal--{{item.act}}">{{item.seal}}</text>
+        <view class="bout__body">
+          <view class="bout__top">
+            <text class="bout__name">{{item.name}}</text>
+            <text class="bout__act">{{item.actName}}</text>
+            <text class="bout__val bout__val--{{item.act}}">{{item.val}}</text>
+          </view>
+          <text class="bout__line">{{item.line}}</text>
+        </view>
+      </view>
+    </view>
+
     <view class="duel-score mt24">
       <view class="duel-score__side">
         <text class="tiny">我方挥出</text>
-        <text class="duel-num {{view.winTone}}">{{view.playerRoll}}</text>
+        <text class="duel-num {{view.win ? 'duel-num--win' : 'duel-num--lose'}}">{{view.playerRoll}}</text>
       </view>
       <text class="duel-vs">对</text>
       <view class="duel-score__side">
@@ -14,14 +31,8 @@
         <text class="duel-num">{{view.enemyRoll}}</text>
       </view>
     </view>
+    <text class="duel-boost" wx:if="{{view.hasBoost}}">运功前 {{view.power}} → 运功后 {{view.powerAfter}}</text>
     <text class="quote mt16">{{view.line}}</text>
-
-    <view class="modal__body" wx:if="{{view.effects.length > 0}}">
-      <text class="tag tag--gold">触发特效</text>
-      <view class="res-note mt8" wx:for="{{view.effects}}" wx:key="name">
-        <text class="tiny">· {{item.name}}：{{item.text}}</text>
-      </view>
-    </view>
 
     <view class="modal__body">
       <view class="res-line" wx:for="{{view.lines}}" wx:key="k">

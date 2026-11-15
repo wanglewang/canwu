@@ -923,4 +923,90 @@ check('破境建议：给的是离下一段最近的那门，不是加成最大�
   assert.strictEqual(game.breakthroughInfo(strong).fastest, null, '全员大圆满还给了练功建议');
 });
 
+
+check('本场运功：十九门各炼成一式，招式名两字且首字互不复用', function () {
+  const moves = require('../data/moves.js');
+  const names = [];
+  skills.SKILLS.forEach(function (sk) {
+    const m = moves.MOVES[sk.id];
+    assert.ok(m, sk.id + ' 没有招式：这门功法在切磋里出不了场');
+    assert.strictEqual(m.name.length, 2, sk.id + ' 的招式名不是两个字：「' + m.name + '」');
+    assert.ok(moves.ACTS[m.act], sk.id + ' 的出手时机不是 open / guard / qi 之一');
+    assert.ok(m.line && m.line.length >= 6, sk.id + ' 缺一句门规，玩家不知道这一式在做什么');
+    names.push(m.name.slice(0, 1));
+  });
+  assert.strictEqual(names.length, skills.SKILLS.length, '招式数与功法数对不上');
+  // 印章取首字：两式撞字，结算卡上就分不清谁是谁。
+  assert.strictEqual(new Set(names).size, names.length, '有两式的印章首字重复');
+});
+
+check('本场运功：选中才生效，至多三式，没入门运不出去', function () {
+  const moves = require('../data/moves.js');
+  // 一门都不运：加成必须是 0，而不是「挂着就自动生效」。
+  const none = game.battleMoves(freshState(), []);
+  assert.strictEqual(none.powerBonus, 0, '一式不运却拿到了战力加成');
+  assert.strictEqual(none.floorBonus, 0, '一式不运却拿到了波动加成');
+  assert.strictEqual(none.qiRelief, 0, '一式不运却省了灵力');
+  assert.strictEqual(none.entries.length, 0);
+
+  // 段位 0（未入门）的式运不出去：这一式还没成形。
+  const raw = freshState();
+  raw.skills.jian.unlocked = true;
+  raw.skills.jian.prof = 0;
+  assert.strictEqual(game.battleMoves(raw, ['jian']).entries.length, 0, '未入门的功法被运出去了');
+
+  // 入门之后同一式才有值。
+  const inited = freshState();
+  inited.skills.jian.unlocked = true;
+  inited.skills.jian.prof = 300;
+  const one = game.battleMoves(inited, ['jian']);
+  assert.strictEqual(one.entries.length, 1, '入门的功法没被运出去');
+  assert.ok(one.entries[0].percent > 0, '起手式没有百分数');
+
+  // 上限三式：多传只取前三，且不重复取同一门。
+  const many = freshState();
+  Object.keys(many.skills).forEach(function (id) {
+    many.skills[id].unlocked = true;
+    many.skills[id].prof = world.PROF_MAX;
+  });
+  const ids = Object.keys(many.skills);
+  const over = game.battleMoves(many, ids);
+  assert.strictEqual(over.entries.length, moves.MAX_MOVES, '超过三式没有被截断');
+  assert.strictEqual(game.battleMoves(many, [ids[0], ids[0], ids[0]]).entries.length, 1,
+    '同一门功法被运了两次');
+});
+
+check('本场运功：养息能抵灵力，但抵不穿底线', function () {
+  const moves = require('../data/moves.js');
+  const s = freshState();
+  const qiIds = [];
+  skills.SKILLS.forEach(function (sk) {
+    if (moves.MOVES[sk.id].act === 'qi') { s.skills[sk.id].unlocked = true; s.skills[sk.id].prof = world.PROF_MAX; qiIds.push(sk.id); }
+  });
+  assert.ok(qiIds.length >= 3, '养息类功法不足三门，这条断言失去意义');
+  const mv = game.battleMoves(s, qiIds);
+  assert.ok(mv.qiRelief > 0, '三门养息没省下任何灵力');
+  assert.ok(mv.qiRelief <= moves.QI_RELIEF_CAP, '养息省下的灵力超过了封顶');
+  // 硬底线：运功永远不能压到 0，否则「切磋要烧气」这条取舍整条失效。
+  const board = game.moveBoard(s, qiIds);
+  assert.ok(board.qiCost >= 2, '养息把运功压到了 ' + board.qiCost + ' 点，底线穿了');
+  assert.ok(board.qiCost < board.qiBase, '养息没有真的降低这一场的运功消耗');
+});
+
+check('本场运功：三处对战共用同一份掷骰，谁也不许自己拼战力', function () {
+  const src = fs.readFileSync(path.join(__dirname, '../utils/game.js'), 'utf8');
+  // 直调 rollBattle 只有 rollWithMoves 一处：多一处就是「有一路没走运功」。
+  const direct = src.match(/rollBattle\(/g) || [];
+  assert.strictEqual(direct.length, 2, 'rollBattle 出现了 ' + direct.length + ' 次（定义 + 唯一调用点各一）');
+  assert.ok(/function rollWithMoves\(/.test(src), '没有 rollWithMoves');
+  // 押上运功之后战力必须真的变：只改展示不改算，等于没做。
+  const s = freshState();
+  s.skills.duanyue.unlocked = true;
+  s.skills.duanyue.prof = world.PROF_MAX;
+  const bare = game.computePower(s);
+  const mv = game.battleMoves(s, ['duanyue']);
+  assert.ok(mv.powerBonus > 0);
+  assert.ok(Math.round(bare * (1 + mv.powerBonus)) > bare, '运功没有抬高出战战力');
+});
+
 console.log('品阶与难度断言全部通过：' + passed + ' 项');

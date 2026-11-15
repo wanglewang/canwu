@@ -9,6 +9,7 @@ const practiceData = require('../data/practice.js');
 const economyData = require('../data/economy.js');
 const guideData = require('../data/guides.js');
 const opponentData = require('../data/opponents.js');
+const moveData = require('../data/moves.js');
 const titleData = require('../data/titles.js');
 const achievementData = require('../data/achievements.js');
 const copy = require('../data/copy.js');
@@ -968,39 +969,180 @@ function rollBattle(playerPower, enemyPower, varianceBonus, shenBonus) {
   return { playerRoll: Math.round(playerRoll), enemyRoll: Math.round(enemyRoll) };
 }
 
-function activeBattleEffects(state) {
-  const list = [];
+// ---------------------------------------------------------------- 本场运功
+
+// 一场至多运三式，选中才生效。口径没变（skills.js 的 effect.value × 段位系数），
+// 变的是「谁出场」：以前所有 power / variance 特效挂在身上自动累加，玩家看不见
+// 任何一门功法出场，赢了不知道靠哪门；现在得自己挑三式运出去（集中系数见
+// data/moves.js 的 FOCUS —— 单运一式比被动挂着更足，三式合计约等于以前全额）。
+function battleMoves(state, ids) {
+  const want = Array.isArray(ids) ? ids : [];
+  const picked = [];
+  const seen = {};
+  for (let i = 0; i < want.length; i += 1) {
+    if (picked.length >= moveData.MAX_MOVES) break;
+    const id = want[i];
+    if (!id || seen[id]) continue;
+    const rec = state.skills[id];
+    if (!rec || !rec.unlocked) continue;
+    // 没入门（段位系数 0）运不出去：这一式还没成形。
+    const scale = effectScaleOf(rec.prof);
+    if (!scale) continue;
+    const m = moveData.moveOf(id);
+    if (!m) continue;
+    seen[id] = true;
+    picked.push({ id: id, move: m, scale: scale });
+  }
+  const entries = [];
+  let powerBonus = 0;
+  let floorBonus = 0;
+  let qiRelief = 0;
+  for (let i = 0; i < picked.length; i += 1) {
+    const card = moveCard(state, picked[i].id, picked[i].scale);
+    if (!card) continue;
+    if (card.act === 'open') powerBonus += moveData.stanceOf(card.id, picked[i].scale);
+    else if (card.act === 'guard') floorBonus += moveData.stanceOf(card.id, picked[i].scale);
+    else qiRelief += card.relief;
+    entries.push(card);
+  }
+  qiRelief = Math.min(moveData.QI_RELIEF_CAP, qiRelief);
+  return { entries: entries, powerBonus: powerBonus, floorBonus: floorBonus, qiRelief: qiRelief };
+}
+
+// 一式的展示字段。引擎算一次，选择面板与结算卡都用这一份 —— 免得两处各算一遍
+// 「起手给百分数、养息给灵力点」这条换算，下次改口径必有一处忘。
+function moveCard(state, id, scale) {
+  const m = moveData.moveOf(id);
+  if (!m) return null;
+  const rec = state.skills[id];
+  const stance = moveData.stanceOf(id, scale);
+  const relief = moveData.reliefOf(id, scale);
+  const tier = rec ? tierInfo(rec.prof) : null;
+  return {
+    id: id,
+    // 印章那一格取招式名首字：破 / 开 / 借 / 叠 / 护 / 引 … 十九个字互不重复。
+    seal: m.name.slice(0, 1),
+    name: m.name,
+    skillName: m.skillName,
+    act: m.act,
+    actName: moveData.ACTS[m.act].name,
+    line: m.line,
+    // 起手 / 守势给百分数，养息给灵力点数 —— 两种单位不能混成一个「势」。
+    percent: m.act === 'qi' ? 0 : Math.round(stance * 1000) / 10,
+    relief: m.act === 'qi' ? relief : 0,
+    tier: tier ? tier.name : '',
+  };
+}
+
+// 页面要的一整块：这一场运哪三式、还能换哪些、这一场烧几点灵力。
+// 排序先按职能（起手 / 守势 / 养息），再按势的大小降 —— 池子乱序的话，
+// 玩家永远找不到刚才看见的那一式。
+function moveBoard(state, ids) {
+  const picked = Array.isArray(ids) && ids.length ? ids : pickMoves(state);
+  const mv = battleMoves(state, picked);
+  const used = {};
+  for (let i = 0; i < mv.entries.length; i += 1) used[mv.entries[i].id] = true;
+
+  const order = { open: 0, guard: 1, qi: 2 };
+  const pool = [];
+  for (let i = 0; i < skillData.SKILLS.length; i += 1) {
+    const sk = skillData.SKILLS[i];
+    const rec = state.skills[sk.id];
+    if (!rec || !rec.unlocked) continue;
+    const scale = effectScaleOf(rec.prof);
+    if (!scale || !moveData.MOVES[sk.id]) continue;
+    const card = moveCard(state, sk.id, scale);
+    if (!card) continue;
+    card.on = !!used[sk.id];
+    card.weight = sk.effect.value * scale;
+    pool.push(card);
+  }
+  pool.sort(function (a, b) {
+    if (order[a.act] !== order[b.act]) return order[a.act] - order[b.act];
+    return b.weight - a.weight;
+  });
+
+  const qiCost = Math.max(1, economyData.BATTLE_QI - mv.qiRelief);
+  // 面板上要显示「本场出手」：改一式数字就得动一下，否则「选功法」只是换了个
+  // 名字，跟战力有没有关系全靠猜。这个数和 rollWithMoves 用的是同一个乘法。
+  const power = computePower(state);
+  return {
+    ids: mv.entries.map(function (e) { return e.id; }),
+    power: power,
+    powerAfter: Math.round(power * (1 + mv.powerBonus)),
+    entries: mv.entries,
+    pool: pool,
+    max: moveData.MAX_MOVES,
+    qiCost: qiCost,
+    qiBase: economyData.BATTLE_QI,
+    powerBonus: mv.powerBonus,
+    floorBonus: mv.floorBonus,
+    qiRelief: mv.qiRelief,
+  };
+}
+
+// 没给选择时的默认：起手 / 守势 / 养息三种职能各取最强一式，职能位没填满再按
+// 强弱补齐。默认就该是「会玩的人会这么选」——否则玩家第一次进切磋看到的是一张
+// 空的三格，得先学会怎么选才打得动。
+function pickMoves(state) {
+  const pool = [];
   for (let i = 0; i < skillData.SKILLS.length; i += 1) {
     const s = skillData.SKILLS[i];
     const rec = state.skills[s.id];
-    if (!rec || !rec.unlocked || tierIndex(rec.prof) < 3) continue;
-    if (s.effect.type === 'power' || s.effect.type === 'variance') {
-      list.push({ name: s.name, text: s.effect.text });
-    }
+    if (!rec || !rec.unlocked) continue;
+    const scale = effectScaleOf(rec.prof);
+    const m = moveData.MOVES[s.id];
+    if (!scale || !m) continue;
+    pool.push({ id: s.id, act: m.act, weight: s.effect.value * scale });
   }
-  return list;
+  const out = [];
+  const acts = ['open', 'guard', 'qi'];
+  for (let a = 0; a < acts.length; a += 1) {
+    let best = null;
+    for (let i = 0; i < pool.length; i += 1) {
+      if (pool[i].act !== acts[a]) continue;
+      if (!best || pool[i].weight > best.weight) best = pool[i];
+    }
+    if (best && out.length < moveData.MAX_MOVES) out.push(best.id);
+  }
+  const rest = pool.slice().sort(function (x, y) { return y.weight - x.weight; });
+  for (let i = 0; i < rest.length && out.length < moveData.MAX_MOVES; i += 1) {
+    if (out.indexOf(rest[i].id) < 0) out.push(rest[i].id);
+  }
+  return out;
 }
 
-function battle(state, challengeId) {
+// 四处对战（切磋 / 秘境 / 战力码 / 榜单镜像）共用这一份掷骰：式给战力的加成、
+// 式给波动下限的加成、养息省下的灵力，全部在这里一次算完，谁也别自己拼。
+function rollWithMoves(state, enemyPower, moveIds) {
+  const moves = battleMoves(state, moveIds === undefined || moveIds === null ? pickMoves(state) : moveIds);
+  const power = computePower(state);
+  const powerAfter = Math.round(power * (1 + moves.powerBonus));
+  const rolls = rollBattle(powerAfter, enemyPower, moves.floorBonus, shenFloorBonus(state));
+  const qiCost = Math.max(1, economyData.BATTLE_QI - moves.qiRelief);
+  return { power: power, powerAfter: powerAfter, moves: moves, rolls: rolls, qiCost: qiCost };
+}
+
+function battle(state, challengeId, moveIds) {
   const c = opponentData.getChallenge(challengeId);
   if (!c) return { ok: false, msg: '没有找到这位对手' };
-  // 切磋要先运功：不论胜负都烧 5 点灵力。赚灵石和练功争的是同一池灵力，
-  // 两件事才有取舍——否则切磋就是「点一下白给钱」，谁还去参悟。
-  if (state.resources.qi < economyData.BATTLE_QI) {
+  // 先定这一场运哪三式，再按三式算出实际要烧几点灵力。养息类能把运功压到 2 点，
+  // 压不到 0 —— 「赚灵石」与「练功」争的始终是同一池灵力。
+  const fight = rollWithMoves(state, c.power, moveIds);
+  if (state.resources.qi < fight.qiCost) {
     return {
       ok: false,
-      msg: '灵力不足：一场切磋要运功 ' + economyData.BATTLE_QI + ' 点，先回洞府打坐',
-      lackQi: economyData.BATTLE_QI - state.resources.qi,
+      msg: '灵力不足：这一场要运功 ' + fight.qiCost + ' 点，先回洞府打坐',
+      lackQi: fight.qiCost - state.resources.qi,
       qiCap: qiCap(state),
     };
   }
-  const power = computePower(state);
-  const effects = activeBattleEffects(state);
-  const rolls = rollBattle(power, c.power, effectValue(state, 'variance'), shenFloorBonus(state));
+  const power = fight.power;
+  const rolls = fight.rolls;
   const win = rolls.playerRoll >= rolls.enemyRoll;
   const firstClear = win && state.defeated.indexOf(c.id) < 0;
 
-  state.resources.qi -= economyData.BATTLE_QI;
+  state.resources.qi -= fight.qiCost;
   if (!state.daily) state.daily = { date: todayKey(Date.now()), count: 0, claimed: false, battleWins: 0 };
   const winsBefore = Math.floor(num(state.daily.battleWins, 0));
   // 当日第 n 场胜利的灵石按 0.85^(n-1) 给：灵脉一天只吐那么多，取多了就只剩渣。
@@ -1038,12 +1180,13 @@ function battle(state, challengeId) {
     challengeName: c.name,
     challengeTitle: c.title,
     power: power,
+    powerAfter: fight.powerAfter,
     enemyPower: c.power,
     playerRoll: rolls.playerRoll,
     enemyRoll: rolls.enemyRoll,
-    effects: effects,
-    // 运功消耗固定，灵石按当日第几场衰减；结算卡据此写「灵力 −5 / 灵石 +10（第 2 场 ×0.85）」。
-    qiCost: economyData.BATTLE_QI,
+    moves: fight.moves,
+    // 运功基准 5 点，养息式可抵掉一部分；结算卡据此写「灵力 −3 / 灵石 +10（第 2 场 ×0.85）」。
+    qiCost: fight.qiCost,
     qiAfter: state.resources.qi,
     qiMax: qiCap(state),
     stone: stone,
@@ -1080,26 +1223,26 @@ function parseBattleCode(code) {
   return { ok: true, power: power, realm: realm, tiers: parts[3] };
 }
 
-function battleMirror(state, code) {
+function battleMirror(state, code, moveIds) {
   const mirror = parseBattleCode(code);
   if (!mirror.ok) return { ok: false, msg: mirror.msg };
-  if (state.resources.qi < economyData.BATTLE_QI) {
+  const fight = rollWithMoves(state, mirror.power, moveIds);
+  if (state.resources.qi < fight.qiCost) {
     return {
       ok: false,
-      msg: '灵力不足：一场切磋要运功 ' + economyData.BATTLE_QI + ' 点，先回洞府打坐',
-      lackQi: economyData.BATTLE_QI - state.resources.qi,
+      msg: '灵力不足：这一场要运功 ' + fight.qiCost + ' 点，先回洞府打坐',
+      lackQi: fight.qiCost - state.resources.qi,
       qiCap: qiCap(state),
     };
   }
-  const power = computePower(state);
-  const effects = activeBattleEffects(state);
-  const rolls = rollBattle(power, mirror.power, effectValue(state, 'variance'), shenFloorBonus(state));
+  const power = fight.power;
+  const rolls = fight.rolls;
   const win = rolls.playerRoll >= rolls.enemyRoll;
   if (!state.daily) state.daily = { date: todayKey(Date.now()), count: 0, claimed: false, battleWins: 0 };
   const winsBefore = Math.floor(num(state.daily.battleWins, 0));
   const stoneFactor = win ? economyData.battleStoneFactor(winsBefore) : 0;
   const stone = win ? Math.round(8 * stoneFactor) : 0;
-  state.resources.qi -= economyData.BATTLE_QI;
+  state.resources.qi -= fight.qiCost;
   state.resources.stone += stone;
   if (win) {
     state.stats.wins += 1;
@@ -1108,9 +1251,9 @@ function battleMirror(state, code) {
   addLog(state, '与镜像道友论道，' + (win ? '胜' : '负') + '，' + rolls.playerRoll + ' : ' + rolls.enemyRoll, 'battle');
   return {
     ok: true, win: win, challengeName: '镜像道友', challengeTitle: '战力码切磋',
-    power: power, enemyPower: mirror.power,
+    power: power, powerAfter: fight.powerAfter, enemyPower: mirror.power,
     playerRoll: rolls.playerRoll, enemyRoll: rolls.enemyRoll,
-    effects: effects, qiCost: economyData.BATTLE_QI, qiAfter: state.resources.qi, qiMax: qiCap(state),
+    moves: fight.moves, qiCost: fight.qiCost, qiAfter: state.resources.qi, qiMax: qiCap(state),
     stone: stone, stoneFactor: Math.round(stoneFactor * 1000) / 1000,
     battleNo: winsBefore + (win ? 1 : 0), dropName: '',
     line: win ? '镜像散去，你觉得自己的路子好像也没走歪。' : '镜像收招：「回去再练练，不急。」',
@@ -1287,26 +1430,26 @@ function importSaveCode(code) {
 }
 
 // 与榜单里的真实玩家镜像论道：只取战力与名号，不接触对方存档内容。
-function battleRival(state, rival) {
+function battleRival(state, rival, moveIds) {
   if (!rival || !isFinite(rival.power)) return { ok: false, msg: '没有找到这位道友' };
-  if (state.resources.qi < economyData.BATTLE_QI) {
+  const enemyPower = Math.max(0, Math.floor(Number(rival.power)));
+  const fight = rollWithMoves(state, enemyPower, moveIds);
+  if (state.resources.qi < fight.qiCost) {
     return {
       ok: false,
-      msg: '灵力不足：一场切磋要运功 ' + economyData.BATTLE_QI + ' 点，先回洞府打坐',
-      lackQi: economyData.BATTLE_QI - state.resources.qi,
+      msg: '灵力不足：这一场要运功 ' + fight.qiCost + ' 点，先回洞府打坐',
+      lackQi: fight.qiCost - state.resources.qi,
       qiCap: qiCap(state),
     };
   }
-  const enemyPower = Math.max(0, Math.floor(Number(rival.power)));
-  const power = computePower(state);
-  const effects = activeBattleEffects(state);
-  const rolls = rollBattle(power, enemyPower, effectValue(state, 'variance'), shenFloorBonus(state));
+  const power = fight.power;
+  const rolls = fight.rolls;
   const win = rolls.playerRoll >= rolls.enemyRoll;
   if (!state.daily) state.daily = { date: todayKey(Date.now()), count: 0, claimed: false, battleWins: 0 };
   const winsBefore = Math.floor(num(state.daily.battleWins, 0));
   const stoneFactor = win ? economyData.battleStoneFactor(winsBefore) : 0;
   const stone = win ? Math.round(8 * stoneFactor) : 0;
-  state.resources.qi -= economyData.BATTLE_QI;
+  state.resources.qi -= fight.qiCost;
   state.resources.stone += stone;
   if (win) {
     state.stats.wins += 1;
@@ -1316,9 +1459,9 @@ function battleRival(state, rival) {
   addLog(state, '与「' + name + '」论道，' + (win ? '胜' : '负') + '，' + rolls.playerRoll + ' : ' + rolls.enemyRoll, 'battle');
   return {
     ok: true, win: win, challengeName: name, challengeTitle: '实录切磋',
-    power: power, enemyPower: enemyPower,
+    power: power, powerAfter: fight.powerAfter, enemyPower: enemyPower,
     playerRoll: rolls.playerRoll, enemyRoll: rolls.enemyRoll,
-    effects: effects, qiCost: economyData.BATTLE_QI, qiAfter: state.resources.qi, qiMax: qiCap(state),
+    moves: fight.moves, qiCost: fight.qiCost, qiAfter: state.resources.qi, qiMax: qiCap(state),
     stone: stone, stoneFactor: Math.round(stoneFactor * 1000) / 1000,
     battleNo: winsBefore + (win ? 1 : 0), dropName: '',
     line: win ? '这一场赢得干净，对方留了句「后会有期」。' : '对方收招：「道友根基还差些火候。」',
@@ -1812,8 +1955,11 @@ function getFamilies(state) {
   return out;
 }
 
-function getChallengeList(state) {
-  const power = computePower(state);
+function getChallengeList(state, moveIds) {
+  // 胜算与运功消耗都要按「这一场实际怎么打」说：三式尽出与空手上去是两回事，
+  // 列表上写着「胜算在握」，进去放完三式才发现其实是险胜，这条提示就白给了。
+  const board = moveBoard(state, moveIds);
+  const power = board.powerAfter;
   const out = [];
   for (let i = 0; i < opponentData.ALL_CHALLENGES.length; i += 1) {
     const c = opponentData.ALL_CHALLENGES[i];
@@ -1833,8 +1979,9 @@ function getChallengeList(state) {
       desc: c.desc,
       power: c.power,
       // 灵力不再是奖励，而是这一场的运功成本；灵石才是收入。
-      // 列表里要写清「花 5 换多少灵石」，否则玩家以为切磋还倒贴灵力。
-      qiCost: economyData.BATTLE_QI,
+      // 列表里要写清「花几点换多少灵石」，否则玩家以为切磋还倒贴灵力。
+      // 这个数随养息式浮动（5 → 2），必须跟 battle() 实际扣的是同一个来源。
+      qiCost: board.qiCost,
       stone: c.reward.stone,
       // 今日第几场：灵石按 0.85^(n-1) 衰减，列表上直接给出「下一场能拿多少」。
       stoneNow: (function () {
@@ -1930,6 +2077,9 @@ module.exports = {
   applyPractice: applyPractice,
   practiceCostOf: practiceCostOf,
   battle: battle,
+  battleMoves: battleMoves,
+  pickMoves: pickMoves,
+  moveBoard: moveBoard,
   battleCode: battleCode,
   parseBattleCode: parseBattleCode,
   battleMirror: battleMirror,

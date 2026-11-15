@@ -25,6 +25,10 @@ Page({
     showResult: false,
     result: null,
     copy: copy.UI,
+    moveSlots: [],
+    movePool: [],
+    moveMax: 3,
+    moveCost: 5,
     codeOpen: false,
   },
 
@@ -40,12 +44,22 @@ Page({
 
   refresh: function () {
     const state = store.get();
-    const all = engine.getChallengeList(state);
+    // 本场运功：选中的三式记在页面内存里（一场一议，换页即回默认），不写存档。
+    // 数值与候选池都由引擎算，页面只负责把「改了哪一式」写回去。
+    // 必须先定三式再算列表：胜算提示与运功消耗都跟着这三式走。
+    const board = engine.moveBoard(state, this.moveIds);
+    this.moveIds = board.ids;
+    const all = engine.getChallengeList(state, board.ids);
     const npcs = [];
     for (let i = 0; i < all.length; i += 1) {
       if (all[i].kind === 'npc') npcs.push(all[i]);
     }
     this.setData({
+      moveSlots: board.entries,
+      movePool: board.pool,
+      moveMax: board.max,
+      moveCost: board.qiCost,
+      movePower: board.powerAfter,
       ov: engine.getOverview(state),
       npcs: npcs,
       myCode: engine.battleCode(state),
@@ -65,8 +79,9 @@ Page({
 
   // 结果原样交给 components/duel-result：格式化只写一份，两页共用。
   onFight: function (event) {
+    const self = this;
     const id = event.currentTarget.dataset.id;
-    const r = store.commitCritical(function (s) { return engine.battle(s, id); });
+    const r = store.commitCritical(function (s) { return engine.battle(s, id, self.moveIds); });
     if (!r.ok) { toast(r.msg); return; }
     this.setData({ showResult: true, result: r });
     this.refresh();
@@ -105,6 +120,23 @@ Page({
     const r = store.commitCritical(function (s) { return engine.battleMirror(s, code); });
     if (!r.ok) { toast(r.msg); return; }
     this.setData({ showResult: true, result: r });
+    this.refresh();
+  },
+
+  // 点池子里的一式：已在运的就撤下，没运的补上。撤到只剩一式时不许再撤——
+  // 空手上去和三式尽出是两回事，前者没有任何可看的东西。
+  onPickMove: function (event) {
+    const id = event.detail.id;
+    const cur = (this.moveIds || []).slice();
+    const at = cur.indexOf(id);
+    if (at >= 0) {
+      if (cur.length <= 1) { toast('至少要运一式'); return; }
+      cur.splice(at, 1);
+    } else {
+      if (cur.length >= this.data.moveMax) { toast('一场至多 ' + this.data.moveMax + ' 式，先撤一式'); return; }
+      cur.push(id);
+    }
+    this.moveIds = cur;
     this.refresh();
   },
 

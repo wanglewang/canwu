@@ -1,0 +1,44 @@
+<view class="mp">
+  <view class="mp__head" bindtap="onToggle" hover-class="mp__head--on" hover-stay-time="60">
+    <view class="mp__head-left">
+      <text class="mp__title">本场运功</text>
+      <text class="mp__hint">{{power > 0 ? '本场挥出 ' + power + ' · 运功 ' + cost + ' 灵力' : '运功 ' + cost + ' 灵力'}}</text>
+    </view>
+    <text class="mp__toggle">{{open ? '收起' : '改换'}}<text class="mp__caret">{{open ? '⌃' : '⌄'}}</text></text>
+  </view>
+
+  <!-- 三格印：已运的式就是这三块牌子，收起时也必须在场 -->
+  <view class="mp__slots">
+    <view class="mp__slot mp__slot--{{item.act}}" wx:for="{{slotView}}" wx:key="id">
+      <text class="mp__seal mp__seal--{{item.act}}">{{item.seal}}</text>
+      <view class="mp__slot-body">
+        <text class="mp__move">{{item.name}}</text>
+        <text class="mp__val">{{item.val}}</text>
+      </view>
+    </view>
+    <view class="mp__slot mp__slot--empty" wx:if="{{spare > 0}}">
+      <text class="mp__seal mp__seal--empty">＋</text>
+      <view class="mp__slot-body">
+        <text class="mp__move mp__move--empty">空位 {{spare}}</text>
+        <text class="mp__val mp__val--empty">展开可添</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 候选池：只在展开时出现，默认收起 -->
+  <view class="mp__pool" wx:if="{{open}}">
+    <view class="mp__item mp__item--{{item.act}} {{item.on ? 'mp__item--on' : ''}}" wx:for="{{poolView}}" wx:key="id" data-id="{{item.id}}" bindtap="onPick" hover-class="mp__item--press" hover-stay-time="60">
+      <text class="mp__seal mp__seal--sm mp__seal--{{item.act}}">{{item.seal}}</text>
+      <view class="mp__item-body">
+        <view class="mp__slot-top">
+          <text class="mp__move">{{item.name}}</text>
+          <text class="mp__act">{{item.actName}}</text>
+          <text class="mp__val mp__val--inline">{{item.val}}</text>
+        </view>
+        <text class="mp__skill">{{item.skillName}}<text wx:if="{{item.tier}}"> · {{item.tier}}</text></text>
+      </view>
+      <text class="mp__mark">{{item.on ? '已运' : '＋'}}</text>
+    </view>
+    <text class="mp__empty" wx:if="{{poolView.length === 0}}">还没有能运出去的式：先参悟到入门，这一式才成形。</text>
+  </view>
+</view>

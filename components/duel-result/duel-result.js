@@ -26,12 +26,36 @@ function toView(r) {
   if (r.dropName) lines.push({ k: '新功法', v: r.dropName });
   // 秘境不是「对手」是「地方」：第一次赢下来叫首过，说首胜会跟切磋混成同一件事。
   const firstClearLabel = r.kind === 'secret' ? '首过 · ' : '首胜 · ';
+  // 本场运功：三式按出手顺序摆出来，每式一行。val 在这里算好，
+  // 免得模板里写「起手给百分数、养息给灵力点」那条分支（两处各写一遍必错一处）。
+  const moves = [];
+  const src = (r.moves && r.moves.entries) || [];
+  for (let i = 0; i < src.length; i += 1) {
+    const m = src[i];
+    moves.push({
+      id: m.id,
+      seal: m.seal,
+      name: m.name,
+      act: m.act,
+      actName: m.actName,
+      line: m.line,
+      skillName: m.skillName,
+      val: m.act === 'qi' ? '省 ' + m.relief + ' 灵力' : '+' + m.percent + '%',
+    });
+  }
   return {
     win: r.win,
+    moves: moves,
+    // 运功前的裸战力与运功后的出手值都要写：只写后一个，玩家会以为自己
+    // 本来就有那么多力气，看不出这三式做了什么。
+    power: r.power || 0,
+    powerAfter: r.powerAfter || r.power || 0,
+    hasBoost: !!r.powerAfter && r.powerAfter > r.power,
     headline: r.win
       ? (r.firstClear ? firstClearLabel + r.challengeName : '胜 · ' + r.challengeName)
       : '惜败 · ' + r.challengeName,
-    subline: r.challengeTitle + ' · 双方各有 ±15% 波动',
+    // 副标题要能在一行里放下：小屏上「双方各有 ±15% 波动」会把「波动」挤到第二行。
+    subline: r.challengeTitle + ' · ±15% 波动',
     playerRoll: r.playerRoll,
     enemyRoll: r.enemyRoll,
     effects: r.effects || [],

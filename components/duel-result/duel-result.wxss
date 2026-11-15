@@ -31,7 +31,122 @@
     font-size: var(--fs-note);
 }
 
+/* 只动位移、不动透明度。写成从 opacity: 0 起跳的话，系统开了「减少动效」
+   （或者截图 / 首帧）时这两个数字会直接消失 —— 盘面的 boardIn 踩过同一次，
+   这里是第二次，所以这条不是风格问题。 */
 @keyframes riseIn {
-    from { opacity: 0; transform: translateY(var(--sp-4)); }
-    to { opacity: 1; transform: translateY(0); }
+    from { transform: translateY(12rpx); }
+    to { transform: translateY(0); }
 }
+
+/* ---------- 本场运功（三式） ---------- */
+
+.bout-set {
+    margin-top: var(--sp-4);
+    padding: var(--sp-3) var(--sp-4);
+    border: 1rpx solid var(--c-border);
+    border-radius: var(--r-md);
+    background: var(--c-surface-2);
+}
+
+.bout-set__label {
+    color: var(--c-imm-gold);
+    font-size: var(--fs-note);
+    letter-spacing: 2rpx;
+}
+
+.bout {
+    display: flex;
+    align-items: flex-start;
+    gap: 14rpx;
+    margin-top: var(--sp-3);
+    /* 只动位移、不动透明度：动效被系统关掉时，这三行仍要看得见
+       （盘面入场动画当初踩过 opacity: 0 起跳的坑，这里不重犯）。 */
+    animation: boutIn 300ms cubic-bezier(0.22, 0.8, 0.35, 1) both;
+}
+
+@keyframes boutIn {
+    from { transform: translateY(14rpx); }
+    to { transform: translateY(0); }
+}
+
+.bout__seal {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 44rpx;
+    height: 44rpx;
+    border: 1rpx solid var(--c-imm-gold-dim);
+    border-radius: 6rpx;
+    color: var(--c-imm-gold);
+    font-family: "Songti SC", "STSong", serif;
+    font-size: 26rpx;
+    line-height: 1;
+}
+
+.bout__seal--guard {
+    border-color: var(--c-imm-jade-dim);
+    color: var(--c-imm-jade);
+}
+
+.bout__seal--qi {
+    border-color: var(--c-border);
+    color: var(--c-text-2);
+}
+
+.bout__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2rpx;
+}
+
+.bout__top {
+    display: flex;
+    align-items: baseline;
+    gap: 10rpx;
+}
+
+.bout__name {
+    color: var(--c-text);
+    font-size: var(--fs-body-sm);
+    letter-spacing: 1rpx;
+}
+
+.bout__act {
+    color: var(--c-text-3);
+    font-size: var(--fs-note);
+}
+
+.bout__val {
+    margin-left: auto;
+    color: var(--c-imm-gold);
+    font-size: var(--fs-note);
+    font-variant-numeric: tabular-nums;
+}
+
+.bout__val--guard { color: var(--c-imm-jade); }
+.bout__val--qi { color: var(--c-text-2); }
+
+.bout__line {
+    color: var(--c-text-3);
+    font-size: var(--fs-note);
+    line-height: 1.5;
+}
+
+/* 运功前后的战力差：一行小字，压在比分板底下 */
+.duel-boost {
+    display: block;
+    margin-top: var(--sp-2);
+    color: var(--c-text-3);
+    font-size: var(--fs-note);
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 我方那一侧：赢了用全站唯一的强调金，输了退成暖白。
+   两人的数字同色的话，玩家得先读完标题才知道谁赢了。 */
+.duel-num--win { color: var(--c-imm-gold); }
+.duel-num--lose { color: var(--c-text); }
