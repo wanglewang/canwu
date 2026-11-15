@@ -38,6 +38,9 @@ function create(ctx) {
   const rounds = Math.max(4, p.rounds || ROUNDS[depth]);
   const lim = linesOf(Object.assign({}, p, { depth: depth, count: count, rounds: rounds }));
   const timeLimit = Math.max(lim[0] + 10, p.timeLimit || Math.round(lim[2] * 1.3));
+  // 章内结构副轴：最大的那个与次大的那个差几。差得远一眼扫得出，差 2 就得逐位比。
+  // 由 data/levels.js 的 tweakParams 按全书关号给出，不按章回卷；玩法层真的拿它造盘。
+  const nearGap = Math.max(1, Math.round(typeof p.nearGap === 'number' ? p.nearGap : 12));
   const costText = ctx.tip || '点错不换轮，罚 ' + WRONG_PENALTY + ' 秒';
 
   const bag = C.TimerBag();
@@ -59,13 +62,22 @@ function create(ctx) {
 
   function deal() {
     // 数值范围随轮数往上抬：越往后数越长，扫起来越费眼。
-    const span = 10 + Math.floor((round - 1) * 6);
+    // span 必须容得下 count−1 个互异的干扰数：绝境档一批 16 个数，而 1..10 只有十个数，
+    // 旧的 while 循环会永远凑不满（旧代码也埋着这个雷，只有高档首轮才撞上）。
+    const span = Math.max(count + 2, 10 + Math.floor((round - 1) * 6));
     const pool = [];
-    while (pool.length < count) {
+    // 先抽 count−1 个互不相同的「干扰数」，再把最大值钉成 次大值 + nearGap：
+    // 这一批的「最大 vs 次大」之差恰好是本关的数距，玩家在盘面上真的看得见。
+    while (pool.length < count - 1) {
       const v = 1 + C.randInt(span);
       if (pool.indexOf(v) < 0) pool.push(v);
     }
-    maxVal = Math.max.apply(null, pool);
+    const near = Math.max.apply(null, pool);
+    // 一局之内也在收：前几批差得开，越往后越贴近，末批正好是本关的数距。
+    // 玩家不必等 20 关才察觉变化——同一局里就能看见数字越来越难辨。
+    const gap = Math.max(1, nearGap + Math.max(0, Math.round((rounds - round) * 0.25)));
+    maxVal = near + gap;
+    pool.push(maxVal);
     const slots = [];
     for (let i = 0; i < CELLS; i += 1) slots.push(i);
     C.shuffle(slots);
@@ -80,9 +92,9 @@ function create(ctx) {
       cell.arrow = -1;
       cell.end = false;
       cell.label = v ? String(v) : '';
-      // 按位数分色（个位 / 十位 / 五十以上）只是让数字更好读，不等于把答案标出来：
-      // 同一档里的数颜色一样，最大的那个还是得自己比。
-      cell.tone = v ? (v >= 50 ? 3 : v >= 10 ? 2 : 1) : 0;
+      // 分色按「这一批的数位」整批给一个色，不按单个数：数距收到 2 时最大值与次大值
+      // 只差末位，若按绝对数值分档，颜色会在临界处（9 / 10、49 / 50）把答案直接标出来。
+      cell.tone = v ? (maxVal >= 50 ? 3 : maxVal >= 10 ? 2 : 1) : 0;
       cell.cls = v ? 'cell cell--num' : 'cell cell--void';
     }
     vm.biggest = { cols: COLS, values: order.slice(), max: maxVal };

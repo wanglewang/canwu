@@ -704,7 +704,7 @@ const FIELD_LABELS = {
   cols: '盘面列', rows: '盘面行', size: '盘面', kinds: '纹种', holes: '待填格',
   count: '每批数目', rounds: '批数', target: '合出', minOpt: '最优下限', maxOpt: '最优上限',
   boxes: '石箱', walls: '壁垒', minSteps: '最优下限', hiSteps: '最优上限',
-  lenStep: '刀路桩数', missCost: '认错罚息', grid: '盘面',
+  lenStep: '刀路桩数', missCost: '认错罚息', grid: '盘面', nearGap: '数距',
 };
 
 function capFor(key, src) {
@@ -952,7 +952,9 @@ const LEVEL_STRUCT_KEYS = ['cols', 'rows', 'size', 'grid', 'kinds', 'holes', 'co
   'target', 'minOpt', 'maxOpt', 'boxes', 'walls', 'startTiles', 'hearts', 'steps',
   'minSteps', 'hiSteps', 'startLevel', 'linesPerLevel', 'lenStep', 'decoys', 'pairs',
   'mines', 'beats', 'segments', 'chainGoal', 'maxRound', 'scramble', 'startLen',
-  'baseLen', 'budgetSlack', 'missCost'];
+  'baseLen', 'budgetSlack', 'missCost', 'nearGap'];
+// 沿全书关号连续收的结构旋钮不属于「本章换了哪一副盘」，换章时不与盘面规格抢那两条额度。
+const CONTINUOUS_STRUCT_KEYS = ['nearGap'];
 
 // 这一关的「小变化」：拿上一关的参数逐项比，只报玩家看得懂的。
 // 比较基准一定是同一门、本关减一（`STAGE_SPAN`），而不是「与简单档比」——玩家看的是脚下这一步。
@@ -1016,7 +1018,7 @@ function levelDelta(method, level) {
     }
     for (let i = 0; i < LEVEL_STRUCT_KEYS.length && out.length < 3; i += 1) {
       const k = LEVEL_STRUCT_KEYS[i];
-      if (k === 'cols' || k === 'rows') continue;
+      if (k === 'cols' || k === 'rows' || CONTINUOUS_STRUCT_KEYS.indexOf(k) >= 0) continue;
       push(out, k);
     }
     if (out.length === 1) {

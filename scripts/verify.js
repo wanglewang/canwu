@@ -566,7 +566,7 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
     mines: ['lineScale'],
     klotski: ['capFactor'],
     blocks: ['startLevel', 'linesPerLevel'],
-    biggest: ['timeLimit'],
+    biggest: ['timeLimit', 'nearGap'],
   };
   const practiceMod = require(path.join(ROOT, 'data/practice.js'));
   for (const knobGame of Object.keys(KNOB_READ)) {

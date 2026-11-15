@@ -3659,4 +3659,31 @@ check('五档难度表不许留没人读的旋钮（windowPace 已退役）', fu
     '五档的判定窗没有随档收紧');
 });
 
+check('择大辨微：数距真的造进盘面，且分色不把答案标出来', function () {
+  // 8b-5d 只守「生成了有人读、读了有人喂」，守不住「盘面是不是真的长这样」。
+  // 这一条直接读开局的盘面数字：最大与次大之差必须等于本关数距 + 轮内递进，
+  // 且同批数字同一个色（按绝对数值分档会在 9/10、49/50 临界处泄露答案）。
+  const m = data.getMethod('zeda');
+  for (const lv of [1, 100, 200]) {
+    installClock();
+    try {
+    const q = data.buildParamsAt(m, lv);
+    const made = makeCtx(m, {}, q);
+    made.c.start();
+    const vm = made.st.vm;
+    assert.ok(vm.biggest, '第 ' + lv + ' 关没把盘面数字交给 vm');
+    const vals = vm.biggest.values.filter(function (v) { return v > 0; })
+      .slice().sort(function (a, b) { return b - a; });
+    const want = Math.max(1, q.nearGap + Math.max(0, Math.round((q.rounds - 1) * 0.25)));
+    assert.strictEqual(vals[0] - vals[1], want,
+      '第 ' + lv + ' 关首批数距不是 ' + want + '：参数没造进盘面');
+    assert.strictEqual(vals[0], vm.biggest.max, '第 ' + lv + ' 关最大值与盘面对不上');
+    const tones = new Set(vm.cells.filter(function (c) { return c.label; })
+      .map(function (c) { return c.tone; }));
+    assert.strictEqual(tones.size, 1, '第 ' + lv + ' 关同批数字分了色，答案会漏出来');
+    made.c.destroy();
+    } finally { restoreClock(); }
+  }
+});
+
 console.log('\n小游戏层断言全部通过（' + passed + ' 项）');

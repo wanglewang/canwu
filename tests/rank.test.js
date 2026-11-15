@@ -488,6 +488,23 @@ check('换章要报出盘面规格，不许把结构变化藏在毫秒后面', f
   }
 });
 
+check('章内结构副轴：数距沿全书只紧不松，换章不回卷', function () {
+  // D7 待拍板方向之一：不靠收时间、不缩盘面，给离散门加一条盘面看得见的结构量。
+  // 择大辨微的 nearGap 是「一批数里最大与次大差几」，按全书关号连续收，
+  // 按章回卷会让第 41 关比第 40 关更好辨——正是 D9 里那条章末倒挂。
+  const m = practice.getMethod('zeda');
+  let prev = null;
+  for (let lv = 1; lv <= 200; lv += 1) {
+    const q = practice.buildParamsAt(m, lv);
+    assert.ok(typeof q.nearGap === 'number', '第 ' + lv + ' 关没给数距');
+    assert.ok(q.nearGap >= 2, '第 ' + lv + ' 关数距压破 2：C 带会被吃掉');
+    if (prev !== null) assert.ok(q.nearGap <= prev, '第 ' + lv + ' 关数距反而放宽了');
+    prev = q.nearGap;
+  }
+  assert.ok(practice.buildParamsAt(m, 1).nearGap > practice.buildParamsAt(m, 200).nearGap,
+    '首尾两关数距一样，副轴等于没加');
+});
+
 check('关卡由熟练度决定进度：越权回落、走火不倒退', function () {
   const s = game.createNewState();
   assert.strictEqual(L.levelFromProf(s.skills.jian.prof), 1);

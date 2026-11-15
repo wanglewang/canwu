@@ -173,7 +173,15 @@ function tweakParams(method, out, level) {
   }
   // 辨术·一眼摘魁诀：这一门只有「数多长、几批」两个离散量，给一条明写的时辰——
   // 每一批认得快才来得及，慢下来就少认一批。玩法层本来就认 params.timeLimit。
-  if (method.game === 'biggest') out.timeLimit = Math.round(88 - 34 * t);
+  if (method.game === 'biggest') {
+    out.timeLimit = Math.round(88 - 34 * t);
+    // 结构副轴：一批数里「最大的」与「次大的」差几。盘面规格（每批几个数、几批）挂档表，
+    // 章内一律不动；这一条改的是**信息复杂度**——数挨得越近，越不能一眼扫出来，得逐位比。
+    // 不缩时辰、不缩盘面、不改秒表，正对 D7 否决过的两种假副轴。
+    // 按全书关号算而不是按章内进度算：按章回卷会让第 41 关比第 40 关更好辨（章末倒挂）。
+    // 下限 2 是硬的：差 1 时两个数只差末位，等于把「看一眼」改成「读两遍」，C 带会被吃掉。
+    out.nearGap = Math.max(2, Math.round(12 - 10 * (lv - 1) / (LEVEL_MAX - 1)));
+  }
   return out;
 }
 
