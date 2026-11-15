@@ -48,8 +48,9 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 审计读的是 `buildParams` 的输出，所以必须先知道这个函数的施加顺序，否则会误读表里的数字。顺序是：
 
 1. 复制功法自带的 `params`；
-2. **`PACE_KEYS` 九项** × `pace`（`1.18 / 1 / 0.88 / 0.78 / 0.7`）；
-3. **`WINDOW_KEYS` 一项**（`life`）× `windowPace`（`1.5 / 1.21 / 1 / 0.83 / 0.64`）；
+2. **`PACE_KEYS` 十项**（含 `life` 与判定窗 `window`）× `pace`（`1.18 / 1 / 0.88 / 0.78 / 0.7`）；
+3. ~~`WINDOW_KEYS` 一项（`life`）× `windowPace`~~ —— 已退役。`life` 并回第 2 步，那个空数组与
+   `DIFFICULTIES.windowPace` 字段都删了：五档写了一列数却无人消费，正是「生成了没生效」；
 4. **`GOAL_KEYS` 十项** × `goal`（`0.85 / 1 / 1.12 / 1.22 / 1.32`），并夹在 `capFor(key)` 上限内；
 5. `duration` / `timeLimit` × `TIME_LEVELS`（`1 / 0.97 / 0.94 / 0.91 / 0.88`），最低 8 秒；
 6. 透传 `depth`，再由**六份按档整表覆盖**（三秀 / 阵灯 / 九宫 / 滑块各一份，加上四门「补第二个参数」的单值注入）；

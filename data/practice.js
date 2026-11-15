@@ -290,11 +290,11 @@ function tierIndexOf(key) {
 // 留着 mult 只会让卡片上写一个算不出来的 ×1.70。
 
 const DIFFICULTIES = [
-  { key: 'easy', name: '简单', need: 0, qi: economyData.RUN_QI[0], pace: 1.18, windowPace: 1.50, goal: 0.85, gear: 'normal', depth: 0, desc: '节奏最缓、目标最宽，也最省灵力，宜先练稳本门火候。' },
-  { key: 'normal', name: '普通', need: 300, qi: economyData.RUN_QI[1], pace: 1.00, windowPace: 1.21, goal: 1.00, gear: 'normal', depth: 1, desc: '标准节奏与目标，入门之后方开。' },
-  { key: 'hard', name: '困难', need: 1500, qi: economyData.RUN_QI[2], pace: 0.88, windowPace: 1.00, goal: 1.12, gear: 'hard', depth: 2, desc: '节奏收紧、目标抬高，失误余地更小。' },
-  { key: 'expert', name: '极难', need: 6000, qi: economyData.RUN_QI[3], pace: 0.78, windowPace: 0.83, goal: 1.22, gear: 'hard', depth: 3, desc: '几乎没有容错，一乱即落。' },
-  { key: 'desperate', name: '绝境', need: 24000, qi: economyData.RUN_QI[4], pace: 0.70, windowPace: 0.64, goal: 1.32, gear: 'hard', depth: 4, desc: '给练到极处的人：最快节奏、最高目标，也最耗灵力。' },
+  { key: 'easy', name: '简单', need: 0, qi: economyData.RUN_QI[0], pace: 1.18, goal: 0.85, gear: 'normal', depth: 0, desc: '节奏最缓、目标最宽，也最省灵力，宜先练稳本门火候。' },
+  { key: 'normal', name: '普通', need: 300, qi: economyData.RUN_QI[1], pace: 1.00, goal: 1.00, gear: 'normal', depth: 1, desc: '标准节奏与目标，入门之后方开。' },
+  { key: 'hard', name: '困难', need: 1500, qi: economyData.RUN_QI[2], pace: 0.88, goal: 1.12, gear: 'hard', depth: 2, desc: '节奏收紧、目标抬高，失误余地更小。' },
+  { key: 'expert', name: '极难', need: 6000, qi: economyData.RUN_QI[3], pace: 0.78, goal: 1.22, gear: 'hard', depth: 3, desc: '几乎没有容错，一乱即落。' },
+  { key: 'desperate', name: '绝境', need: 24000, qi: economyData.RUN_QI[4], pace: 0.70, goal: 1.32, gear: 'hard', depth: 4, desc: '给练到极处的人：最快节奏、最高目标，也最耗灵力。' },
 ];
 
 const DIFF_MAP = {};
@@ -408,7 +408,7 @@ const BLOCK_LEVELS = [
 
 // 下面三张表换的是「承重轴」：把难度从时间挪到复杂度上。
 //
-// 起因：五档的时间参数走同一套 pace / windowPace / TIME_LEVELS，跨度天然只有 1.7–2.3 倍，
+// 起因（改版前，windowPace 已退役）：五档的时间参数走同一套 pace / windowPace / TIME_LEVELS，跨度天然只有 1.7–2.3 倍，
 // 而且人的反应时间练不出来——把难度压在「快」上，玩家越玩越焦虑而不是越玩越会。
 // 复杂度不一样：盘面更大、路线更长、键位重排，玩家可以靠「想得透」跨过去。
 //
@@ -419,6 +419,7 @@ const BLOCK_LEVELS = [
 // 现在盘面 3×3→5×5（9→25 格）、刀路 3→8 桩，复杂度 2.67 倍成为承重轴；
 // 光速压缩同步收到 2.17 倍（见 weapons.js 的 dao.stepDecay 与 click.js 的 EASE_STEP），
 // 刀光寿命从 windowPace 改走 pace，从 2.34 倍降到 1.69 倍——时间是佐味，不是主菜。
+// 如今 DIFFICULTIES 里已无 windowPace 字段，下面几行是改版理由的存档，不是现行口径。
 //
 // lenStep 存的是「比本兵器的基准长几桩」，不是绝对桩数：params 是刀剑共用的，
 // 存绝对值会把刀的 8 桩塞给剑（剑的 profile.maxLen 只有 4，语义就乱了）。
@@ -657,14 +658,24 @@ function sLineText(method, diffKey) {
 }
 
 // ---------------------------------------------------------------- 参数缩放
+// 节律判定的判定带按毫秒定：单侧不得短于 MIN_WIN_MS（合计 200ms，全站反应下限）。
+// 参数层的 `window` 会被玩法层 ×TWIST_WIN，`speed` 会被 ×TWIST_STEP，所以下限要反推到
+// 参数口径，在生成端就钉住——否则章内收紧一直压 `window`，玩法层再悄悄托住，
+// 就成了「参数在动、盘面没动」，levelDelta 还会报「判定窗 5.5% → 5.4%」这种假变化。
+// 这四个数由 minigames/tempo.js 直接引用，不许再抄第二份。
+const TEMPO_FLOOR = { minWinMs: 100, tickMs: 40, twistWin: 1.45, twistStep: 0.86 };
+function tempoWindowFloor(speed) {
+  const f = TEMPO_FLOOR;
+  const raw = f.minWinMs / f.tickMs * (Number(speed) || 0.026) * f.twistStep / f.twistWin;
+  return Math.ceil(raw * 1000) / 1000;  // 向上取到参数精度，宁可略宽也不压破下限
+}
 // 时间 / 判定窗类：pace 越小越难。window 是 0~1 的小数，保留三位。
 const PACE_KEYS = ['interval', 'flashMs', 'gapMs', 'windowMs', 'shuffleMs', 'flipMs', 'dropMs', 'window', 'msPerNote', 'life'];
-// 判定窗口类曾经单独一档：窗口每短一成，容错掉的不是一成，所以收紧得比 pace 陡。
-// 现在只剩刀光寿命（`life`）一个成员，而它正是「把难度压在时间上」最典型的一处——
-// 2.34 倍的压缩让扫斩的绝境档变成纯手速活。把它并回 PACE_KEYS（1.69 倍）之后，
-// 扫斩的承重交给刀路与盘面，时间退成佐味。WINDOW_KEYS 保留为空数组，
-// 是为了 diffDetail 的拼接不用改分支；将来真有第二个「窗口类」参数时把它放回来。
-const WINDOW_KEYS = [];
+// 判定窗口类曾经单独一档（WINDOW_KEYS = ['life'] × windowPace，2.34 倍）：
+// 「窗口每短一成，容错掉的不是一成」，结果把扫斩的绝境档压成纯手速活。
+// life 已并回 PACE_KEYS（1.69 倍），独立的 windowPace 字段与那个空数组一并删掉——
+// 五档写了一列数却没有任何消费者，正是「生成了没生效」。时间是佐味，不是主菜。
+// 节律判定的判定窗 `window` 也走 pace；它的硬下限另见 TEMPO_FLOOR。
 // 数量 / 目标类：goal 越大越难。均为整数。
 const GOAL_KEYS = ['chainGoal', 'maxRound', 'segments', 'beats', 'scramble', 'mines', 'pairs', 'decoys', 'startLen', 'baseLen'];
 // speed 是光环每 tick 的收缩量，方向与时间类相反。
@@ -703,7 +714,7 @@ function pseudoDiff(depthIndex) {
   const base = DIFFICULTIES[4];
   return {
     key: 'desperate+', name: '绝境末段', need: base.need, qi: base.qi,
-    pace: base.pace * 0.94, windowPace: base.windowPace * 0.94, goal: base.goal * 1.06,
+    pace: base.pace * 0.94, goal: base.goal * 1.06,
     gear: 'hard', depth: 4,
   };
 }
@@ -717,10 +728,6 @@ function rawParams(method, depthIndex) {
   for (let i = 0; i < PACE_KEYS.length; i += 1) {
     const k = PACE_KEYS[i];
     if (typeof out[k] === 'number') out[k] = Math.round(out[k] * d.pace * 1000) / 1000;
-  }
-  for (let i = 0; i < WINDOW_KEYS.length; i += 1) {
-    const k = WINDOW_KEYS[i];
-    if (typeof out[k] === 'number') out[k] = Math.round(out[k] * d.windowPace);
   }
   for (let i = 0; i < GOAL_KEYS.length; i += 1) {
     const k = GOAL_KEYS[i];
@@ -889,7 +896,11 @@ function buildParamsAt(method, level) {
   out.level = lv;
   out.chapter = ch;
   out.stage = levelData.stageOf(lv);
-  return levelData.tweakParams(method, out, lv);
+  const tuned = levelData.tweakParams(method, out, lv);
+  // 章内收紧不许把判定窗压到生效下限以下：参数与盘面必须一起停，
+  // 否则「本关小变化」会写出一个盘面上根本没有的变化。
+  if (method.game === 'tempo') tuned.window = Math.max(tuned.window, tempoWindowFloor(tuned.speed));
+  return tuned;
 }
 
 // 逐键取整：小数比例（判定窗 0.09）与预算系数（×2.2）不能被四舍五入成整数，
@@ -909,7 +920,7 @@ function levelDelta(method, level) {
   if (prevLv < 1) return [];
   const now = buildParamsAt(method, lv);
   const prev = buildParamsAt(method, prevLv);
-  const ordered = PACE_KEYS.concat(WINDOW_KEYS, GOAL_KEYS,
+  const ordered = PACE_KEYS.concat(GOAL_KEYS,
     ['duration', 'timeLimit', 'sLine', 'hearts', 'startTiles', 'penaltySec', 'capFactor',
       'budgetSlack', 'fourRate', 'lineScale', 'startLevel', 'linesPerLevel']).filter(function (k) {
     return k !== 'speed';
@@ -990,7 +1001,7 @@ function diffDetail(method, diffKey) {
   const changes = [];
   // 时辰与四门新注入的档位参数也要进「本档紧在哪」：不然准备页写了「入门基准」，
   // 盘上的倒计时 / 心神 / 起手块却真的变了，说明和局内对不上。
-  const ordered = ['cols', 'rows', 'kinds'].concat(PACE_KEYS, WINDOW_KEYS, GOAL_KEYS,
+  const ordered = ['cols', 'rows', 'kinds'].concat(PACE_KEYS, GOAL_KEYS,
     ['duration', 'timeLimit', 'hearts', 'startTiles', 'penaltySec', 'capFactor', 'steps', SPEED_KEY,
       'startLevel', 'linesPerLevel']).filter(function (k) {
     return HIDDEN_FIELDS.indexOf(k) < 0;
@@ -1168,6 +1179,8 @@ module.exports = {
   linkPerPairAt: linkPerPairAt,
   linkDurationAt: linkDurationAt,
   tipFor: tipFor,
+  TEMPO_FLOOR: TEMPO_FLOOR,
+  tempoWindowFloor: tempoWindowFloor,
   TIME_LEVELS: TIME_LEVELS,
   MINES_HEARTS: MINES_HEARTS,
   CLICK_LEVELS: CLICK_LEVELS,

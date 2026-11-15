@@ -14,17 +14,20 @@
 //    一律不做加减：加法叠在等比数列上必然把某一档拉成断崖（困难档曾经因此比普通紧 39%）。
 
 const C = require('./common.js');
+// tick / 下限 / 本门两个倍数与参数生成端共用一份（data/practice.js 的 TEMPO_FLOOR）：
+// 下限若在两边各写一遍，章内收紧就会压出一个「参数在动、盘面没动」的假台阶。
+const F = require('../data/practice.js').TEMPO_FLOOR;
 
 const START_SCALE = 1.75;
 const JUDGE_SCALE = 1.0;
-const TICK_MS = 40;
+const TICK_MS = F.tickMs;
 const FLOOR_SCALE = 0.72;
 
 // 判定带单侧宽度下限：合计 200ms，正是全站「反应不短于 200ms」的下限。
-const MIN_WIN_MS = 100;
+const MIN_WIN_MS = F.minWinMs;
 // 本门机制「一息绵长」：判定带更宽、收得更慢。乘性，五档一致成立。
-const TWIST_WIN = 1.45;
-const TWIST_STEP = 0.86;
+const TWIST_WIN = F.twistWin;
+const TWIST_STEP = F.twistStep;
 // 熟练便利（段位到大成 6000 以上）：只放一档的余量，不能一口气抵掉两档。
 const PERK_WIN = 1.12;
 // 半拍的宽容只在「早了」这一侧放大：玩家感知普遍提前；晚到是自己没跟上节拍。
@@ -93,8 +96,8 @@ function create(ctx) {
     beat: 1, total: total, tone: 'idle',
   };
   vm.timeText = '第 1 / ' + total + ' 拍';
-  vm.scoreText = '圆满 0';
-  vm.goal = C.goalFor('C', total - 1, '个圆满');
+  vm.scoreText = '计 0 分';
+  vm.goal = C.goalFor('C', total - 1, '分');
   vm.hint = vm.costText;
 
   const bag = C.TimerBag();
@@ -129,14 +132,15 @@ function create(ctx) {
 
   function syncHud() {
     vm.timeText = '第 ' + Math.min(beat, total) + ' / ' + total + ' 拍';
-    // 报的是「圆满当量」而不是圆满拍数：评级按半拍折算，HUD 只报整数时玩家对不上自己为什么是 A。
-    vm.scoreText = '圆满 ' + fmt(points());
+    // 报「计 X 分」而不是圆满拍数：评级按半拍折算，HUD 只报整数时玩家对不上自己为什么是 A。
+    // 也不用「圆满」当标签——那是熟练段位名，且 4.5 这个数本来就不是「个」。
+    vm.scoreText = '计 ' + fmt(points()) + ' 分';
     vm.progress = C.pct(beat - 1, total);
     vm.progressText = (beat - 1) + ' / ' + total + ' 拍';
     vm.combo = combo;
     vm.comboText = combo >= 2 ? '连拍 ×' + combo : '';
     vm.gradeNow = gradeNow();
-    vm.goal = C.goalFor(vm.gradeNow, Math.max(0, Math.round((total - 1 - points()) * 10) / 10), '个圆满');
+    vm.goal = C.goalFor(vm.gradeNow, Math.max(0, Math.round((total - 1 - points()) * 10) / 10), '分');
   }
 
   function finishOnce(grade, text) {
@@ -243,11 +247,13 @@ function lines(p) {
   const total = Math.max(4, Math.floor((p && p.beats) || 8));
   const b = bands(total);
   return {
-    rule: '按圆满拍数（合拍只算半拍，空拍不算）',
+    // 「圆满拍数」是旧口径：合拍算半分之后，7 分也可以是「6 圆满 + 2 合拍」，
+    // 只报整数拍玩家对不上自己为什么是 A。四条线统一说「圆满当量」。
+    rule: '按圆满当量（圆满 1 分、合拍半分、空拍 0 分）',
     items: [
-      'S：' + total + ' 拍里圆满 ' + b.sMin + ' 分以上（合拍只算半拍，即最多漏 1 分）',
-      'A：圆满 ' + b.aMin + ' 分以上',
-      'B：圆满 ' + b.bMin + ' 分以上',
+      'S：' + total + ' 拍里得 ' + b.sMin + ' 分以上（即最多漏 1 分）',
+      'A：得 ' + b.aMin + ' 分以上',
+      'B：得 ' + b.bMin + ' 分以上',
       '其余为 C',
     ],
   };

@@ -2282,7 +2282,7 @@ check('走火：有失败态的玩法判负给 F，没有失败态的玩法不�
     assert.ok(mustBeF[f].test(readMod(f)), f + '.js 的判负分支没给走火 F');
   });
 
-  // 没有「达成/未达成」的玩法（只看时限内产出）不许出现第二种 F：
+  // 没有「达成/未达成」的玩法（一局有自然终点）不许出现第二种 F：
   // 唯一合法的 F 是 abandon（中途收功），那是玩家自己退的，不是打崩的。
   ['click', 'hunt', 'tempo', 'sword', 'wuxing', 'match', 'blocks'].forEach(function (f) {
     const hits = readMod(f).match(/finishOnce\('F'|grade: 'F'/g) || [];
@@ -3461,6 +3461,41 @@ check('节律判定：B 线不与 A 线挤成一道缝', function () {
     assert.ok(b.aMin - b.bMin >= 1, total + ' 拍的 B 线离 A 线不到 1 分，B 会变成一道缝');
     assert.ok(b.bMin >= total * 0.4, total + ' 拍的 B 线低到四成以下，等于没有门槛');
   }
+});
+
+check('节律判定：章内参数与生效判定带同步，不许报盘面上没有的收紧', function () {
+  const m = data.getMethod('absorb');
+  const mod = index.MODULES.tempo;
+  const F = data.TEMPO_FLOOR;
+  const span = require('../data/levels.js').STAGE_SPAN;
+  const eff = function (lv) { return mod.metrics(data.buildParamsAt(m, lv), { twist: m.twist }); };
+  for (let lv = 1; lv <= 200; lv += 1) {
+    const q = data.buildParamsAt(m, lv);
+    const r = eff(lv);
+    // ① 下限必须在生成端算过：玩法层的 max() 不许再托第二回。
+    //    只在玩法层兜底时，参数继续变小、盘面不动，绝境章曾有 10 关在这么谎报。
+    assert.ok(q.window >= data.tempoWindowFloor(q.speed) - 1e-9,
+      '第 ' + lv + ' 关的参数判定窗压破了生效下限');
+    assert.ok(Math.abs(r.window - q.window * F.twistWin) < 1e-9,
+      '第 ' + lv + ' 关的生效判定带被下限托住了，参数与盘面不同步');
+    assert.ok(r.winMs * 2 >= F.minWinMs * 2 - 1e-6, '第 ' + lv + ' 关总窗破 200ms');
+    // ② 「本关小变化」报了判定窗收紧，生效判定带就必须真的变了。
+    const wd = data.levelDelta(m, lv).filter(function (d) { return d.key === 'window'; })[0];
+    if (!wd) continue;
+    assert.notStrictEqual(eff(lv).window.toFixed(6), eff(lv - span).window.toFixed(6),
+      '第 ' + lv + ' 关报了「' + wd.text + '」，可生效判定带和上一关一样');
+  }
+});
+
+check('五档难度表不许留没人读的旋钮（windowPace 已退役）', function () {
+  for (const d of data.DIFFICULTIES) {
+    assert.ok(!Object.prototype.hasOwnProperty.call(d, 'windowPace'),
+      d.key + ' 档还留着 windowPace：WINDOW_KEYS 已删，没有任何参数乘它');
+  }
+  // 反向也守一句：判定窗确实还在随档收紧，别把「删死参数」做成「整张表不动」。
+  const m = data.getMethod('absorb');
+  assert.ok(data.buildParams(m, 'easy').window > data.buildParams(m, 'desperate').window,
+    '五档的判定窗没有随档收紧');
 });
 
 console.log('\n小游戏层断言全部通过（' + passed + ' 项）');
