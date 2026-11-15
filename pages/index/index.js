@@ -5,6 +5,7 @@ const engine = require('../../utils/game.js');
 const share = require('../../utils/share.js');
 const copy = require('../../data/copy.js');
 const nav = require('../../data/navigation.js');
+const skillsData = require('../../data/skills.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -126,7 +127,13 @@ Page({
     // 但缺口是个冷数字，得同时说清「填平之后战力跳到多少」——那是玩家攒战力的理由。
     else if (!bt.maxed && bt.need > 0) {
       hintText = '距「' + bt.nextName + '」还差 ' + Math.max(0, bt.need - bt.power) + ' 战力';
-      if (bt.powerGain > 0) hintText += ' · 突破后 +' + bt.powerGain;
+      // 缺口之后要跟一句「今天练哪门」。只报「还差 30」时，玩家得把十九门挨个点开
+      // 才知道哪门最划算——那一步正是「一堆小游戏」这个印象的来源。
+      // 这里给的仍是「离下一段最近的那门」：不是加成最大的，是今天再打几局就能动的那一步。
+      if (bt.fastest && bt.fastest.gain > 0) {
+        hintText += ' · ' + String(bt.fastest.name).split(skillsData.NAME_RULE.sep).pop()
+          + '到' + bt.fastest.nextName + ' +' + bt.fastest.gain;
+      }
     }
 
     const dailyReady = !ov.daily.claimed && ov.daily.count >= ov.daily.target;

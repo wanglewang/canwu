@@ -352,6 +352,56 @@ function powerDetail(state, realmIndex) {
 
 function computePower(state) { return powerDetail(state).total; }
 
+// 这一门再涨一段，战力会多多少 —— 把「练功」与「破境」之间那一步算给玩家看。
+//
+// 现状：功法卡上写的是「体魄 +0.8」，破境门槛读的是「战力 170」，中间这次换算从没有人
+// 算给玩家。于是「练这门到底有什么用」「还差 2 点该练哪门」只能靠猜，玩起来就像在玩
+// 一堆互不相干的小游戏。这里不新增公式：把这一门的熟练度换成下一段门槛，重算一次
+// computeAttributes + powerDetail，差值就是这一段的价。
+//
+// 只读：构造的是浅拷贝，不改存档。
+function skillPowerGain(state, skillId) {
+  const rec = state.skills ? state.skills[skillId] : null;
+  if (!rec || !rec.unlocked) return 0;
+  const info = tierInfo(rec.prof);
+  if (info.maxed) return 0;
+  const now = powerDetail(state).total;
+  const skills = Object.assign({}, state.skills);
+  skills[skillId] = Object.assign({}, rec, { prof: info.nextThreshold });
+  const after = powerDetail(Object.assign({}, state, { skills: skills })).total;
+  return Math.max(0, after - now);
+}
+
+// 破境还差几点战力时，最该练哪一门：在已习得、尚未大圆满的功法里，
+// 取「离下一段熟练度最近的那门」——不是加成最大的那门。
+// 加成最大的往往是大成到圆满（差 18000 熟练度），那条路一年走不完；
+// 玩家要的是「今天再打几局就能动」的那一步。
+function nextPowerStep(state) {
+  const ids = Object.keys(state.skills || {});
+  let best = null;
+  for (let i = 0; i < ids.length; i += 1) {
+    const id = ids[i];
+    const rec = state.skills[id];
+    if (!rec || !rec.unlocked) continue;
+    const info = tierInfo(rec.prof);
+    if (info.maxed) continue;
+    const gain = skillPowerGain(state, id);
+    if (gain <= 0) continue;
+    const gap = Math.max(0, info.nextThreshold - rec.prof);
+    if (!best || gap < best.gap || (gap === best.gap && gain > best.gain)) {
+      const skill = skillData.getSkill(id);
+      best = {
+        id: id,
+        name: skill ? skill.name : id,
+        nextName: info.nextName,
+        gain: gain,
+        gap: gap,
+      };
+    }
+  }
+  return best;
+}
+
 // 气海：这一档境界能存多少灵力。三样东西合起来算，只在这里算一次——
 // 主页的「96 / 174」、参悟页的「余 96」、打坐的截断、份例的封顶都取它。
 //   · 境界基数（world.realms[].qiCap）：炼气 150 → 元婴 620；
@@ -1095,6 +1145,11 @@ function breakthroughInfo(state) {
     nextName: next ? next.name : '',
     need: next ? next.power : 0,
     power: pd.total,
+    // 还差几点：页面不必自己拿 need 减 power，两处各算一遍迟早会差 1。
+    lack: maxed ? 0 : Math.max(0, next.power - pd.total),
+    // 差这几点该练哪门：不写「再加把劲」，直接给出这一门与它下一段的名字。
+    // 没有可练的门（全大圆满）时为 null，页面据此不说废话。
+    fastest: maxed ? null : nextPowerStep(state),
     stone: state.resources.stone,
     stoneCost: stoneCost,
     stoneReady: state.resources.stone >= stoneCost,
@@ -1541,6 +1596,10 @@ function getSkillList(state) {
       nextThreshold: info.nextThreshold,
       maxed: info.maxed,
       bonusText: bonusText(s, state.worldId),
+      // 这一门再涨一段，战力多几点。破境门槛读的是战力，功法卡写的却是「体魄 +0.8」，
+      // 中间这次换算没人算给玩家——列表里补上这个数，「练哪门」才不是瞎猜。
+      // 未习得与已大圆满都是 0：前者还不知道自己有多少，后者已经练到头。
+      powerGain: rec.unlocked ? skillPowerGain(state, s.id) : 0,
       effectText: s.effect.text,
       // 特效按段位兑现（0 / 25% / 50% / 75% / 100%），不再是「到大成才有」。
       effectScale: effectScaleOf(rec.prof),
@@ -1850,6 +1909,8 @@ module.exports = {
   computeAttributes: computeAttributes,
   powerDetail: powerDetail,
   computePower: computePower,
+  skillPowerGain: skillPowerGain,
+  nextPowerStep: nextPowerStep,
   qiCap: qiCap,
   shenFloorBonus: shenFloorBonus,
   effectValue: effectValue,

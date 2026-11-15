@@ -1397,8 +1397,13 @@ check('功法卡片紧凑单行：名字不竖排、按钮不抢宽度、阶段�
   assert.ok(/metaText: metaText/.test(js), '卡片没用统一的元信息字段');
   // 两个分区各写一行：已持讲「练到哪了」，藏经阁讲「这一门怎么玩」。
   // 已持那行不许塞玩法名——小屏会先截掉属性；藏经阁那行没有熟练度可讲，只讲玩法。
-  assert.ok(js.indexOf("s.profTierName + ' ' + s.percent + '% · ' + bonusText") >= 0,
-    '已持卡片的元信息没写成「段位 进度 · 属性」一行');
+  // 已持那行的第二段从「体魄 +0.8」换成了「再练到小成：战力 +4」：破境门槛读的是战力，
+  // 属性单位对不上，玩家没法判断练这门推不推得动筑基。属性明细仍在图鉴里。
+  assert.ok(/s\.profTierName \+ ' ' \+ s\.percent \+ '% · ' \+ \(gainText \|\| bonusText\)/.test(js),
+    '已持卡片的元信息没写成「段位 进度 · 再练一段能换多少战力」一行');
+  // 这个数必须从引擎来：页面自己再算一遍，就会与破境页各说各话。
+  assert.ok(/powerGain: rec\.unlocked \? skillPowerGain\(state, s\.id\) : 0/.test(read('utils/game.js')),
+    '战力增量没在引擎里算（页面自算会与破境页对不上）');
   assert.ok(js.indexOf("s.methodName + ' · ' + s.gameName") >= 0,
     '藏经阁卡片的元信息没写成「参悟方式 · 盘面」');
   assert.ok(/barTone/.test(js) && /item\.barTone/.test(wxml), '进度条没按阶段分档');

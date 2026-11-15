@@ -110,10 +110,15 @@ Page({
     const source = this.data.tab === 'learned' ? learned : pending;
     const cards = source.map(function (s) {
       const bonusText = s.bonusText || s.effectText;
-      // 已持：一行写「段位 + 进度 + 属性」，进度条再画一遍，扫一眼就知道差多少。
-      // 未得：一行写「玩法 + 盘面」，另一行写代价或获取途径——这一层只回答「怎么拿到」。
+      // 已持：只写「段位 + 进度 + 再练一段能换多少战力」。
+      // 原来这行写的是「体魄 +0.8」，而破境读的是战力——单位对不上，玩家无从判断
+      // 「练这门到底推不推得动筑基」。属性明细仍留在图鉴里，列表只说结果。
+      // 已大圆满没有下一段，回落到属性加成那句，不留一行空话。
+      const gainText = s.powerGain > 0
+        ? '再练到' + s.nextName + '：战力 +' + s.powerGain
+        : '';
       const metaText = s.unlocked
-        ? s.profTierName + ' ' + s.percent + '% · ' + bonusText
+        ? s.profTierName + ' ' + s.percent + '% · ' + (gainText || bonusText)
         : s.methodName + ' · ' + s.gameName;
       return {
         id: s.id,

@@ -8,6 +8,7 @@ const social = require('../../utils/cloud-social.js');
 const share = require('../../utils/share.js');
 const sfx = require('../../utils/sfx.js');
 const copy = require('../../data/copy.js');
+const skillsData = require('../../data/skills.js');
 const privacy = require('../../utils/privacy.js');
 const nav = require('../../data/navigation.js');
 
@@ -137,7 +138,17 @@ Page({
       mark: bt.available ? '✓' : '✕',
       markCls: bt.available ? 'imm-check__mark--on' : 'imm-check__mark--off',
       off: !bt.available,
-    }].concat(bt.maxed ? [] : [{
+    }].concat(bt.maxed || bt.available || !bt.fastest ? [] : [{
+      // 「还差 2 点」如果不说该练哪门，玩家只能把十九门挨个试一遍。
+      // 这里给的是「离下一段最近的那门」，不是加成最大的那门——今天就能动的那一步。
+      // 只用短名：一行里塞不下「阵法·燃灯诀到入门」。
+      text: '还差 ' + bt.lack + ' 点 · 最近：「'
+        + String(bt.fastest.name).split(skillsData.NAME_RULE.sep).pop()
+        + '」到' + bt.fastest.nextName + '（+' + bt.fastest.gain + '）',
+      mark: '·',
+      markCls: 'imm-check__mark--ref',
+      off: false,
+    }]).concat(bt.maxed ? [] : [{
       text: '布阵灵石 ' + ov.stone + ' / ' + bt.stoneCost + (bt.stoneReady ? '' : ' · 去切磋或秘境挣'),
       mark: bt.stoneReady ? '✓' : '✕',
       markCls: bt.stoneReady ? 'imm-check__mark--on' : 'imm-check__mark--off',

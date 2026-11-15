@@ -878,4 +878,49 @@ check('连 S 层数上限与存档版本对齐，三连晋级已彻底退役', f
     '结算里还留着三连晋级的字段（迁移注释里的 sStreak 除外）');
 });
 
+// ---------------------------------------------------------------- 练功 → 战力 → 破境
+//
+// 这一段的由来：玩家在功法卡上看到「体魄 +0.8」，破境门槛读的是「战力 170」，
+// 中间那次换算从来没人算给他看。于是「练这门有什么用」只能猜，十九门就成了
+// 十九个互不相干的小游戏。这两个函数就是那座桥，所以它们必须与重算同源。
+
+check('战力增量：与把熟练度换成下一段门槛后重算的战力同源', function () {
+  const s = freshState('jian', 100);
+  const gain = game.skillPowerGain(s, 'jian');
+  const info = game.tierInfo(100);
+  const now = game.computePower(s);
+  const clone = Object.assign({}, s, { skills: Object.assign({}, s.skills) });
+  clone.skills.jian = Object.assign({}, s.skills.jian, { prof: info.nextThreshold });
+  assert.strictEqual(gain, game.computePower(clone) - now, '战力增量与重算不一致');
+  assert.ok(gain > 0, '未圆满的功法应当有正的战力增量');
+
+  // 已大圆满没有下一段；未习得的功法不算——否则「还没学」会显示成「练了能涨」。
+  assert.strictEqual(game.skillPowerGain(freshState('jian', world.PROF_MAX), 'jian'), 0,
+    '大圆满还报战力增量');
+  assert.strictEqual(game.skillPowerGain(freshState(), 'duanyue'), 0, '未习得的功法给了战力增量');
+  // 只读：算完之后存档里的熟练度不能变。
+  assert.strictEqual(s.skills.jian.prof, 100, 'skillPowerGain 改到了存档');
+});
+
+check('破境建议：给的是离下一段最近的那门，不是加成最大的那门', function () {
+  const s = freshState('jian', 0);
+  s.skills.zhen = { unlocked: true, prof: 1400, onboarded: true }; // 差 100 到小成
+  s.skills.tuna = { unlocked: true, prof: 0, onboarded: true };    // 差 300 到入门
+  const step = game.nextPowerStep(s);
+  assert.ok(step, '一门未圆满却给不出建议');
+  assert.strictEqual(step.id, 'zhen', '没选离下一段最近的那门');
+  assert.strictEqual(step.gap, 100, 'gap 算错');
+  // 建议的门必须是自己真的能练的
+  assert.strictEqual(s.skills[step.id].unlocked, true, '建议了一门没习得的功法');
+
+  // 破境信息里的 lack 与 need/power 同源：页面不许再自己减一遍。
+  const bt = game.breakthroughInfo(s);
+  assert.strictEqual(bt.lack, Math.max(0, bt.need - bt.power), 'lack 与 need/power 不一致');
+  assert.ok(bt.fastest && bt.fastest.gain > 0, '差战力时没给出最快的路');
+  // 战力够了 / 已是大境界顶点时，不再给「该练哪门」——那时这句话是废话。
+  const strong = freshState('jian', 0);
+  Object.keys(strong.skills).forEach(function (id) { strong.skills[id].prof = world.PROF_MAX; });
+  assert.strictEqual(game.breakthroughInfo(strong).fastest, null, '全员大圆满还给了练功建议');
+});
+
 console.log('品阶与难度断言全部通过：' + passed + ' 项');
