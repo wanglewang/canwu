@@ -500,13 +500,14 @@
 .ring-judge {
     position: absolute;
     box-sizing: border-box;
+    /* 尺寸与描边宽度由玩法注入（vm.ring.bandBox / bandWidth），带有多宽就是判定窗有多宽。
+       这里留 200 / 6 只是兜底：判定带是「能瞄的东西」，不是装饰，不能写成固定像素。 */
     width: 200rpx;
     height: 200rpx;
-    border: 6rpx solid #b4453c;
+    border: 6rpx solid rgba(180, 69, 60, 0.16);
     border-radius: 50%;
-    opacity: 0.65;
-    /* 判定圈之外再散一圈朱气：珠子压上来时，边界比一根线更清楚。 */
-    box-shadow: 0 0 0 10rpx rgba(180, 69, 60, 0.1), inset 0 0 22rpx rgba(180, 69, 60, 0.16);
+    /* 两沿各压一道细朱线：光环外沿落进这条带里才算圆满，边界看得清才知道自己差多少。 */
+    box-shadow: 0 0 0 1rpx rgba(180, 69, 60, 0.72), inset 0 0 0 1rpx rgba(180, 69, 60, 0.72);
 }
 
 .ring-orb {

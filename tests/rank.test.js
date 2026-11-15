@@ -409,9 +409,16 @@ check('关卡由熟练度算出：章内线性、只增不减，六个锚与段�
   }
 });
 
-check('一关一段：章内只往难走，每门规格台阶不少于 30 级', function () {
+// 台阶数的下限按门给：这一门难度是「盘面规格 + 最优步数区间 + 余量」三段离散值，
+// 200 关里真能变的地方本来就少。阵灯推演原来凑到 30 级以上，靠的是把 `minSteps`
+// 也塞进收紧表——可那个数乘 0.7 是「章末要求更短的解」，方向是往简单走的，
+// 台阶数好看、难度反而倒退。把假台阶去掉之后还剩 10 级，这里据实给 10：
+// 「做不到每段都动就据实写沿用上一段」，别为了让数字好看去动一个方向相反的旋钮。
+const STEP_FLOOR = { lights: 10 };
+
+check('一关一段：章内只往难走，每门规格台阶不少于本条门的下限', function () {
   // 「规格台阶」= 相邻两关参数真的不同。规格类玩法（阵灯 3×3→5×5、摘魁 8→16 批）
-  // 的难度是盘面规格，规格是离散的，量化到 200 关刻度上本来就只有 30–40 级台阶。
+  // 的难度是盘面规格，规格是离散的，量化到 200 关刻度上本来就只有 10–40 级台阶。
   // 这条断言守两件事：台阶数不许再掉、方向只许变难。
   for (const m of practice.PRACTICE_METHODS) {
     let changed = 0;
@@ -421,7 +428,7 @@ check('一关一段：章内只往难走，每门规格台阶不少于 30 级', 
       if (prev) {
         const keys = Object.keys(p).filter(function (k) { return k !== 'level' && k !== 'stage' && p[k] !== prev[k]; });
         if (keys.length) changed += 1;
-        for (const k of ['duration', 'timeLimit', 'flashMs', 'gapMs', 'flipMs', 'dropMs', 'msPerNote', 'capFactor']) {
+        for (const k of ['duration', 'timeLimit', 'flashMs', 'gapMs', 'flipMs', 'dropMs', 'msPerNote', 'capFactor', 'budgetSlack']) {
           if (typeof p[k] !== 'number' || typeof prev[k] !== 'number') continue;
           // 章界「回弹」是换盘面的代价（九宫 4×4→6×6 要多给读盘时间），只在本章内要求单调。
           if (L.chapterOf(lv) !== L.chapterOf(lv - 1)) continue;
@@ -430,7 +437,18 @@ check('一关一段：章内只往难走，每门规格台阶不少于 30 级', 
       }
       prev = p;
     }
-    assert.ok(changed >= 30, m.id + ' 只有 ' + changed + ' 级规格台阶，难度基本没拉开');
+    // 阵灯推演的最优步数只许换章时变：章内把它收紧 = 要求更短的解 = 更简单。
+    if (m.game === 'lights') {
+      let base = null;
+      for (let lv = 1; lv <= 200; lv += 1) {
+        const p = practice.buildParamsAt(m, lv);
+        if (lv === 1 || L.chapterOf(lv) !== L.chapterOf(lv - 1)) { base = p; continue; }
+        assert.ok(p.minSteps === base.minSteps && p.hiSteps === base.hiSteps,
+          '第 ' + lv + ' 关把最优步数区间改了：章内动这个数就是往简单走');
+      }
+    }
+    const floor = STEP_FLOOR[m.game] || 30;
+    assert.ok(changed >= floor, m.id + ' 只有 ' + changed + ' 级规格台阶，低于 ' + floor + ' 级的下限');
   }
 });
 
@@ -712,21 +730,28 @@ check('九宫填数与滑块让路的档位表逐档变难', function () {
   }
 });
 
-check('阵灯推演的规格与预算逐档递增，且预算宽于最优步数下限', function () {
-  let prevSize = 0;
-  let prevCap = 0;
+check('阵灯推演：两条轴递进，相邻两档不会两条轴都一样，余量压不破 B 档', function () {
+  let prev = null;
   for (const d of practice.DIFFICULTIES) {
     const lv = practice.lightsLevelOf(d.key);
-    assert.ok(lv.size >= prevSize, d.name + ' 的盘面规格比上一档还小');
-    assert.ok(lv.cap > prevCap, d.name + ' 的步数预算没有放宽');
-    assert.ok(lv.cap > lv.min + 2, d.name + ' 的预算太紧，A/B 档没留余量');
-    prevSize = lv.size;
-    prevCap = lv.cap;
+    // 余量 < 5 时 A 线（多 2 步）与 B 线（余量 − 2）重合成一条，B 这一档就消失了。
+    // 这是「收紧类参数有硬下限」在这一门的具体数字，改余量前先问：五档还齐吗？
+    assert.ok(lv.slack >= 5, d.name + ' 的步数余量把 B 档压没了：' + lv.slack);
+    assert.ok(lv.hi >= lv.min, d.name + ' 的最优步数区间反了');
+    if (prev) {
+      assert.ok(lv.size > prev.size || lv.min > prev.hi,
+        d.name + ' 与上一档两条轴都没拉开（' + prev.size + '×' + prev.size + ' ['
+        + prev.min + ',' + prev.hi + '] → ' + lv.size + '×' + lv.size + ' ['
+        + lv.min + ',' + lv.hi + ']）');
+      assert.ok(lv.min >= prev.min, d.name + ' 的最优步数反而更短');
+    }
+    prev = lv;
   }
   const p = practice.buildParams(practice.getMethod('arrayEye'), 'desperate');
-  assert.deepStrictEqual([p.size, p.minSteps, p.capSteps],
-    [practice.LIGHTS_LEVELS[4].size, practice.LIGHTS_LEVELS[4].min, practice.LIGHTS_LEVELS[4].cap],
-    '绝境档没拿到 5×5 与对应预算');
+  assert.deepStrictEqual([p.size, p.minSteps, p.hiSteps, p.budgetSlack],
+    [practice.LIGHTS_LEVELS[4].size, practice.LIGHTS_LEVELS[4].min,
+      practice.LIGHTS_LEVELS[4].hi, practice.LIGHTS_LEVELS[4].slack],
+    '绝境档没拿到 5×5、最优区间与余量');
 });
 
 check('节奏不越过触屏安全下限', function () {
@@ -918,7 +943,7 @@ check('十九门五档都至少两个可见参数在变，且评级线或盘面�
     const variants = new Set(ps.map(function (p, i) {
       return (index.MODULES[m.game].lines(p, practice.difficultyOf(keys[i]).gear).items || []).join('|');
     })).size;
-    const boardChanged = vary.some(function (k) { return /size|holes|minSteps|capSteps|level/.test(k); });
+    const boardChanged = vary.some(function (k) { return /size|holes|minSteps|hiSteps|budgetSlack|level/.test(k); });
     assert.ok(variants > 1 || boardChanged,
       m.id + ' 的说明页五档写同一行，玩家没法对照');
   }

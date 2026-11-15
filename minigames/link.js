@@ -1,7 +1,7 @@
 'use strict';
 
-// 灵纹连线（牵灵引线 / 御灵·并蒂牵线引专属）：经典连连看。
-// 盘面只放六种形状，点两枚同纹、且能用不超过两次转折的线连起来，就收走这一对。
+// 灵纹连线（牵灵引线 / 御灵·并蒂牵线引）专属：经典连连看。
+// 盘面只放几种形状，点两枚同纹、且能用不超过两次转折的线连起来，就收走这一对。
 //
 // 与「成对翻牌」的区别：翻牌考记位置，这里考找通路——盘外一圈是空的，边上的灵纹
 // 可以绕盘外走；同类却隔着一堵纹的，就得先清掉挡路的那一对。
@@ -9,12 +9,37 @@
 // 经典玩法最容易劝退的两处都补齐了：
 //   ① 开局与每次消除后都保证「至少还有一对可连」，否则自动把剩余灵纹重排；
 //   ② 提示照见一对真能连上的纹，不是随便指两格。
-// 重排与照纹只收一点时间，不扣心神——这一门是黄阶里的入门功课，不该靠惩罚教规则。
+// 重排不扣息：死局是盘面随机摆出来的，玩家管不着，罚息等于罚运气；代价改成连收断掉。
 
 const C = require('./common.js');
 
 const GLYPHS = ['✦', '◆', '●', '▲', '■', '✿'];
 const DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+// 评级只认一件事：收干净那一刻还剩几息。
+//
+// 以前按得分评（每对 100 分 × 连收倍率，收完再加剩余息 ×4）。问题是「收干净」本身
+// 就把分数撑满了：12 对最少也有 1200 分，而 A 线最高只到 1199、B 线 845——B 与 C
+// 是死线，走完的局永远至少 A；更糟的是局内 HUD 只看分数，会在还差三对时宣布
+// 「已入 S · 稳住这一局」，结算却给 F（走火）。分数现在只记连收手感，评级改看剩余息：
+// 倒计时就摆在 HUD 上，玩家自己算得出「再快几息能进 S」。
+const GRADE_LEFT = [0.32, 0.16, 0.04];   // S / A / B：收干净时至少剩本局时辰的 32% / 16% / 4%
+
+function gradeLefts(duration) {
+  return {
+    s: Math.ceil(duration * GRADE_LEFT[0]),
+    a: Math.ceil(duration * GRADE_LEFT[1]),
+    b: Math.ceil(duration * GRADE_LEFT[2]),
+  };
+}
+
+function gradeByLeft(left, duration) {
+  const g = gradeLefts(duration);
+  if (left >= g.s) return 'S';
+  if (left >= g.a) return 'A';
+  if (left >= g.b) return 'B';
+  return 'C';
+}
 
 // 最多两次转折的连线判定。把盘面外扩一圈空位，边上的灵纹也能从盘外绕过去。
 // 纯函数：玩法层和测试用同一套规则，改判定不会偷偷改掉测试期望。
@@ -99,7 +124,10 @@ function canLink(board, cols, rows, a, b) {
   return !!findPath(board, cols, rows, a, b);
 }
 
-function findPair(board, cols, rows) {
+// avoid 是一次照纹里已经指过的那一对：大圆满的「双照」要再找一对**不同的**，
+// 否则两次照见同一对，玩家等于白扣息。
+function findPair(board, cols, rows, avoid) {
+  const skip = avoid || {};
   const left = [];
   for (let i = 0; i < board.length; i += 1) if (board[i]) left.push(i);
   const byKind = {};
@@ -112,7 +140,9 @@ function findPair(board, cols, rows) {
   for (let k = 0; k < kinds.length; k += 1) {
     const list = byKind[kinds[k]];
     for (let i = 0; i < list.length; i += 1) {
+      if (skip[list[i]]) continue;
       for (let j = i + 1; j < list.length; j += 1) {
+        if (skip[list[j]]) continue;
         if (canLink(board, cols, rows, list[i], list[j])) return [list[i], list[j]];
       }
     }
@@ -135,42 +165,40 @@ function create(ctx) {
   const p = ctx.params || {};
   const perks = ctx.perks || {};
   const theme = ctx.theme || {};
-  const cols = p.cols || 6;
-  const rows = p.rows || 4;
+  const cols = Math.max(3, p.cols || 6);
+  const rows = Math.max(3, p.rows || 4);
   const n = cols * rows;
   const kinds = Math.min(GLYPHS.length, Math.max(3, p.kinds || 6));
-  const depth = Math.max(0, Math.min(4, typeof p.depth === 'number' ? p.depth : 0));
   const stage = typeof perks.tier === 'number' ? perks.tier : 0;
   const duration = Math.max(20, p.duration || 55);
-  const hintMs = Math.max(200, p.flashMs || 900);
-  const freeHint = stage >= 3;
-  const freeShuffle = stage >= 5;
+  // 照纹高亮多久与难度无关（它只是「看得见多久」），所以不进 PACE_KEYS / 章内收紧，
+  // 否则 200 关里一百多关的「本关变化」都会是「亮起时长 0.75 秒 → 0.74 秒」——
+  // 参数真的变了，玩家一点都看不见。
+  const hintMs = Math.max(200, p.hintMs || 900);
+  const hintCost = stage >= 3 ? 1 : 2;     // 大成「照纹」：少扣 1 息，仍要付
+  const twinHint = stage >= 5;             // 大圆满「双照」：一次照见两对
   const pairs = n / 2;
+  const leftLine = gradeLefts(duration);
 
   const vm = C.makeVm(cols, n, '点两枚同纹灵石，能连起来就收走一对', ctx.tip || '点两枚同纹，转折不超过两次');
   vm.timeText = C.mmss(duration);
   vm.scoreText = '得分 0';
   vm.extras.showHint = true;
   vm.extras.compact = true;
+  // 评级只看「收干净时剩几息」，而倒计时一开始就是满的——摆一个「当前评级」必然是 S，
+  // 那是骗人（common.js 里按用时评级的玩法都关掉这一格）。
+  vm.extras.showGradeNow = false;
   vm.hint = vm.costText;
-
-  // 门槛按「一盘收干净能拿多少」标：满收 pairs×100 + 剩余息数×4，
-  // 简单档满收基本是 S，漏几对或错配多了自然掉档。
-  const lim = gradeLimits(pairs, depth);
-  const sLimit = lim.s;
-  const aLimit = lim.a;
-  const bLimit = lim.b;
 
   const bag = C.TimerBag();
   let board = [];
   let selected = -1;
-  let hintPair = null;
+  let hintPairs = null;
   let pairsDone = 0;
   let mistakes = 0;
   let combo = 0;
   let score = 0;
   let left = duration;
-  let shuffles = 0;
   let done = false;
   let started = false;
   let hintTimer = null;
@@ -180,6 +208,7 @@ function create(ctx) {
   function render() { ctx.render(vm); }
 
   function reshuffle() {
+    // 重排不记数：它既不动息也不进评级，只负责把死局摆活（评级只看收干净时剩几息）。
     const rest = [];
     for (let i = 0; i < n; i += 1) if (board[i]) rest.push(board[i]);
     C.shuffle(rest);
@@ -189,7 +218,6 @@ function create(ctx) {
       board[i] = rest[k];
       k += 1;
     }
-    shuffles += 1;
     // 极小的概率重排后仍无可连对（剩余纹全被自己围住），再洗几次；绝不死循环。
     for (let t = 0; t < 24 && !findPair(board, cols, rows); t += 1) {
       C.shuffle(rest);
@@ -200,8 +228,18 @@ function create(ctx) {
         k += 1;
       }
     }
-    if (!freeShuffle) left = Math.max(0, left - 3);
-    C.flash(vm, freeShuffle ? '灵纹自移 · 不扣息' : '灵纹自移 · 少 3 息', 'good');
+    // 死局是盘面随机摆出来的，玩家管不着——罚息等于罚运气。代价改成「连收断掉」：
+    // 盘面都换了，链子本来就该断，玩家也看得见自己在为哪件事付账。
+    combo = 0;
+    C.flash(vm, '灵纹自移 · 连收断了', 'bad');
+  }
+
+  function marked(i) {
+    if (!hintPairs) return false;
+    for (let k = 0; k < hintPairs.length; k += 1) {
+      if (hintPairs[k][0] === i || hintPairs[k][1] === i) return true;
+    }
+    return false;
   }
 
   function paint() {
@@ -220,7 +258,7 @@ function create(ctx) {
       }
       cell.cls = 'cell cell--lit cell--chip'
         + (i === selected ? ' cell--sel' : '')
-        + (hintPair && (hintPair[0] === i || hintPair[1] === i) ? ' cell--hintpair' : '');
+        + (marked(i) ? ' cell--hintpair' : '');
       cell.label = GLYPHS[v - 1];
       // 上屏的是纹样不是字形：crest 交给 wxss 画，label 只在数据里留个可读的代号。
       cell.crest = v;
@@ -236,10 +274,14 @@ function create(ctx) {
     vm.scoreText = '得分 ' + score;
     vm.combo = combo;
     vm.comboText = combo >= 3 ? '连收 ' + combo : '';
-    vm.gradeNow = C.gradeBy(score, sLimit, aLimit, bLimit);
-    vm.goal = C.goalFor(vm.gradeNow, Math.max(0, sLimit - score), '分');
+    // 局内只报「还差几对」与 S 线要剩多少息，不报「当前评级」：评级是按收干净那一刻
+    // 的剩余息定的，收完之前谁也说不准。
+    const need = pairs - pairsDone;
+    vm.goal = need > 0
+      ? '还差 ' + need + ' 对，S 线要剩 ' + leftLine.s + ' 息'
+      : '已收干净';
     vm.meter = { label: '已收灵契', value: pairsDone, max: pairs };
-    vm.hint = vm.costText + ' · 照纹 · 剩 ' + (pairs - pairsDone) + ' 对 · 重排 ' + shuffles + ' 次';
+    vm.hint = vm.costText + ' · 照纹 ' + hintCost + ' 息 · 剩 ' + need + ' 对';
   }
 
   function finishOnce(grade, summary) {
@@ -262,8 +304,9 @@ function create(ctx) {
       finishOnce('F', '时辰到，还剩 ' + (pairs - pairsDone) + ' 对没接上');
       return;
     }
-    const grade = C.gradeBy(score, sLimit, aLimit, bLimit);
-    finishOnce(grade, '收 ' + pairsDone + ' / ' + pairs + ' 对 · 错配 ' + mistakes + ' · 重排 ' + shuffles);
+    const grade = gradeByLeft(Math.max(0, left), duration);
+    finishOnce(grade, '收 ' + pairsDone + ' / ' + pairs + ' 对 · 错配 ' + mistakes
+      + ' · 剩 ' + Math.max(0, left) + ' 息');
   }
 
   function addScore(base) {
@@ -275,12 +318,18 @@ function create(ctx) {
 
   function clearHint() {
     if (hintTimer !== null) { bag.off(hintTimer); hintTimer = null; }
-    hintPair = null;
+    hintPairs = null;
   }
 
   function tap(index) {
-    if (done || vm.phase !== 'playing' || index < 0 || index >= n || !board[index]) return;
+    if (done || vm.phase !== 'playing' || index < 0 || index >= n) return;
     clearHint();
+    if (!board[index]) {
+      // 空地是通路，不是牌。点在空处只把已选的那枚放下，不罚息——
+      // 「点空地也算错配」会让玩家收走一对之后误触一下掉 2 息，而他什么都没做错。
+      if (selected >= 0) { selected = -1; paint(); render(); }
+      return;
+    }
     if (selected < 0) { selected = index; paint(); render(); return; }
     if (selected === index) { selected = -1; paint(); render(); return; }
     const a = selected;
@@ -314,7 +363,6 @@ function create(ctx) {
         vm.linkPath = { key: pathSeq, points: path };
       }
       if (pairsDone >= pairs) {
-        score += Math.max(0, left) * 4;
         paint();
         syncHud();
         render();
@@ -334,15 +382,24 @@ function create(ctx) {
     const pair = findPair(board, cols, rows);
     if (!pair) { reshuffle(); paint(); syncHud(); render(); return; }
     clearHint();
-    hintPair = pair;
-    if (!freeHint) left = Math.max(0, left - 2);
-    vm.status = freeHint ? '照纹：这两枚连得上' : '照纹：少 2 息，这两枚连得上';
+    hintPairs = [pair];
+    if (twinHint) {
+      const skip = {};
+      skip[pair[0]] = true;
+      skip[pair[1]] = true;
+      const second = findPair(board, cols, rows, skip);
+      if (second) hintPairs.push(second);
+    }
+    left = Math.max(0, left - hintCost);
+    vm.status = hintPairs.length > 1
+      ? '双照：两对都连得上 · 少 ' + hintCost + ' 息'
+      : '照纹：这两枚连得上 · 少 ' + hintCost + ' 息';
     paint();
     syncHud();
     render();
     hintTimer = bag.after(function () {
       if (done) return;
-      hintPair = null;
+      hintPairs = null;
       paint();
       render();
     }, hintMs);
@@ -383,19 +440,17 @@ function create(ctx) {
   });
 }
 
-function gradeLimits(pairs, depth) {
-  const s = Math.ceil(pairs * (88 + depth * 10));
-  return { s: s, a: Math.ceil(s * 0.78), b: Math.ceil(s * 0.55) };
-}
-
 function lines(p) {
-  const cols = (p && p.cols) || 6;
-  const rows = (p && p.rows) || 4;
-  const depth = Math.max(0, Math.min(4, (p && p.depth) || 0));
-  const lim = gradeLimits(cols * rows / 2, depth);
+  const duration = Math.max(20, (p && p.duration) || 55);
+  const g = gradeLefts(duration);
   return {
-    rule: '按本局总得分（每对 100 分，连收有倍率）',
-    items: ['S ≥ ' + lim.s + ' 分', 'A ≥ ' + lim.a + ' 分', 'B ≥ ' + lim.b + ' 分', '其余为 C'],
+    rule: '走完之后按剩余息评级：收得越快，剩得越多（错配与连不上各少 2 息，直接吃掉剩余）',
+    items: [
+      'S：收干净且剩 ≥ ' + g.s + ' 息（本局 ' + duration + ' 息）',
+      'A：收干净且剩 ≥ ' + g.a + ' 息',
+      'B：收干净且剩 ≥ ' + g.b + ' 息',
+      'C：收干净，但剩不到 ' + g.b + ' 息',
+    ],
     fail: '时辰到还剩对子没接上 → 走火 F，这一局没有收益',
   };
 }
@@ -404,4 +459,5 @@ module.exports = {
   id: 'link',
   findPath: findPath, name: '灵纹连线', create: create, lines: lines,
   canLink: canLink, findPair: findPair, GLYPHS: GLYPHS,
+  gradeByLeft: gradeByLeft, gradeLefts: gradeLefts,
 };

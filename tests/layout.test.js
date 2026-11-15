@@ -645,7 +645,7 @@ check('局内代价句用阿拉伯数字，与 HUD 的「余 12.3 息」同一�
   }
   assert.deepStrictEqual(bad, [], '代价句里还有中文数词：' + bad.join(' / '));
   assert.ok(/折 1 盏心神/.test(read('minigames/memory.js')), '记序复现的浮字又写成「一盏」');
-  assert.ok(/罚 3 步/.test(read('minigames/lights.js')), '阵灯推演的浮字又写成「三步」');
+  assert.ok(/罚 ' \+ DEAD_PENALTY \+ ' 步/.test(read('minigames/lights.js')), '阵灯推演的浮字又写成「三步」');
 });
 
 check('斜向擦角：插值只认中心内圈，抬手仍用整格命中补定', function () {
@@ -1277,12 +1277,13 @@ check('阵灯推演：代价句按阶段出现，盘面只画图形不写汉字'
     return vm;
   }
   const base = boot({ tier: 0 });
-  assert.ok(/最高 A/.test(base.hint), '简单档没讲阵眼感应的代价：' + base.hint);
-  assert.ok(/预算 \d+ 步/.test(base.hint), '简单档没讲步数预算：' + base.hint);
+  // 感应的代价写在按钮旁边，而且是「花步数」不是「封顶」——它和走错落在同一把尺子上。
+  assert.ok(/每看一眼算 2 步/.test(base.hint), '简单档没讲阵眼感应的代价：' + base.hint);
+  assert.ok(/余量 \d+ 步/.test(base.hint), '简单档没讲步数余量：' + base.hint);
   assert.ok(!/死门/.test(base.hint), '未解锁死门就提前讲死门了：' + base.hint);
   const high = boot({ tier: 4 });
-  assert.ok(/触死门复位并罚 3 步/.test(high.hint), '大成档没讲死门代价：' + high.hint);
-  assert.ok(/最高 A/.test(high.hint), '大成档把阵眼感应的代价丢了');
+  assert.ok(/触死门罚 2 步/.test(high.hint), '大成档没讲死门代价：' + high.hint);
+  assert.ok(/每看一眼算 2 步/.test(high.hint), '大成档把阵眼感应的代价丢了');
 
   const src = read('minigames/lights.js');
   assert.ok(/OFF_GLYPH = '○'/.test(src) && /DEAD_GLYPH = '✕'/.test(src), '盘面符号没换成图形');
@@ -1295,7 +1296,7 @@ check('阵灯推演：代价句按阶段出现，盘面只画图形不写汉字'
   const gd = require('../data/guides.js').guideOf('lights');
   assert.ok(/● \/ ○/.test(gd.terms.map(function (t) { return t.name; }).join('')), '名词速查没讲图形');
   assert.ok(gd.inline.indexOf('忌') < 0, '速记又提前写死门');
-  assert.ok(/已走步数 \/ 最优步数/.test(gd.scoring), '评级口径没写清按步数比');
+  assert.ok(/比最优多走了几步/.test(gd.scoring), '评级口径没写清按「比最优多走几步」比');
   assert.ok(/阵溃/.test(gd.scoring), '评级口径没写清阵溃');
 });
 
@@ -1363,8 +1364,8 @@ check('19 套玩法的代价句在局内真的看得见（运行时探针）', f
       params: pd.buildParams(m, 'easy'), perks: { tier: 0 }, theme: {},
       tip: m.tip, render: function (v) { vm = v; }, finish: function () { },
     });
-    // 死门是大成才解锁的进阶规则，未解锁时阵灯推演只讲阵眼感应与步数预算的代价，不提前讲死门。
-    const expected = m.game === 'lights' ? '最高 A' : m.tip;
+    // 死门是大成才解锁的进阶规则，未解锁时阵灯推演只讲阵眼感应与步数余量的代价，不提前讲死门。
+    const expected = m.game === 'lights' ? '每看一眼算 2 步' : m.tip;
     assert.ok(vm.hint.indexOf(expected) >= 0,
       m.game + ' 开局后代价句不见了：' + vm.hint);
     c.destroy();
@@ -1510,9 +1511,9 @@ check('阵灯破阵：四路反馈齐备、破阵即结算、规则写进游戏�
   assert.ok(/cell--solved/.test(lights) && /@keyframes solvedGlow/.test(wxss), '整盘一次性泛金没落地');
   assert.strictEqual(themes.themeOf('arrayEye', 'lights').solved, '破阵', '破阵文案没进主题真源');
   const said = guides.GUIDES.lights.steps.join('') + guides.GUIDES.lights.scoring;
-  assert.ok(/正好走最优是 S/.test(said), '说明没讲 S 口径');
+  assert.ok(/一步不多是 S/.test(said), '说明没讲 S 口径');
   assert.ok(/阵溃/.test(said), '说明没讲阵溃');
-  assert.ok(/重置阵局/.test(said), '说明没讲重置阵局的代价');
+  assert.ok(/复原本局/.test(said), '说明没讲复原本局的代价');
   for (const f of ['data/practice.js', 'minigames/theme.js', 'data/guides.js']) {
     assert.ok(!/立刻换下一盘|限时连解/.test(read(f)), f + ' 还写着限时连解的旧口径');
   }
@@ -1532,13 +1533,16 @@ check('阵灯推演：盘面规格与步数预算同源、阵眼术语收敛、H
   assert.strictEqual(pd.lightsLevelOf('hard').size, 4, '困难档盘面规格变了');
   assert.strictEqual(pd.lightsLevelOf('desperate').size, 5, '绝境档盘面规格变了');
   const hp = pd.buildParams(method, 'hard');
-  assert.deepStrictEqual([hp.size, hp.minSteps, hp.capSteps],
-    [pd.LIGHTS_LEVELS[2].size, pd.LIGHTS_LEVELS[2].min, pd.LIGHTS_LEVELS[2].cap],
-    '玩法层没拿到按档注入的盘面规格与预算');
+  assert.deepStrictEqual([hp.size, hp.minSteps, hp.hiSteps, hp.budgetSlack],
+    [pd.LIGHTS_LEVELS[2].size, pd.LIGHTS_LEVELS[2].min, pd.LIGHTS_LEVELS[2].hi, pd.LIGHTS_LEVELS[2].slack],
+    '玩法层没拿到按档注入的盘面规格、最优区间与余量');
   assert.ok(/p\.size/.test(lights) && !/const LIGHTS_LEVELS|const LIGHTS_TARGETS/.test(lights),
     'lights.js 又抄了一份档位表');
-  assert.ok(/本档 3×3 盘 · 步数预算 9 步 · 一步不浪费才入 S/.test(pd.sLineText(method, 'easy')),
-    '准备页没写出本档规格、预算与 S 口径');
+  assert.ok(/本档 3×3 盘 · 最优 2～3 步 · 最多多走 7 步/.test(pd.sLineText(method, 'easy')),
+    '准备页没写出本档规格、最优区间与余量');
+  // 预算不再是写死的参数：它是「本盘最优 + 余量」，在玩法层现算。表里若又出现 cap，
+  // 说明那两处迟早会脱钩（旧表预算是最优的 3–4.5 倍，文档却写着「够 A、不够乱点」）。
+  assert.ok(!/cap:/.test(JSON.stringify(pd.LIGHTS_LEVELS)), '档位表又写回了绝对步数预算');
   assert.ok(/goalText: sLine/.test(read('pages/practice/practice.js')), '准备页的 S 线没走同源文案');
 
   // 「阵眼」只留给提示技能：开局横幅、印章、风味与特效不再混用这个词。
@@ -1550,11 +1554,19 @@ check('阵灯推演：盘面规格与步数预算同源、阵眼术语收敛、H
   // HUD 摆「已走 / 最优」对照，说明里也要讲清它不参与评级。
   assert.ok(/已走 ' \+ moves \+ ' 步/.test(lights) && /最优 ' \+ optimal \+ ' 步/.test(lights),
     'HUD 没把已走步数并进对照');
+  // 「已亮 N / M」不许回到对局 HUD：这一门的亮盏数与离解开还有多远无关，
+  // 实测正确的一手也可能让已亮数变少，摆出来就是一句反向信息。
+  // 教学盘单独一格（它本来就不计步，那行只是旁白），只看对局那一段。
+  const duel = lights.slice(lights.indexOf('function create(ctx)'), lights.indexOf('// 五档的宽窄写在这里'));
+  assert.ok(!/progressText\s*=/.test(duel) && !/vm\.progress\s*=/.test(duel),
+    '对局 HUD 又把「已亮几盏 / 进度条」摆回来了');
+  assert.ok(/extras\.showProgress = false/.test(duel), '对局进度条没关');
+  assert.ok(/extras\.showGradeNow = false/.test(duel), '局内评级徽章没关');
   assert.ok(!/本盘最少/.test(lights), 'HUD 还摆着容易误读的「本盘最少 N 步」');
   const gd = require('../data/guides.js').guideOf('lights');
   const terms = gd.terms.map(function (t) { return t.name; }).join('');
   assert.ok(/最优 N 步/.test(terms), '名词速查没讲最优步数');
-  assert.ok(/已走步数 \/ 最优步数/.test(gd.scoring), '没讲清按步数评级');
+  assert.ok(/比最优多走了几步/.test(gd.scoring), '没讲清按「比最优多走几步」评级');
   assert.ok(!/不参与评级/.test(gd.scoring), '还在说步数不参与评级，现在它就是评级依据');
 });
 

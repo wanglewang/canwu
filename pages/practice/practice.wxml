@@ -285,10 +285,11 @@
       </view>
 
       <view wx:if="{{vm.stage === 'ring' && vm.ring}}" class="ring-area" bindtap="onCellTap">
-        <view class="ring-judge"></view>
         <view class="ring-orb ring-orb--{{vm.ring.tone}}" style="transform:scale({{vm.ring.scale}});border-color:{{theme.accent}}">
           <text style="color:{{theme.ink}}">{{theme.glyph}}</text>
         </view>
+        <!-- 判定带画在光环之上：光环往里收的时候会整块盖住朱带，压在最上层才看得见要瞄的那条带。 -->
+        <view class="ring-judge" style="width:{{vm.ring.bandBox}}rpx;height:{{vm.ring.bandBox}}rpx;border-width:{{vm.ring.bandWidth}}rpx"></view>
         <text wx:if="{{!boardHeld}}" class="ring-tip">点按盘面 · 第 {{vm.ring.beat}} / {{vm.ring.total}} 拍</text>
       </view>
 

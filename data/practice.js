@@ -62,7 +62,7 @@ const PRACTICE_METHODS = [
   {
     id: 'absorb', name: '吸纳灵力', game: 'tempo', theme: 'absorb', twist: 'absorb',
     desc: '一呼一吸皆有节律，气机收到最匀处才纳得进去。慢些，反而更难走偏。',
-    tip: '偏一点就断连，缩过头算失拍',
+    tip: '偏一点只算半拍，缩过头这一拍就空',
     base: 30,
     params: { beats: 8, speed: 0.026, window: 0.09 },
   },
@@ -75,10 +75,10 @@ const PRACTICE_METHODS = [
   },
   {
     id: 'arrayEye', name: '参悟阵眼', game: 'lights', theme: 'arrayEye', twist: 'arrayEye',
-    desc: '点一格翻转它与上下左右四格，把整盘阵灯同时点亮。盘面规格与步数预算写在下面的档位表里。',
-    tip: '触死门复位并罚 3 步',
+    desc: '点一格翻转它与上下左右四格，把整盘阵灯同时点亮。盘面规格与步数余量写在下面的档位表里。',
+    tip: '触死门罚 2 步 · 这一格点不动',
     base: 42,
-    // 盘面规格 / 最优步数下限 / 步数预算由 LIGHTS_LEVELS 按难度档注入，这里不再写死 3×3。
+    // 盘面规格 / 最优步数区间 / 步数余量由 LIGHTS_LEVELS 按难度档注入，这里不再写死 3×3。
     params: {},
   },
   {
@@ -479,6 +479,47 @@ function matchLevelOf(diffKey) {
   return MATCH_LEVELS[difficultyOf(diffKey).depth];
 }
 
+// 灵纹连线的五档：盘面与纹种是这一门的主轴。
+//
+// 旧版五档只差时辰（55→48，1.15 倍）与「照纹亮多久」（flashMs 1062→630）。后者不是难度，
+// 是把帮助变短，而审计把它记成「主轴跨度 1.69 倍」——于是这一门在复杂度 / 信息 / 规模
+// 三根轴上用了 0 根，还躲过了「跨度不够 2 倍该换轴」那条提示。
+// 现在按档加盘：24 格 → 28 → 32 格，纹种 4 → 6。8 列在 375px 屏上每格仍有 43px，
+// 用的是已有的 .grid--c7 / .grid--c8，不新造样式。
+//
+// 时辰不在这张表里。这一门只有盘面与时辰两根轴，而「章内收三成、换章回一口气」
+// 会让第 40 关（约 39 秒）比第 41 关（约 51 秒）还紧——界面上白纸黑字写着
+// 「时辰 39 秒 → 51 秒」，等于承认上一章更难。所以时辰改按「每对预算」沿关号
+// 连续收，见下面的 linkPerPairAt / linkDurationAt。
+const LINK_LEVELS = [
+  { cols: 6, rows: 4, kinds: 4 },   // 12 对 · 4 种纹：同纹各 6 枚，路径好找
+  { cols: 6, rows: 4, kinds: 5 },   // 12 对 · 5 种纹
+  { cols: 6, rows: 4, kinds: 6 },   // 12 对 · 6 种纹：每种正好 4 枚，同纹候选最少
+  { cols: 7, rows: 4, kinds: 6 },   // 14 对
+  { cols: 8, rows: 4, kinds: 6 },   // 16 对
+];
+// 每对预算（息）：第 1 关 5.5 → 第 200 关 2.75，1.91 倍。
+// 拿「每对」而不是「总秒数」当主承重：换章盘面变大，总秒数跟着变长是应该的，
+// 玩家比较难度的尺子只能是「一对平均给几息」。
+const LINK_BUDGET = [5.5, 2.75];
+
+// 这一关每对给几息：沿全书进度线性收，不按章回卷——「章内收三成、换章复位」
+// 正是倒挂的来源。
+function linkPerPairAt(level) {
+  const lv = Math.max(1, Math.min(levelData.LEVEL_MAX, Math.round(level) || 1));
+  const f = (lv - 1) / (levelData.LEVEL_MAX - 1);
+  return LINK_BUDGET[0] + (LINK_BUDGET[1] - LINK_BUDGET[0]) * f;
+}
+
+// 这一关的时辰 = 本档对数 × 每对预算（消费端在 minigames/link.js 的 p.duration）。
+// 盘面台阶（换章）与关内台阶（预算）分开承担：换章时辰会变长，但每对只会更紧。
+function linkDurationAt(level) {
+  const lv = Math.max(1, Math.min(levelData.LEVEL_MAX, Math.round(level) || 1));
+  const board = LINK_LEVELS[levelData.chapterOf(lv)];
+  const pairs = board.cols * board.rows / 2;
+  return Math.max(20, Math.round(linkPerPairAt(lv) * pairs));
+}
+
 // 局内那行代价句要跟着本档罚息走：以前写死「少 2 息」，改了档就变成假话。
 // 只有三秀同收的罚息按档变，其余门沿用 method.tip 这一份真源。
 function tipFor(method, diffKey) {
@@ -489,19 +530,28 @@ function tipFor(method, diffKey) {
   return method.tip;
 }
 
-// 阵灯推演的档位表：盘面规格 / 最优步数下限 / 步数预算。
+// 阵灯推演的档位表：盘面规格 / 最优步数区间 / 步数余量。
 // 以前是「限时 36 秒解尽量多盘」，按解开盘数评级；现在改成一盘推演、按步数评级，
 // 所以这一门比的是「省」，不是「快」——和静心记诵诀（记序列）、三秀连收诀（消消乐）彻底分开。
-// 规格按档递增：3×3 先把联动关系看懂，4×4 状态空间上一个量级，5×5 是拇指够得着的上限。
-// 最优步数下限不写死：生成时解出来多长就是多长，落在 [min, min+2] 里才算数。
-// 规格与「最优步数下限」都要单调递增：只放大盘面不够，4×4 上三两步就解开的盘
-// 反而比 3×3 上四步的还轻松，档位会看起来倒挂。预算按最优步数留出三档余量。
+//
+// 三件事一起改过，缺一档都会塌：
+//   ① 最优步数写成**区间** min–hi，且相邻两档的区间不重叠。旧表是 [min, min+2]，于是
+//      简单 [2,4] 与普通 [3,5] 大约三分之二的盘重合——两档都是 3×3、规则一样、预算都不咬人，
+//      玩家体感上根本没换档。
+//   ② 预算不再写死绝对值，改由「本盘最优 + 余量」现算。旧表预算是最优的 3–4.5 倍，
+//      阵溃要浪费到四倍才触发，等于没有压力；余量写在玩法层（`minigames/lights.js` 的
+//      `budgetSlack`），这一档只给「最多多走几步」。
+//   ③ 规格与最优步数同时递增，且不让相邻两档在两条轴上同时相同：
+//      3×3 2–3 → 3×3 4–5 → 4×4 4–5 → 5×5 6–7 → 5×5 8–9。
+//      4×4 只出现一次是有意的：4×4 恰好是「行追法必成」的尺寸（零空间维数 4 = 首行的 2⁴），
+//      任何 4×4 盘都能用同一套机械手法追通，放在中间档当「学方法」的一档正合适，
+//      放在高档就变成「背口诀拿 S」。
 const LIGHTS_LEVELS = [
-  { size: 3, min: 2, cap: 9 },
-  { size: 3, min: 3, cap: 12 },
-  { size: 4, min: 4, cap: 16 },
-  { size: 4, min: 5, cap: 18 },
-  { size: 5, min: 5, cap: 22 },
+  { size: 3, min: 2, hi: 3, slack: 7 },
+  { size: 3, min: 4, hi: 5, slack: 7 },
+  { size: 4, min: 4, hi: 5, slack: 7 },
+  { size: 5, min: 6, hi: 7, slack: 7 },
+  { size: 5, min: 8, hi: 9, slack: 7 },
 ];
 
 function lightsLevelOf(diffKey) {
@@ -591,7 +641,10 @@ function sLineText(method, diffKey) {
   }
   if (method.game === 'lights') {
     const lv = lightsLevelOf(diffKey);
-    return '本档 ' + lv.size + '×' + lv.size + ' 盘 · 步数预算 ' + lv.cap + ' 步 · 一步不浪费才入 S';
+    // 预算不再是固定秒数 / 步数，是本盘最优 + 余量，所以这里只能说「余量」，
+    // 说死一个绝对数会和局内「余 N 步」对不上（最优是区间，两盘能差一步）。
+    return '本档 ' + lv.size + '×' + lv.size + ' 盘 · 最优 ' + lv.min + '～' + lv.hi
+      + ' 步 · 最多多走 ' + lv.slack + ' 步';
   }
   return '';
 }
@@ -618,7 +671,7 @@ const FIELD_LABELS = {
   scramble: '打乱步数', mines: '禁制数', pairs: '气窍对数', decoys: '影子数',
   startLen: '起始字数', baseLen: '每步长度', steps: '最少步数',
   duration: '时辰', timeLimit: '时辰', hearts: '心神', startTiles: '起手块',
-  penaltySec: '点错罚', capFactor: '推数预算',
+  penaltySec: '点错罚', capFactor: '推数预算', budgetSlack: '步数余量',
 };
 
 function capFor(key, src) {
@@ -685,12 +738,13 @@ function rawParams(method, depthIndex) {
     out.hintCost = lv.hintCost;
     out.sLine = lv.sLine;
   }
-  // 阵灯推演按「已走步数 / 最优步数」评级，盘面规格与步数预算由这一份表按档注入。
+  // 阵灯推演按「比最优多走几步」评级，盘面规格、最优步数区间与步数余量由这一份表按档注入。
   if (method && method.game === 'lights') {
     const lv = LIGHTS_LEVELS[d.depth];
     out.size = lv.size;
     out.minSteps = lv.min;
-    out.capSteps = lv.cap;
+    out.hiSteps = lv.hi;
+    out.budgetSlack = lv.slack;
   }
   // 九宫填数：规格、挖洞数与三条时间线都按档注入，玩法层不再自己写死 4×4。
   if (method && method.game === 'sudoku') {
@@ -782,9 +836,18 @@ function buildParams(method, diffKey) {
 
 // 章内收紧：一章 40 关，末关比首关紧三成。这个数只乘「越短越难」的量，
 // 不碰盘面规格——6 列混 7 列算出来还是 6 列，那是假变化。
+//
+// 阵灯推演的两个键是特意从这张表里摘出去的：
+//   · `minSteps`（本档最优步数的下限）**不是**「越紧越难」的量——把它乘 0.7，
+//     等于章末要求更短的解，盘反而更好解。它原来在表里，于是每章最后几关
+//     都比头几关容易，和「章内只许变难」正好相反。
+//   · `capSteps` 已经没有这个参数了（预算按最优 + 余量现算），留在表里只会让
+//     下一档预算被乘成一个和最优脱钩的数。
+// 这一门章内真正收紧的是 `budgetSlack`（余量 7 → 5），下限 5：余量压到 4，
+// A 线（冗余 2）与 B 线（余量 − 2 = 2）重合成一条，B 档当场消失。
 const LEVEL_TIGHTEN = 0.30;
 const LEVEL_TIME_KEYS = ['duration', 'timeLimit', 'interval', 'flashMs', 'gapMs', 'windowMs',
-  'shuffleMs', 'flipMs', 'dropMs', 'msPerNote', 'life', 'capFactor', 'capSteps', 'minSteps',
+  'shuffleMs', 'flipMs', 'dropMs', 'msPerNote', 'life', 'capFactor', 'budgetSlack',
   'window', 'penaltySec'];
 
 // 某一关的完整参数。一段一关，所以相邻两关本该逐位不同——但「本该」不等于「一定」：
@@ -804,7 +867,7 @@ function buildParamsAt(method, level) {
   for (let i = 0; i < LEVEL_TIME_KEYS.length; i += 1) {
     const k = LEVEL_TIME_KEYS[i];
     if (typeof out[k] !== 'number') continue;
-    const min = k === 'capSteps' || k === 'minSteps' ? 3 : k === 'timeLimit' || k === 'duration' ? 8 : 0;
+    const min = k === 'budgetSlack' ? 5 : k === 'timeLimit' || k === 'duration' ? 8 : 0;
     out[k] = Math.max(min, levelRound(k, out[k] * tighten));
   }
   out.depth = ch;
@@ -833,7 +896,7 @@ function levelDelta(method, level) {
   const prev = buildParamsAt(method, prevLv);
   const ordered = PACE_KEYS.concat(WINDOW_KEYS, GOAL_KEYS,
     ['duration', 'timeLimit', 'sLine', 'hearts', 'startTiles', 'penaltySec', 'capFactor',
-      'capSteps', 'minSteps', 'fourRate', 'lineScale', 'startLevel', 'linesPerLevel']).filter(function (k) {
+      'budgetSlack', 'fourRate', 'lineScale', 'startLevel', 'linesPerLevel']).filter(function (k) {
     return k !== 'speed';
   });
   const out = [];
@@ -879,6 +942,7 @@ function fmtField(key, value) {
   if (key === 'capFactor') return '×' + value.toFixed(2);
   if (key === 'startLevel') return '第 ' + Math.round(value) + ' 级';
   if (key === 'linesPerLevel') return Math.round(value) + ' 层';
+  if (key === 'budgetSlack') return '多 ' + Math.round(value) + ' 步';
   return String(Math.round(value));
 }
 
@@ -887,7 +951,11 @@ function fmtField(key, value) {
 // 「步数预算」。两边共用一个键，但玩家的口径不一样——写错一边就等于说明页在说别人的话。
 function labelOf(method, key) {
   if (key === 'capFactor') return method && method.game === 'klotski' ? '步数预算' : '推数预算';
-  return FIELD_LABELS[key] || key;
+  // 同一个键在不同门里不是同一件事：三秀同收的 kinds 是花色，灵纹连线的是纹样。
+  if (key === 'kinds') return method && method.game === 'match' ? '花色' : '灵纹';
+  if (key === 'cols') return '盘面宽';
+  if (key === 'rows') return '盘面高';
+  return LEVEL_LABELS[key] || FIELD_LABELS[key] || key;
 }
 
 function diffDetail(method, diffKey) {
@@ -897,7 +965,7 @@ function diffDetail(method, diffKey) {
   const changes = [];
   // 时辰与四门新注入的档位参数也要进「本档紧在哪」：不然准备页写了「入门基准」，
   // 盘上的倒计时 / 心神 / 起手块却真的变了，说明和局内对不上。
-  const ordered = PACE_KEYS.concat(WINDOW_KEYS, GOAL_KEYS,
+  const ordered = ['cols', 'rows', 'kinds'].concat(PACE_KEYS, WINDOW_KEYS, GOAL_KEYS,
     ['duration', 'timeLimit', 'hearts', 'startTiles', 'penaltySec', 'capFactor', 'steps', SPEED_KEY,
       'startLevel', 'linesPerLevel']).filter(function (k) {
     return HIDDEN_FIELDS.indexOf(k) < 0;
@@ -921,7 +989,8 @@ function diffDetail(method, diffKey) {
       + ' · 重排少 ' + lv.shuffleCost + ' 息 · S ' + lv.sLine + ' 分';
   } else if (method && method.game === 'lights') {
     const lv = lightsLevelOf(diffKey);
-    brief = lv.size + '×' + lv.size + ' 盘 · 最优 ' + lv.min + ' 步起 · 预算 ' + lv.cap + ' 步';
+    brief = lv.size + '×' + lv.size + ' 盘 · 最优 ' + lv.min + '～' + lv.hi + ' 步'
+      + ' · 最多多走 ' + lv.slack + ' 步';
   } else if (method && method.game === 'sudoku') {
     const lv = sudokuLevelOf(diffKey);
     brief = lv.size + '×' + lv.size + ' 盘 · 要填 ' + lv.holes + ' 格 · S 线 ' + lv.tS + ' 秒';
@@ -952,6 +1021,12 @@ function diffDetail(method, diffKey) {
   } else if (method && method.game === 'mines') {
     const lv = MINES_LEVELS[d.depth];
     brief = lv.cols + '×' + lv.rows + ' 盘 · ' + lv.mines + ' 处禁制 · ' + lv.hearts + ' 盏心神';
+  } else if (method && method.game === 'link') {
+    // 这一门的难度不写在总秒数上（盘变大时辰就变长），写在「一对平均给几息」上。
+    const lv = LINK_LEVELS[d.depth];
+    const pairs = lv.cols * lv.rows / 2;
+    brief = lv.cols + '×' + lv.rows + ' 盘 · ' + pairs + ' 对 · ' + lv.kinds + ' 种灵纹 · 每对 '
+      + linkPerPairAt(levelData.chapterRange(d.depth).from).toFixed(2) + ' 息';
   } else if (method && method.game === 'blocks') {
     // 盘面是标准场地（10×20），写出来是让玩家知道「这一门不是小盘俄罗斯方块」；
     // 真正随档变的是起手级数与每级层数——这两句才是难度。
@@ -988,7 +1063,7 @@ const STAGE_RULES = {
     { at: 4, name: '叠印', short: '同一格连点两下', hard: true, desc: '第 5 轮起，口诀里会出现重复的格子' },
   ],
   arrayEye: [
-    { at: 3, name: '死门', short: '✕ 格点不得', hard: true, desc: '盘上多一格暗红 ✕ 死门，点到整盘复位并罚 3 步' },
+    { at: 3, name: '死门', short: '✕ 格点不动', hard: true, desc: '盘上多一格暗红 ✕ 死门，这一格点不动；误触罚 2 步，盘面不动' },
     { at: 4, name: '双门', short: '死门两处', hard: true, desc: '死门增至两格；想专心推演可在准备页关掉' },
   ],
   forge: [
@@ -1004,8 +1079,13 @@ const STAGE_RULES = {
   // 九套经典玩法是黄阶里的入门功课，阶段新法只给「看得更清 / 手更稳」的便利，
   // 不往经典规则里塞新花样——看一眼就会玩，才配叫简单。
   linkpair: [
-    { at: 3, name: '照纹', short: '提示不扣息', desc: '大成起「照纹」提示不再扣息' },
-    { at: 5, name: '自移', short: '死局重排不扣息', desc: '大圆满起死局重排不再扣息' },
+    // 原则第十一节：阶段新法要「加规则」而不是「减难度」，便利必须留明码代价。
+    // 旧版两条都是「不再扣息」，等于把代价整段删掉；而「重排不扣息」锁在一件平均
+    // 十局才发生一次的事上（实测 0.10 次/局），解锁了也看不见。
+    // 现在：照纹从 2 息降到 1 息（仍要付），大圆满把「照见一对」变成「一次照见两对」——
+    // 多给的是「一次看两处」，不是「不花钱」。
+    { at: 3, name: '照纹', short: '提示少扣 1 息', desc: '大成起「照纹」少扣 1 息（仍要付）：卡局时不必再为这两息犹豫' },
+    { at: 5, name: '双照', short: '一次照见两对', desc: '大圆满起「照纹」一次照见两对（四枚），仍是 1 息：省一次来回找，路径还得自己连' },
   ],
   stackstone: [
     { at: 3, name: '稳基', short: '落石放慢一拍', desc: '大成起落石间隔放宽一拍，留出转石的时间' },
@@ -1056,6 +1136,10 @@ module.exports = {
   HINT_LABELS: HINT_LABELS,
   MATCH_LEVELS: MATCH_LEVELS,
   matchLevelOf: matchLevelOf,
+  LINK_LEVELS: LINK_LEVELS,
+  LINK_BUDGET: LINK_BUDGET,
+  linkPerPairAt: linkPerPairAt,
+  linkDurationAt: linkDurationAt,
   tipFor: tipFor,
   TIME_LEVELS: TIME_LEVELS,
   MINES_HEARTS: MINES_HEARTS,

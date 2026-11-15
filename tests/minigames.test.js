@@ -975,20 +975,34 @@ check('记序复现：叠印的解锁段位与准备页说明一致（圆满，�
   } finally { restoreClock(); }
 });
 
-check('阵灯推演：五档按盘面规格与步数预算递进，不再塞限时', function () {
+check('阵灯推演：五档两条轴都单调，相邻两档不会两条轴都一样', function () {
   const m = data.getMethod('arrayEye');
-  const sizes = [];
-  const caps = [];
+  const rows = [];
   for (let i = 0; i < data.DIFFICULTIES.length; i += 1) {
     const p = data.buildParams(m, data.DIFFICULTIES[i].key);
     assert.strictEqual(typeof p.duration, 'undefined', '还在往这一门传限时，步数制不该有倒计时');
-    assert.ok(p.capSteps > p.minSteps, '步数预算没有比最优步数下限宽');
-    sizes.push(p.size);
-    caps.push(p.capSteps);
+    assert.strictEqual(typeof p.capSteps, 'undefined', '还在传写死的步数预算：预算该按「最优 + 余量」现算');
+    assert.ok(p.hiSteps >= p.minSteps, '最优步数区间反了');
+    rows.push({
+      name: data.DIFFICULTIES[i].name,
+      size: p.size, lo: p.minSteps, hi: p.hiSteps, slack: p.budgetSlack,
+    });
   }
-  assert.deepStrictEqual(sizes, [3, 3, 4, 4, 5], '盘面规格没有逐档放大：' + sizes.join('/'));
-  for (let i = 1; i < caps.length; i += 1) {
-    assert.ok(caps[i] > caps[i - 1], '步数预算没有逐档放宽：' + caps.join('/'));
+  assert.deepStrictEqual(rows.map(function (r) { return r.size; }), [3, 3, 4, 5, 5],
+    '盘面规格没有逐档放大：' + rows.map(function (r) { return r.size; }).join('/'));
+  // 相邻两档至少要有一条轴真的动了。旧表允许「盘面一样、区间重合三分之二」的两档并排，
+  // 那样的两档玩家打起来是同一件事，只是标题换了。
+  for (let i = 1; i < rows.length; i += 1) {
+    const a = rows[i - 1];
+    const b = rows[i];
+    assert.ok(b.size > a.size || b.lo > a.hi,
+      a.name + ' 与 ' + b.name + ' 两条轴都没拉开：' + a.size + '×' + a.size + ' ['
+      + a.lo + ',' + a.hi + '] → ' + b.size + '×' + b.size + ' [' + b.lo + ',' + b.hi + ']');
+    assert.ok(b.lo >= a.lo, b.name + ' 的最优步数反而更短');
+  }
+  // 余量低于 5 时 A 线（多 2 步）与 B 线（余量 − 2）会重合成一条：B 档当场消失。
+  for (const r of rows) {
+    assert.ok(r.slack >= 5, r.name + ' 的步数余量压到 B 档都不存在了：' + r.slack);
   }
 });
 
@@ -1009,8 +1023,9 @@ check('阵灯推演：五档开出来的盘都解得开，且最优步数落在�
         const plan = lightsMod.solve(board, p.size, allowed);
         assert.ok(plan && plan.length > 0,
           data.DIFFICULTIES[d].name + ' 第 ' + (round + 1) + ' 盘开出来就是无解盘');
-        assert.ok(plan.length >= p.minSteps && plan.length <= p.minSteps + 2,
-          data.DIFFICULTIES[d].name + ' 的最优步数跑出该档区间：' + plan.length);
+        assert.ok(plan.length >= p.minSteps && plan.length <= p.hiSteps,
+          data.DIFFICULTIES[d].name + ' 的最优步数跑出该档区间 [' + p.minSteps + ',' + p.hiSteps + ']：'
+          + plan.length);
         ctx.c.destroy();
       }
     }
@@ -1036,24 +1051,64 @@ check('阵灯推演：正好走最优解是 S，破阵即结算', function () {
   } finally { restoreClock(); }
 });
 
+check('阵灯推演：S / A / B / C / F 五档都真的拿得到', function () {
+  // 冗余手数用「同一格点两下」凑出来（两次翻转互相抵消，盘面不动），所以冗余只能是偶数。
+  // 余量 7 时：0 → S、2 → A、4 → B、6 → C、8 → F，五档正好铺满，一档都不缺。
+  // 旧口径（B = 两倍最优）在「最优 2 步」的盘上会让 A 线与 B 线重合，B 整档拿不到——
+  // 这一条就是为了那个坑立的。
+  installClock();
+  try {
+    const m = data.getMethod('arrayEye');
+    const cases = [
+      { pairs: 0, grade: 'S' },
+      { pairs: 1, grade: 'A' },
+      { pairs: 2, grade: 'B' },
+      { pairs: 3, grade: 'C' },
+      { pairs: 4, grade: 'F' },
+    ];
+    for (const cs of cases) {
+      const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
+      ctx.c.start();
+      const vm = ctx.st.vm;
+      const allowed = [];
+      for (let i = 0; i < vm.cells.length; i += 1) allowed.push(i);
+      const plan = lightsMod.solve(
+        vm.cells.map(function (x) { return x.cls.indexOf('cell--lit') >= 0; }), vm.cols, allowed);
+      let stray = -1;
+      for (let i = 0; i < allowed.length; i += 1) {
+        if (plan.indexOf(allowed[i]) < 0) { stray = allowed[i]; break; }
+      }
+      assert.ok(stray >= 0, '盘上没有解外的格子，凑不出冗余');
+      for (let i = 0; i < cs.pairs * 2 && !ctx.st.finished; i += 1) ctx.c.tap(stray);
+      for (let i = 0; i < plan.length && !ctx.st.finished; i += 1) ctx.c.tap(plan[i]);
+      assert.ok(ctx.st.finished, '冗余 ' + cs.pairs * 2 + ' 手之后都没结算');
+      assert.strictEqual(ctx.st.finished.grade, cs.grade,
+        '冗余 ' + cs.pairs * 2 + ' 手该是 ' + cs.grade + '，实际 ' + ctx.st.finished.grade);
+      ctx.c.destroy();
+    }
+  } finally { restoreClock(); }
+});
+
 check('阵灯推演：步数用尽还没全亮即阵溃，按走火 F 收场', function () {
   installClock();
   try {
     const m = data.getMethod('arrayEye');
-    // 预算收到 5 步：3×3 是唯一解，每次点一格「不在解里」的就不会提前破阵。
-    const ctx = makeCtx(m, {}, { size: 3, minSteps: 2, capSteps: 5 });
+    // 余量收到 5 步：3×3 是唯一解，每次点一格「不在解里」的就不会提前破阵。
+    const ctx = makeCtx(m, {}, { size: 3, minSteps: 2, hiSteps: 3, budgetSlack: 5 });
     ctx.c.start();
     let guard = 0;
     while (!ctx.st.finished && guard < 20) {
       const vm = ctx.st.vm;
       const board = vm.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; });
-      const allowed = [0, 1, 2, 3, 4, 5, 6, 7, 8];
-      const plan = lightsMod.solve(board, 3, allowed);
+      // 挑一手「点了也不会全亮」的：只要有这么一格，步数就会被白白耗掉。
       let pick = -1;
-      for (let i = 0; i < allowed.length; i += 1) {
-        if (plan.indexOf(allowed[i]) < 0) { pick = allowed[i]; break; }
+      for (let i = 0; i < 9 && pick < 0; i += 1) {
+        const nb = board.slice();
+        const hit = lightsMod.effectOf(i, 3);
+        for (let j = 0; j < hit.length; j += 1) nb[hit[j]] = !nb[hit[j]];
+        if (!nb.every(Boolean)) pick = i;
       }
-      assert.ok(pick >= 0, '找不出一步不在解里的格，无法验证阵溃');
+      assert.ok(pick >= 0, '盘上每一格都能一手点亮，凑不出阵溃');
       ctx.c.tap(pick);
       guard += 1;
     }
@@ -1065,14 +1120,15 @@ check('阵灯推演：步数用尽还没全亮即阵溃，按走火 F 收场', f
   } finally { restoreClock(); }
 });
 
-check('阵灯推演：用一次阵眼感应，本盘最高只到 A', function () {
+check('阵灯推演：阵眼感应照一格算 2 步，不是免费封顶', function () {
   installClock();
   try {
     const m = data.getMethod('arrayEye');
     const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
     ctx.c.start();
     ctx.c.hint();
-    assert.ok(ctx.st.vm.status.indexOf('最高 A') >= 0, '感应没有交代代价：' + ctx.st.vm.status);
+    assert.ok(/算 2 步/.test(ctx.st.vm.status), '感应没有当场交代它花了多少步：' + ctx.st.vm.status);
+    assert.ok(/已走 2 步/.test(ctx.st.vm.goal), '感应没有记进步数：' + ctx.st.vm.goal);
     advance(1600);   // 感应照出的那一格是临时高亮，等它收回再读盘面
     const vm = ctx.st.vm;
     const board = vm.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; });
@@ -1080,7 +1136,34 @@ check('阵灯推演：用一次阵眼感应，本盘最高只到 A', function ()
     for (let i = 0; i < vm.cells.length; i += 1) allowed.push(i);
     const plan = lightsMod.solve(board, vm.cols, allowed);
     for (let i = 0; i < plan.length; i += 1) ctx.c.tap(plan[i]);
-    assert.strictEqual(ctx.st.finished.grade, 'A', '用了感应却还是 S：' + ctx.st.finished.grade);
+    // 看一眼 + 走完最优 = 冗余 2 步，正好压在 A 线上：辅助与走错落在同一把尺子上。
+    assert.strictEqual(ctx.st.finished.grade, 'A', '用了感应却没掉到 A：' + ctx.st.finished.grade);
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('阵灯推演：余量买不起这一眼时，感应被挡回去且不扣步', function () {
+  installClock();
+  try {
+    const m = data.getMethod('arrayEye');
+    // 余量 5：3×3 盘连续点同一格三下（六步，盘面不变），再点就买不起了。
+    const ctx = makeCtx(m, {}, { size: 3, minSteps: 2, hiSteps: 3, budgetSlack: 5 });
+    ctx.c.start();
+    const vm = ctx.st.vm;
+    const board = vm.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; });
+    const allowed = [];
+    for (let i = 0; i < vm.cells.length; i += 1) allowed.push(i);
+    const plan = lightsMod.solve(board, vm.cols, allowed);
+    let stray = -1;
+    for (let i = 0; i < allowed.length; i += 1) {
+      if (plan.indexOf(allowed[i]) < 0) { stray = allowed[i]; break; }
+    }
+    for (let i = 0; i < 6; i += 1) ctx.c.tap(stray);
+    assert.ok(!ctx.st.finished, '六步就阵溃了，这个用例的前提不成立');
+    const before = ctx.st.vm.goal;
+    ctx.c.hint();
+    assert.strictEqual(ctx.st.vm.goal, before, '买不起的那一眼还是扣了步数：' + ctx.st.vm.goal);
+    assert.ok(ctx.st.vm.fx && ctx.st.vm.fx.tone === 'bad', '买不起时没有任何提示');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
@@ -1110,6 +1193,13 @@ check('阵灯推演：重置阵局回开局、步数清零，但本盘同样封�
       '重置没有回到本局开局盘面');
     assert.ok(/已走 0 步/.test(vm1.goal), '重置没有把步数清零：' + vm1.goal);
     assert.ok(vm1.status.indexOf('最高 A') >= 0, '重置没有交代代价：' + vm1.status);
+    // 每局只许复原一次：第二次必须被挡回来，盘面与步数都不动。
+    const held = vm1.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; }).join(',');
+    ctx.c.reset();
+    assert.ok(/只许 \d+ 次/.test(ctx.st.vm.status), '第二次复位没有被挡回：' + ctx.st.vm.status);
+    assert.strictEqual(
+      ctx.st.vm.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; }).join(','), held,
+      '第二次复位把盘面也动了');
     const plan = lightsMod.solve(
       vm1.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; }), vm1.cols, allowed);
     for (let i = 0; i < plan.length; i += 1) ctx.c.tap(plan[i]);
@@ -1142,7 +1232,7 @@ check('阵灯推演：破阵有整盘金光与破阵浮字，且一局只推一�
   } finally { restoreClock(); }
 });
 
-check('阵灯推演：大成开死门，点到整盘复位并罚 3 步', function () {
+check('阵灯推演：大成开死门，误触只罚 2 步、盘面不动', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('arrayEye'), { tier: 3 });
@@ -1152,9 +1242,14 @@ check('阵灯推演：大成开死门，点到整盘复位并罚 3 步', functio
       if (ctx.st.vm.cells[i].cls.indexOf('cell--dead') >= 0) { deadAt = i; break; }
     }
     assert.ok(deadAt >= 0, '大成之后盘上没有死门');
+    const held = ctx.st.vm.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; }).join(',');
     ctx.c.tap(deadAt);
     assert.ok(ctx.st.vm.status.indexOf('死门') >= 0 || ctx.st.vm.fx.text.indexOf('死门') >= 0, '点死门没有反馈');
-    assert.ok(/已走 3 步/.test(ctx.st.vm.goal), '死门没有罚 3 步：' + ctx.st.vm.goal);
+    assert.ok(/已走 2 步/.test(ctx.st.vm.goal), '死门没有罚 2 步：' + ctx.st.vm.goal);
+    // 死门不再整盘复位：复位等于用一根手指的精度否掉一整盘已经推好的局。
+    assert.strictEqual(
+      ctx.st.vm.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; }).join(','), held,
+      '点一次死门就把盘面推倒了');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
@@ -2265,9 +2360,9 @@ check('顺序点格：盘上不标「下一个在哪」，难度靠格子数与�
 });
 
 check('按最优步数评级的三门：反悔过就本盘封顶 A', function () {
-  // 阵灯推演早就这么做（感应 / 复位封顶 A），滑块让路与推石入位后补。
-  // 这三门的盘面是固定的、复位又把计数清零：不封顶的话「走一步 → 复位 → 再走」
+  // 三门都是「盘面固定 + 复位把计数清零」：不封顶的话「走一步 → 复位 → 再走」
   // 能把最优解白试出来，S 变成「肯反复重来」的奖励，而不是「一步没浪费」。
+  // 阵灯推演的感应已改成折步数（每看一眼算 2 步），不再靠封顶兜；复位仍封顶 A。
   const cases = ['lights', 'klotski', 'pushbox'];
   for (const game of cases) {
     const m = data.PRACTICE_METHODS.filter(function (x) { return x.game === game; })[0];
@@ -3188,6 +3283,93 @@ check('滑块让路：脱身时主块沉进出口，出口从缺口变成开着�
     assert.strictEqual(main.escaped, true, '主块到出口了却没沉进去');
     ctx.c.destroy();
   } finally { restoreClock(); }
+});
+
+// ---------------------------------------------------------------- 断言：节律判定的难度曲线
+// 这一门的难度全压在「时机精度」一根轴上，而它由 window 与 speed 两个反向参数相乘得来，
+// 所以「参数表看着等比、实际手感断崖」是最容易复发的一类错。以下四条是它的护栏。
+check('节律判定：判定带按毫秒收，五档单调且没有断崖', function () {
+  const m = data.getMethod('absorb');
+  const mod = index.MODULES.tempo;
+  const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const win = keys.map(function (k) {
+    return mod.metrics(data.buildParams(m, k), { twist: m.twist, easy: false });
+  });
+  for (let i = 0; i < win.length; i += 1) {
+    // 总窗不短于 200ms：40ms 刷新率加触控延迟之下，再窄就只能靠「正好停在那一帧」碰运气。
+    assert.ok(win[i].winMs * 2 >= 200,
+      keys[i] + ' 档总窗只有 ' + (win[i].winMs * 2).toFixed(0) + 'ms，破了 200ms 下限');
+    if (i === 0) continue;
+    const drop = 1 - win[i].winMs / win[i - 1].winMs;
+    assert.ok(drop > 0, keys[i] + ' 档的判定带没有比上一档更紧');
+    // 35% 以上算断崖：普通升困难曾经一夜之间紧 39%（pace 与 gear 两刀叠在同一个边界上）。
+    assert.ok(drop <= 0.35, keys[i] + ' 档比上一档紧 ' + (drop * 100).toFixed(0) + '%，是断崖');
+    // 10% 以下玩家说不出「这档更紧」，五档等于一个手感。
+    assert.ok(drop >= 0.10, keys[i] + ' 档只比上一档紧 ' + (drop * 100).toFixed(0) + '%，感觉不出来');
+  }
+});
+
+check('节律判定：本门机制（带更宽、收得更慢）五档都成立', function () {
+  const m = data.getMethod('absorb');
+  const mod = index.MODULES.tempo;
+  // 机制本身是乘性的，先拿一组不受下限夹的参考参数把倍数钉住。
+  const ref = { beats: 8, speed: 0.02, window: 0.09 };
+  assert.ok(Math.abs(mod.metrics(ref, { twist: m.twist }).window
+    / mod.metrics(ref, {}).window - mod.TWIST_WIN) < 1e-9, '本门判定带不是 ×' + mod.TWIST_WIN);
+  assert.ok(Math.abs(mod.metrics(ref, { twist: m.twist }).step
+    / mod.metrics(ref, {}).step - mod.TWIST_STEP) < 1e-9, '本门收敛不是 ×' + mod.TWIST_STEP);
+  for (const k of ['easy', 'normal', 'hard', 'expert', 'desperate']) {
+    const q = data.buildParams(m, k);
+    const bare = mod.metrics(q, {});
+    const own = mod.metrics(q, { twist: m.twist });
+    // 曾经玩法层还挂着一句 if (hard) { window -= .012; step += .004 }，困难 / 极难 / 绝境
+    // 三档正好把它抵消成零：本门「更慢」只在两档成立。这两条守的就是「不许再挂那一刀」。
+    assert.ok(own.step <= bare.step * mod.TWIST_STEP + 1e-12,
+      k + ' 档的收敛被别的修正又加回去了，本门在这一档不再更慢');
+    assert.ok(own.window >= q.window * mod.TWIST_WIN - 1e-12,
+      k + ' 档的判定带比本门该有的 ×' + mod.TWIST_WIN + ' 还窄');
+    assert.ok(own.step < bare.step && own.window > q.window, k + ' 档没有比别的门更宽更慢');
+  }
+  // 章内收紧也不能把窗口压穿下限：绝境章末关曾经只剩 ±72ms（1.8 帧）。
+  const last = mod.metrics(data.buildParamsAt(m, 200), { twist: m.twist });
+  assert.ok(last.winMs * 2 >= 200, '绝境第 200 关总窗只有 ' + (last.winMs * 2).toFixed(0) + 'ms');
+});
+
+check('节律判定：拍点走固定网格，点中了不再跳拍', function () {
+  installClock();
+  try {
+    const m = data.getMethod('absorb');
+    const ctx = makeCtx(m);
+    ctx.c.start();
+    // 走到判定带里点一下。
+    let scaleAtTap = 0;
+    for (let i = 0; i < 200 && !scaleAtTap; i += 1) {
+      advance(40);
+      const r = ctx.st.vm.ring;
+      if (Math.abs(r.scale - r.judge) <= r.window) { scaleAtTap = r.scale; ctx.c.tap(0); }
+    }
+    assert.ok(scaleAtTap > 0, '第一拍没等到判定带');
+    const beatAtTap = ctx.st.vm.ring.beat;
+    // 点过之后光环继续往回收，随手连点都不许把拍号推走（旧做法点一下就复位，等于每拍一次反应题）。
+    for (let i = 0; i < 5; i += 1) { advance(40); ctx.c.tap(0); }
+    assert.strictEqual(ctx.st.vm.ring.beat, beatAtTap, '点一下就跳拍：拍点又被点击复位了');
+    assert.ok(ctx.st.vm.ring.scale < scaleAtTap, '点中之后光环停住不收了，节律断了');
+    // 缩到底才换下一拍。
+    for (let i = 0; i < 200 && ctx.st.vm.ring.beat === beatAtTap; i += 1) advance(40);
+    assert.strictEqual(ctx.st.vm.ring.beat, beatAtTap + 1, '光环缩到底却没换拍');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('节律判定：B 线不与 A 线挤成一道缝', function () {
+  const mod = index.MODULES.tempo;
+  for (const total of [7, 8, 9, 10, 11]) {
+    const b = mod.bands(total);
+    assert.ok(b.sMin > b.aMin && b.aMin > b.bMin, total + ' 拍的四条线没有严格递减');
+    // 简单档曾经 ceil(7×0.5)=4 与 A 4.5 只差半拍：整个 B 档只有 0.5 分宽，几乎打不出来。
+    assert.ok(b.aMin - b.bMin >= 1, total + ' 拍的 B 线离 A 线不到 1 分，B 会变成一道缝');
+    assert.ok(b.bMin >= total * 0.4, total + ' 拍的 B 线低到四成以下，等于没有门槛');
+  }
 });
 
 console.log('\n小游戏层断言全部通过（' + passed + ' 项）');

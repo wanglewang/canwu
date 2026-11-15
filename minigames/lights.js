@@ -2,29 +2,41 @@
 
 // 阵灯推演（参悟阵眼 / 阵法·点灯破阵诀专属）：点一格翻转它和上下左右，把整盘阵灯点亮。
 //
-// 一局是「一盘推演」：给定一个打乱的局面和步数预算，预算花完还没全亮就是阵溃。
+// 一局是「一盘推演」：给定一个打乱的局面和步数余量，余量花完还没全亮就是阵溃。
 // 以前是限时连解（36 秒内解尽量多盘），但逻辑推演最怕倒计时——想得越久解得越少，
 // 玩家被推着乱点而不是推演，而且「限时多做几道题」跟静心记诵诀、三秀连收诀在品类上几乎同构。
-// 换成步数预算后，压力从「快」变成「省」：同样的盘，走得越接近最优，评级越高。
+// 换成步数后，压力从「快」变成「省」：同样的盘，走得离最优越近，评级越高。
 //
-// 评级看「已走步数 / 本盘最优步数」：
-//   S  正好走最优解，一步没浪费
-//   A  多走两步以内
-//   B  两倍最优以内
-//   C  解开但走了太多步；预算耗尽阵溃则是走火 F（没解开 ≠ 解得糙）
-// S 只给没借外力的推演：用一次阵眼感应，或重置过一次阵局，本盘最高只有 A。
-// 辅助不是扣分，是让出最高档——两类玩家都能通关，但 S 留着给纯推演。
+// 评级看「比本盘最优多走几步」（冗余手数 = 已走 − 最优），不看倍数：
+//   S  冗余 0 手，一步没浪费
+//   A  冗余 2 手以内
+//   B  冗余 5 手以内（= 余量 − 2）
+//   C  解开了，但冗余超过 B 线；冗余满余量还没全亮则是阵溃 F（没解开 ≠ 解得糙）
+//
+// 为什么不用「倍数最优」：3×3 上最优 2 步的盘，A 线（最优 + 2）与 B 线（2 × 最优）会重合成
+// 同一条线，B 档在一整档里根本不存在；而 5×5 上最优 5 步的盘，B 线宽到 10 步、C 线只剩
+// 十一二步那两格。同一把尺子在不同盘上量出三种形状，玩家感到的是「抽到哪盘」而不是
+// 「我走得多省」。换成绝对冗余手数之后，五档的宽窄在每一档都一样（0 / 2 / 3 / 2）。
+//
+// 辅助不「只封顶、不折步」：阵眼感应每看一眼算 2 步，复原本局每局只许一次。
+// 旧规则（感应免费 + 封顶 A）制造了一个反向激励——诚实走过 3 步冗余只能拿 B（×1.0），
+// 而用感应抄答案反而保底 A（×1.2）：辅助不是让出最高档，而是比诚实犯错更划算。
+// 现在辅助落在同一把尺子上（花步数），花几次就掉几档，看满一手就阵溃。
 //
 // 求解用 GF(2) 高斯消元 + 零空间枚举，不是 2^n 穷举：4×4 有 16 个变量、5×5 有 25 个，
 // 穷举分别要 6.5 万与 3355 万次，生成一盘就卡死；消元是 25³ 量级，基本是瞬时的。
-// 顺带解决「生成时保证最优步数」：解出来多长就是多长，不再靠随机点几下碰运气。
+// 顺带解决「生成时保证最优步数」：解出来多长就是多长，不靠随机点几下碰运气。
 
 const C = require('./common.js');
 
 const FLIP_MS = 260;     // 被翻格的同步微光
 const HINT_MS = 1400;    // 感应照出的那一格亮多久
-const DEAD_PENALTY = 3;  // 触死门：盘面复位并罚 3 步
+const HINT_COST = 2;     // 感应照一眼算 2 步：辅助与走错落在同一把尺子上
+const DEAD_PENALTY = 2;  // 触死门：这一手不生效，罚 2 步（不复位整盘）
+const RESET_LIMIT = 1;   // 复原本局每局只许一次
 const MAX_TRIES = 60;    // 生成时最多重试几次
+const SLACK_DEFAULT = 7; // 步数余量：比最优最多多走几步，超出即阵溃
+const A_WASTE = 2;       // A 线：冗余手数上限
 
 // 盘面不放汉字：亮 / 灭靠实心与空心圆点 + 底色，死门用叉号与暗红底，三重状态不靠读字。
 const OFF_GLYPH = '○';
@@ -263,12 +275,17 @@ function create(ctx) {
   const stageIdx = typeof perks.tier === 'number' ? perks.tier : 0;
   const theme = ctx.theme || {};
 
-  // 盘面规格与步数预算由 data/practice.js 的 LIGHTS_LEVELS 按难度档注入。
+  // 盘面规格与最优步数区间由 data/practice.js 的 LIGHTS_LEVELS 按难度档注入。
   // 测试探针直接调 create 时没带 params，落在简单档。
   const size = Math.max(3, Math.min(5, p.size || 3));
   const n = size * size;
-  const minSteps = Math.max(1, Math.min(n, p.minSteps || 2));
-  const capSteps = Math.max(minSteps + 3, Math.min(40, p.capSteps || minSteps * 3));
+  // 最优步数按档给的是一个区间 [lo, hi]，不是单个值：档位表写下的就是这个区间。
+  const loSteps = Math.max(1, Math.min(n, p.minSteps || 2));
+  const hiSteps = Math.max(loSteps, Math.min(n, p.hiSteps || loSteps + 1));
+  // 余量不写死成「预算」：预算按本盘最优 + 余量现算。写死一个绝对数，它和「最优到底几步」
+  // 必然脱钩——旧表里预算是最优的 3–4.5 倍，文档却写着「够 A、不够乱点」，两边从来对不上。
+  // 下限 5 是硬的：余量降到 4，A 线（冗余 2）与 B 线（余量 − 2 = 2）就重合成一条，B 档消失。
+  const budgetSlack = Math.max(5, Math.min(12, p.budgetSlack || SLACK_DEFAULT));
 
   const deadCount = (function () {
     // 死门 / 双门是「多一格不能碰的」，玩家可以在准备页关掉；
@@ -280,17 +297,25 @@ function create(ctx) {
   })();
 
   const deadCost = ctx.tip || '';
-  const vm = C.makeVm(size, n, '让所有阵灯同时亮起', '阵眼感应 · 用后本盘最高 A');
+  const vm = C.makeVm(size, n, '让所有阵灯同时亮起',
+    '阵眼感应每看一眼算 ' + HINT_COST + ' 步 · 复原本局每局一次');
   vm.extras.showHint = true;
   vm.extras.showReset = true;
+  // 「已亮 N / M」在这一门是反向信息：亮着的盏数与「离解开还有多远」没有关系——
+  // 实测 5×5 上有 37.6% 的正确一手会让已亮数变少。进度条与局内评级徽章一起撤掉，
+  // HUD 只留三个真数字：最优几步、已走几步、余几步。
+  vm.extras.showProgress = false;
+  vm.extras.showGradeNow = false;
 
   let board = new Array(n).fill(true);
   let startBoard = new Array(n).fill(true);
   let dead = [];
-  let optimal = minSteps;
+  let optimal = loSteps;
+  let capSteps = loSteps + budgetSlack;
   let moves = 0;
   let hintUsed = false;
   let resetUsed = false;
+  let resetsLeft = RESET_LIMIT;
   let failed = false;
   let done = false;
   let started = false;
@@ -305,23 +330,21 @@ function create(ctx) {
     }
   }
 
-  function litCount() {
-    let k = 0;
-    for (let i = 0; i < n; i += 1) if (board[i]) k += 1;
-    return k;
-  }
+  // 冗余手数：比本盘最优多走了几步。评级只看这一个数，不看倍数、不看时间。
+  function wasted() { return Math.max(0, moves - optimal); }
 
-  // 评级只认「走了几步」，不认时间：推演类玩法不该因为想得久而被扣。
-  // 借过外力（感应 / 重置）就封顶到 A——S 是同一条推演路径上一步没浪费的结果。
+  // 三条线都落在冗余手数上，因此五档的宽窄每局都一样，不随「抽到几步解的盘」变形。
   function gradeOf() {
-    // 阵溃不是「解得糙」，是没解开：走火（F），和「步数超了两倍」这种 C 分开算。
+    // 阵溃不是「解得糙」，是没解开：走火（F），和「解开了但浪费太多」的 C 分开算。
     if (failed) return 'F';
+    const w = wasted();
     let g;
-    if (moves <= optimal) g = 'S';
-    else if (moves <= optimal + 2) g = 'A';
-    else if (moves <= optimal * 2) g = 'B';
+    if (w === 0) g = 'S';
+    else if (w <= A_WASTE) g = 'A';
+    else if (w <= budgetSlack - 2) g = 'B';
     else g = 'C';
-    if (g === 'S' && (hintUsed || resetUsed)) return 'A';
+    // 复位把步数抹平了，但不该换来一张干净的 S：容错与满评只能选一个。
+    if (g === 'S' && resetUsed) return 'A';
     return g;
   }
 
@@ -343,32 +366,27 @@ function create(ctx) {
 
   function syncHud() {
     const left = Math.max(0, capSteps - moves);
-    const lit = litCount();
     vm.timeText = '余 ' + left + ' 步';
-    vm.progress = C.pct(lit, n);
-    vm.progressText = '已亮 ' + lit + ' / ' + n + ' 盏';
-    vm.goal = '已亮 ' + lit + ' / ' + n + ' 盏 · 已走 ' + moves + ' 步 · 最优 ' + optimal + ' 步';
-    vm.scoreText = '已走 ' + moves + ' 步';
-    vm.gradeNow = gradeOf();
-    // 代价常驻：阵眼感应与步数预算所有档都讲，死门只有解锁后才讲。
-    vm.hint = vm.costText + ' · 最优 ' + optimal + ' 步 · 预算 ' + capSteps + ' 步'
+    vm.goal = '最优 ' + optimal + ' 步 · 已走 ' + moves + ' 步';
+    // 局内只报一个「成绩量」：比最优多走了几步——评级就是按这个数给的。
+    vm.scoreText = '多走 ' + wasted() + ' 步';
+    // 代价常驻：感应与余量所有档都讲，死门只有解锁后才讲。
+    vm.hint = vm.costText + ' · 最优 ' + optimal + ' 步 · 余量 ' + budgetSlack + ' 步'
       + (deadCount > 0 ? ' · ' + deadCost + ' · 死门 ' + deadCount + ' 处' : '');
   }
 
   // 从全亮出发只点「点得动的格」把阵打乱，再解一遍，解出来多长就是这盘的最优步数。
-  // 太短（白送）或太长（预算不够）就重来，所以每盘的难度大致落在 minSteps 附近。
+  // 必须落进本档的 [loSteps, hiSteps]：这是档位表写下的唯一难度承诺，宽一格就名不副实。
   function newBoard() {
     const all = [];
     for (let i = 0; i < n; i += 1) all.push(i);
     C.shuffle(all);
     dead = all.slice(0, deadCount);
     const allowed = all.slice(deadCount);
-    const hi = Math.min(minSteps + 2, capSteps - 3, allowed.length);
-    const lo = Math.max(1, Math.min(minSteps, hi));
 
     let picked = null;
     for (let tries = 0; tries < MAX_TRIES; tries += 1) {
-      const k = lo + Math.floor(Math.random() * (hi - lo + 1));
+      const k = loSteps + Math.floor(Math.random() * (hiSteps - loSteps + 1));
       const b = new Array(n).fill(true);
       const pool = allowed.slice();
       C.shuffle(pool);
@@ -376,23 +394,25 @@ function create(ctx) {
       if (allLit(b)) continue;
       const sol = solve(b, size, allowed);
       if (!sol) continue;
-      if (sol.length < lo || sol.length > hi) continue;
+      if (sol.length < loSteps || sol.length > hiSteps) continue;
       picked = { board: b, steps: sol.length };
       break;
     }
     if (!picked) {
-      // 兜底：放宽区间，也要给出一盘能解的，绝不把无解盘面丢给玩家。
-      for (let tries = 0; tries < MAX_TRIES && !picked; tries += 1) {
+      // 兜底只往区间里收，绝不往区间外放：随机撒 k 格之后真解往往更短，所以先只按下限撒。
+      // 两轮都落不进区间时，宁可交一盘「解比下限还短」的，也不给无解盘。
+      for (let tries = 0; tries < MAX_TRIES * 2 && !picked; tries += 1) {
         const b = new Array(n).fill(true);
         const pool = allowed.slice();
         C.shuffle(pool);
-        toggleAt(b, size, pool[0]);
+        for (let i = 0; i < loSteps && i < pool.length; i += 1) toggleAt(b, size, pool[i]);
+        if (allLit(b)) continue;
         const sol = solve(b, size, allowed);
-        if (sol && sol.length > 0) picked = { board: b, steps: sol.length };
+        if (sol && sol.length > 0 && sol.length <= hiSteps) picked = { board: b, steps: sol.length };
       }
     }
     if (!picked) {
-      // 理论上到不了这里；真到了就退回「全亮盘 + 点一下」，保证有解。
+      // 理论上到不了这里（4×4 上现撒 4 格必得 4 步解）；真到了就退回「全亮盘 + 点一下」。
       const b = new Array(n).fill(true);
       toggleAt(b, size, allowed[0]);
       picked = { board: b, steps: 1 };
@@ -400,36 +420,38 @@ function create(ctx) {
     board = picked.board.slice();
     startBoard = board.slice();
     optimal = picked.steps;
+    capSteps = optimal + budgetSlack;
     moves = 0;
     hintUsed = false;
     resetUsed = false;
+    resetsLeft = RESET_LIMIT;
     failed = false;
     vm.banner = theme.banner || '';
     vm.status = '第 ' + (size) + '×' + size + ' 盘 · 让全阵亮起';
   }
 
   // 结算不只报一个字母：玩家最想知道的是「我为什么不是 S」。
-  // 评级只看步数，所以就把「走了几步 / 最优几步 / 差在哪」直接写出来，
-  // 用了辅助也如实说是辅助封的顶，而不是让玩家以为自己推错了。
+  // 评级只看冗余手数，所以就把「走了几步 / 最优几步 / 多走几步」直接写出来，
+  // 借过辅助也如实说是借了什么，而不是让玩家以为自己推错了。
   function gradeNotes() {
     const notes = [];
     if (failed) {
-      notes.push('阵溃：' + capSteps + ' 步预算走完，阵还没全亮。');
+      notes.push('阵溃：余量 ' + budgetSlack + ' 步走完，阵还没全亮。');
       notes.push('这一盘最优只要 ' + optimal + ' 步；下一局先想好要动哪几格，别一格一格试。');
       return notes;
     }
-    const gap = moves - optimal;
-    if (gap <= 0) {
+    const w = wasted();
+    if (w === 0) {
       notes.push('正好走最优 ' + optimal + ' 步，一步没浪费。');
-    } else if (gap <= 2) {
-      notes.push('比最优多走 ' + gap + ' 步（最优 ' + optimal + ' 步）· S 要一步不差。');
-    } else if (moves <= optimal * 2) {
-      notes.push('走了 ' + moves + ' 步，最优 ' + optimal + ' 步 · A 线是多两步以内。');
+    } else if (w <= A_WASTE) {
+      notes.push('比最优多走 ' + w + ' 步（最优 ' + optimal + ' 步）· S 要一步不差。');
+    } else if (w <= budgetSlack - 2) {
+      notes.push('比最优多走 ' + w + ' 步 · A 线是多 ' + A_WASTE + ' 步以内。');
     } else {
-      notes.push('走了 ' + moves + ' 步，超过最优的两倍（' + optimal * 2 + ' 步）。');
+      notes.push('比最优多走 ' + w + ' 步，超过 B 线（多 ' + (budgetSlack - 2) + ' 步以内）。');
     }
-    if (hintUsed) notes.push('用过阵眼感应，本盘最高只到 A。');
-    if (resetUsed) notes.push('重置过阵局，本盘最高只到 A。');
+    if (hintUsed) notes.push('用过阵眼感应，每看一眼算 ' + HINT_COST + ' 步，已记在上面。');
+    if (resetUsed) notes.push('复原本局过一次，本盘最高只到 A。');
     return notes;
   }
 
@@ -450,8 +472,8 @@ function create(ctx) {
     if (moves >= capSteps && !allLit(board)) {
       failed = true;
       // 阵溃是这一局唯一的负向结算，给一拍浮字，别让玩家只看到弹层才知道步数没了。
-      C.flash(vm, '步数用尽 · 阵溃', 'bad');
-      finish('步数用尽，阵溃');
+      C.flash(vm, '余量用尽 · 阵溃', 'bad');
+      finish('余量用尽，阵溃');
       return true;
     }
     return false;
@@ -480,14 +502,13 @@ function create(ctx) {
   function tap(index) {
     if (done || vm.phase !== 'playing') return;
     if (dead.indexOf(index) >= 0) {
-      // 死门在步数制下的代价是「罚 3 步」，不是罚时间：时间已经不参与评级了。
+      // 死门不再是「整盘复位」：复位等于用一根手指的精度，否掉一整盘已经推好的局，
+      // 这一门说好了「想得久不扣分」，那就不该让手抖决定成败。现在只罚 2 步、盘面不动。
       moves += DEAD_PENALTY;
-      board = startBoard.slice();
-      flipSeq += 1;
       paint();
       syncHud();
-      C.flash(vm, '触了死门 · 阵盘复位，罚 ' + DEAD_PENALTY + ' 步', 'bad');
-      vm.status = '死门反噬，这一盘从头再来';
+      C.flash(vm, '触了死门 · 这一手不算，罚 ' + DEAD_PENALTY + ' 步', 'bad');
+      vm.status = '死门吞了这一手 · 罚 ' + DEAD_PENALTY + ' 步';
       render();
       checkFail();
       return;
@@ -516,21 +537,29 @@ function create(ctx) {
     }, FLIP_MS);
   }
 
-  // 阵局回到开局，步数清零但本盘封顶到 A：容错是给推演走死的人一条退路，
-  // 不是免费重抽——不封顶的话，重置一次就能把「最优解」重刷成想要的步数。
+  // 本局回到开局，步数清零但本盘封顶到 A，且每局只许一次：
+  // 容错是给推演走死的人一条退路，不是免费重抽——不限次的话，余量这一栏等于不存在。
   function reset() {
     if (done || vm.phase !== 'playing') return;
+    if (resetsLeft <= 0) {
+      C.flash(vm, '本局已复原过一次 · 不能再来', 'bad');
+      vm.status = '复原本局每局只许 ' + RESET_LIMIT + ' 次';
+      render();
+      return;
+    }
     flipSeq += 1;
     board = startBoard.slice();
     moves = 0;
+    resetsLeft -= 1;
     resetUsed = true;
     paint();
     syncHud();
-    vm.status = '阵局已复位 · 本盘最高 A';
-    C.flash(vm, '阵局复位 · 本盘最高 A', 'good');
+    vm.status = '本局已复原 · 本盘最高 A';
+    C.flash(vm, '复原到开局 · 本盘最高 A', 'good');
     render();
   }
 
+  // 感应照一格，代价是 2 步：辅助与走错落在同一把尺子上，用几次掉几档，不是「封顶了事」。
   function hint() {
     if (done || vm.phase !== 'playing') return;
     const allowed = [];
@@ -542,10 +571,18 @@ function create(ctx) {
       return;
     }
     if (!clicks) {
-      C.flash(vm, '此局无解，请重置阵局', 'bad');
+      C.flash(vm, '此局无解，请复原本局', 'bad');
       render();
       return;
     }
+    // 买不起就别扣：余量不够这一眼时直接挡回去，不让玩家点一下就从「还能救」跳到阵溃。
+    if (moves + HINT_COST >= capSteps) {
+      C.flash(vm, '余 ' + Math.max(0, capSteps - moves) + ' 步 · 买不起这一眼了', 'bad');
+      vm.status = '余量不够再看一眼';
+      render();
+      return;
+    }
+    moves += HINT_COST;
     hintUsed = true;
     const k = clicks[0];
     const prevCls = vm.cells[k].cls;
@@ -554,7 +591,7 @@ function create(ctx) {
     vm.cells[k].cls = 'cell cell--hint';
     vm.cells[k].label = HINT_GLYPH;
     vm.cells[k].emblem = 12;
-    vm.status = '阵眼感应：这一格该点 · 本盘最高 A';
+    vm.status = '阵眼感应：这一格该点 · 这一眼算 ' + HINT_COST + ' 步';
     syncHud();
     render();
     setTimeout(function () {
@@ -584,12 +621,16 @@ function create(ctx) {
   });
 }
 
-function lines() {
+// 五档的宽窄写在这里，准备页与结算的说明都按同一个余量算，不各拼一份。
+function lines(params) {
+  const p = params || {};
+  const slack = Math.max(5, Math.min(12, p.budgetSlack || SLACK_DEFAULT));
   return {
-    rule: '按已走步数与最优步数比（不论用时，想得久不扣）',
-    items: ['S：正好最优步数', 'A：多 2 步以内', 'B：不超过最优的两倍', '其余为 C',
-      '用过阵眼感应或重置本盘，最高只到 A'],
-    fail: '步数预算走完阵还没全亮（阵溃）→ 走火 F，这一局没有收益',
+    rule: '按比本盘最优多走了几步评（不论用时，想得久不扣）',
+    items: ['S：正好走最优步数', 'A：比最优多 ' + A_WASTE + ' 步以内',
+      'B：比最优多 ' + (slack - 2) + ' 步以内', '其余为 C（解开了，但多走太多）',
+      '阵眼感应每看一眼算 ' + HINT_COST + ' 步；复原本局每局一次，用了本盘最高 A'],
+    fail: '比最优多走满 ' + slack + ' 步还没全亮（阵溃）→ 走火 F，这一局没有收益',
   };
 }
 

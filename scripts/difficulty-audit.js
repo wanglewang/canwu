@@ -65,7 +65,7 @@ function audit(method) {
   });
   const lineVariants = new Set(lines).size;
   // 盘面规格变了也算「评级线有对照」：九宫 / 阵灯 / 目术的难写在盘上，不写在数字上。
-  const boardChanged = vary.some(function (k) { return /size|holes|minSteps|capSteps|level/.test(k); });
+  const boardChanged = vary.some(function (k) { return /size|holes|minSteps|hiSteps|budgetSlack|level/.test(k); });
   return {
     game: method.game,
     name: practice.GAME_LABELS[method.game] || method.game,
