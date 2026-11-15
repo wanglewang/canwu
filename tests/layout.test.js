@@ -712,9 +712,10 @@ check('刀法局内：得分不叫灵石，新法生效范围只说一次，两�
     '两条阶段规则不能同时显示');
   assert.ok(/bits\.join\(' · '\)/.test(click), '阶段规则没有拼成一句');
 
-  // 深墨盘底上，禁桩那支淡朱几乎看不出颜色，而它「划到就断势」——舞台上必须单独提亮。
+  // 禁桩「划到就断势」，看不出来就是手感事故：玉牌底上必须用朱砂字 + 淡朱底单独标出来。
   const scene = read('styles/scene.wxss');
-  assert.ok(/\.pg--scene \.cell--ban \{[^}]*?color: #e2836f/.test(scene), '舞台上的禁桩又看不清了');
+  assert.ok(/\.pg--scene \.cell--ban \{[^}]*?background: #f2dad4[^}]*?color: #a83b32/.test(scene),
+    '舞台上的禁桩又看不清了');
 });
 
 check('「圆满」是段位名：任何玩法都不许拿它讲评级', function () {

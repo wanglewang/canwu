@@ -236,101 +236,18 @@
 
 .pg--scene .trail-hint__name { color: #e3f1f8; }
 
-.pg--scene .grid {
-    background: var(--well, #0b2331);
-    border: 2rpx solid var(--deep, #2B7FA8);
-    /* 盘面是舞台上最重的一块：外一圈墨色压边、一层深投影、四角吃进暗角。 */
-    box-shadow: 0 0 0 2rpx rgba(8, 19, 28, 0.85), 0 24rpx 60rpx rgba(0, 0, 0, 0.55),
-        inset 0 0 40rpx rgba(8, 19, 28, 0.5);
-}
+/* 盘面外观只在 practice.wxss 里定义一套（墨玉台 + 暖白玉牌），舞台不再另造一套深色格子：
+   两套并存时，同一门功法开局前后会「换一副棋子」，而深盘上的深格子本来就糊成一片。
+   这里只留三条舞台需要单独调亮的东西：禁桩、寿命线、刀光。 */
 
-/* 深盘的受光换一支冷光：和纸面那版同一套做法（上亮下暗），只是光源从月上来。 */
-.pg--scene .grid::before {
-    background:
-        radial-gradient(120% 82% at 50% -14%, rgba(111, 212, 232, 0.16), rgba(111, 212, 232, 0) 62%),
-        radial-gradient(130% 92% at 50% 116%, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0) 60%);
-}
-
-/* 深盘上的格子是「青玉牌」：上缘一道冷高光、底下一条墨边，中间压暗。
-   牌面比盘底亮一档（#16374b vs --well 的 #0D202B），否则深浅两个深色糊成一片。 */
-.pg--scene .cell {
-    background: #16374b;
-    background-image: linear-gradient(180deg, rgba(227, 241, 248, 0.16), rgba(227, 241, 248, 0) 62%);
-    border-color: #1f4760;
-    color: #cfe6f2;
-    box-shadow: 0 4rpx 0 rgba(0, 0, 0, 0.45), inset 0 2rpx 0 rgba(227, 241, 248, 0.22),
-        inset 0 -2rpx 0 rgba(227, 241, 248, 0.05), inset 0 -10rpx 16rpx rgba(0, 0, 0, 0.26);
-}
-
-/* 状态色必须盖过上面的底盘：`.pg--scene .cell` 是两个类，权重高于单类的 `.cell--lit`，
-   不在这里逐条重写，舞台上点亮 / 翻开 / 标钉就都是「点了没反应」。
-   这一组只放底盘这一层该换的底色与字色，各自的花活仍由 practice.wxss 那几条负责。 */
-/* 点亮 = 这一手要动的那一格：底色换主色 + 一圈本族辉光（--glow），
-   在冷色盘上「亮没亮」比「哪个颜色」更早被看见。 */
-.pg--scene .cell--lit {
-    background-color: var(--acc, #2a87ab);
-    /* 主色普遍偏暗（兵刃那支是灰蓝），只换底色在深盘上看不出「亮」；
-       叠一层白把亮度顶上去，再套一圈 --glow 的辉光，远近都能认出要动的这一格。 */
-    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.08));
-    color: #ffffff;
-    box-shadow: 0 0 0 3rpx rgba(111, 212, 232, 0.5), 0 0 24rpx rgba(111, 212, 232, 0.32),
-        0 10rpx 24rpx rgba(0, 0, 0, 0.32), inset 0 2rpx 0 rgba(255, 255, 255, 0.45);
-}
-.pg--scene .cell--ok { background-color: var(--acc, #2a87ab); color: #f4fbff; }
-.pg--scene .cell--bad { background: #b4453c; color: #fff3ef; }
-.pg--scene .cell--hint { background-color: #b8893b; color: #fff8ea; }
-.pg--scene .cell--gold { background-color: #b8893b; color: #fff8ea; }
-.pg--scene .cell--hidden { background: #1b3b50; color: #8fb6c9; }
-.pg--scene .cell--off { background: #1b3b50; color: #8fb6c9; }
-/* 翻开在深盘上是一块「露出来的纸」：格子凹下去，数字用墨色，与未翻开的青玉牌拉开一整档。 */
-.pg--scene .cell--open {
-    background: #e9f3f8;
-    color: #12324a;
-    box-shadow: inset 0 4rpx 9rpx rgba(8, 19, 28, 0.28), inset 0 -2rpx 0 rgba(255, 255, 255, 0.6);
-}
-.pg--scene .cell--flag { background: #f0e2c4; color: #8a6524; }
-.pg--scene .cell--mine { background: #b4453c; color: #fff3ef; }
-/* 死门在舞台上也要有斜纹：`background` 简写会清掉图片，所以图片写在它后面。 */
-.pg--scene .cell--dead {
-    background: #8d3b32;
-    background-image: repeating-linear-gradient(45deg, rgba(92, 35, 29, 0.55) 0, rgba(92, 35, 29, 0.55) 5rpx, rgba(92, 35, 29, 0) 5rpx, rgba(92, 35, 29, 0) 12rpx);
-    color: #fff3e6;
-}
-
-.pg--scene .cell--path {
-    background: rgba(31, 111, 146, 0.55);
-    color: #dff5fc;
-    box-shadow: inset 0 0 0 3rpx rgba(111, 212, 232, 0.45);
-}
-
-.pg--scene .cell--pathgold {
-    background: rgba(184, 137, 59, 0.42);
-    color: #f2dda8;
-    box-shadow: inset 0 0 0 3rpx rgba(232, 196, 106, 0.5);
-}
-
-.pg--scene .cell--pathon {
-    background: #2a87ab;
-    color: #ffffff;
-    box-shadow: 0 0 26rpx rgba(111, 212, 232, 0.55);
-}
-
-.pg--scene .cell--pathgold.cell--pathon {
-    background: #b8893b;
-    box-shadow: 0 0 28rpx rgba(232, 196, 106, 0.65);
-}
-
-.pg--scene .cell--cut { background: #e8f8ff; color: #0b2331; }
-
-/* 禁桩：深墨盘底上，practice.wxss 那支淡朱（0.72 透明度压在 0.1 底上）几乎看不出颜色，
-   而它「划到就断势」——看不清就等于手感事故。舞台上单独提亮，浅纸盘面不跟着变。 */
+/* 禁桩：划到就断势，必须一眼看见。玉牌上是淡朱底 + 朱砂描边。 */
 .pg--scene .cell--ban {
-    background: rgba(196, 84, 72, 0.18);
-    color: #e2836f;
-    box-shadow: inset 0 0 0 3rpx rgba(226, 131, 111, 0.55);
+    background: #f2dad4;
+    color: #a83b32;
+    box-shadow: inset 0 0 0 3rpx rgba(168, 59, 50, 0.55);
 }
 
-.pg--scene .cell__life { background: rgba(232, 196, 106, 0.85); }
+.pg--scene .cell__life { background: var(--acc, #6FD4E8); }
 
 .pg--scene .grid__slash-beam { background: linear-gradient(90deg, transparent, #ffffff, transparent); }
 

@@ -67,7 +67,7 @@ docs/
 │   └── 20-charge-breakthrough.md    突破专用 → 蓄力停区
 │
 ├── 30-ui/                           界面与交互：从令牌到逐页
-│   ├── 01-visual-language.md        视觉语言：墨底、旧金、青玉与「盘面是纸」
+│   ├── 01-visual-language.md        视觉语言：墨底、旧金、青玉与「墨玉台、暖玉牌」
 │   ├── 02-design-tokens.md         设计令牌：颜色 / 字号 / 间距 / 圆角 / 阴影 / 层级
 │   ├── 03-components.md             组件：道相、玉简、结算卡、术语、登录面板
 │   ├── 04-board-rendering.md        盘面渲染：三支图案、纸纹、凸凹与舞台权重
