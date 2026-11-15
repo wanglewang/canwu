@@ -2192,42 +2192,138 @@ check('推石入位：图每局现抽，可解、落在本档区间、同档不�
   assert.ok(seen.size >= 20, '25 局只抽出 ' + seen.size + ' 张不同的图，图又固化了');
 });
 
-check('落石垒基：先给下一块、盘上有落点虚影、化层能说出是哪几行', function () {
-  // 这三样是这一门「能想两步」的全部依据：
-  // 没有下一块 = 只能对当前这块做反应；没有虚影 = 每次右移都要自己数格子；
-  // 说不出哪几行化 = 玩家只看得到分数涨了，看不到自己刚一次化了几层。
+check('落石垒基：10×20 标准场地、7-bag、三块预告、落定延迟与 SRS 踢墙', function () {
+  // 这一门的九样东西都查得到出处（Tetris Guideline），这一条逐样验：
+  // 场地 10×20、重力表、每 N 层一级、7-bag、三块预告、暂存、落定延迟、踢墙、阶梯计分。
+  // 少一样，这一门就退回「块自己掉、人跟着慌」的反应游戏。
   const mod = require('../minigames/blocks.js');
-  const params = data.buildParamsAt(data.getMethod('stonewall'), 1);
-  let vm = null;
-  const ctrl = mod.create({
-    params: params, difficulty: 1, perks: { tier: 0 }, tip: 't', theme: {},
-    render: function (v) { vm = v; }, finish: function () {},
-  });
-  ctrl.start();
-  assert.ok(vm.blocks && vm.blocks.next, '开局没有给出下一块');
-  let cells = 0;
-  for (const c of vm.blocks.next.cells) {
-    assert.ok(c[0] >= 0 && c[0] <= 3 && c[1] >= 0 && c[1] <= 3, '下一块放不进 4×4 预告格');
-    cells += 1;
-  }
-  assert.strictEqual(cells, 4, '下一块不是四格');
-  // 当前块与下一块必须是两个不同的形状对象：同一块既落又在预告里，等于没给信息。
-  assert.ok(vm.blocks.piece, '当前块没有交出来');
-  const ghosts = vm.cells.filter(function (c) { return String(c.cls).indexOf('cell--ghost') >= 0; });
-  assert.strictEqual(ghosts.length, 4, '落点虚影不是四格（' + ghosts.length + '）');
-  // 虚影只落在空格上：压在已有的石上就是假落点。
-  for (const g of ghosts) assert.ok(!g.label, '虚影格不该带内容');
+  const params = data.buildParamsAt(data.getMethod('stackstone'), 1);
+  installClock();
+  try {
+    let vm = null;
+    let res = null;
+    const ctrl = mod.create({
+      params: params, difficulty: 1, perks: { tier: 0 }, tip: 't', theme: {},
+      render: function (v) { vm = v; }, finish: function (r) { res = r; },
+    });
+    ctrl.start();
 
-  // 满行判定：整行垒满必须报出来，而且要报对行号。
-  const cols = 8;
-  const rows = 4;
-  const board = new Array(cols * rows).fill(0);
-  for (let c = 0; c < cols; c += 1) board[3 * cols + c] = 1;
-  for (let c = 0; c < cols; c += 1) board[2 * cols + c] = 2;
-  board[cols] = 1;
-  assert.deepStrictEqual(mod.fullRows(board, cols, rows), [2, 3], '满行报错');
-  assert.strictEqual(mod.clearLines(board, cols, rows).lines, 2, '化的行数与满行不符');
-  ctrl.destroy();
+    // ① 场地：10 列 × 20 行。行数不是难度旋钮，削行数等于削掉「留缝」。
+    assert.strictEqual(vm.cols, 10, '盘面不是 10 列');
+    assert.strictEqual(vm.cells.length, 200, '盘面不是 10×20');
+    assert.strictEqual(vm.blocks.rows, 20, 'vm.blocks.rows 不是 20');
+
+    // ② 三块预告：每一块都是四格，且都放得进四乘四的预告格。
+    assert.strictEqual(vm.blocks.queue.length, 3, '预告不是三块');
+    for (const q of vm.blocks.queue) {
+      assert.strictEqual(q.cells.length, 4, '预告里的块不是四格');
+      for (const c of q.cells) {
+        assert.ok(c[0] >= 0 && c[0] <= 3 && c[1] >= 0 && c[1] <= 3, '预告块放不进 4×4 格');
+      }
+    }
+
+    // ③ 落点虚影：四格，且只落在空格上。
+    const ghosts = vm.cells.filter(function (c) { return String(c.cls).indexOf('cell--ghost') >= 0; });
+    assert.strictEqual(ghosts.length, 4, '落点虚影不是四格（' + ghosts.length + '）');
+    for (const g of ghosts) assert.ok(!g.label, '虚影格不该带内容');
+
+    // ④ 7-bag：每一包都恰好七个形状各一个。
+    for (let k = 0; k < 30; k += 1) {
+      assert.deepStrictEqual(mod.bagOf().slice().sort(), [0, 1, 2, 3, 4, 5, 6], '这一包不是七种各一');
+    }
+    assert.strictEqual(mod.SHAPES.length, 7, '块型不是七种');
+
+    // ⑤ 重力表：1 级 1 秒一格，15 级 7 毫秒（20G），再往上不再变。
+    assert.strictEqual(mod.gravityOf(1), 1000);
+    assert.strictEqual(mod.gravityOf(2), 793);
+    assert.strictEqual(mod.gravityOf(15), 7);
+    assert.strictEqual(mod.gravityOf(99), 7, '15 级以上还在加速');
+    for (let lv = 2; lv <= 15; lv += 1) {
+      assert.ok(mod.gravityOf(lv) < mod.gravityOf(lv - 1), '重力表第 ' + lv + ' 级没有更快');
+    }
+
+    // ⑥ 每 N 层一级 + 阶梯计分（× 级数，四行连出 1.5 倍）。
+    assert.strictEqual(mod.levelOf(0, 1, 10), 1);
+    assert.strictEqual(mod.levelOf(9, 1, 10), 1, '不到 10 层就升级了');
+    assert.strictEqual(mod.levelOf(10, 1, 10), 2);
+    assert.strictEqual(mod.levelOf(10, 4, 5), 6, '起手级数与每级层数没算进级数');
+    assert.strictEqual(mod.clearScore(1, 1, false), 100);
+    assert.strictEqual(mod.clearScore(2, 1, false), 300);
+    assert.strictEqual(mod.clearScore(4, 1, false), 800);
+    assert.strictEqual(mod.clearScore(4, 3, false), 2400, '四行没乘级数');
+    assert.strictEqual(mod.clearScore(4, 3, true), 3600, '连续四行没有 1.5 倍');
+    assert.strictEqual(mod.clearScore(4, 3, true) > mod.clearScore(3, 3, true), true);
+
+    // ⑦ 落定延迟：落地之后还能挪，500ms 才写进盘面（旧版是撞到就锁，慢半拍等于白放）。
+    const filled = function () { return vm.blocks.board.filter(function (v) { return v; }).length; };
+    // 用导出的 cellsFit 判「这一块能不能再往下一格」：落地那一刻就是落定计时开始，
+    // 不能靠「r 不再变」去猜——那要跨过一个完整的重力间隔，落定早就在窗口里发生了。
+    const restingNow = function () {
+      const pc = vm.blocks.piece;
+      return !pc || !mod.cellsFit(vm.blocks.board, 10, 20, pc.cells, pc.r + 1, pc.c);
+    };
+    let guard = 0;
+    while (guard < 400 && vm.blocks.piece && !restingNow()) {
+      guard += 1;
+      advance(100);
+    }
+    assert.strictEqual(filled(), 0, '还没到落定延迟就写进盘面了');
+    assert.ok(vm.blocks.piece, '落地的块被直接抹掉了');
+    const colBefore = vm.blocks.piece.c;
+    ctrl.move('left');
+    assert.notStrictEqual(vm.blocks.piece.c, colBefore, '落地后挪不动（没有落定延迟）');
+    advance(300);
+    assert.strictEqual(filled(), 0, '落定延迟不足 500ms');
+    advance(250);
+    assert.ok(filled() > 0, '过了 500ms 还没落定');
+
+    // ⑧ 暂存：换出来的块回到出生朝向，同一块只能暂存一次。
+    const shapeNow = vm.blocks.piece.shape;
+    ctrl.move('hold');
+    assert.ok(vm.blocks.hold, '暂存里没有块');
+    assert.strictEqual(vm.blocks.hold.shape, shapeNow, '暂存的不是刚才那一块');
+    assert.strictEqual(vm.blocks.holdUsed, true, '暂存没有记成「这一块已用掉」');
+    const holdShape = vm.blocks.hold.shape;
+    ctrl.move('hold');
+    assert.strictEqual(vm.blocks.hold.shape, holdShape, '同一块被暂存了两次');
+
+    // ⑨ SRS 踢墙：贴着障碍转不动时，按表上的顺位踢开，而不是直接判「转不动」。
+    const T = mod.SHAPES.filter(function (s) { return s.key === 'T'; })[0];
+    const board = new Array(200).fill(0);
+    // 挡住「原地转」新占的那一格：T 原地转之后会往右多伸出一格，正好压在这块石上。
+    board[5 * 10 + 1] = 1;
+    const pc = { shape: T, rot: 0, cells: T.cells.map(function (x) { return x.slice(); }), tone: 3, r: 3, c: 0 };
+    const moved = mod.planRotation(board, 10, 20, pc);
+    assert.ok(moved, '贴着一格障碍就完全转不动了（没有踢墙）');
+    // 原地转被挡，SRS 的第二顺位是「左移一格」——踢墙表真的被读走了。
+    assert.deepStrictEqual([moved.r - pc.r, moved.c - pc.c], [0, -1], '没有按 SRS 的第二顺位（左移一格）踢墙');
+    assert.strictEqual(moved.rot, 1, '转完的朝向不对');
+    // 空盘上不该乱踢：原地转就够，偏移必须是 [0, 0]。
+    const free = new Array(200).fill(0);
+    const noKick = mod.planRotation(free, 10, 20, pc);
+    assert.deepStrictEqual([noKick.r - pc.r, noKick.c - pc.c], [0, 0], '空盘上也踢墙了');
+    assert.strictEqual(mod.cellsFit(board, 10, 20, moved.cells, moved.r, moved.c), true, '踢完还压着障碍');
+    // 四个顺时针档、每档五个偏移，第一个是「原地转」。
+    assert.strictEqual(mod.KICKS_JLSTZ.length, 4);
+    for (const set of mod.KICKS_JLSTZ.concat(mod.KICKS_I)) {
+      assert.strictEqual(set.length, 5, '踢墙表不是五个偏移');
+      assert.deepStrictEqual(set[0], [0, 0], '第一个偏移不是原地转');
+    }
+
+    // ⑩ 满行判定与化层仍然是对的（纯函数，页面与测试同一份）。
+    const b2 = new Array(10 * 4).fill(0);
+    for (let c = 0; c < 10; c += 1) b2[3 * 10 + c] = 1;
+    for (let c = 0; c < 10; c += 1) b2[2 * 10 + c] = 2;
+    b2[10] = 1;
+    assert.deepStrictEqual(mod.fullRows(b2, 10, 4), [2, 3], '满行报错');
+    assert.strictEqual(mod.clearLines(b2, 10, 4).lines, 2, '化的行数与满行不符');
+
+    // ⑪ 收功：中途收功只该报中途收功这一个 F，不能把「时间到」也判成走火。
+    ctrl.destroy();
+    assert.strictEqual(res, null, '还没收功就结算了');
+  } finally {
+    restoreClock();
+  }
 });
 
 check('同数相合：合并处迸溅、合并格弹、新块由小长出来', function () {

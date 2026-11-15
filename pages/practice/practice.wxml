@@ -300,6 +300,8 @@
         <text class="tiny">顺箭头扫斩 {{trailLen}} 桩 · {{vm.trail.rule || '反向算劈空'}}</text>
       </view>
 
+      <!-- 落石垒基把暂存与预告摆在盘面右侧，其余玩法这一层不生效（普通 block）。 -->
+      <view class="board-flex {{vm.blocks ? 'board-flex--tetris' : ''}}">
       <view wx:if="{{(vm.stage === 'board' || vm.stage === 'lane') && vm.extras.showGrid}}" class="grid grid--c{{vm.cols}} {{vm.stage === 'lane' ? 'grid--lane' : ''}} {{vm.extras.compact ? 'grid--compact' : ''}}">
         <view wx:for="{{slashList}}" wx:key="key" class="grid__slash" style="transform:translate(-50%,-50%) rotate({{item.angle}}deg)">
           <view class="grid__slash-beam"></view>
@@ -341,6 +343,24 @@
         <view wx:if="{{vm.extras.swipeMove && !vm.extras.showSwipe && started && !boardHeld}}" class="swipe-layer" bindtouchstart="onMoveTouchStart" catchtouchmove="onMoveTouchMove" bindtouchend="onMoveTouchEnd" bindtouchcancel="onMoveTouchEnd"></view>
       </view>
 
+        <!-- 暂存与三块预告：俄罗斯方块的「想三步」全靠看得见。
+             摆在盘面右侧而不是下方——下方那条横带要留给方向键，拇指够得着。
+             暂存格本身就是一个按键：点它把当前块收起来，换出上一次收下的那块。 -->
+        <view wx:if="{{vm.blocks && started && !boardHeld}}" class="tray">
+          <text class="tray__label">暂存</text>
+          <view class="tray__slot {{vm.blocks.holdUsed ? 'tray__slot--spent' : ''}} pressable"
+            hover-class="pressable--on" bindtap="onHold">
+            <view wx:for="{{holdCells}}" wx:key="key"
+              class="tray__cell {{item.on ? 'tray__cell--on tray__cell--t' + item.tone : ''}}"></view>
+          </view>
+          <text class="tray__label">下一块</text>
+          <view wx:for="{{nextList}}" wx:for-item="slot" wx:key="id" class="tray__slot">
+            <view wx:for="{{slot.cells}}" wx:for-item="c" wx:key="key"
+              class="tray__cell {{c.on ? 'tray__cell--on tray__cell--t' + c.tone : ''}}"></view>
+          </view>
+        </view>
+      </view>
+
       <!-- 华容道：块是整块滑的，用绝对定位按格摆；格子拼出来的块会被缝线切碎，
            看不出「这是一整块」，滑动的手感也就没了。 -->
       <view wx:if="{{vm.stage === 'klotski' && vm.klotski}}" class="klotski">
@@ -351,15 +371,6 @@
           data-i="{{index}}" bindtap="onBlockTap">
           <view wx:if="{{item.main}}" class="klotski__core"></view>
           <view wx:if="{{item.emblem}}" class="klotski__emblem emblem--{{item.emblem}}"></view>
-        </view>
-      </view>
-
-      <!-- 下一块预告：与方向键同一行。俄罗斯方块的「想两步」全靠看见它，
-           摆在盘面右侧够不着的地方等于没给。 -->
-      <view wx:if="{{nextCells.length && started && !boardHeld}}" class="next-row">
-        <text class="tiny next-row__label">下一块</text>
-        <view class="next-piece">
-          <view wx:for="{{nextCells}}" wx:key="key" class="next-piece__cell {{item.on ? 'next-piece__cell--on next-piece__cell--t' + item.tone : ''}}"></view>
         </view>
       </view>
 

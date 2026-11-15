@@ -143,6 +143,13 @@ function tweakParams(method, out, level) {
   if (method.game === 'merge') out.fourRate = Math.round((0.45 - 0.25 * t) * 1000) / 1000;
   if (method.game === 'mines') out.lineScale = Math.round((1 - 0.30 * t) * 1000) / 1000;
   if (method.game === 'klotski') out.capFactor = Math.round((2.6 - 0.95 * t) * 100) / 100;
+  // 落石垒基：章内两件事——起始级每 13 段抬一级（一章 40 段抬两级），
+  // 每级层数每 10 段减一层。两个数玩法层都读：前者决定重力，后者决定 meter 与提速坡度。
+  if (method.game === 'blocks') {
+    const st = stageOf(lv);
+    out.startLevel = Math.min(12, out.startLevel + Math.floor(st / 13));
+    out.linesPerLevel = Math.max(4, out.linesPerLevel - Math.floor(st / 10));
+  }
   // 辨术·一眼摘魁诀：这一门只有「数多长、几批」两个离散量，给一条明写的时辰——
   // 每一批认得快才来得及，慢下来就少认一批。玩法层本来就认 params.timeLimit。
   if (method.game === 'biggest') out.timeLimit = Math.round(88 - 34 * t);

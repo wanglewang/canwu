@@ -76,7 +76,7 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 | 数格辨禁 | 4 | 5 种 | **2.40×** `mines` | `cols`, `rows`, `mines`, `hearts` |
 | 成对翻牌 | 3 | 4 种 | 1.69× `flipMs` | `pairs`, `flipMs`, `timeLimit` |
 | 灵纹连线 | 2 | 5 种 | 1.69× `flashMs` | `duration`, `flashMs` |
-| 落石垒基 | 2 | 5 种 | 1.69× `dropMs` | `duration`, `dropMs` |
+| 落石垒基 | 4 | 5 种 | 8.00× `startLevel` | `duration`, `startLevel`, `linesPerLevel`, `sLine` |
 | 三秀同收 | 7 | 5 种 | 3.00× `missCost` | `duration`, `kinds`, `flashMs`, `missCost`, `shuffleCost`, `hintCost`, `sLine` |
 | 九宫填数 | 6 | 5 种 | 5.75× `holes` | `size`, `holes`, `timeLimit`, `tS`, `tA`, `tB` |
 | 滑格相合 | 2 | 4 种 | 8.00× `target` | `target`, `startTiles` |
@@ -177,7 +177,8 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 | 灵纹连线 | `duration` 息 | 55 | 53 | 52 | 50 | 48 |
 | | `flashMs` | 1062 | 900 | 792 | 702 | 630 |
 | 落石垒基 | `duration` 息 | 70 | 68 | 66 | 64 | 62 |
-| | `dropMs` | 731.6 | 620 | 545.6 | 483.6 | 434 |
+| | `startLevel` 级 | 1 | 2 | 4 | 6 | 8 |
+| | `linesPerLevel` 层 | 10 | 9 | 8 | 7 | 6 |
 | 三秀同收 | `duration` 息 | 68 | 60 | 58 | 55 | 52 |
 | | `kinds` 色 | 5 | 5 | 6 | 6 | 7 |
 | | `flashMs` | 896.8 | 760 | 668.8 | 592.8 | 532 |
@@ -204,7 +205,7 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 
 三处数字看起来「没走均匀」的地方，都不是错误：
 
-- **`flashMs` / `gapMs` / `shuffleMs` / `dropMs` 带 .8 / .6 这类尾数**：它们是 `倍数 × pace × 1000` 取整到三位的结果，比如灵纹连线 `flashMs` 900 × 1.18 = 1062，落石垒基 620 × 1.18 = 731.6。准备页显示时会折成「1.06 秒」这种，不显示毫秒原值。
+- **`flashMs` / `gapMs` / `shuffleMs` 带 .8 / .6 这类尾数**：它们是 `倍数 × pace × 1000` 取整到三位的结果，比如灵纹连线 `flashMs` 900 × 1.18 = 1062，成对翻牌 850 × 1.18 = 1003。准备页显示时会折成「1.06 秒」这种，不显示毫秒原值。
 - **九宫填数的 `timeLimit` 在难 / 极 / 绝三档都是 420 秒**：因为它是整表覆盖，表里就写死 420；这三档的收紧靠 `holes`（32 → 40 → 46）与三条评级线（`tS` 170 → 190 → 210）承担，不靠时钟。
 - **`startLen` / `decoys` / `kinds` 这类整数在相邻档重复**：它们过了 `goal` 倍率后被 `Math.round` 折叠，比如 `decoys` 2 × 1.32 = 2.64 → 3，所以只有绝境档真的多出一个。这是刻意的——整数参数天然只有几个台阶，硬要每档都变只会让简单档变成 1。
 

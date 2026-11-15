@@ -171,15 +171,18 @@ const ELEMENT_EMBLEM = [23, 25, 26, 22, 24];  // 木 火 土 金 水
 
 同理，**只有持续下落的玩法才挂方向键**（`.pad`）：其余玩法盘面下不留这一排。
 
-## 9. 列数只有 c3 / c4 / c5 / c6 / c9
+## 9. 列数是显式规格：c3 / c4 / c5 / c6 / c7 / c8 / c9 / c10
 
 ```css
 .grid--c3 .cell { width: 33.33%; height: 156rpx; }
 .grid--c4 .cell { width: 25%;    height: 128rpx; font-size: 26rpx; }
 .grid--c6 .cell { width: 16.66%; height: 100rpx; font-size: 24rpx; border-width: 3rpx; border-radius: 10rpx; }
+/* 十列只给落石垒基：标准场地 10×20，格子必须正方，所以盘面自己收窄到 408rpx。 */
+.grid--c10 { width: 408rpx; }
+.grid--c10 .cell { width: 10%; height: 40rpx; border-width: 2rpx; border-radius: 3rpx; }
 ```
 
-**没有 c8**：8 列在 4.7 寸屏上每格不到 90rpx，读数就变成「猜」。这也是为什么 `SIZES` 一类表到 6 就封顶。
+**为什么八列以上要单独一档，而不是把 c6 的格子改小**：格子大小跟列数绑在一起，同一档列数里所有玩法共用一套尺寸。8 列给推石入位的高档（内盘 5×5 外圈墙），10 列只给落石垒基——它需要的是「二十行看得完」而不是「格子大」。这也是为什么 `SIZES` 一类表到 6 就封顶：九宫、逐数这类要读数字的盘面，8 列以上每格不到 90rpx，读数就变成「猜」。
 
 `.grid--compact` 是 6 列的紧凑变体，模块通过 `vm.extras.compact = size >= 6` 自己申请。
 

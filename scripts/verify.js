@@ -530,6 +530,29 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   }
 }
 
+// 8b-5c. 落石垒基按 Tetris Guideline 做，九样机制里有两样最容易被「顺手改个数字」破坏：
+//   ① 盘面是标准场地 10×20，不许从 params 读 cols / rows——行数一改，这一门就不成立了；
+//   ② 重力表必须等于 (0.8 − (L−1)×0.007)^(L−1) 秒（15 级封顶 7ms），不是手拍的一串数。
+// 评级线随档走（BLOCK_LEVELS 的 sLine）由 rank.test.js 与 audit:diff 另看着。
+{
+  const blocksMod = gameMod.MODULES.blocks;
+  const blocksSrc = fs.readFileSync(path.join(ROOT, 'minigames/blocks.js'), 'utf8');
+  if (/ps*.s*(cols|rows)/.test(blocksSrc)) {
+    errors.push('落石垒基从 params 读盘面尺寸（标准场地固定 10×20，盘面不是难度旋钮）');
+  } else checked += 1;
+  if (!Array.isArray(blocksMod.GRAVITY_MS) || blocksMod.GRAVITY_MS.length !== 15) {
+    errors.push('落石垒基的重力表不是 15 级');
+  } else {
+    for (let i = 0; i < 15; i += 1) {
+      const want = Math.round(Math.pow(0.8 - i * 0.007, i) * 1000);
+      if (Math.abs(blocksMod.GRAVITY_MS[i] - want) > 2) {
+        errors.push('落石垒基重力表第 ' + (i + 1) + ' 级偏离 Guideline 曲线：' + blocksMod.GRAVITY_MS[i] + ' vs ' + want);
+      } else checked += 1;
+    }
+  }
+  if (blocksMod.SHAPES.length !== 7) errors.push('落石垒基不是七种块（7-bag 要求七种各一个）');
+  else checked += 1;
+}
 // 8b-6. 顺序点格不许替玩家标出「下一个在哪」。目标格一旦被描边，这一门就退化成
 // 「点发亮的格子」——舒尔特方格练的是目光按序扫过整盘，替它找位置等于把功课做完。
 for (const f of ['minigames/schulte.js', 'pages/practice/practice.wxss']) {

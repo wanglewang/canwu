@@ -116,10 +116,10 @@ const PRACTICE_METHODS = [
     desc: '灵石按息坠落，挪石转石把一层垒满，整层化去才算筑稳一分根基。',
     tip: '堆到顶立刻收功；垒满一层才化去',
     base: 36,
-    // 八列八行：六列时一块长石横跨三分之二个盘子，块大、缝窄、转不动。
-    // 落石间隔从 620ms 提到 950ms（简单档再乘 1.18 ≈ 1.1 秒一口），
-    // 低档只出四种不带长条的块——先学会「摆平」，再学会「接长条」。
-    params: { duration: 70, cols: 8, rows: 8, dropMs: 950, shapes: 4 },
+    // 盘面是标准场地 10×20，写在玩法层（minigames/blocks.js）里而不是这里——
+    // 行数不是难度旋钮，改了这一门就不成立了。难度只拧两个数：
+    // startLevel（起手第几级，决定落石速度）与 linesPerLevel（每化几层进一级）。
+    params: { duration: 70, startLevel: 1, linesPerLevel: 10 },
   },
   {
     id: 'harvest', name: '换苗引秀', game: 'match', theme: 'harvest', twist: 'harvest',
@@ -423,6 +423,35 @@ const TIME_LEVELS = [1, 0.97, 0.94, 0.91, 0.88];
 const MERGE_START_TILES = [2, 2, 3, 3, 4];
 const PUSHBOX_CAP_FACTORS = [2.2, 2.0, 1.9, 1.75, 1.6];
 
+// 落石垒基的五档。这一门的规范来自 Tetris Guideline，五档只动两件事：
+//   startLevel     起手第几级（重力档）：1 级 1000ms/格 → 15 级 7ms/格；
+//   linesPerLevel  每化几层进一级：马拉松是 10，档位上收，速度爬得更快。
+// 盘面固定 10×20、七种块、7-bag、三块预告、暂存、落定延迟 500ms 全部保持不变——
+// 它们不是难度，是「这一门是俄罗斯方块」的定义。旧版把盘面从 8×8 到缩行数当难度，
+// 结果行数越少越像罚站：三四块就顶到顶，留缝这件事根本没有余地。
+// 章内的连续收紧在 levels.tweakParams 里做（起始级每 13 段抬一级、每级层数每 10 段减一层），
+// 时辰仍走 LEVEL_TIME_KEYS 的逐段收紧。
+//
+// sLine 用启发式玩家实测标定（临时脚本 + 假时钟，每档 15 局取中位；脚本跑完即删）：
+// 每局 60–70 秒。快手约 1.1 秒放一块、九成选最优列；熟练 1.5 秒、八成八；常人 2.0 秒、七成。
+//   章 | 快手中位（下四分位） | 熟练中位 | 常人中位 || S 线 | A 线 | B 线
+//    1 | 5184（4386）         | 2582     | 1092     || 4200 | 2520 | 1344
+//    2 | 8248（6366）         | 3832     | 1846     || 6300 | 3780 | 2016
+//    3 | 12466（11698）       | 5848     | 2352     || 9600 | 5760 | 3072
+//    4 | 16982（14304）       | 9814     | 962      || 12600| 7560 | 4032
+//    5 | 17838（9850）        | 6280     | 1194     || 10200| 6120 | 3264
+// S 取快手的下四分位（四分之一打得快的也拿不到 S，这就是「S 要打得顺」）；
+// A / B 是 gradeLimits 的 0.60 / 0.32 倍，落点对上「熟练 / 常人」那一列。
+// **不是越难越高**：绝境起手第 8 级、更容易堆到顶，快手的下四分位反而比极难低，
+// 所以第五章的 S 线比第四章低——照实写，不为了「看起来递增」往上抬。
+const BLOCK_LEVELS = [
+  { startLevel: 1, linesPerLevel: 10, sLine: 4200 },
+  { startLevel: 2, linesPerLevel: 9, sLine: 6300 },
+  { startLevel: 4, linesPerLevel: 8, sLine: 9600 },
+  { startLevel: 6, linesPerLevel: 7, sLine: 12600 },
+  { startLevel: 8, linesPerLevel: 6, sLine: 10200 },
+];
+
 // 下面三张表换的是「承重轴」：把难度从时间挪到复杂度上。
 //
 // 起因：五档的时间参数走同一套 pace / windowPace / TIME_LEVELS，跨度天然只有 1.7–2.3 倍，
@@ -623,6 +652,7 @@ const SPEED_KEY = 'speed';
 const FIELD_LABELS = {
   interval: '灵光间隔', life: '刀光停留', flashMs: '亮起时长', gapMs: '闪烁间隔', windowMs: '相生之窗', msPerNote: '每字限时',
   shuffleMs: '水流变阵', flipMs: '翻牌停留', dropMs: '落石间隔', window: '判定窗', speed: '气机收敛',
+  startLevel: '起手级数', linesPerLevel: '每级层数',
   chainGoal: '连生目标', maxRound: '口诀轮数', segments: '步法段数', beats: '息数',
   scramble: '打乱步数', mines: '禁制数', pairs: '气窍对数', decoys: '影子数',
   startLen: '起始字数', baseLen: '每步长度', steps: '最少步数',
@@ -759,9 +789,14 @@ function rawParams(method, depthIndex) {
     out.mines = lv.mines;
     out.hearts = lv.hearts;
   }
-  // 四门原本只有一个可见参数在变：把第二个数按档注入，玩法层逐个读走（见上方表注释）。
-  // 落石垒基：块型从四种（无长条）加到五种，长条是五档之间唯一「形状」上的变化。
-  if (method && method.game === 'blocks') out.shapes = d.depth >= 2 ? 5 : 4;
+  // 落石垒基：盘面是标准场地，不进 params；五档只注入起始级、每级层数与 S 线。
+  // 玩法层三样都真的读走（重力表按级取、meter 写「再 N 层进级」、评级看分）。
+  if (method && method.game === 'blocks') {
+    const lv = BLOCK_LEVELS[d.depth];
+    out.startLevel = lv.startLevel;
+    out.linesPerLevel = lv.linesPerLevel;
+    out.sLine = lv.sLine;
+  }
   if (method && method.game === 'merge') out.startTiles = MERGE_START_TILES[d.depth];
   if (method && method.game === 'schulte') out.penaltySec = SCHULTE_PENALTIES[d.depth];
   if (method && method.game === 'pushbox') out.capFactor = PUSHBOX_CAP_FACTORS[d.depth];
@@ -832,7 +867,7 @@ function levelDelta(method, level) {
   const prev = buildParamsAt(method, prevLv);
   const ordered = PACE_KEYS.concat(WINDOW_KEYS, GOAL_KEYS,
     ['duration', 'timeLimit', 'sLine', 'hearts', 'startTiles', 'penaltySec', 'capFactor',
-      'capSteps', 'minSteps', 'fourRate', 'lineScale']).filter(function (k) {
+      'capSteps', 'minSteps', 'fourRate', 'lineScale', 'startLevel', 'linesPerLevel']).filter(function (k) {
     return k !== 'speed';
   });
   const out = [];
@@ -852,7 +887,7 @@ function levelDelta(method, level) {
 }
 
 // 关卡表里独有的两个旋钮（合术起手 4 的比例、勘禁 S 线系数）没有通用标签。
-const LEVEL_LABELS = { fourRate: '起手给 4', lineScale: 'S 线' };
+const LEVEL_LABELS = { fourRate: '起手给 4', lineScale: 'S 线', startLevel: '起手级数', linesPerLevel: '每级层数' };
 
 function levelFmt(key, value) {
   if (key === 'fourRate' || key === 'lineScale') return Math.round(value * 100) + '%';
@@ -861,6 +896,8 @@ function levelFmt(key, value) {
   if (key === 'window') return (Math.round(value * 1000) / 10).toFixed(1) + '%';
   if (key === 'penaltySec') return value.toFixed(1) + ' 秒';
   if (key === 'capFactor') return '×' + value.toFixed(2);
+  if (key === 'startLevel') return '第 ' + Math.round(value) + ' 级';
+  if (key === 'linesPerLevel') return Math.round(value) + ' 层';
   return fmtField(key, value);
 }
 
@@ -874,6 +911,8 @@ function fmtField(key, value) {
   if (key === 'duration' || key === 'timeLimit' || key === 'penaltySec') return Math.round(value) + ' 秒';
   if (key === 'hearts') return Math.round(value) + ' 盏';
   if (key === 'capFactor') return '×' + value.toFixed(2);
+  if (key === 'startLevel') return '第 ' + Math.round(value) + ' 级';
+  if (key === 'linesPerLevel') return Math.round(value) + ' 层';
   return String(Math.round(value));
 }
 
@@ -886,7 +925,8 @@ function diffDetail(method, diffKey) {
   // 时辰与四门新注入的档位参数也要进「本档紧在哪」：不然准备页写了「入门基准」，
   // 盘上的倒计时 / 心神 / 起手块却真的变了，说明和局内对不上。
   const ordered = PACE_KEYS.concat(WINDOW_KEYS, GOAL_KEYS,
-    ['duration', 'timeLimit', 'hearts', 'startTiles', 'penaltySec', 'capFactor', 'steps', SPEED_KEY]).filter(function (k) {
+    ['duration', 'timeLimit', 'hearts', 'startTiles', 'penaltySec', 'capFactor', 'steps', SPEED_KEY,
+      'startLevel', 'linesPerLevel']).filter(function (k) {
     return HIDDEN_FIELDS.indexOf(k) < 0;
   });
   for (let i = 0; i < ordered.length && changes.length < 3; i += 1) {
@@ -939,6 +979,11 @@ function diffDetail(method, diffKey) {
   } else if (method && method.game === 'mines') {
     const lv = MINES_LEVELS[d.depth];
     brief = lv.cols + '×' + lv.rows + ' 盘 · ' + lv.mines + ' 处禁制 · ' + lv.hearts + ' 盏心神';
+  } else if (method && method.game === 'blocks') {
+    // 盘面是标准场地（10×20），写出来是让玩家知道「这一门不是小盘俄罗斯方块」；
+    // 真正随档变的是起手级数与每级层数——这两句才是难度。
+    brief = '10×20 标准场地 · 起手第 ' + now.startLevel + ' 级 · 每化 '
+      + now.linesPerLevel + ' 层进一级 · 七种块 · 三块预告';
   } else {
     brief = changes.length
       ? changes.map(function (c) { return c.text; }).join(' · ')
@@ -1019,6 +1064,7 @@ module.exports = {
   CLICK_LEVELS: CLICK_LEVELS,
   SWORD_LEVELS: SWORD_LEVELS,
   MINES_LEVELS: MINES_LEVELS,
+  BLOCK_LEVELS: BLOCK_LEVELS,
   MERGE_START_TILES: MERGE_START_TILES,
   PUSHBOX_CAP_FACTORS: PUSHBOX_CAP_FACTORS,
   FAMILIES: FAMILIES,

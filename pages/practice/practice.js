@@ -175,7 +175,8 @@ Page({
     burstList: [],
     sparkList: [],
     // 落石垒基专用：下一块预告 + 刚化的行。其余玩法恒为空数组，页面不为它们多画东西。
-    nextCells: [],
+    nextList: [],
+    holdCells: [],
     lineFlashList: [],
     linkPathList: [],
     settlePhase: 0,
@@ -606,8 +607,17 @@ Page({
 
         // 落石垒基：下一块预告与刚化的行。这两样只在这一门出现，
         // 别的玩法 vm.blocks 为 null，算出来是空数组，页面不会多摆一行。
-        let nextCells = [];
-        if (vm.blocks && vm.blocks.next) nextCells = previewCells(vm.blocks.next);
+        // 落石垒基：暂存格 + 三块预告。别的玩法 vm.blocks 为 null，两个数组都是空，
+        // 页面不会多摆那一条。
+        let nextList = [];
+        let holdCells = [];
+        if (vm.blocks) {
+          holdCells = previewCells(vm.blocks.hold);
+          const q = vm.blocks.queue || [];
+          for (let qi = 0; qi < q.length; qi += 1) {
+            nextList.push({ id: qi, cells: previewCells(q[qi]) });
+          }
+        }
         // 连连看的连线：只在收走一对的那一帧出现，320ms 后撤。
         let linkPathList = self.data.linkPathList;
         if (vm.linkPath && vm.linkPath.key !== self.lastLinkKey) {
@@ -654,7 +664,8 @@ Page({
           scoreNum: Number(String(vm.scoreText || '').replace(/\D/g, '')) || 0,
           burstList: burstList,
           sparkList: sparks || self.data.sparkList,
-          nextCells: nextCells,
+          nextList: nextList,
+          holdCells: holdCells,
           lineFlashList: lineFlashList,
           linkPathList: linkPathList,
         });
@@ -1266,6 +1277,13 @@ Page({
     const dir = event.currentTarget.dataset.dir;
     if (!dir) return;
     this.controller.move(dir);
+    sfx.play('tap');
+  },
+
+  // 暂存：点右侧的暂存格。玩法层只知道 move('hold')，不碰坐标也不碰视觉。
+  onHold: function () {
+    if (!this.controller || !this.data.started || this.data.showResult) return;
+    this.controller.move('hold');
     sfx.play('tap');
   },
 
