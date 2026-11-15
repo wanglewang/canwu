@@ -873,7 +873,8 @@ Page({
         + ' 点（气海上限 ' + this.data.qiMax + '）。回洞府闭关打坐，每分钟 '
         + worldData.getWorld().idle.qiPerMinute + ' 点，约坐 '
         + Math.ceil(lack / worldData.getWorld().idle.qiPerMinute)
-        + ' 分钟可足；上限不够用时，破境或练真元都能把气海拓深。',
+        + ' 分钟可足' + (this.data.stone > 0 ? '；若是等不及，回洞府拿灵石换（1 枚 100 点）' : '')
+        + '。上限不够用时，破境或练真元都能把气海拓深。',
       confirmText: '回洞府打坐',
       cancelText: '容再思量',
       success: function (res) {

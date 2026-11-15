@@ -572,4 +572,81 @@ check('四个属性各有一件正事：真元换气海、悟性省灵力、身�
 });
 
 
+// ---------------------------------------------------------------- 份例：装多少领多少
+check('份例按空位领：气海装不下的部分散去，并照实报出散了多少', function () {
+  const economy = require('../data/economy.js');
+  const s = game.createNewState();
+  s.daily.count = 3;
+  const cap = game.qiCap(s);
+  // 留 21 点空位：旧版这里会整份拒领，而「参悟满三次」时这正好是最常见的情形。
+  s.resources.qi = cap - 21;
+  const r = game.claimDaily(s);
+  assert.strictEqual(r.ok, true, '有空位却领不了：' + r.msg);
+  assert.strictEqual(r.qi, 21, '领到的不是空位那 21 点');
+  assert.strictEqual(r.quota, economy.DAILY_QI, '份例总额没如实报出');
+  assert.strictEqual(r.lost, economy.DAILY_QI - 21, '散去的点数对不上');
+  assert.strictEqual(s.resources.qi, cap, '领完没有刚好装满气海');
+  assert.strictEqual(s.daily.claimed, true, '领过之后没有标记');
+  // 同一天再点一次：拒绝，且不能再加。
+  const again = game.claimDaily(s);
+  assert.strictEqual(again.ok, false, '份例一天能领两次');
+});
+
+check('份例在气海一点空位都没有时拒领，且说明是满池不是次数不够', function () {
+  const s = game.createNewState();
+  s.daily.count = 3;
+  s.resources.qi = game.qiCap(s);
+  const r = game.claimDaily(s);
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.full, true, '满池没被标记成 full，提示会写成「次数不够」');
+  assert.ok(/先练一局/.test(r.msg), '满池提示没给出下一步：' + r.msg);
+});
+
+// ---------------------------------------------------------------- 灵石兑灵力
+check('灵石兑灵力：1 枚 = 100 点，只此一向', function () {
+  const economy = require('../data/economy.js');
+  const s = game.createNewState();
+  s.resources.qi = 10;
+  const stoneBefore = s.resources.stone;
+  const r = game.exchangeQi(s, 1);
+  assert.strictEqual(r.ok, true, '开局付得起却换不成：' + r.msg);
+  assert.strictEqual(r.qi, economy.QI_PER_STONE, '换到的灵力不是 QI_PER_STONE');
+  assert.strictEqual(r.qi, 100, '汇率被改成了 100 以外');
+  assert.strictEqual(s.resources.stone, stoneBefore - 1, '灵石没扣');
+  assert.strictEqual(s.resources.qi, 110, '灵力没加');
+  // 反向没有入口：公开接口里不许出现「灵力换灵石」。
+  const names = Object.keys(game).filter(function (k) { return /stoneFromQi|qiToStone|sellQi/i.test(k); });
+  assert.deepStrictEqual(names, [], '出现了把灵力换成灵石的接口：' + names.join(','));
+});
+
+check('灵石兑灵力：灵石不够 / 气海装不下都换不成，且一个子儿都不扣', function () {
+  const s = game.createNewState();
+  s.resources.qi = 10;
+  s.resources.stone = 0;
+  const poor = game.exchangeQi(s, 1);
+  assert.strictEqual(poor.ok, false, '灵石为 0 也换成了');
+  assert.strictEqual(s.resources.qi, 10, '换不成却动了灵力');
+  // 气海只剩 4 点：100 点装不下。
+  s.resources.stone = 5;
+  s.resources.qi = game.qiCap(s) - 4;
+  const tight = game.exchangeQi(s, 1);
+  assert.strictEqual(tight.ok, false, '气海装不下也换成了');
+  assert.strictEqual(tight.qiRoom, 4, '没报出气海还剩多少空位');
+  assert.strictEqual(s.resources.stone, 5, '换不成却扣了灵石');
+  assert.strictEqual(s.resources.qi, game.qiCap(s) - 4, '换不成却动了灵力');
+});
+
+check('兑换面板的报价与真正执行同源：写着能换就一定换得成', function () {
+  const s = game.createNewState();
+  s.resources.qi = 10;
+  const q = game.exchangeQuote(s);
+  assert.strictEqual(q.ready, true, '报价说不能换，其实付得起：' + q.hint);
+  assert.ok(q.can >= 1, '可换枚数算成了 0');
+  assert.strictEqual(game.exchangeQi(s, 1).ok, true, '报价亮着，点下去却换不成');
+  // 换完之后空位只剩 64 点（174 − 110），报价必须立刻变成「换不了」。
+  const q2 = game.exchangeQuote(s);
+  assert.strictEqual(q2.ready, false, '气海已经不装第二枚，报价还说能换');
+  assert.ok(/先练一局/.test(q2.hint), '换不了时的说明没给下一步：' + q2.hint);
+});
+
 console.log('\ngame.test: ' + passed + ' assertions passed');

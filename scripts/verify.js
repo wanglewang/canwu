@@ -591,6 +591,22 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
     }
   }
 }
+// 8b-7. 兑换只有一向。灵石买灵力是允许的，反过来永远不开——那是「挂机时长直接印钱」
+// 的入口：气海一满就白坐着，最优解变成挂着不回来，灵石立刻退化成计件工资。
+// 这一条靠三件事守：常量在、换算函数对、世界里没有反向接口。
+{
+  const ecoMod = require(path.join(ROOT, 'data/economy.js'));
+  if (!(ecoMod.QI_PER_STONE > 0)) errors.push('economy.QI_PER_STONE 没给正数：兑换面板会写出「1 枚 = 0 点」');
+  else checked += 1;
+  if (typeof ecoMod.qiFromStone !== 'function' || ecoMod.qiFromStone(3) !== 3 * ecoMod.QI_PER_STONE) {
+    errors.push('economy.qiFromStone 与 QI_PER_STONE 对不上：汇率会在面板与结算两处漂');
+  } else checked += 1;
+  const ecoSrc = fs.readFileSync(path.join(ROOT, 'data/economy.js'), 'utf8');
+  if (/stoneFromQi|qiToStone|sellQi/.test(ecoSrc)) {
+    errors.push('data/economy.js 出现了把灵力换成灵石的函数：反向兑换是挂机印钱的入口，永远不开');
+  } else checked += 1;
+}
+
 // 8b-6. 顺序点格不许替玩家标出「下一个在哪」。目标格一旦被描边，这一门就退化成
 // 「点发亮的格子」——舒尔特方格练的是目光按序扫过整盘，替它找位置等于把功课做完。
 for (const f of ['minigames/schulte.js', 'pages/practice/practice.wxss']) {
@@ -923,8 +939,11 @@ if (!fs.existsSync(checklistPath)) {
   const runQiLine = economyData.RUN_QI.join(' / ');
   if (doc.indexOf(runQiLine) < 0) errors.push('自检清单的五档耗气与 RUN_QI 不一致（应为 ' + runQiLine + '）');
   else checked += 1;
-  if (doc.indexOf('互不兑换') < 0) errors.push('自检清单没写「灵力与灵石互不兑换」的双货币口径');
-  else checked += 1;
+  // 兑换口径：灵石单向兑灵力。这条必须写进清单，而且要带上汇率——
+  // 反向（灵力换灵石）永远不开：那是「挂机时长直接印钱」的入口，比数值失衡严重得多。
+  if (doc.indexOf('灵石可单向兑灵力') < 0 || doc.indexOf(String(economyData.QI_PER_STONE)) < 0) {
+    errors.push('自检清单没写「灵石可单向兑灵力（1 枚 = ' + economyData.QI_PER_STONE + ' 点），灵力换不回灵石」的兑换口径');
+  } else checked += 1;
   // 结算主按钮是上一轮刚定的「留在本页」，文档不许写回「再来一局」当默认动作。
   if (doc.indexOf('留在本页') < 0) errors.push('自检清单没写结算主按钮「留在本页」');
   else checked += 1;

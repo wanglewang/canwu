@@ -670,28 +670,90 @@ function claimDaily(state) {
   if (state.daily.count < w.daily.target) {
     return { ok: false, msg: '还差 ' + (w.daily.target - state.daily.count) + ' 次参悟' };
   }
-  // 气海装不下就先别领：份例是今天练过的凭证，不该因为「池子满着」被倒掉一半。
-  // 这和打坐不同——打坐收的是「坐出来的」，满溢就散；份例是「发放的」，可以等人来取。
+  // 装得下多少就领多少。旧版是「整份装不下就拒领」，看上去很讲究（份例是发放的，
+  // 可以等人来取），实际上把这件事变成一道算术题：气海 174、份例 60，玩家练满三次
+  // 时灵力往往还剩 130 以上，空位不足 60——也就是**解锁的那一刻正好领不到**。
+  // 点了「领取」，灵力一点没动，玩家的结论只有一个：这是坏的。
+  //
+  // 气海照旧是硬上限（钱能买油，买不来更大的油箱），装不下的部分当场散掉，
+  // 但必须照实说散了几个——「+21 / 60」比「+60」诚实，也比拒领有用。
   const cap = qiCap(state);
   const room = Math.max(0, cap - state.resources.qi);
-  if (room < w.daily.qi) {
+  if (room <= 0) {
     return {
       ok: false,
-      msg: '灵力 ' + state.resources.qi + ' / ' + cap + '，气海只余 ' + room + ' 点空位'
-        + '（份例是 ' + w.daily.qi + ' 点）。先用掉一些，再来领取。',
+      msg: '灵力已满（' + state.resources.qi + ' / ' + cap + '）：先练一局腾出空位，份例在这等你。',
       qiCap: cap,
-      qiRoom: room,
-      full: room <= 0,
+      qiRoom: 0,
+      full: true,
     };
   }
+  const gain = Math.min(w.daily.qi, room);
+  const lost = w.daily.qi - gain;
   state.daily.claimed = true;
   state.stats.dailyClaimed += 1;
   // 份例只补灵力：它是「今天练过了」的补给，不是工钱。灵石一分不给，
   // 那个只能靠切磋与秘境挣——两种货币的分工从第一笔收入就要成立。
-  state.resources.qi += w.daily.qi;
+  state.resources.qi += gain;
   const added = checkTitles(state);
-  addLog(state, '领了今日参悟的份例：灵力 +' + w.daily.qi, 'daily');
-  return { ok: true, qi: w.daily.qi, stone: 0, newTitles: added, qiCap: cap };
+  addLog(state, '领了今日参悟的份例：灵力 +' + gain + (lost > 0 ? '（气海只余 ' + room + ' 点，散 ' + lost + '）' : ''), 'daily');
+  return { ok: true, qi: gain, quota: w.daily.qi, lost: lost, room: room, stone: 0, newTitles: added, qiCap: cap };
+}
+
+// 以灵石换灵力。只此一向：灵石减、灵力加，反过来永远没有入口（理由见 economy.js 文件头）。
+//
+// 三条限制缺一不可：
+//   · 灵石够付；
+//   · 气海装得下这一份——装不下就换不了，钱能买油、买不来更大的油箱；
+//   · 只能是整数枚。
+// 装不下时不要把余额凑成「能装下的部分」硬换：玩家按的是一枚，扣的也该是一枚。
+function exchangeQi(state, count) {
+  const n = Math.max(1, Math.floor(num(count, 1)));
+  const gain = economyData.qiFromStone(n);
+  const stoneNow = Math.max(0, Math.floor(num(state.resources.stone, 0)));
+  if (stoneNow < n) {
+    return { ok: false, msg: '灵石不足：还差 ' + (n - stoneNow) + ' 枚', need: n - stoneNow };
+  }
+  const cap = qiCap(state);
+  const room = Math.max(0, cap - state.resources.qi);
+  if (room < gain) {
+    return {
+      ok: false,
+      msg: '气海只余 ' + room + ' 点，装不下 ' + gain + ' 点。先练一局再来换。',
+      qiCap: cap,
+      qiRoom: room,
+      need: gain,
+    };
+  }
+  state.resources.stone = stoneNow - n;
+  state.resources.qi += gain;
+  addLog(state, '以 ' + n + ' 枚灵石换得灵力 +' + gain, 'exchange');
+  const added = checkTitles(state);
+  return { ok: true, stones: n, qi: gain, qiCap: cap, newTitles: added };
+}
+
+// 兑换面板的报价。页面与结算走同一个 cap / room，按钮的亮灭与 exchangeQi 的判断因此不会打架。
+function exchangeQuote(state) {
+  const rate = economyData.QI_PER_STONE;
+  const stone = Math.max(0, Math.floor(num(state.resources.stone, 0)));
+  const cap = qiCap(state);
+  const room = Math.max(0, cap - state.resources.qi);
+  const byRoom = Math.floor(room / rate);
+  const can = Math.min(stone, byRoom);
+  let hint;
+  if (stone <= 0) hint = '灵石不足。切磋与秘境是唯二的来路，先去打一场。';
+  else if (room < rate) hint = '气海只余 ' + room + ' 点，装不下这一份。先练一局把灵力用掉，再来换。';
+  else hint = '本盘气海容得下 ' + byRoom + ' 枚。换来的灵力立刻可用，不必等闭关。';
+  return {
+    rate: rate,
+    stone: stone,
+    qi: state.resources.qi,
+    cap: cap,
+    room: room,
+    can: can,
+    ready: can >= 1,
+    hint: hint,
+  };
 }
 
 // ---------------------------------------------------------------- 参悟结算
@@ -842,7 +904,7 @@ function applyPractice(state, skillId, grade, options) {
   rec.prof += gain;
 
   // 运功的代价：灵力在起手时就烧掉了，走火也不退——这才是「走火」真正的分量。
-  // 参悟不再产灵力灵石：产出留在闭关（灵力）与对战（灵石），这一局只换熟练度。
+  // 参悟不再产灵力灵石：灵力的来路是闭关、份例与灵石兑换，灵石的来路只有对战。这一局只换熟练度。
   state.resources.qi -= qiCost;
 
   if (!wiped) {
@@ -1165,7 +1227,8 @@ function battle(state, challengeId, moveIds) {
   if (state.resources.qi < fight.qiCost) {
     return {
       ok: false,
-      msg: '灵力不足：这一场要运功 ' + fight.qiCost + ' 点，先回洞府打坐',
+      msg: '灵力不足：这一场要运功 ' + fight.qiCost + ' 点，先回洞府打坐'
+        + (state.resources.stone > 0 ? '，或用灵石换一些' : ''),
       lackQi: fight.qiCost - state.resources.qi,
       qiCap: qiCap(state),
     };
@@ -1263,7 +1326,8 @@ function battleMirror(state, code, moveIds) {
   if (state.resources.qi < fight.qiCost) {
     return {
       ok: false,
-      msg: '灵力不足：这一场要运功 ' + fight.qiCost + ' 点，先回洞府打坐',
+      msg: '灵力不足：这一场要运功 ' + fight.qiCost + ' 点，先回洞府打坐'
+        + (state.resources.stone > 0 ? '，或用灵石换一些' : ''),
       lackQi: fight.qiCost - state.resources.qi,
       qiCap: qiCap(state),
     };
@@ -1470,7 +1534,8 @@ function battleRival(state, rival, moveIds) {
   if (state.resources.qi < fight.qiCost) {
     return {
       ok: false,
-      msg: '灵力不足：这一场要运功 ' + fight.qiCost + ' 点，先回洞府打坐',
+      msg: '灵力不足：这一场要运功 ' + fight.qiCost + ' 点，先回洞府打坐'
+        + (state.resources.stone > 0 ? '，或用灵石换一些' : ''),
       lackQi: fight.qiCost - state.resources.qi,
       qiCap: qiCap(state),
     };
@@ -2108,6 +2173,8 @@ module.exports = {
   settleOffline: settleOffline,
   buffInfo: buffInfo,
   claimDaily: claimDaily,
+  exchangeQi: exchangeQi,
+  exchangeQuote: exchangeQuote,
   applyPractice: applyPractice,
   practiceCostOf: practiceCostOf,
   battle: battle,

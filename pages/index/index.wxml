@@ -36,8 +36,10 @@
           <text class="imm-stat__label">灵 力</text>
           <text class="imm-stat__value">{{ov.qi}}<text class="imm-stat__cap">/{{ov.qiMax}}</text></text>
         </view>
-        <view class="imm-stat">
-          <text class="imm-stat__label">灵 石</text>
+        <!-- 灵石是主页唯一能花的东西：点这一格开兑换。标一个「兑」字，
+             否则没人会想到数字能点。 -->
+        <view class="imm-stat imm-stat--tap pressable" hover-class="pressable--on" bindtap="onOpenExchange">
+          <text class="imm-stat__label">灵 石<text class="imm-stat__mark">兑</text></text>
           <text class="imm-stat__value">{{ov.stone}}</text>
         </view>
       </view>
@@ -64,7 +66,7 @@
           <text class="imm-row__name">{{copy.sections.today}}</text>
           <text class="imm-row__sub">{{dailyGain}}</text>
         </view>
-        <text class="imm-row__value">领取 ›</text>
+        <text class="imm-row__value">{{dailyAction}}</text>
       </view>
     </view>
 
@@ -101,6 +103,34 @@
       </view>
       <view class="modal__actions">
         <button class="imm-btn imm-btn--block" bindtap="closeOffline">{{copy.actions.confirm}}</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 灵石兑灵力：只此一向。反向（灵力换灵石）永远不开——挂机时长印钱是所有刷法的入口，
+       这一条写在 data/economy.js 的文件头。 -->
+  <view class="mask" wx:if="{{showExchange && exchange}}" bindtap="onCloseExchange">
+    <view class="modal" catchtap="noop">
+      <text class="modal__title">灵石兑灵力</text>
+      <text class="modal__sub">1 枚灵石 = {{exchange.rate}} 点灵力 · 换来即刻可用</text>
+      <view class="modal__body">
+        <view class="res-line">
+          <text class="muted">灵石</text>
+          <text class="h3">{{exchange.stone}} 枚</text>
+        </view>
+        <view class="res-line">
+          <text class="muted">灵力</text>
+          <text class="h3 jade">{{exchange.qi}} / {{exchange.cap}}</text>
+        </view>
+        <view class="res-line">
+          <text class="muted">气海空位</text>
+          <text class="h3">{{exchange.room}} 点</text>
+        </view>
+        <text class="tiny muted exchange__hint">{{exchange.hint}}</text>
+      </view>
+      <view class="modal__actions">
+        <button class="imm-btn imm-btn--ghost" bindtap="onCloseExchange">收起</button>
+        <button class="imm-btn" disabled="{{!exchange.ready}}" bindtap="onExchange">兑 1 枚 · +{{exchange.rate}}</button>
       </view>
     </view>
   </view>

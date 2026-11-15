@@ -22,12 +22,15 @@ Page({
     quickLabel: '去参悟',
     dailyReady: false,
     dailyGain: '',
+    dailyAction: '',
     idleReady: false,
     idleText: '',
     syncLabel: '',
     syncTone: 'ok',
     showOffline: false,
     offline: null,
+    showExchange: false,
+    exchange: null,
     copy: copy.UI,
   },
 
@@ -113,11 +116,15 @@ Page({
     const rec = engine.recommend(state);
     const bt = ov.breakthrough;
     const breakPercent = bt.maxed || bt.need <= 0 ? 100 : Math.min(100, Math.round(bt.power / bt.need * 100));
+    // 兑换面板要的数一次算清：页面不再自己拿灵石与气海再推一遍，
+    // 否则按钮亮着、点下去却说装不下——两处各算一次必漂。
+    const quote = engine.exchangeQuote(state);
 
     // 一行提示只报「下一步」，不讲原理；原理在「说明」页。
     let hintText = '今日之课：' + (rec.name || '去功法页择一门');
     const near = learned.filter(function (s) { return !s.maxed && s.percent >= 75; });
     near.sort(function (a, b) { return b.percent - a.percent; });
+
     // 灵力满着是最该被点出来的浪费：气海满了，挂机一分钟都不再生。
     // 它排「即将升段」之前，因为那是运营层面的损失，而升段只是进度上的好消息。
     if (ov.qiFull) hintText = '灵力已满 ' + ov.qi + ' / ' + ov.qiMax + ' · 去参一局，气海存不住更多了';
@@ -137,6 +144,8 @@ Page({
     }
 
     const dailyReady = !ov.daily.claimed && ov.daily.count >= ov.daily.target;
+    // 份例按空位领（引擎里就是这么算的），所以这一行写的数就是点下去真能拿到的数。
+    const dailyWill = Math.min(ov.daily.qi, ov.qiFree);
     const sync = store.getSyncStatus();
     let syncLabel = '';
     let syncTone = 'ok';
@@ -158,10 +167,17 @@ Page({
       breakPercent: breakPercent,
       hintText: hintText,
       dailyReady: dailyReady,
-      dailyGain: copy.formatGain(ov.daily.qi, ov.daily.stone),
+      // 领之前就写清能领多少：气海装不下时写「+60」再给 21，等于当场骗一次。
+      // 气海一点空位都没有时，这一行仍然出现（玩家得知道有份例），但动作改成「气海已满」，
+      // 别让人点一下才被告知领不了。
+      dailyAction: dailyWill > 0 ? '领取 ›' : '气海已满 ›',
+      dailyGain: dailyWill >= ov.daily.qi
+        ? copy.formatGain(dailyWill, 0)
+        : '灵力 +' + dailyWill + '（气海只余 ' + ov.qiFree + '）',
       quickSkillId: rec.id || (learned.length > 0 ? learned[0].id : ''),
       // 「参悟」进这一门的详情，「开始参悟」才开一局：两个词分别代表两件事，不再混用。
       quickLabel: rec.id ? '参悟 · ' + rec.name : copy.UI.actions.goSkills,
+      exchange: quote,
     });
     this.refreshIdle();
   },
@@ -172,7 +188,29 @@ Page({
 
   onClaimDaily: function () {
     const r = store.commitCritical(function (s) { return engine.claimDaily(s); });
-    toast(r.ok ? '份例已领：' + copy.formatGain(r.qi, r.stone) : r.msg);
+    if (!r.ok) { toast(r.msg); this.refresh(); return; }
+    // 装不下就领不到这件事曾经让玩家以为功能是坏的：数字没动，提示是一长串算术。
+    // 现在照实报「领到多少、散了几个」，一点余地都不留。
+    let msg = '份例已领：灵力 +' + r.qi;
+    if (r.lost > 0) msg += '（气海只余 ' + r.room + ' 点，余下 ' + r.lost + ' 散去）';
+    toast(msg);
+    this.refresh();
+  },
+
+  onOpenExchange: function () {
+    this.refresh();
+    this.setData({ showExchange: true });
+  },
+
+  onCloseExchange: function () { this.setData({ showExchange: false }); },
+
+  // 弹层里的空方法：点面板本身不该把面板关掉。
+  noop: function () {},
+
+  onExchange: function () {
+    const r = store.commitCritical(function (s) { return engine.exchangeQi(s, 1); });
+    if (!r.ok) { toast(r.msg); this.refresh(); return; }
+    toast('灵石 -' + r.stones + ' · 灵力 +' + r.qi);
     this.refresh();
   },
 

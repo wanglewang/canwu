@@ -160,6 +160,31 @@
     font-size: var(--fs-caption);
     font-weight: 400;
 }
+/* 灵石那一格可点：主页唯一能花钱的地方。按压反馈交给统一的 .pressable，
+   这里只把内边距补成负值，让热区比数字本身大一圈——数字那点高度不好按。 */
+.imm-stat--tap {
+    margin: -6rpx 0;
+    padding: 6rpx 0;
+}
+
+/* 「兑」字小印：贴着标签，字号压到 caption 下一档，不抢灵石那个数。 */
+.imm-stat__mark {
+    margin-left: var(--sp-2);
+    padding: 0 6rpx;
+    border: 1rpx solid var(--c-imm-gold-dim);
+    border-radius: 4rpx;
+    color: var(--c-imm-gold);
+    font-size: 18rpx;
+    letter-spacing: 0;
+}
+
+/* 兑换弹层里的一句话劝告：解释「为什么换不了」，不是报错。 */
+.exchange__hint {
+    display: block;
+    margin-top: var(--sp-4);
+    line-height: 1.6;
+    color: var(--c-imm-text-3);
+}
 
 /* 一行提示：一句话说下一步，不做胶囊盒 */
 .imm-hint {
@@ -464,6 +489,15 @@
 }
 
 .imm-btn--block { width: 100%; }
+/* 禁用态：原生 button[disabled] 会把底色刷成浅灰，深色主题里会冒出一块亮斑。
+   这里只压不透明度、换成面板底，让「按不了」读起来是暗下去，不是忽然变亮。 */
+.imm-btn[disabled] {
+    background-color: var(--c-imm-panel);
+    background-image: none;
+    border-color: var(--c-imm-line);
+    color: var(--c-imm-text-3);
+    opacity: 0.55;
+}
 .imm-btn--off {
     background: transparent;
     border: 1rpx solid var(--c-imm-line);
