@@ -189,12 +189,6 @@ function createTeach(ctx) {
   vm.extras.showProgress = false;
   vm.timeText = '教学 · 不计步';
 
-  function litCount() {
-    let k = 0;
-    for (let i = 0; i < n; i += 1) if (board[i]) k += 1;
-    return k;
-  }
-
   function paint() {
     for (let i = 0; i < n; i += 1) {
       vm.cells[i].cls = board[i] ? 'cell cell--lit' : 'cell cell--off';
@@ -207,12 +201,11 @@ function createTeach(ctx) {
   }
 
   function sync() {
-    const lit = litCount();
     vm.teachStep = Math.min(step + 1, TEACH_STEPS.length);
     vm.teachText = done ? TEACH_DONE : TEACH_TEXT[step];
     vm.goal = '教学 · 第 ' + vm.teachStep + ' / ' + TEACH_STEPS.length + ' 步';
-    vm.progress = C.pct(lit, n);
-    vm.progressText = '已亮 ' + lit + ' / ' + n + ' 盏';
+    // 教学盘同样不报「已亮几盏」：正式局没有这个数，教学里先教玩家看它，
+    // 等于教一个下一局就消失的判据。要看的只有翻转本身——哪几格一起变了。
     vm.status = vm.teachText;
     vm.scoreText = '教学中';
     vm.banner = '';

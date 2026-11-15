@@ -1554,12 +1554,13 @@ check('阵灯推演：盘面规格与步数预算同源、阵眼术语收敛、H
   // HUD 摆「已走 / 最优」对照，说明里也要讲清它不参与评级。
   assert.ok(/已走 ' \+ moves \+ ' 步/.test(lights) && /最优 ' \+ optimal \+ ' 步/.test(lights),
     'HUD 没把已走步数并进对照');
-  // 「已亮 N / M」不许回到对局 HUD：这一门的亮盏数与离解开还有多远无关，
+  // 「已亮 N / M」不许回到 HUD：这一门的亮盏数与离解开还有多远无关，
   // 实测正确的一手也可能让已亮数变少，摆出来就是一句反向信息。
-  // 教学盘单独一格（它本来就不计步，那行只是旁白），只看对局那一段。
+  // 教学盘也算在内——正式局没有这个数，教学里先教会玩家看它，
+  // 等于教一个下一局就消失的判据。整份文件一起守，不切片。
+  assert.ok(!/progressText\s*=/.test(lights) && !/vm\.progress\s*=/.test(lights),
+    'HUD 又把「已亮几盏 / 进度条」摆回来了（教学盘也不许）');
   const duel = lights.slice(lights.indexOf('function create(ctx)'), lights.indexOf('// 五档的宽窄写在这里'));
-  assert.ok(!/progressText\s*=/.test(duel) && !/vm\.progress\s*=/.test(duel),
-    '对局 HUD 又把「已亮几盏 / 进度条」摆回来了');
   assert.ok(/extras\.showProgress = false/.test(duel), '对局进度条没关');
   assert.ok(/extras\.showGradeNow = false/.test(duel), '局内评级徽章没关');
   assert.ok(!/本盘最少/.test(lights), 'HUD 还摆着容易误读的「本盘最少 N 步」');
