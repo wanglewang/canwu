@@ -590,6 +590,15 @@ check('四个属性各有一件正事：真元换气海、悟性省灵力、身�
   s.skills.shumu = { unlocked: true, prof: 99999, onboarded: true };  // 目术 +身法，练满
   assert.ok(game.shenFloorBonus(s) > base, '身法涨了，波动下限没跟着涨');
   assert.ok(game.shenFloorBonus(s) <= 0.10 + 1e-9, '身法波动超过了 10% 的封顶');
+
+  // 换算必须是「每 30 点 +1%」——注释、09-attributes 4.3、玩家指南第 55 行都这么写。
+  // 这条曾经掉过 10 倍（代码 1/300，身法 30 点就吃满封顶），而原来的断言只守「涨了、不超顶」，
+  // 两头都满足，漂移了也发现不了。这里用一个没封顶的独立存档反算每点系数。
+  const fresh = game.createNewState();
+  const shen = game.computeAttributes(fresh).shen || 0;
+  const perPoint = game.shenFloorBonus(fresh) / shen;
+  assert.ok(Math.abs(perPoint - 1 / 3000) < 1e-12,
+    '身法换算不是每 30 点 +1%：实测 ' + (perPoint * 30 * 100).toFixed(2) + '% / 30 点');
 });
 
 

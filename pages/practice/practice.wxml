@@ -133,10 +133,10 @@
       <text wx:if="{{!canStart}}" class="warn-note mt8">灵力 {{qi}} / {{qiMax}}，本局要 {{qiCost}} 点。回洞府闭关片刻即可补上；气海不够用时，破境或练真元都能拓深。</text>
       <text wx:else class="tiny diff-brief">耗灵力 {{qiCost}} · 余 {{qi}} / {{qiMax}}</text>
       <!-- 折减只在真的回关时出现一行：说清退了几关、熟练度折成多少、还叠不叠连 S。 -->
-      <text wx:if="{{belowCapText}}" class="warn-note mt8">{{belowCapText}}</text>
+      <text wx:if="{{retreatText}}" class="warn-note mt8">{{retreatText}}</text>
       <!-- 高档位还收紧了哪几处（亮起时长 / 口诀轮数…），一一摆出来。 -->
       <text wx:if="{{diffBrief}}" class="tiny diff-brief">{{diffBrief}}</text>
-      <!-- S 线随难度档变：局内只报「还差几分」，这一行给出本档总分门槛与评级口径。 -->
+      <!-- S 线随章变：局内只报「还差几分」，这一行给出本章总分门槛与评级口径。 -->
       <text wx:if="{{goalText}}" class="tiny diff-brief">{{goalText}}</text>
       <!-- 收益口径：只奖不罚，开局前就写清本局会不会吃到换门加成。 -->
       <text class="tiny diff-brief">{{repeatNote}}</text>

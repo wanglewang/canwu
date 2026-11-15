@@ -3,7 +3,7 @@
 // 品阶与难度体系常驻断言：零依赖，node tests/rank.test.js 直接跑。
 //
 // 一句话约定：熟练度只由「评级 + 连 S 层数」决定；品阶（天地玄黄）、难度档、境界只管
-// 「一局烧多少灵力」与战力。连 S 与低档折减互不串联 —— 任何一条被写回另一条身上，
+// 「一局烧多少灵力」与战力。连 S 与回关折减互不串联 —— 任何一条被写回另一条身上，
 // 这里的断言都要炸。参悟不产资源，灵力只从闭关、份例与灵石兑换来（data/economy.js）。
 
 const assert = require('assert');
@@ -170,17 +170,6 @@ check('难度档只由本门熟练度解锁', function () {
   for (const pair of samples) {
     assert.strictEqual(practice.diffIndexOf(pair[0]), pair[1], pair[0] + ' 解锁档位错误');
     assert.strictEqual(practice.bestDifficulty(pair[0]), practice.DIFFICULTIES[pair[1]].key);
-  }
-});
-
-check('difficultyList 标出未解锁档与所需熟练度', function () {
-  const list = practice.difficultyList(1500, 'hard');
-  assert.strictEqual(list.length, 5);
-  assert.strictEqual(list.filter(function (d) { return d.unlocked; }).length, 3);
-  assert.strictEqual(list[2].current, true);
-  for (let i = 3; i < list.length; i += 1) {
-    assert.strictEqual(list[i].unlocked, false);
-    assert.ok(list[i].lockedText.indexOf(String(list[i].need)) >= 0);
   }
 });
 
@@ -465,9 +454,11 @@ check('关卡由熟练度决定进度：越权回落、走火不倒退', functio
   assert.strictEqual(r3.wiped, true);
   assert.strictEqual(s.skills.jian.prof, before, '走火也涨了熟练度');
   assert.strictEqual(L.levelFromProf(s.skills.jian.prof), L.levelFromProf(before), '走火把关号推上去了');
-  // 读档兜底：没带 levelBest 的老档读出来是空表，不会变成 undefined。
-  const loaded = game.normalizeState({ skills: s.skills, worldId: s.worldId, levelBest: s.levelBest });
-  assert.ok(loaded.levelBest && typeof loaded.levelBest === 'object');
+  // 老存档里还带着 levelBest，读档时整条忽略、不报错，也不会再被当成进度。
+  const loaded = game.normalizeState({ skills: s.skills, worldId: s.worldId, levelBest: { jian: 999 } });
+  assert.ok(!('levelBest' in loaded), 'levelBest 该已退役，却还在存档结构里');
+  assert.strictEqual(L.levelFromProf(loaded.skills.jian.prof), L.levelFromProf(s.skills.jian.prof),
+    '关号仍该由熟练度算，不能被老字段带偏');
 });
 
 check('关卡越界夹回、章末取本章末关，段号一关一段', function () {
@@ -505,7 +496,7 @@ check('滑块让路：预算系数随档收紧，但永不压到 C 线以下', f
   }
   assert.ok(seen[0] - seen[seen.length - 1] > 0.5, '五档预算系数几乎没有差别：' + seen.join(' / '));
 
-  // 章内也要收：同一档的一章 40 段里，预算只许紧不许松。
+  // 章内也要收：一章 40 关里，预算只许紧不许松。
   const m = practice.getMethod('rongdao');
   let last = null;
   for (let lv = 401; lv <= 600; lv += 5) {

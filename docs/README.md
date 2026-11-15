@@ -29,7 +29,7 @@ docs/
 │   ├── 04-proficiency.md            熟练度体系：六段阈值与两条产出线
 │   ├── 05-grade.md                  评级 S / A / B / C / F 的判定与语义
 │   ├── 06-combo.md                  连 S 叠倍率：唯一的高档回报
-│   ├── 07-difficulty.md             难度五档、默认档与低档折减
+│   ├── 07-difficulty.md             200 关、章与回关折减
 │   ├── 08-realm.md                  境界与突破
 │   ├── 09-attributes.md             人物属性四项与各自的出口
 │   ├── 10-power.md                  战力计算与切磋判定

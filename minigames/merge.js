@@ -32,7 +32,7 @@ function create(ctx) {
   // 起手块数按档递增：少一格空地，同数就更难凑到一处，高档不是只把目标数字改大。
   const startTiles = Math.max(2, Math.min(5, p.startTiles || 2));
   // 起手给 4 的概率：越往后越少白送 4。这是这一门在章内唯一能连续收紧的量——
-  // 目标块是一档一档翻倍的，中间没有可微调的地方，真要靠它每五关变一次做不到。
+  // 目标块是一档一档翻倍的，中间没有可微调的地方，真要靠它每关变一次做不到。
   const fourRate = Math.max(0.1, Math.min(0.6, typeof p.fourRate === 'number' ? p.fourRate : 0.4));
   const costText = ctx.tip || '推不动就完了：盘满且相邻没有同数';
 

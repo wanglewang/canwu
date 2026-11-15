@@ -939,7 +939,7 @@ check('文案真源：跨页复用文案只在 data/copy.js 写一次', function
     assert.ok(/copy: copy\.UI/.test(js), name + ' 没有把文案挂进 data');
   }
   // 「参悟」是入口，「开始参悟」才是打一局，两级不许混成一个词：
-  //   practice = 从功法列表点进参悟页（不开局，还要选难度、看这一门）
+  //   practice = 从功法列表点进参悟页（不开局，看关卡与这一门）
   //   start    = 在参悟页里真的打一局（换熟练度）
   assert.ok(copy.UI.actions.start === '开始参悟', '打一局的按钮不叫「开始参悟」');
   assert.ok(copy.UI.actions.practice === '参悟', '进详情的按钮不叫「参悟」');
@@ -1389,12 +1389,12 @@ check('只奖不罚：连练递减全站清零，换门的「省气」有单一�
   assert.ok(/copy\.practiceNote/.test(read('pages/practice/practice.js'))
     && /repeatNote/.test(read('pages/practice/practice.wxml')),
     '准备页没把「连练不减收益」写在开局前');
-  // 只刷简单反超逐档升的坑：收益按档差折半，连 S 又只在最高档叠。
+  // 只刷第 1 关反超逐关进的坑：收益按本关÷当前关折，连 S 又只在当前关叠。
   // 现在既要它别再出现，也要有断言把它钉住。
-  assert.ok(!/WARN 只刷简单的熟练度反超/.test(read('scripts/simulate.js')),
+  assert.ok(!/WARN 只刷/.test(read('scripts/simulate.js')),
     '反超问题已修，模拟里不该还挂着这条 WARN');
-  assert.ok(/只刷简单不该反超逐档升/.test(read('scripts/simulate.js')),
-    '没有断言守着「只刷简单不许反超逐档升」');
+  assert.ok(/只刷第 1 关不该反超逐关进/.test(read('scripts/simulate.js')),
+    '没有断言守着「只刷第 1 关不许反超逐关进」');
 });
 
 check('功法页默认排序与主页推荐同一份口径', function () {

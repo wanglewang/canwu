@@ -77,9 +77,9 @@ function qiByDiff(skillId) {
   });
 }
 
-// 固定灵力预算下能练成什么样：模式只有三种，全按「本门最高已解锁档」推算当前可选档。
-// 预算制而不是局数制，是因为灵力才是约束——同样的局数在低档要烧的气少得多，
-// 拿局数比会让「刷简单」显得划算。
+// 固定灵力预算下能练成什么样：几种模式都按「关由熟练度算出」推当前关。
+// 预算制而不是局数制，是因为灵力才是约束——同样的局数在前面的章要烧的气少得多，
+// 拿局数比会让「刷第 1 关」显得划算。
 function runBudget(opts) {
   const state = game.createNewState();
   state.skills[opts.skillId].unlocked = true;
@@ -124,7 +124,7 @@ function runBudget(opts) {
   };
 }
 
-// 全 C 通关：一路按默认档（本门最高已解锁档）走，记录每段用了多少局、烧了多少气。
+// 全 C 通关：一路按本门当前关走，记录每章用了多少局、烧了多少气。
 function fullCRun() {
   const state = game.createNewState();
   state.skills.jian.unlocked = true;
@@ -147,7 +147,7 @@ function fullCRun() {
   return { runs: runs, prof: state.skills.jian.prof, milestones: milestones, spent: spent, state: state };
 }
 
-// 全程不断 S：每局都打本门最高已解锁档，连击从第 1 连一路叠到封顶。
+// 全程不断 S：每局都打本门当前关，连击从第 1 连一路叠到封顶。
 function fullSRun() {
   const state = game.createNewState();
   state.skills.jian.unlocked = true;
@@ -209,7 +209,7 @@ for (let i = 0; i < tianTable.length; i += 1) {
 }
 
 const fullC = fullCRun();
-console.log('\n== 全 C 通关：按默认档一路走到大圆满 ==');
+console.log('\n== 全 C 通关：一路打本门当前关走到大圆满 ==');
 console.log('  段位        局数   门槛');
 for (let t = 1; t < world.TIERS.length; t += 1) {
   console.log('  ' + world.TIERS[t].name.padEnd(10) + fmt(fullC.milestones[t - 1])
@@ -218,7 +218,7 @@ for (let t = 1; t < world.TIERS.length; t += 1) {
 console.log('  共烧灵力 ' + fullC.spent + ' 点 ≈ 闭关 ' + Math.round(fullC.spent / QI_PER_MIN / 60) + ' 小时');
 
 const fullS = fullSRun();
-console.log('\n== 全程不断 S：按默认档一路走到大圆满 ==');
+console.log('\n== 全程不断 S：一路打本门当前关走到大圆满 ==');
 console.log('  段位        局数   门槛');
 for (let t = 1; t < world.TIERS.length; t += 1) {
   console.log('  ' + world.TIERS[t].name.padEnd(10) + fmt(fullS.milestones[t - 1])
@@ -228,10 +228,10 @@ console.log('  共烧灵力 ' + fullS.spent + ' 点 ≈ 闭关 ' + Math.round(fu
 
 const BUDGET = 6000;
 const strategies = [
-  { name: '黄阶 · 只刷简单', skillId: 'jian', realmIndex: 0, mode: 'easy' },
-  { name: '黄阶 · 逐档升', skillId: 'jian', realmIndex: 0, mode: 'auto' },
-  { name: '黄阶 · 退一档刷', skillId: 'jian', realmIndex: 0, mode: 'below' },
-  { name: '天阶 · 逐档升', skillId: 'taixu', realmIndex: 3, mode: 'auto' },
+  { name: '黄阶 · 只刷第 1 关', skillId: 'jian', realmIndex: 0, mode: 'easy' },
+  { name: '黄阶 · 逐关进', skillId: 'jian', realmIndex: 0, mode: 'auto' },
+  { name: '黄阶 · 退一章', skillId: 'jian', realmIndex: 0, mode: 'below' },
+  { name: '天阶 · 逐关进', skillId: 'taixu', realmIndex: 3, mode: 'auto' },
   { name: '黄阶 · 金丹后', skillId: 'jian', realmIndex: 2, mode: 'auto' },
 ];
 
@@ -337,7 +337,7 @@ expect(afterAbort.comboNow === 1 && afterAbort.gain === 34, '收功断连后下�
 for (const d of practice.DIFFICULTIES) {
   const s = game.createNewState();
   s.skills.jian.unlocked = true;
-  s.skills.jian.prof = d.need;   // 正好解锁这一档 = 最高档，不吃低档折减
+  s.skills.jian.prof = d.need;   // 正好到这一章首关 = 当前关，不吃回关折减
   s.resources.qi = 1e6;
   const r = game.applyPractice(s, 'jian', 'C', { difficulty: d.key, score: 0 });
   expect(r.gain === world.PROF_BASE.C,
@@ -467,11 +467,11 @@ expect(wipedRun.gain === 0 && wipedRun.comboNow === 0
   && wipedState.resources.qi === 200 - wipedRun.qiCost,
   '走火：熟练度 0、连 S 归零，已扣的 ' + wipedRun.qiCost + ' 点灵力不退');
 
-// ⑬ 预算制护栏：只刷简单 / 退一档刷都不该反超逐档升。
+// ⑬ 预算制护栏：只刷第 1 关 / 退一章都不该反超逐关进。
 expect(easy.prof <= auto.prof,
-  '同样 ' + BUDGET + ' 点灵力，只刷简单不该反超逐档升（' + easy.prof + ' vs ' + auto.prof + '）');
+  '同样 ' + BUDGET + ' 点灵力，只刷第 1 关不该反超逐关进（' + easy.prof + ' vs ' + auto.prof + '）');
 expect(belowOne.prof <= auto.prof,
-  '同样 ' + BUDGET + ' 点灵力，退一档刷也不该反超逐档升（' + belowOne.prof + ' vs ' + auto.prof + '）');
+  '同样 ' + BUDGET + ' 点灵力，退一章也不该反超逐关进（' + belowOne.prof + ' vs ' + auto.prof + '）');
 expect(decayed.prof < auto.prof,
   '金丹后练黄阶（耗气 ×' + economy.REALM_OVER + '）进度明显变慢（' + decayed.prof + ' vs ' + auto.prof + '）');
 expect(tian.profGain / Math.max(1, tian.spent) > auto.profGain / Math.max(1, auto.spent) * 0.5,

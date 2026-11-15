@@ -574,7 +574,7 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
       // 不用反斜杠转义（这个仓库的文件混着 CRLF / LF，手写 \\s 极易在转手中变成字面 s）：
       // 空格用字符类，点号用 [.]，词尾用否定前瞻。
       if (!new RegExp('(p|params)[ ]*[.][ ]*' + knobKey + '(?![a-zA-Z])').test(knobSrc)) {
-        errors.push('minigames/' + knobGame + '.js 没读 ' + knobKey + '：章内旋钮只生成不消费，界面报的「本段变化」就是假话');
+        errors.push('minigames/' + knobGame + '.js 没读 ' + knobKey + '：章内旋钮只生成不消费，界面报的「本关变化」就是假话');
         continue;
       }
       checked += 1;

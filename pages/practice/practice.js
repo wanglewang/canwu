@@ -96,8 +96,6 @@ Page({
     levelMax: 200,
     levelSub: '',
     levelChange: '',
-    levelBest: 0,
-    diffList: [],
     diffName: '简单',
     rankLabel: '黄阶',
     rankChar: '黄',
@@ -120,8 +118,8 @@ Page({
     stoneCost: 0,
     canStart: true,
     costText: '',
-    // 低于本门最高已解锁档时的折减提示；没折减就是空串，整行不出现。
-    belowCapText: '',
+    // 回关时的折减提示；没回关就是空串，整行不出现。
+    retreatText: '',
     // 「这一门」= 原来功法详情页那几段（来历 / 风味 / 练成之后）。
     // 合并之后它折在开局卡最后：想看的点开，不想看的当它不存在，首屏不多一个字。
     archive: null,
@@ -215,7 +213,7 @@ Page({
     this.lastTouchY = 0;
     this.theme = themes.themeOf('forge', 'click');
     this.twist = '';
-    // 难度默认值不落存档：每次进这一页都按本门熟练度重算（默认最高已解锁档）。
+    // 关卡不落存档：每次进这一页都按本门熟练度重算（默认本门当前关）。
     // levelOverride 只记「这一次停留里玩家自己翻到第几关」，换页即弃——
     // 否则半年前点过一次简单档，练到圆满也永远默认简单。
     this.levelOverride = 0;
@@ -305,7 +303,6 @@ Page({
         nextText: '目标 ' + info.nextName,
         nextBenefit: '',
         diffBrief: '',
-        diffList: [],
         diffName: '',
         rankLabel: '',
         rankChar: '',
@@ -318,7 +315,7 @@ Page({
         twistName: '',
         // 冲关只有一句话的规则，不存在「本门新法」与难度块。
         ruleText: '按住蓄力，松手停在朱线区间；越贴近正中，评级越高。',
-        belowCapText: '',
+        retreatText: '',
         stageOpen: false,
         stageSummary: '',
         stageBrief: '',
@@ -348,8 +345,7 @@ Page({
     const levelMax = curLevel;
     const diffKey = practiceData.DIFFICULTIES[levelData.chapterOf(level)].key;
     const diff = practiceData.diffDetail(method, diffKey);
-    const diffList = practiceData.difficultyList(rec.prof, diffKey);
-    const belowCapText = practiceData.retreatText(level, curLevel);
+    const retreatText = practiceData.retreatText(level, curLevel);
     // 本局要烧的灵力，与结算走同一个函数（engine.practiceCostOf）。
     // 面板与结算各算一遍的话，最后一定会出现「写 17、扣 24」这种对不上的账。
     const qiCost = engine.practiceCostOf(state, skill.id, level);
@@ -357,14 +353,6 @@ Page({
     const qiMax = engine.qiCap(state);
     const canStart = qiNow >= qiCost;
     const costText = '耗灵力 ' + qiCost + ' · 余 ' + qiNow + ' / ' + qiMax;
-    // 五个胶囊各写自己的耗气：低档便宜、高档贵，玩家在选之前就看得到代价。
-    // 这是难度面板上唯一还与资源有关的数——收益倍率已经随「参悟不产资源」一起退役了。
-    // 五档胶囊各报「这一档首关」的价：回关到章首就是最便宜的那一局。
-    diffList.forEach(function (d, i) {
-      d.qiText = '灵力 ' + engine.practiceCostOf(state, skill.id, levelData.chapterRange(i).from);
-      d.locked = !d.unlocked;
-    });
-
     const best = state.records ? state.records[skill.id] : null;
     const bestText = best ? '本门最佳 ' + best.score + ' 分 · ' + best.grade + ' 档' : '';
 
@@ -484,7 +472,6 @@ Page({
         if (!d.length) return '第 ' + level + ' 关与上一关规格相同（章内只收紧时辰与预算，盘面规格换章才换一副）';
         return '本关变化：' + d.map(function (x) { return x.text; }).join(' · ');
       })(),
-      diffList: diffList,
       diffName: diff.name,
       qi: qiNow,
       qiMax: qiMax,
@@ -493,7 +480,7 @@ Page({
       stoneCost: 0,
       canStart: canStart,
       costText: costText,
-      belowCapText: belowCapText,
+      retreatText: retreatText,
       // 高难度除了更贵还收紧了什么：diffDetail 已经算好了（亮起时长、口诀轮数…），
       // 以前只在数据里躺着没渲染，玩家只能看到「×1.70」。
       diffBrief: diff.brief,
@@ -1407,9 +1394,10 @@ Page({
         : [
           // 三连晋级取消后，这一栏就是本局实得点数，与 profAfter - profBefore 严格对齐。
           { k: '熟练度', v: r.gain > 0 ? '+' + r.gain : '已圆满' },
-          // 关卡进度只在真的往前推了一步时报；重打旧关卡不刷这一行。
+          // 打的是本门当前关就写「当前关」，往回翻就写「回关」——
+          // 不写「已通」：一局能跨三四关，中间那些关玩家并没打过。
           // 冲关局没有关卡，这一栏整条不出现。
-          ...(r.level > 0 ? [{ k: '关卡', v: r.levelUp ? '第 ' + r.level + ' 关 已通' : '第 ' + r.level + ' 关 重练' }] : []),
+          ...(r.level > 0 ? [{ k: '关卡', v: '第 ' + r.level + ' 关' + (r.levelWasCurrent ? '（本门当前）' : ' · 回关') }] : []),
           { k: '灵力', v: '−' + r.qiCost + ' · 余 ' + r.qiAfter + ' / ' + r.qiMax },
           { k: '局内得分', v: String(res.score || 0) },
         ];

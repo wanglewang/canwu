@@ -25,7 +25,7 @@ const levelData = require('./levels.js');
 //   类型 → 玩什么（游戏族，见 FAMILIES）
 //   兵器 → 怎么动（刀法走 click；剑 profile 预留，先不做剑法）
 //   品阶 → 战力加成与灵力灵石倍率（见 TIERS，天地玄黄；不加速熟练度）
-//   熟练度 → 可选难度档（见 DIFFICULTIES）
+//   熟练度 → 关卡（200 关，章由关号反推；见 DIFFICULTIES 的五档表）
 //   境界 → 可修上限与收益衰减（品阶的 maxRealm）
 
 const PRACTICE_METHODS = [
@@ -329,7 +329,7 @@ function bestDifficulty(prof) {
 //
 //   当前第 40 关，回打第 40 关 → ×1.00
 //   当前第 40 关，回打第 30 关 → ×0.75
-//   当前第 40 关，回打第 1  关 → ×0.03
+//   当前第 40 关，回打第 1  关 → ×0.025
 //
 // 为什么不用「每档折半」：档只有五级，同一章内第 1 关与第 40 关的折减系数都是 1，
 // 而第 1 关的 S 率远高于第 40 关——**档内折减是空的**。老版最优点就是「在本章内刷第 1 关」，
@@ -361,27 +361,6 @@ function retreatText(level, curLevel) {
 // 小系数也要原样显示，toFixed(2) 会把 0.0625 写成 0.06 骗人。
 function factorText(f) {
   return '×' + String(Math.round(f * 10000) / 10000);
-}
-
-// 给选择器用的五档列表，含解锁状态与所需熟练度。
-function difficultyList(prof, current) {
-  const idx = diffIndexOf(prof);
-  const cur = current || DIFFICULTIES[idx].key;
-  return DIFFICULTIES.map(function (d, i) {
-    return {
-      key: d.key,
-      name: d.name,
-      // 胶囊上给的是这一档的耗气基数：玩家真正要权衡的就是它，倍率早就不存在了。
-      qiBase: d.qi,
-      qiText: '灵力 ' + d.qi,
-      below: i < idx,
-      need: d.need,
-      desc: d.desc,
-      unlocked: i <= idx,
-      current: d.key === cur,
-      lockedText: i <= idx ? '' : '需 ' + d.need + ' 熟练度',
-    };
-  });
 }
 
 // 五档的「时辰」共用一根尺子：所有带 duration / timeLimit 的玩法逐档收 3%。
@@ -801,7 +780,7 @@ function buildParams(method, diffKey) {
   return rawParams(method, difficultyOf(diffKey).depth);
 }
 
-// 章内收紧：一章 40 段，第 40 段比第 1 段紧三成。这个数只乘「越短越难」的量，
+// 章内收紧：一章 40 关，末关比首关紧三成。这个数只乘「越短越难」的量，
 // 不碰盘面规格——6 列混 7 列算出来还是 6 列，那是假变化。
 const LEVEL_TIGHTEN = 0.30;
 const LEVEL_TIME_KEYS = ['duration', 'timeLimit', 'interval', 'flashMs', 'gapMs', 'windowMs',
@@ -809,8 +788,9 @@ const LEVEL_TIME_KEYS = ['duration', 'timeLimit', 'interval', 'flashMs', 'gapMs'
   'window', 'penaltySec'];
 
 // 某一关的完整参数。一段一关，所以相邻两关本该逐位不同——但「本该」不等于「一定」：
-// 规格类玩法（阵灯 31 级台阶 / 合术 36 / 摘魁 37 / 数术 52）的可动范围只有三五十格，
-// 其余各关参数一字不动。界面据实报「与上一关规格相同」，见 `levelDelta`。
+// 七门的可动范围只够三五十格到一百多格（点灯破阵 31 / 踏云连环 36 / 一眼摘魁 37 /
+// 扫目逐数 52 / 万石成岳 108 / 吐纳周天 123 / 让主出阵 166），其余各关参数一字不动。
+// 界面据实报「与上一关规格相同」，见 `levelDelta`。
 //
 // 章内只做一件事：把本档的时间与预算按段收紧，方向永远是「更难」。
 // 不朝下一章插值——九宫从 4×4 换 6×6 时下一章的时间反而更多（换盘要留读盘时间），
@@ -1083,7 +1063,6 @@ module.exports = {
   profByLevel: profByLevel,
   retreatText: retreatText,
   factorText: factorText,
-  difficultyList: difficultyList,
   buildParams: buildParams,
   buildParamsAt: buildParamsAt,
   levelDelta: levelDelta,

@@ -127,7 +127,7 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 | 熟练度 | `game.applyPractice` | 存档 |
 | 灵力上限 | `economy.qiCapOf` | 页面、引擎 |
 | 战力 | `game.powerDetail` | 页面、引擎 |
-| 进度百分比 | `practice.profBelowCap` / `TIERS` | 页面 |
+| 进度百分比 | `game.tierInfo` / `TIERS` | 页面 |
 
 **每一行只有一个出处**。比如「S 线」在局内 HUD、结算、说明页三处出现，但都来自同一个 `lines()`——这是 `gradeLines()` 存在的理由。
 

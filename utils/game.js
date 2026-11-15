@@ -86,11 +86,8 @@ function createNewState() {
     },
     // 每门功法的局内最佳：{ score, grade, at }，用于「破纪录」反馈与功法页展示。
     records: {},
-    // 每门功法连续拿到 S 的层数（0..COMBO_MAX）：只在最高已解锁档累计，10 层封顶。
+    // 每门功法连续拿到 S 的层数（0..COMBO_MAX）：只在本门当前关累计，10 层封顶。
     sCombo: {},
-    // 每门功法已通的最高关（1..999）。关卡是主线进度，只增不减；
-    // 难度档由关号反推，所以这一份数就是「这门练到第几关了」的唯一记法。
-    levelBest: {},
     // 各门功法被玩家手动关掉的阶段新法：{ 功法 id: ['逆诵', ...] }。
     // 逆诵 / 死门这类是「改规则」，不是「给便利」——练到解锁就该能关，
     // 否则想安心练基础记忆的人没有退路。缺省为空 = 全开（老存档自动是这个行为）。
@@ -162,13 +159,6 @@ function normalizeState(input) {
   base.realmIndex = Math.floor(num(raw.realmIndex, 0));
   const maxRealm = worldData.getWorld(base.worldId).realms.length - 1;
   if (base.realmIndex > maxRealm) base.realmIndex = maxRealm;
-
-  // 关卡进度：老存档没有这一栏，读档补空表；只认 1..999 的整数。
-  const rawLv = raw.levelBest && typeof raw.levelBest === 'object' ? raw.levelBest : {};
-  for (let i = 0; i < skillData.SKILLS.length; i += 1) {
-    const lv = Math.floor(num(rawLv[skillData.SKILLS[i].id], 0));
-    if (lv > 0) base.levelBest[skillData.SKILLS[i].id] = Math.max(1, Math.min(levelData.LEVEL_MAX, lv));
-  }
 
   for (let i = 0; i < skillData.SKILLS.length; i += 1) {
     const s = skillData.SKILLS[i];
@@ -436,7 +426,11 @@ function qiCap(state) {
 // 身法给的切磋波动下限：每 30 点 +1%，封顶 +10%。
 // 它和 variance 特效走同一条出口（rollBattle 的 floor），所以两者能叠加、也有同一个上限。
 // 为什么要给身法一个独立出口：四个属性若都只进战力，玩家练哪门都一样，练功就没有方向。
-const SHEN_FLOOR_PER = 1 / 300;
+// 系数 = 1/3000 而不是 1/300：1/300 是「每 3 点 +1%」，身法 30 点就吃满 10% 封顶，
+// 之后再堆一点用都没有——身法会变成只在开局有用的属性，与 200 关的长线养成相反。
+// 1/3000 下开局 11 点只 0.37%、十九门全大圆满 151 点约 5%，封顶 10% 留到以后扩属性。
+// 这条换算在 09-attributes 4.3 与玩家指南第 55 行都写着「每 30 点 +1%」，三处必须一致。
+const SHEN_FLOOR_PER = 1 / 3000;
 const SHEN_FLOOR_MAX = 0.10;
 
 function shenFloorBonus(state) {
@@ -764,10 +758,6 @@ function applyPractice(state, skillId, grade, options) {
   const wantLevel = Math.max(1, Math.round(num(opts.level, hintedLevel)));
   const levelFellBack = wantLevel > curLevel;
   const playedLevel = Math.min(curLevel, wantLevel);
-  if (!state.levelBest) state.levelBest = {};
-  const levelBestBefore = Math.max(0, Math.floor(num(state.levelBest[skillId], 0)));
-  if (grade !== 'F' && playedLevel > levelBestBefore) state.levelBest[skillId] = playedLevel;
-  const levelBestAfter = Math.max(levelBestBefore, state.levelBest[skillId] || 0);
   const beforeTier = tierIndex(rec.prof);
   const profBefore = rec.prof;
   // 战力是阶梯值：属性 = 功法条目 × 段位系数，段位不跳战力就不动。
@@ -816,9 +806,8 @@ function applyPractice(state, skillId, grade, options) {
     };
   }
 
-  // 难度档只认这门功法自己的熟练度；越权选高档（例如改页面参数）自动回落到已解锁的最高档。
-  // 没传难度就按「本门最高已解锁档」结算：老默认是 easy，会让没带参数的调用在高段位被静默折半。
-  // 难度档由关卡反推：章 = 档。不再有「选档」这件事——关能到哪，档就在哪。
+  // 章由关卡反推（章 = 档），不再有「选档」这件事：关能到哪，章就在哪。
+  // 越权挑关（例如改页面参数）在下面被夹回本门当前关，不会白送熟练度。
   const diff = practiceData.DIFFICULTIES[levelData.chapterOf(playedLevel)];
   // 回关折减现在只作用一处：基础熟练度按「本关 ÷ 当前关」连续折（见 practice.profByLevel）。
   // 耗气不跟着折——回关本来就便宜（7 点起），再折会让「回关刷分」变成省气的聪明选择。
@@ -826,8 +815,8 @@ function applyPractice(state, skillId, grade, options) {
   const belowCap = lowFactor < 1;
   const diffGap = curLevel - playedLevel;
 
-  // 连 S 与低档完全解耦：只有最高已解锁档的 S 才叠层，本局按 34 × 1.5^(层数-1) 独立取整；
-  // 低档局不叠层、不砍连击收益、层数原样保留；走火（F）不分档位一律断连。
+  // 连 S 与回关完全解耦：只有本门当前关的 S 才叠层，本局按 34 × 1.5^(层数-1) 独立取整；
+  // 回关局不叠层、不砍连击收益、层数原样保留；走火（F）不分关一律断连。
   // 到 PROF_MAX 后熟练度封顶，但层数与纪录照常、灵力照扣：大圆满是数值毕业，不是不许再练。
   if (!state.sCombo) state.sCombo = {};
   const comboBefore = Math.min(worldData.COMBO_MAX, Math.floor(num(state.sCombo[skillId], 0)));
@@ -948,11 +937,10 @@ function applyPractice(state, skillId, grade, options) {
   return {
     ok: true,
     grade: grade,
-    // 关卡进度：走完这一局才把「已通」推到这一关，界面据此报「第 N 关 已通」。
+    // 打的是不是本门当前关。不再报「已通」——关只增不增、一局能跨三四关，
+    // 中间那些关玩家根本没打过，说「已通」是假话。
     level: playedLevel,
-    levelBest: levelBestAfter,
-    levelUp: levelBestAfter > levelBestBefore,
-    levelBestBefore: levelBestBefore,
+    levelWasCurrent: playedLevel >= curLevel,
     // 走火＝作废：页面据此把收益行显示成「无」，而不是一排 +0。
     wiped: wiped,
     gradeTitle: copy.GRADE_TITLE[grade] || '粗浅',

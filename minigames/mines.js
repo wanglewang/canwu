@@ -30,7 +30,7 @@ const FLAG_GLYPH = '⚑';   // 阵钉：长按钉下的记号，仍是个通用�
 // 6×6 沿用 25/45/75，9×9 是 56/101/169。复杂度已经交给盘面与禁制数承担，
 // 秒表只负责让一局别拖太久——把 9×9 也卡在 25 秒，那不叫难，那叫不可能。
 //
-// lineScale 是章内的唯一旋钮：data/levels.js 按段把三条线压到 70%（第 40 段）。
+// lineScale 是章内的唯一旋钮：data/levels.js 按关把三条线压到 70%（章末第 40 关）。
 // 盘面与禁制数只在换章时变，章内 200 关靠这一条收紧——所以它必须真被读走。
 // 一度它只是被 buildParamsAt 生成、没有任何人消费，界面照样报「S 线 −3%」，
 // 而盘面一关都没变：那是屏幕上的一句谎话。
@@ -48,7 +48,7 @@ function create(ctx) {
   const rows = p.rows || 6;
   const n = cols * rows;
   // 本盘的三条时间线：跟着格数走（6×6 是 25/45/75，9×9 是 56/101/169），
-  // 再乘章内那一段的 lineScale（第 40 段 70%）。
+  // 再乘章内那一关的 lineScale（第 40 关 70%）。
   const line = gradeLine(n, p.lineScale);
   const depth = Math.max(0, Math.min(4, typeof p.depth === 'number' ? p.depth : 0));
   // 禁制数已由 buildParams 按 goal 缩放过（简单 5 → 绝境 8）。
