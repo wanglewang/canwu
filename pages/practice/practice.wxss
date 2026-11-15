@@ -158,6 +158,31 @@
     white-space: nowrap;
 }
 
+/* 开局底栏里的代价行：耗气 / 布阵灵石。它是底栏唯一的读数，
+   所以不换行、不省略——「灵气 −17」被截成「灵气 −1」比不写还糟。 */
+.start-cost {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: right;
+    color: var(--c-imm-text-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.start-cost--lack {
+    color: var(--c-imm-danger);
+}
+
+/* 付不起时金按钮照样可点：点它不是开局，而是弹「差多少、去哪儿补」。
+   做成死按钮的话，玩家只会以为页面卡住了。 */
+.pg .btn--off {
+    background: transparent;
+    border: 1rpx solid var(--c-imm-gold-dim);
+    color: var(--c-imm-gold-dim);
+    box-shadow: none;
+}
+
 /* ---------- 局内 HUD ---------- */
 .pr-play {
     padding: 26rpx 28rpx 24rpx;

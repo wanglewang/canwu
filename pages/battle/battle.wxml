@@ -29,8 +29,8 @@
           <text class="riv-tone--{{item.hintTone}}">{{item.hint}}</text>
         </view>
         <text wx:if="{{item.dropName && !item.cleared}}" class="riv-drop">首胜掉落《{{item.dropName}}》</text>
-        <text wx:elif="{{item.dropName}}" class="riv-note">首胜功法已得，再战只给灵气与灵石</text>
-        <text wx:else class="riv-note">灵气 +{{item.qi}} · 灵石 +{{item.stone}}</text>
+        <text wx:elif="{{item.dropName}}" class="riv-note">首胜功法已得，再战只给灵石</text>
+        <text wx:else class="riv-note">运功 −{{item.qiCost}} 灵气 · 灵石 +{{item.stoneNow}}<text wx:if="{{item.stoneFactor < 1}}">（今日第 {{ov.battleWins + 1}} 场 ×{{item.stoneFactor}}）</text></text>
       </view>
       <button class="imm-btn imm-btn--sm {{item.cleared ? 'imm-btn--ghost' : ''}}" data-id="{{item.id}}" bindtap="onFight">{{item.cleared ? copy.actions.rechallenge : copy.actions.challenge}}</button>
     </view>

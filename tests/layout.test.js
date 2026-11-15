@@ -1275,7 +1275,7 @@ check('燃灯诀：简介对齐熄灯谜题，死门误触有独立触感', func
     '提示按钮名没和 HUD 统一');
 });
 
-check('境界衰减：文案只从 copy.js 出，讲清人物境界与三成落在哪', function () {
+check('境界超限：文案只从 copy.js 出，讲清加价的是耗气而不是熟练度', function () {
   const copy = require('../data/copy.js');
   const page = read('pages/practice/practice.js');
   const eng = read('utils/game.js');
@@ -1284,8 +1284,8 @@ check('境界衰减：文案只从 copy.js 出，讲清人物境界与三成落�
   assert.ok(/copy\.decayText\(/.test(eng), '图鉴又自己拼衰减文案');
   assert.ok(!/收益只剩三成/.test(page) && !/收益仅剩 30%/.test(eng), '还有硬编码的衰减句');
   const below = copy.decayText('below', '金丹');
-  assert.ok(/人物境界/.test(below) && /灵气灵石产出仅剩 30%/.test(below), '没说清衰减的是资源');
-  assert.ok(/熟练度照给/.test(below), '没写明熟练度不受境界衰减');
+  assert.ok(/人物境界/.test(below) && /耗气 ×1\.5/.test(below), '没说清加价落在耗气上');
+  assert.ok(/熟练度照给/.test(below), '没写明熟练度不受境界影响');
   assert.ok(/属性加成照拿/.test(below) && /评级门槛不变/.test(below), '没排除属性与评级的误解');
   assert.ok(/已超/.test(copy.decayText('above', '元婴')), '超过上限那条没区分');
   assert.ok(/照样能练/.test(copy.decayText('above', '元婴')), '超过上限那条没写明「还能练」，会被读成这门作废了');
@@ -1336,16 +1336,21 @@ check('19 套玩法的代价句在局内真的看得见（运行时探针）', f
   }
 });
 
-check('收益只奖不罚：连练递减全站清零，换门倍率有单一真源', function () {
+check('只奖不罚：连练递减全站清零，换门的「省气」有单一真源', function () {
   const files = ['utils/game.js', 'pages/practice/practice.js', 'pages/guide/guide.js',
     'data/help.js', 'data/world.js', 'data/copy.js'];
   for (const f of files) {
     assert.ok(!/心浮气躁|收益递减|restless|repeatCount/.test(read(f)),
       f + ' 还留着连练递减的旧口径');
   }
+  // 触类旁通从「多拿资源」换成了「少花灵气」，真源搬进了 data/economy.js。
+  const economy = require('../data/economy.js');
+  assert.strictEqual(economy.CROSS_QI, 0.92, '换门省气系数没进数值真源');
+  assert.ok(/const CROSS_QI = 0\.92;/.test(read('data/economy.js')), '省气真源没写在常量段');
+  assert.ok(/if \(opt\.cross\) cost \*= CROSS_QI/.test(read('data/economy.js')),
+    'practiceQiCost 没把换门省气乘进去');
   const world = require('../data/world.js');
-  assert.strictEqual(world.CROSS_BONUS, 1.15, '换门倍率没进数值真源');
-  assert.ok(/worldData\.CROSS_BONUS/.test(read('utils/game.js')), '收益公式没走换门倍率真源');
+  assert.strictEqual(world.CROSS_BONUS, undefined, 'world.js 还留着旧换门倍率');
   assert.ok(/copy\.practiceNote/.test(read('pages/practice/practice.js'))
     && /repeatNote/.test(read('pages/practice/practice.wxml')),
     '准备页没把「连练不减收益」写在开局前');
@@ -1353,7 +1358,7 @@ check('收益只奖不罚：连练递减全站清零，换门倍率有单一真�
   // 现在既要它别再出现，也要有断言把它钉住。
   assert.ok(!/WARN 只刷简单的熟练度反超/.test(read('scripts/simulate.js')),
     '反超问题已修，模拟里不该还挂着这条 WARN');
-  assert.ok(/只刷简单的总熟练度不该反超逐档升/.test(read('scripts/simulate.js')),
+  assert.ok(/只刷简单不该反超逐档升/.test(read('scripts/simulate.js')),
     '没有断言守着「只刷简单不许反超逐档升」');
 });
 

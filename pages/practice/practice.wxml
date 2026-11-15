@@ -58,7 +58,7 @@
     </view>
     <view class="pr-prof">
       <view class="row--between">
-        <!-- 段位与品阶倍率并在一行：这两个数决定「这一局值多少」，比星级和一脉实在。 -->
+        <!-- 段位与品阶耗气并在一行：一个说这门练到哪了，一个说这一局多贵，比星级和一脉实在。 -->
         <text class="tiny pr-tiny">{{tierName}} · {{prof}}<text wx:if="{{rankLabel}}"> · {{rankLabel}} {{rankRewardText}}</text></text>
         <text class="tiny pr-tiny">{{nextText}}</text>
       </view>
@@ -90,24 +90,30 @@
       <text class="tiny">{{twistName}}</text>
     </view>
     <text class="body mt8">{{ruleText}}</text>
+    <!-- 冲关要先备灵石：写在规则下面，而不是等打完才从结算里发现被扣了钱。 -->
+    <text wx:if="{{stoneCost > 0}}" class="tiny diff-brief {{canStart ? '' : 'start-cost--lack'}}">布阵灵石 {{stoneCost}} · 余 {{stone}}（冲关不成，退一半）</text>
 
     <block wx:if="{{showDifficulty}}">
       <view class="divider"></view>
       <view class="row--between">
         <text class="section__title">难度</text>
-        <text class="tiny">{{diffName}} · {{diffMultText}}</text>
+        <!-- 难度行只报两件事：这一档叫什么、这一局烧多少气。收益倍率已随「参悟不产资源」退役。 -->
+        <text class="tiny">{{diffName}} · 耗气 {{qiCost}}</text>
       </view>
       <view class="diff-row mt12">
         <view wx:for="{{diffList}}" wx:key="key" class="diff-chip {{item.current ? 'diff-chip--on' : ''}} {{item.unlocked ? '' : 'diff-chip--lock'}}" data-d="{{item.key}}" bindtap="onDifficulty">
           <text class="diff-chip__name">{{item.name}}</text>
-          <!-- 已解锁但刻意选低档：胶囊上直接给折后半数，别让人以为还是 ×1.30。 -->
-          <text class="diff-chip__mult">{{item.below ? item.realMultText : item.multText}}</text>
+          <!-- 五个胶囊各写自己的耗气：低档便宜、高档贵，选之前就看得到代价。 -->
+          <text class="diff-chip__mult">{{item.qiText}}</text>
           <text wx:if="{{!item.unlocked}}" class="diff-chip__need">{{item.lockedText}}</text>
         </view>
       </view>
-      <!-- 折减只在真的选了低档时出现一行：说清折什么、S 算不算、该回哪一档。 -->
+      <!-- 灵气不够时不给「开始」，先说明差多少、去哪儿补。 -->
+      <text wx:if="{{!canStart}}" class="warn-note mt8">灵气只有 {{qi}} 点，本局要 {{qiCost}} 点。回洞府闭关片刻即可补上；切磋也耗灵气，但能换灵石。</text>
+      <text wx:else class="tiny diff-brief">耗气 {{qiCost}} · 余 {{qi}}</text>
+      <!-- 折减只在真的选了低档时出现一行：说清折的是基础熟练度、S 算不算、该回哪一档。 -->
       <text wx:if="{{belowCapText}}" class="warn-note mt8">{{belowCapText}}</text>
-      <!-- 高档位不只有倍率：这一档实际收紧了哪几处（亮起时长 / 口诀轮数…），一一摆出来。 -->
+      <!-- 高档位还收紧了哪几处（亮起时长 / 口诀轮数…），一一摆出来。 -->
       <text wx:if="{{diffBrief}}" class="tiny diff-brief">{{diffBrief}}</text>
       <!-- S 线随难度档变：局内只报「还差几分」，这一行给出本档总分门槛与评级口径。 -->
       <text wx:if="{{goalText}}" class="tiny diff-brief">{{goalText}}</text>
@@ -365,7 +371,9 @@
 
   <view wx:if="{{barMode === 'start'}}" class="sticky-bar">
     <text class="text-link text-link--muted" bindtap="onBack">{{copy.actions.leave}}</text>
-    <button class="btn btn--primary" bindtap="onStart">{{copy.actions.start}}</button>
+    <!-- 底栏常驻这一局的代价：滚到页面底部也知道要付多少、还剩多少。 -->
+    <text class="tiny start-cost {{canStart ? '' : 'start-cost--lack'}}">{{costText}}</text>
+    <button class="btn btn--primary {{canStart ? '' : 'btn--off'}}" bindtap="onStart">{{canStart ? copy.actions.start : (stoneCost > 0 ? '灵石不足' : '灵气不足')}}</button>
   </view>
 
   <!-- 本局已终、盘面留在屏上：盘面不能再点，去处全在这一条。 -->

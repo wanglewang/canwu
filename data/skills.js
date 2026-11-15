@@ -3,8 +3,10 @@
 const practiceData = require('./practice.js');
 
 // 技能表。熟练度阈值走 world.js 的 TIERS，品阶与可修境界走 practice.js 的 TIERS。
-// effect.type：power 对战战力 / variance 对战波动 / practice 参悟收益 / offline 挂机收益
+// effect.type：power 对战战力 / variance 对战波动 / qiSave 参悟省气 / offline 挂机灵气
 // source.kind：start 初始 / shop 藏经阁 / battle 首胜掉落 / chance 机缘
+// source.cost：只收灵石。灵气是练功的燃料，不是通货——参悟本身就要烧它，
+//              再用它买功法等于让玩家「用油买油」，两种货币的分工当场糊掉。
 // kind：main 主修（心法，决定修炼速度）/ skill 技艺（刀法、剑法、阵法、身法、御灵、土术、灵植、
 //       水术、术数、合术、目术、机巧、挪移、辨术——丹道这一类暂时空着，留给真正炼丹的功课）
 // tier：huang 黄 / xuan 玄 / di 地 / tian 天 —— 只决定收益倍率、属性加成与可修境界上限，不决定难度。
@@ -86,7 +88,7 @@ const SKILLS = [
   },
   {
     // 阵灯推演是十九门里最费脑的一门，挂在黄阶会让「练得最苦、拿得最少」；
-    // 提到地阶后收益 ×2.2、属性 ×1.7、可修上限抬到元婴，代价是未到金丹只拿三成。
+    // 提到地阶后运功耗气 ×1.30、属性 ×1.7、可修上限抬到元婴；代价是超出上限时再 ×1.5。
     // 名字去掉「入门」：地阶功法再叫入门，就是玩家一眼看得见的名实相斥。
     id: 'zhen', name: '阵法·燃灯诀', type: '阵法', kind: 'skill', tier: 'di', method: 'arrayEye',
     desc: '一灯明，四面翻；落子一处，自身与上下左右四格明暗相易，全阵齐明，阵破功成。',
@@ -109,8 +111,8 @@ const SKILLS = [
     desc: '心不浮，气才沉得下去。',
     flavor: '师兄说这口诀没用，他练了三年还在炼气。',
     bonus: { wu: 4 },
-    effect: { type: 'practice', value: 0.08, text: '静心：参悟熟练度 +8%' },
-    source: { kind: 'shop', cost: { qi: 100, stone: 30 } },
+    effect: { type: 'qiSave', value: 0.08, text: '静心：参悟耗气 −8%' },
+    source: { kind: 'shop', cost: { stone: 70 } },
   },
   {
     id: 'yunbu', name: '身法·踏云步', type: '身法', kind: 'skill', tier: 'xuan', method: 'combo',
@@ -118,7 +120,7 @@ const SKILLS = [
     flavor: '练成之前，先摔了三十次。',
     bonus: { shen: 4 },
     effect: { type: 'power', value: 0.05, text: '踏云：对战战力 +5%' },
-    source: { kind: 'shop', cost: { qi: 130, stone: 45 } },
+    source: { kind: 'shop', cost: { stone: 55 } },
   },
   {
     // id 沿用旧名（引雷符），存档与纪录都按 id 索引，改名一律不动 id。
@@ -131,8 +133,8 @@ const SKILLS = [
     desc: '禁制埋在石格下，只有周围几格露出的数字能看。按数字把禁位一处处勘出来。',
     flavor: '禁制不响，只数数给你听。',
     bonus: { ling: 4, wu: 1 },
-    effect: { type: 'practice', value: 0.10, text: '勘禁：参悟熟练度 +10%' },
-    source: { kind: 'shop', cost: { qi: 90, stone: 30 } },
+    effect: { type: 'qiSave', value: 0.10, text: '勘禁：参悟耗气 −10%' },
+    source: { kind: 'shop', cost: { stone: 32 } },
   },
   {
     // 五行相生偏反应、比阵灯推演轻，降到玄阶与燃灯诀排成「玄 → 地」两级。
@@ -172,7 +174,7 @@ const SKILLS = [
     desc: '青云界压箱底的功课，据说练到大成能看见别的世界。',
     flavor: '别的世界？大概是科幻和都市吧。',
     bonus: { wu: 5, ling: 3 },
-    effect: { type: 'practice', value: 0.12, text: '太虚：参悟熟练度 +12%' },
+    effect: { type: 'qiSave', value: 0.12, text: '太虚：参悟耗气 −12%' },
     source: { kind: 'battle', opponentId: 'xuanzhen' },
   },
   // 三套「看一眼就会玩」的经典玩法统一挂黄阶：品阶按功课难度定，不按新奇程度定。
@@ -183,8 +185,8 @@ const SKILLS = [
     desc: '两枚同纹灵石本是一对，牵一条不过两折的灵线，把它们收回契中。',
     flavor: '师父说这叫并蒂，你觉得这叫连连看。',
     bonus: { ling: 3, shen: 2 },
-    effect: { type: 'practice', value: 0.08, text: '并蒂：参悟熟练度 +8%' },
-    source: { kind: 'shop', cost: { qi: 50, stone: 15 } },
+    effect: { type: 'qiSave', value: 0.08, text: '并蒂：参悟耗气 −8%' },
+    source: { kind: 'shop', cost: { stone: 18 } },
   },
   {
     id: 'leiyue', name: '土术·垒岳诀', type: '土术', kind: 'skill', tier: 'huang', method: 'stackstone',
@@ -192,7 +194,7 @@ const SKILLS = [
     flavor: '练之前以为要搬山，练之后发现自己只是在码石头。',
     bonus: { ti: 4, ling: 1 },
     effect: { type: 'power', value: 0.05, text: '垒岳：对战战力 +5%' },
-    source: { kind: 'shop', cost: { qi: 65, stone: 20 } },
+    source: { kind: 'shop', cost: { stone: 24 } },
   },
   {
     id: 'sanxiu', name: '灵植·三秀诀', type: '灵植', kind: 'skill', tier: 'huang', method: 'harvest',
@@ -200,7 +202,7 @@ const SKILLS = [
     flavor: '一畦三秀，收完又长，长得比你收得还快。',
     bonus: { wu: 3, ti: 2 },
     effect: { type: 'offline', value: 0.12, text: '三秀：离线灵气 +12%' },
-    source: { kind: 'shop', cost: { qi: 55, stone: 18 } },
+    source: { kind: 'shop', cost: { stone: 22 } },
   },
   // 六门经典盘面：与上面三套一样是「看一眼就会玩」，统一黄阶、走藏经阁。
   // 各占一门类（术数 / 合术 / 目术 / 机巧 / 挪移 / 辨术）：同类同阶只放一门，
@@ -210,8 +212,8 @@ const SKILLS = [
     desc: '九宫盘上留着空格，每行、每列、每宫各要 1 到 9 一遍；填满且全对才算完。',
     flavor: '师父说这是数，不是算——算的是别人，数的是自己。',
     bonus: { wu: 4, ling: 1 },
-    effect: { type: 'practice', value: 0.09, text: '九宫：参悟熟练度 +9%' },
-    source: { kind: 'shop', cost: { qi: 70, stone: 22 } },
+    effect: { type: 'qiSave', value: 0.09, text: '九宫：参悟耗气 −9%' },
+    source: { kind: 'shop', cost: { stone: 28 } },
   },
   {
     id: 'heyuan', name: '合术·叠元诀', type: '合术', kind: 'skill', tier: 'huang', method: 'heyuan',
@@ -219,7 +221,7 @@ const SKILLS = [
     flavor: '一加一的道理，练到最后是 1024 加 1024。',
     bonus: { ling: 3, ti: 1 },
     effect: { type: 'power', value: 0.05, text: '叠元：对战战力 +5%' },
-    source: { kind: 'shop', cost: { qi: 60, stone: 20 } },
+    source: { kind: 'shop', cost: { stone: 24 } },
   },
   {
     id: 'shumu', name: '目术·逐数诀', type: '目术', kind: 'skill', tier: 'huang', method: 'shumu',
@@ -227,15 +229,15 @@ const SKILLS = [
     flavor: '眼睛快的人，打架时也先看见对方的手。',
     bonus: { shen: 4 },
     effect: { type: 'variance', value: 0.04, text: '逐数：对战波动下限提高' },
-    source: { kind: 'shop', cost: { qi: 45, stone: 14 } },
+    source: { kind: 'shop', cost: { stone: 18 } },
   },
   {
     id: 'rongdao', name: '机巧·让路诀', type: '机巧', kind: 'skill', tier: 'huang', method: 'rongdao',
     desc: '滑块一次挪一格，把主块一路让到盘底出口；走的路越省越算功夫。',
     flavor: '让一步不是退，是给别人腾地方。',
     bonus: { wu: 3, shen: 2 },
-    effect: { type: 'practice', value: 0.08, text: '让路：参悟熟练度 +8%' },
-    source: { kind: 'shop', cost: { qi: 80, stone: 26 } },
+    effect: { type: 'qiSave', value: 0.08, text: '让路：参悟耗气 −8%' },
+    source: { kind: 'shop', cost: { stone: 30 } },
   },
   {
     id: 'tuisuo', name: '挪移·入位诀', type: '挪移', kind: 'skill', tier: 'huang', method: 'tuisuo',
@@ -243,7 +245,7 @@ const SKILLS = [
     flavor: '推错了就推不回来——这话师父只说一遍。',
     bonus: { ti: 4 },
     effect: { type: 'power', value: 0.04, text: '入位：对战战力 +4%' },
-    source: { kind: 'shop', cost: { qi: 75, stone: 24 } },
+    source: { kind: 'shop', cost: { stone: 26 } },
   },
   {
     id: 'zeda', name: '辨术·摘魁诀', type: '辨术', kind: 'skill', tier: 'huang', method: 'zeda',
@@ -251,7 +253,7 @@ const SKILLS = [
     flavor: '一眼看出谁最强，剩下的就不必看了。',
     bonus: { shen: 3, wu: 1 },
     effect: { type: 'offline', value: 0.10, text: '摘魁：离线灵气 +10%' },
-    source: { kind: 'shop', cost: { qi: 40, stone: 12 } },
+    source: { kind: 'shop', cost: { stone: 16 } },
   },
 ];
 

@@ -21,6 +21,8 @@ Page({
     quickLabel: '去参悟',
     dailyReady: false,
     dailyGain: '',
+    idleReady: false,
+    idleText: '',
     syncLabel: '',
     syncTone: 'ok',
     showOffline: false,
@@ -36,6 +38,10 @@ Page({
 
   onShow: function () {
     this.refresh();
+    // 灵气是参悟的油：坐着的每一分钟都在攒，所以这一行得自己走起来。
+    // 半分钟刷一次只动这一行，不重算整页。
+    const self = this;
+    this.tick = setInterval(function () { self.refreshIdle(); }, 30000);
     const report = store.consumeOfflineReport();
     if (report) {
       const hours = Math.floor(report.minutes / 60);
@@ -52,7 +58,38 @@ Page({
     }
   },
 
-  onUnload: function () { store.unsubscribe(this.listener); },
+  onHide: function () { this.clearTick(); },
+
+  onUnload: function () {
+    this.clearTick();
+    store.unsubscribe(this.listener);
+  },
+
+  clearTick: function () {
+    if (this.tick) { clearInterval(this.tick); this.tick = 0; }
+  },
+
+  // 打坐能收多少：只算不写，结算在引擎里（与冷启动那次闭关同一套算法）。
+  refreshIdle: function () {
+    const pending = engine.idlePending(store.get());
+    // 一分钟只有 0.5 点，取整后可能还是 0：那一行写着「灵气 +0」比不出现更糟。
+    const ready = pending.minutes >= 1 && pending.qi >= 1;
+    let text = '';
+    if (ready) {
+      text = '已坐 ' + pending.minutes + ' 分 · 灵气 +' + pending.qi;
+      if (pending.prof > 0) text += ' · ' + pending.skillName + ' +' + pending.prof;
+    }
+    this.setData({ idleReady: ready, idleText: text });
+  },
+
+  onMeditate: function () {
+    const r = store.commitCritical(function (s) { return engine.meditate(s); });
+    if (!r.ok) { toast(r.msg); return; }
+    let msg = '打坐 ' + r.minutes + ' 分：灵气 +' + r.qi;
+    if (r.prof > 0) msg += ' · ' + r.skillName + ' +' + r.prof;
+    toast(msg);
+    this.refresh();
+  },
 
   refresh: function () {
     const state = store.get();
@@ -103,6 +140,7 @@ Page({
       // 「参悟」进这一门的详情，「开始参悟」才开一局：两个词分别代表两件事，不再混用。
       quickLabel: rec.id ? '参悟 · ' + rec.name : copy.UI.actions.goSkills,
     });
+    this.refreshIdle();
   },
 
   closeOffline: function () {

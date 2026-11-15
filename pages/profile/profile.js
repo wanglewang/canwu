@@ -128,14 +128,20 @@ Page({
     const sorted = achievements.slice().sort(function (a, b) {
       return Number(a.unlocked) - Number(b.unlocked);
     });
-    // 真正的门槛只有战力（world.realms[].power 是唯一判据），所以只有这一行打勾叉；
+    // 突破有两道门槛，都打勾叉：战力到没到（硬门槛）、布阵灵石备齐没有（花钱）。
     // 主修三门只报当前段位、用中性点标，勾不满也能突破——写成条件会让人白练。
+    const bt = ov.breakthrough;
     const breakList = [{
-      text: '战力 ' + ov.power + ' / ' + (ov.breakthrough.need || ov.power),
-      mark: ov.breakthrough.available ? '✓' : '✕',
-      markCls: ov.breakthrough.available ? 'imm-check__mark--on' : 'imm-check__mark--off',
-      off: !ov.breakthrough.available,
-    }].concat(top.map(function (s) {
+      text: '战力 ' + ov.power + ' / ' + (bt.need || ov.power),
+      mark: bt.available ? '✓' : '✕',
+      markCls: bt.available ? 'imm-check__mark--on' : 'imm-check__mark--off',
+      off: !bt.available,
+    }].concat(bt.maxed ? [] : [{
+      text: '布阵灵石 ' + ov.stone + ' / ' + bt.stoneCost + (bt.stoneReady ? '' : ' · 去切磋或秘境挣'),
+      mark: bt.stoneReady ? '✓' : '✕',
+      markCls: bt.stoneReady ? 'imm-check__mark--on' : 'imm-check__mark--off',
+      off: !bt.stoneReady,
+    }]).concat(top.map(function (s) {
       return {
         text: '主修 · ' + s.name + ' ' + s.tierName,
         mark: '·',

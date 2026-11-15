@@ -461,7 +461,7 @@ for (const s of skillMod.SKILLS) {
 for (let i = 1; i < practiceMod.DIFFICULTIES.length; i += 1) {
   const prev = practiceMod.DIFFICULTIES[i - 1];
   const cur = practiceMod.DIFFICULTIES[i];
-  if (cur.need <= prev.need || cur.mult <= prev.mult) errors.push('难度档门槛或倍率未递增: ' + cur.key);
+  if (cur.need <= prev.need || cur.qi <= prev.qi) errors.push('难度档门槛或耗气未递增: ' + cur.key);
   else checked += 1;
 }
 let boardSafe = true;
@@ -719,7 +719,6 @@ if (!fs.existsSync(checklistPath)) {
   errors.push('缺少玩法设计自检清单：docs/checklist-puzzle.md');
 } else {
   const doc = fs.readFileSync(checklistPath, 'utf8');
-  const worldData = require(path.join(ROOT, 'data/world.js'));
   const practiceData = require(path.join(ROOT, 'data/practice.js'));
   const copyData = require(path.join(ROOT, 'data/copy.js'));
 
@@ -736,10 +735,15 @@ if (!fs.existsSync(checklistPath)) {
   const needLine = practiceData.DIFFICULTIES.map(function (d) { return d.need; }).join(' / ');
   if (doc.indexOf(needLine) < 0) errors.push('自检清单的难度门槛与 DIFFICULTIES 不一致（应为 ' + needLine + '）');
   else checked += 1;
-  if (doc.indexOf('MAX_MULTIPLIER') < 0) errors.push('自检清单没讲明收益总倍率封顶走 MAX_MULTIPLIER');
+  // 经济口径：参悟从「产出资源」改成「消耗灵气」，清单必须写明唯一真源与各档耗气。
+  // 旧版守的是资源总倍率 MAX_MULTIPLIER，那条常量已随资源产出一起退役。
+  const economyData = require(path.join(ROOT, 'data/economy.js'));
+  if (doc.indexOf('practiceQiCost') < 0) errors.push('自检清单没讲明耗气走 economy.practiceQiCost()');
   else checked += 1;
-  const capText = worldData.MAX_MULTIPLIER.toFixed(1);
-  if (doc.indexOf(capText) < 0) errors.push('自检清单的收益封顶与 MAX_MULTIPLIER 不一致（应为 ' + capText + '）');
+  const runQiLine = economyData.RUN_QI.join(' / ');
+  if (doc.indexOf(runQiLine) < 0) errors.push('自检清单的五档耗气与 RUN_QI 不一致（应为 ' + runQiLine + '）');
+  else checked += 1;
+  if (doc.indexOf('互不兑换') < 0) errors.push('自检清单没写「灵气与灵石互不兑换」的双货币口径');
   else checked += 1;
   // 结算主按钮是上一轮刚定的「留在本页」，文档不许写回「再来一局」当默认动作。
   if (doc.indexOf('留在本页') < 0) errors.push('自检清单没写结算主按钮「留在本页」');
@@ -780,7 +784,7 @@ if (!fs.existsSync(checklistPath)) {
     errors.push('utils/game.js 还留着三连 S 晋级的旧字段');
   } else checked += 1;
   const engineApi = require(path.join(ROOT, 'utils/game.js'));
-  if (engineApi.SAVE_VERSION !== 6) errors.push('存档版本没升到 v6（连击层数换了字段）');
+  if (engineApi.SAVE_VERSION !== 7) errors.push('存档版本没升到 v7（灵气与灵石换了收支方向）');
   else checked += 1;
   // 参悟页的说明是按功法现拼的，不能塞进静态主题表（那里只放整页主题）。
   const navData = require(path.join(ROOT, 'data/navigation.js'));

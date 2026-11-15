@@ -48,6 +48,16 @@
       <text class="grow">{{hintText}}</text>
     </view>
 
+    <view wx:if="{{idleReady}}" class="imm-list">
+      <view class="imm-row pressable" hover-class="pressable--on" bindtap="onMeditate">
+        <view class="imm-row__body">
+          <text class="imm-row__name">闭关打坐</text>
+          <text class="imm-row__sub">{{idleText}}</text>
+        </view>
+        <text class="imm-row__value">收下 ›</text>
+      </view>
+    </view>
+
     <view wx:if="{{dailyReady}}" class="imm-list">
       <view class="imm-row pressable" hover-class="pressable--on" bindtap="onClaimDaily">
         <view class="imm-row__body">

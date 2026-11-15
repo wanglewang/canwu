@@ -15,8 +15,9 @@ function toast(title) {
 function detailOf(state, id) {
   const d = engine.getSkillDetail(state, id);
   if (!d) return null;
-  d.costText = d.cost ? copy.formatCost(d.cost.qi, d.cost.stone) : '';
-  d.affordable = !!d.cost && state.resources.qi >= d.cost.qi && state.resources.stone >= d.cost.stone;
+  // 功法只收灵石： affordability 只看灵石，灵气再厚也换不来一卷功法。
+  d.costText = d.cost ? copy.formatCost(d.cost.stone) : '';
+  d.affordable = !!d.cost && state.resources.stone >= d.cost.stone;
   d.stateText = d.unlocked ? copy.UI.states.learned
     : (d.canBuy ? copy.UI.states.buyable : d.unlock.label);
   d.primary = primaryOf(d);
@@ -80,8 +81,8 @@ Page({
     const pending = [];
     for (let i = 0; i < list.length; i += 1) {
       const s = list[i];
-      s.costText = s.cost ? copy.formatCost(s.cost.qi, s.cost.stone) : '';
-      s.affordable = !!s.cost && state.resources.qi >= s.cost.qi && state.resources.stone >= s.cost.stone;
+      s.costText = s.cost ? copy.formatCost(s.cost.stone) : '';
+      s.affordable = !!s.cost && state.resources.stone >= s.cost.stone;
       s.stateText = s.unlocked ? copy.UI.states.learned
         : (s.canBuy ? copy.UI.states.buyable : s.unlock.label);
       if (s.unlocked) learned.push(s);

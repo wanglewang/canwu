@@ -13,8 +13,16 @@
 const copy = require('../../data/copy.js');
 
 function toView(r) {
-  const lines = [{ k: '灵气', v: '+' + r.qi }];
-  if (r.stone > 0) lines.push({ k: '灵石', v: '+' + r.stone });
+  // 切磋与秘境都要先运功：灵气是付出去的，灵石是挣回来的，两行分开写。
+  const lines = [];
+  if (r.qiCost) lines.push({ k: '灵气', v: '−' + r.qiCost });
+  if (r.stone > 0) {
+    // 当日第 n 场的灵石按 0.85^(n-1) 衰减：不写清，玩家会以为赢了却少给了。
+    const decay = r.stoneFactor && r.stoneFactor < 1
+      ? '（今日第 ' + r.battleNo + ' 场 ×' + r.stoneFactor + '）'
+      : '';
+    lines.push({ k: '灵石', v: '+' + r.stone + decay });
+  }
   if (r.dropName) lines.push({ k: '新功法', v: r.dropName });
   // 秘境不是「对手」是「地方」：第一次赢下来叫首过，说首胜会跟切磋混成同一件事。
   const firstClearLabel = r.kind === 'secret' ? '首过 · ' : '首胜 · ';

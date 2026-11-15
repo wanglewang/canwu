@@ -6,6 +6,7 @@
 const worldData = require('../data/world.js');
 const skillData = require('../data/skills.js');
 const practiceData = require('../data/practice.js');
+const economyData = require('../data/economy.js');
 const guideData = require('../data/guides.js');
 const opponentData = require('../data/opponents.js');
 const titleData = require('../data/titles.js');
@@ -15,7 +16,7 @@ const copy = require('../data/copy.js');
 const STORAGE_KEY = 'canwu_save_v1';
 const SAVE_PREFIX = 'CANWU1:';
 const BATTLE_PREFIX = 'CW1-';
-const SAVE_VERSION = 6;
+const SAVE_VERSION = 7;
 // 连 S 叠倍率：同一门功法连续完成 S，本局熟练度 = round(34 × 1.5^(层数-1))，10 层封顶。
 // 层数真源在 world.COMBO_MAX；每门各算各的，非 S / 走火 / 主动收功都归零，
 // 低档局不参与连 S（层数原样保留）。旧的「三连 S 直接晋级」已整体退役。
@@ -71,7 +72,9 @@ function createNewState() {
     portrait: 0,
     realmIndex: 0,
     skills: skills,
-    resources: { qi: 0, stone: 20 },
+    // 灵气是练功的燃料，灵石是通货：开局给 160 灵气（约 22 局简单）与 15 灵石
+    // （打一场切磋就够换第一门黄阶），让「练一局」和「换一门」都在第一小时发生。
+    resources: { qi: economyData.START_QI, stone: economyData.START_STONE },
     lastPractice: { skillId: '', at: 0 },
     buff: { multiplier: 1, until: 0 },
     defeated: [],
@@ -87,7 +90,7 @@ function createNewState() {
     // 逆诵 / 死门这类是「改规则」，不是「给便利」——练到解锁就该能关，
     // 否则想安心练基础记忆的人没有退路。缺省为空 = 全开（老存档自动是这个行为）。
     twists: {},
-    daily: { date: todayKey(Date.now()), count: 0, claimed: false },
+    daily: { date: todayKey(Date.now()), count: 0, claimed: false, battleWins: 0 },
     equippedTitle: '',
     titles: [],
     log: [],
@@ -126,6 +129,20 @@ function migrateState(raw) {
     // 旧计数不换算，一律从 0 重数；顺手把 sStreak 从存档里摘掉，不留双份字段。
     next = Object.assign({}, next, { version: 6, sCombo: {} });
     delete next.sStreak;
+  }
+  if (v < 7) {
+    // v6 -> v7：经济重做——参悟开始烧灵气、功法只收灵石、突破要备灵石布阵。
+    // 旧档的灵气只有「买功法时顺带被扣」这一个出口，余额常常是 0；直接沿用，
+    // 玩家更新后第一局就开不了。这里补到初始身家（只补不削），另补当日已战场次，
+    // 用于切磋灵石的逐场衰减。
+    const res = Object.assign({}, next.resources || {});
+    res.qi = Math.max(economyData.START_QI, Math.floor(num(res.qi, 0)));
+    res.stone = Math.floor(num(res.stone, 0));
+    next = Object.assign({}, next, {
+      version: 7,
+      resources: res,
+      daily: Object.assign({ count: 0, claimed: false, battleWins: 0 }, next.daily || {}),
+    });
   }
   return next;
 }
@@ -172,6 +189,7 @@ function normalizeState(input) {
     base.daily.date = raw.daily.date;
     base.daily.count = Math.floor(num(raw.daily.count, 0));
     base.daily.claimed = !!raw.daily.claimed;
+    base.daily.battleWins = Math.floor(num(raw.daily.battleWins, 0));
   }
   if (raw.records && typeof raw.records === 'object') {
     const ids = Object.keys(raw.records);
@@ -395,6 +413,8 @@ function checkDaily(state) {
   state.daily.date = key;
   state.daily.count = 0;
   state.daily.claimed = false;
+  // 切磋灵石的逐场衰减按「当日第几场」算，跨天归零——灵脉第二天又满了。
+  state.daily.battleWins = 0;
 }
 
 function pickIdleSkill(state) {
@@ -409,24 +429,19 @@ function pickIdleSkill(state) {
   return skillData.SKILLS[0].id;
 }
 
-function settleOffline(state) {
+// 闭关的「预演」：只算不写。页面据此显示「已攒 N 分 · 灵气 +M」，
+// 冷启动的 settleOffline 与随手点的 meditate 都走这一份算法，三处不许各算一遍。
+function idlePending(state) {
   const now = Date.now();
   const w = worldData.getWorld(state.worldId);
   const last = num(state.lastSeen, now);
-  // 时钟倒退（改系统时间，或云端存档来自时间超前的设备）：不结算、也不把回拨值写进存档。
-  if (last > now) {
-    state.lastSeen = last;
-    checkDaily(state);
-    return null;
-  }
+  const empty = { minutes: 0, hours: 0, qi: 0, prof: 0, capped: false, skillId: '', skillName: '' };
+  // 时钟倒退（改系统时间，或云端存档来自时间超前的设备）：一分不给。
+  if (last > now) return empty;
   const elapsedMs = Math.max(0, now - last);
   const capMs = w.idle.capHours * 3600 * 1000;
   const cappedMs = Math.min(elapsedMs, capMs);
   const minutes = Math.floor(cappedMs / 60000);
-  state.lastSeen = now;
-  checkDaily(state);
-  if (minutes < 1) return null;
-
   const buff = state.buff || { multiplier: 1, until: 0 };
   let buffMinutes = 0;
   if (buff.until > last && buff.multiplier > 1) {
@@ -434,23 +449,65 @@ function settleOffline(state) {
   }
   const effectiveMinutes = buffMinutes * buff.multiplier + (minutes - buffMinutes);
   const idleBonus = effectValue(state, 'offline');
-  const qi = Math.floor(effectiveMinutes * w.idle.qiPerMinute * (1 + idleBonus));
   const hours = cappedMs / 3600000;
-  const prof = Math.floor(hours * w.idle.profPerHour);
   const skillId = pickIdleSkill(state);
-  const skillName = skillData.getSkill(skillId) ? skillData.getSkill(skillId).name : '功法';
-
-  state.resources.qi += qi;
-  if (state.skills[skillId]) state.skills[skillId].prof += prof;
-  addLog(state, '闭关 ' + Math.floor(minutes / 60) + ' 时 ' + (minutes % 60) + ' 分，灵气 +' + qi + '，' + skillName + ' +' + prof, 'idle');
   return {
     minutes: minutes,
     hours: Math.round(hours * 10) / 10,
+    qi: Math.floor(effectiveMinutes * w.idle.qiPerMinute * (1 + idleBonus)),
+    prof: Math.floor(hours * w.idle.profPerHour),
     capped: elapsedMs > capMs,
-    qi: qi,
-    prof: prof,
-    skillName: skillName,
-    buffMinutes: buffMinutes,
+    skillId: skillId,
+    skillName: skillData.getSkill(skillId) ? skillData.getSkill(skillId).name : '功法',
+  };
+}
+
+function settleOffline(state) {
+  const now = Date.now();
+  const last = num(state.lastSeen, now);
+  // 时钟倒退（改系统时间，或云端存档来自时间超前的设备）：不结算、也不把回拨值写进存档。
+  if (last > now) {
+    state.lastSeen = last;
+    checkDaily(state);
+    return null;
+  }
+  const r = idlePending(state);
+  state.lastSeen = now;
+  checkDaily(state);
+  if (r.minutes < 1) return null;
+
+  state.resources.qi += r.qi;
+  if (state.skills[r.skillId]) state.skills[r.skillId].prof += r.prof;
+  addLog(state, '闭关 ' + Math.floor(r.minutes / 60) + ' 时 ' + (r.minutes % 60) + ' 分，灵气 +' + r.qi
+    + '，' + r.skillName + ' +' + r.prof, 'idle');
+  return {
+    minutes: r.minutes,
+    hours: r.hours,
+    capped: r.capped,
+    qi: r.qi,
+    prof: r.prof,
+    skillName: r.skillName,
+  };
+}
+
+// 打坐 = 当场收一次闭关。冷启动那次弹的是「闭关收获」，这一下叫「打坐」：
+// 同一套算法，区别只在于它随时能点——灵气是参悟的油，油烧完了不该逼玩家杀掉小程序再开一遍。
+// 不足一分钟明确回一句，不静默吞掉（点了没反应是这类按钮最容易挨骂的毛病）。
+function meditate(state) {
+  const pending = idlePending(state);
+  // 一分钟只有 0.5 点，取整后可能是 0：这时候收下等于把这段时间白扔了，不如挡回去再坐一会儿。
+  const tooSoon = '还没攒够一点。再坐两分钟，回来就能收。';
+  if (pending.minutes < 1 || pending.qi < 1) return { ok: false, msg: tooSoon };
+  const r = settleOffline(state);
+  if (!r) return { ok: false, msg: tooSoon };
+  return {
+    ok: true,
+    minutes: r.minutes,
+    hours: r.hours,
+    qi: r.qi,
+    prof: r.prof,
+    skillName: r.skillName,
+    capped: r.capped,
   };
 }
 
@@ -470,11 +527,12 @@ function claimDaily(state) {
   }
   state.daily.claimed = true;
   state.stats.dailyClaimed += 1;
+  // 份例只补灵气：它是「今天练过了」的补给，不是工钱。灵石一分不给，
+  // 那个只能靠切磋与秘境挣——两种货币的分工从第一笔收入就要成立。
   state.resources.qi += w.daily.qi;
-  state.resources.stone += w.daily.stone;
   const added = checkTitles(state);
-  addLog(state, '领了今日参悟的份例：灵气 +' + w.daily.qi + '，灵石 +' + w.daily.stone, 'daily');
-  return { ok: true, qi: w.daily.qi, stone: w.daily.stone, newTitles: added };
+  addLog(state, '领了今日参悟的份例：灵气 +' + w.daily.qi, 'daily');
+  return { ok: true, qi: w.daily.qi, stone: 0, newTitles: added };
 }
 
 // ---------------------------------------------------------------- 参悟结算
@@ -500,17 +558,18 @@ function applyPractice(state, skillId, grade, options) {
   const factor = typeof rawFactor === 'number' ? rawFactor : 0.6;
   const wiped = factor === 0;
   const attrs = computeAttributes(state);
-  const wuFactor = Math.min(1.6, 1 + (attrs.wu || 0) / 200);
-  const practiceBonus = effectValue(state, 'practice');
+  // 心法省的「气」：静心 / 勘禁 / 太虚 / 并蒂 / 九宫 / 让路六门累加，封顶一半。
+  // 它不再是「参悟收益 +X%」——熟练度不许有倍率，收益位换成了成本位。
+  const qiSave = effectValue(state, 'qiSave');
 
   // 只奖不罚：同一门连练不再递减。攒「连 S 倍率」本来就要连练同一门，
   // 若同时扣收益，等于在最该上瘾的临门一脚反着来。多样化靠换门的正激励，不靠惩罚专精。
   const cross = !!state.lastPractice.skillId && state.lastPractice.skillId !== skillId;
-  const crossBonus = cross ? worldData.CROSS_BONUS : 1;
 
-  // 一个维度只管一件事：难度档管倍率与对局参数、评级管这一局打得好不好、境界管衰减。
-  // 品阶不进熟练度公式——「高级功法练得更快」会让低阶功法在成长线上被直接淘汰，
-  // 也和「难度跟人走」自相矛盾；品阶的价值在战力（attr）与资源（resource）。
+  // 一个维度只管一件事：难度档管局内参数与耗气基数、评级管这一局打得好不好、
+  // 境界管耗气有没有超限、品阶管运功消耗与属性系数。
+  // 品阶不进熟练度公式——「高级功法练得更快」会让低阶功法从成长线上被直接淘汰，
+  // 也和「难度跟人走」自相矛盾；品阶的价值在战力（attr）与可修境界（maxRealm）。
   const tier = practiceData.tierOf(skill.tier);
   const w = worldData.getWorld(state.worldId);
   const realmNow = state.realmIndex + 1;
@@ -518,12 +577,22 @@ function applyPractice(state, skillId, grade, options) {
   const needRealmName = w.realms[Math.min(w.realms.length - 1, tier.needRealm - 1)].name;
   // 境界只回答两个问题，绝不合成一个布尔：
   //   ① realmReady：到没到这门功法的学习门槛 —— 唯一的硬门槛，没到就开不了练；
-  //   ② realmAbove：超没超过「收益不衰减」的上限 —— 只影响这一局拿多少，不影响能不能练。
+  //   ② realmAbove：超没超过「可修上限」 —— 只让这一局更费气，不影响能不能练。
   // 合成一个 realmOk 就会让「金丹期练不了黄阶」这种误判从页面层冒出来（金丹 3 > 黄阶上限 2）。
-  // 衰减不为 0：超过上限还能练，但该换功法了。
   const realmReady = realmNow >= tier.needRealm;
   const realmAbove = realmNow > tier.maxRealm;
-  const realmDecay = realmReady && !realmAbove ? 1 : worldData.REALM_DECAY;
+
+  // 没到门槛是硬门槛：这一门修不动，连开局都不该给。
+  // 「未到门槛」与「超上限」是两件事，不能合成一个布尔：前者禁练，后者只加价 ×1.5。
+  // 页面早就按 realmReady 挡住入口了，这里是存档层的双保险（改存档 / 双页面同时开局）。
+  if (!realmReady) {
+    return {
+      ok: false,
+      msg: '境界未到：这门要「' + needRealmName + '」才修得动',
+      realmReady: false,
+      needRealmName: needRealmName,
+    };
+  }
 
   // 难度档只认这门功法自己的熟练度；越权选高档（例如改页面参数）自动回落到已解锁的最高档。
   // 没传难度就按「本门最高已解锁档」结算：老默认是 easy，会让没带参数的调用在高段位被静默折半。
@@ -532,16 +601,15 @@ function applyPractice(state, skillId, grade, options) {
   const maxIdx = practiceData.diffIndexOf(rec.prof);
   const fellBack = wantIdx > maxIdx;
   const diff = practiceData.DIFFICULTIES[Math.min(wantIdx, maxIdx)];
-  // 低档折减只管「资源倍率」与「低档基础熟练度」：每低一档再折半，
-  // 熟练度是整数点，逐档 ÷2 后四舍五入（见 practice.profBelowCap）。
+  // 低档折减现在只作用一处：基础熟练度逐档 ÷2 四舍五入（见 practice.profBelowCap）。
+  // 耗气不跟着折——低档本来就便宜（7 点起），再折会让「刷简单」变成省气的聪明选择。
   const lowFactor = practiceData.lowDiffFactor(rec.prof, diff.key);
   const belowCap = lowFactor < 1;
   const diffGap = practiceData.diffGapOf(rec.prof, diff.key);
-  const diffMult = diff.mult * lowFactor;
 
   // 连 S 与低档完全解耦：只有最高已解锁档的 S 才叠层，本局按 34 × 1.5^(层数-1) 独立取整；
   // 低档局不叠层、不砍连击收益、层数原样保留；走火（F）不分档位一律断连。
-  // 到 PROF_MAX 后熟练度封顶，但层数、资源、纪录照常：大圆满是数值毕业，不是不许再练。
+  // 到 PROF_MAX 后熟练度封顶，但层数与纪录照常、灵气照扣：大圆满是数值毕业，不是不许再练。
   if (!state.sCombo) state.sCombo = {};
   const comboBefore = Math.min(worldData.COMBO_MAX, Math.floor(num(state.sCombo[skillId], 0)));
   let comboNow = comboBefore;
@@ -563,11 +631,29 @@ function applyPractice(state, skillId, grade, options) {
   const gain = Math.min(rawGain, Math.max(0, worldData.PROF_MAX - rec.prof));
   state.sCombo[skillId] = comboNow;
 
-  // 原来的四连乘整个搬到资源：品阶 resource × 难度 mult × 境界衰减 × 悟性 × 触类旁通。
-  // 高档仍值得打（灵气灵石更厚、局内纪录更好），只是不再让熟练度坐火箭。
-  const resRaw = tier.resource * diffMult * realmDecay * wuFactor * (1 + practiceBonus) * crossBonus;
-  const resMult = Math.min(worldData.MAX_MULTIPLIER, resRaw);
-  const capped = resRaw > worldData.MAX_MULTIPLIER + 1e-9;
+  // 一局要烧多少灵气：难度档 × 时长系数 × 品阶 × 境界超限 × 心法省气 ÷ 悟性 ÷ 换门。
+  // 系数全在 data/economy.js 一处算，页面只显示结果，不在页面上再推一遍。
+  const qiCost = economyData.practiceQiCost({
+    diffIndex: practiceData.diffKeyIndex(diff.key),
+    tierKey: tier.key,
+    methodBase: method.base,
+    realmAbove: realmAbove,
+    qiSave: qiSave,
+    wu: attrs.wu || 0,
+    cross: cross,
+  });
+  // 灵气不足就不让开这一局：与其打完再告诉玩家「其实你没气」，不如起手就拦住。
+  // 页面已经用 practiceCostOf() 预判过一次，这里是存档层的双保险——
+  // 存档被改、或两个页面同时开局，都能被它挡回去。
+  if (state.resources.qi < qiCost) {
+    return {
+      ok: false,
+      msg: '灵气不足：本局要 ' + qiCost + ' 点，你只有 ' + state.resources.qi + ' 点',
+      qiCost: qiCost,
+      qi: state.resources.qi,
+      lackQi: qiCost - state.resources.qi,
+    };
+  }
 
   // 局内得分第一次真正进入养成：记住本门最佳，给重复参悟一个可追的目标。
   if (!state.records) state.records = {};
@@ -587,14 +673,9 @@ function applyPractice(state, skillId, grade, options) {
   // 三连 S 晋级已取消：段位不再被「补额」跳过，只由上面这一局的实得点数一格格涨。
   rec.prof += gain;
 
-  // 走火连资源与挂机加成都不给：熟练度、灵气、灵石、buff 是同一笔「这一局的收益」，
-  // 只砍其中一半会让人以为「崩了还能蹭加成」。
-  // method.base 改作灵气基数（/4 后与旧常数 8 等价），各玩法资源略有厚薄；
-  // 评级仍在基数里给一截，剩下全交给 resMult。
-  const qi = wiped ? 0 : Math.round((method.base / 4 + factor * 10) * resMult);
-  const stone = wiped ? 0 : Math.round((grade === 'S' ? 3 : grade === 'A' ? 2 : grade === 'B' ? 1 : 0) * resMult);
-  state.resources.qi += qi;
-  state.resources.stone += stone;
+  // 运功的代价：灵气在起手时就烧掉了，走火也不退——这才是「走火」真正的分量。
+  // 参悟不再产灵气灵石：产出留在闭关（灵气）与对战（灵石），这一局只换熟练度。
+  state.resources.qi -= qiCost;
 
   if (!wiped) {
     const newMult = grade === 'S' ? 1.8 : grade === 'A' ? 1.5 : grade === 'B' ? 1.25 : 1.1;
@@ -619,34 +700,27 @@ function applyPractice(state, skillId, grade, options) {
     addLog(state, '参悟 ' + skill.name + ' 走火，这一局没有收益', 'practice');
   } else if (gain === 0 && rec.prof >= worldData.PROF_MAX) {
     // 到顶后不许写「熟练度 +0」，那读起来像 bug。
-    addLog(state, '参悟 ' + skill.name + '，熟练度已圆满，本局只记资源与战绩', 'practice');
+    addLog(state, '参悟 ' + skill.name + '，熟练度已圆满，本局只记战绩', 'practice');
   } else {
-    addLog(state, '参悟 ' + skill.name + '，熟练度 +' + gain + '（' + grade + ' 档）', 'practice');
+    addLog(state, '参悟 ' + skill.name + '，熟练度 +' + gain + '（灵气 −' + qiCost + '）', 'practice');
   }
 
-  // 机缘事件：小概率额外收获，也是技能获取途径之一。
-  // 走火不触发：整局作废却还能从石缝里摸到灵石，等于零收益只是句空话。
+  // 机缘：只在石阶上拾得残卷，**不给灵气也不给灵石**。
+  // 参悟是纯支出——灵气只从闭关与份例来、灵石只从切磋与秘境来。参悟里再冒出一笔资源，
+  // 等于给「练功」开了第二条印钞线，玩家又会回到「一直练、资源自己涨」的老路上。
+  // 走火不触发：整局作废还能拾到残卷，等于零收益只是句空话。
   let fortune = null;
-  if (!wiped && Math.random() < 0.06) {
-    const r = Math.random();
+  if (!wiped) {
     const locked = [];
     for (let i = 0; i < skillData.SKILLS.length; i += 1) {
       const s = skillData.SKILLS[i];
       if (!state.skills[s.id].unlocked) locked.push(s);
     }
-    if (r < 0.12 && locked.length > 0) {
+    if (locked.length > 0 && Math.random() < economyData.FORTUNE_SCROLL_RATE) {
       const pick = locked[Math.floor(Math.random() * locked.length)];
       state.skills[pick.id].unlocked = true;
       fortune = { type: 'skill', text: '机缘：石阶上拾得残卷《' + pick.name + '》', name: pick.name };
       addLog(state, fortune.text, 'fortune');
-    } else if (r < 0.55) {
-      const n = 15 + Math.floor(Math.random() * 25);
-      state.resources.stone += n;
-      fortune = { type: 'stone', text: '机缘：石缝里摸到 ' + n + ' 枚灵石', amount: n };
-    } else {
-      const n = 30 + Math.floor(Math.random() * 50);
-      state.resources.qi += n;
-      fortune = { type: 'qi', text: '机缘：一阵灵风拂过，灵气 +' + n, amount: n };
     }
   }
 
@@ -660,8 +734,14 @@ function applyPractice(state, skillId, grade, options) {
     skillName: skill.name,
     methodName: method.name,
     gain: gain,
-    qi: qi,
-    stone: stone,
+    // 这一局烧掉的灵气：走火也照扣（起手就烧了），所以它和 gain 是两条独立的数。
+    qiCost: qiCost,
+    qiBefore: state.resources.qi + qiCost,
+    qiAfter: state.resources.qi,
+    qiSave: qiSave,
+    // 本局耗气的三个可见修正：时长系数（这一门盘面多长）、品阶、是否超上限。
+    methodQiFactor: Math.round(economyData.methodQiFactor(method.base) * 100) / 100,
+    tierQiCost: tier.qiCost,
     profBefore: profBefore,
     // 战力在这一局前后的值：没跨段位就是相等的，不是算错。
     powerBefore: powerBefore,
@@ -682,36 +762,27 @@ function applyPractice(state, skillId, grade, options) {
     tierUp: afterTier > beforeTier,
     tierName: worldData.TIERS[afterTier].name,
     cross: cross,
-    crossBonus: crossBonus,
-    // 熟练度倍率只有「难度 × 评级 × 境界衰减」；品阶的 resource 另管灵气灵石，不进这一串。
+    // 品阶、难度、境界现在都只影响「一局烧多少气」，不再有资源倍率这一串。
     tierKey: tier.key,
     tierLabel: tier.label,
-    tierResource: tier.resource,
     tierColor: tier.color,
     diffKey: diff.key,
     diffName: diff.name,
-    // 结算报的是「这一局实际入账的资源倍率」：按档差折减后可能远低于面板上的标称倍率。
-    diffMult: diffMult,
-    diffMultRaw: diff.mult,
-    // 低于本门最高已解锁档：资源与基础熟练度已按档差折减、本局不叠连 S，结算要如实报出档差与系数。
+    // 低于本门最高已解锁档：基础熟练度已按档差逐档折半、本局不叠连 S，结算要如实报出档差与系数。
     diffBelowCap: belowCap,
     diffBelowCapFactor: lowFactor,
     diffBelowGap: diffGap,
     diffCapName: practiceData.DIFFICULTIES[maxIdx].name,
     diffFellBack: fellBack,
     diffMaxName: practiceData.DIFFICULTIES[maxIdx].name,
-    realmDecay: realmDecay,
-    decayed: realmDecay < 1,
-    // 结算卡只说「掉了多少」，不说「练不了」：这两件事在数据层已经分开。
+    // 境界超限只加耗气，不禁练：结算说的是「这局更贵」，不是「练不了」。
+    realmOverCost: realmAbove ? economyData.REALM_OVER : 1,
     realmReady: realmReady,
     realmAbove: realmAbove,
-    realmReason: realmDecay === 1 ? '' : (realmReady ? '已超「' + maxRealmName + '」上限' : '未到「' + needRealmName + '」门槛'),
+    realmReason: realmAbove ? '已超「' + maxRealmName + '」上限' : (realmReady ? '' : '未到「' + needRealmName + '」门槛'),
     maxRealmName: maxRealmName,
     needRealmName: needRealmName,
-    coreRaw: Math.round(resRaw * 100) / 100,
-    coreMult: Math.round(resMult * 100) / 100,
     profGrade: rawGain,
-    capped: capped,
     gradeFactor: factor,
     newRecord: newRecord,
     bestScore: bestScore,
@@ -721,6 +792,28 @@ function applyPractice(state, skillId, grade, options) {
     newTitles: checkTitles(state),
     dailyReady: state.daily.count >= w.daily.target && !state.daily.claimed,
   };
+}
+
+// 这一局要烧多少灵气：准备页在开局前显示它，与 applyPractice 内部用的是同一个函数，
+// 不在这儿另写一遍系数（两处一漂，玩家就会看到「面板写 17、结算扣 24」）。
+function practiceCostOf(state, skillId, diffKey) {
+  const skill = skillData.getSkill(skillId);
+  if (!skill) return 0;
+  const rec = state.skills[skillId];
+  const method = practiceData.getMethod(skill.method);
+  const tier = practiceData.tierOf(skill.tier);
+  const realmNow = state.realmIndex + 1;
+  const attrs = computeAttributes(state);
+  const key = diffKey || practiceData.bestDifficulty(rec ? rec.prof : 0);
+  return economyData.practiceQiCost({
+    diffIndex: practiceData.diffKeyIndex(key),
+    tierKey: tier.key,
+    methodBase: method.base,
+    realmAbove: realmNow > tier.maxRealm,
+    qiSave: effectValue(state, 'qiSave'),
+    wu: attrs.wu || 0,
+    cross: !!state.lastPractice.skillId && state.lastPractice.skillId !== skillId,
+  });
 }
 
 // ---------------------------------------------------------------- 对战
@@ -748,23 +841,39 @@ function activeBattleEffects(state) {
 function battle(state, challengeId) {
   const c = opponentData.getChallenge(challengeId);
   if (!c) return { ok: false, msg: '没有找到这位对手' };
+  // 切磋要先运功：不论胜负都烧 5 点灵气。赚灵石和练功争的是同一池灵气，
+  // 两件事才有取舍——否则切磋就是「点一下白给钱」，谁还去参悟。
+  if (state.resources.qi < economyData.BATTLE_QI) {
+    return {
+      ok: false,
+      msg: '灵气不足：一场切磋要运功 ' + economyData.BATTLE_QI + ' 点，先回洞府打坐',
+      lackQi: economyData.BATTLE_QI - state.resources.qi,
+    };
+  }
   const power = computePower(state);
   const effects = activeBattleEffects(state);
   const rolls = rollBattle(power, c.power, effectValue(state, 'variance'));
   const win = rolls.playerRoll >= rolls.enemyRoll;
   const firstClear = win && state.defeated.indexOf(c.id) < 0;
 
-  let qi = win ? c.reward.qi : Math.round(c.reward.qi * 0.15);
-  let stone = win ? c.reward.stone : 0;
-  state.resources.qi += qi;
+  state.resources.qi -= economyData.BATTLE_QI;
+  if (!state.daily) state.daily = { date: todayKey(Date.now()), count: 0, claimed: false, battleWins: 0 };
+  const winsBefore = Math.floor(num(state.daily.battleWins, 0));
+  // 当日第 n 场胜利的灵石按 0.85^(n-1) 给：灵脉一天只吐那么多，取多了就只剩渣。
+  // 首胜 / 首过的一次性灵石不在这条衰减里——那是「打通这条路」的奖励。
+  const stoneFactor = win ? economyData.battleStoneFactor(winsBefore) : 0;
+  let stone = win ? Math.round(c.reward.stone * stoneFactor) : 0;
   state.resources.stone += stone;
-  if (win) state.stats.wins += 1;
+  if (win) {
+    state.stats.wins += 1;
+    state.daily.battleWins = winsBefore + 1;
+  }
 
   let dropName = '';
   if (firstClear) {
     state.defeated.push(c.id);
-    stone += 5;
-    state.resources.stone += 5;
+    stone += economyData.FIRST_CLEAR_STONE;
+    state.resources.stone += economyData.FIRST_CLEAR_STONE;
     if (c.drop && state.skills[c.drop] && !state.skills[c.drop].unlocked) {
       state.skills[c.drop].unlocked = true;
       const s = skillData.getSkill(c.drop);
@@ -789,8 +898,12 @@ function battle(state, challengeId) {
     playerRoll: rolls.playerRoll,
     enemyRoll: rolls.enemyRoll,
     effects: effects,
-    qi: qi,
+    // 运功消耗固定，灵石按当日第几场衰减；结算卡据此写「灵气 −5 / 灵石 +10（第 2 场 ×0.85）」。
+    qiCost: economyData.BATTLE_QI,
+    qiAfter: state.resources.qi,
     stone: stone,
+    stoneFactor: Math.round(stoneFactor * 1000) / 1000,
+    battleNo: winsBefore + (win ? 1 : 0),
     dropName: dropName,
     line: win ? c.winLine : c.loseLine,
     newTitles: checkTitles(state),
@@ -825,21 +938,35 @@ function parseBattleCode(code) {
 function battleMirror(state, code) {
   const mirror = parseBattleCode(code);
   if (!mirror.ok) return { ok: false, msg: mirror.msg };
+  if (state.resources.qi < economyData.BATTLE_QI) {
+    return {
+      ok: false,
+      msg: '灵气不足：一场切磋要运功 ' + economyData.BATTLE_QI + ' 点，先回洞府打坐',
+      lackQi: economyData.BATTLE_QI - state.resources.qi,
+    };
+  }
   const power = computePower(state);
   const effects = activeBattleEffects(state);
   const rolls = rollBattle(power, mirror.power, effectValue(state, 'variance'));
   const win = rolls.playerRoll >= rolls.enemyRoll;
-  const qi = win ? 60 : 10;
-  const stone = win ? 8 : 0;
-  state.resources.qi += qi;
+  if (!state.daily) state.daily = { date: todayKey(Date.now()), count: 0, claimed: false, battleWins: 0 };
+  const winsBefore = Math.floor(num(state.daily.battleWins, 0));
+  const stoneFactor = win ? economyData.battleStoneFactor(winsBefore) : 0;
+  const stone = win ? Math.round(8 * stoneFactor) : 0;
+  state.resources.qi -= economyData.BATTLE_QI;
   state.resources.stone += stone;
-  if (win) state.stats.wins += 1;
+  if (win) {
+    state.stats.wins += 1;
+    state.daily.battleWins = winsBefore + 1;
+  }
   addLog(state, '与镜像道友论道，' + (win ? '胜' : '负') + '，' + rolls.playerRoll + ' : ' + rolls.enemyRoll, 'battle');
   return {
     ok: true, win: win, challengeName: '镜像道友', challengeTitle: '战力码切磋',
     power: power, enemyPower: mirror.power,
     playerRoll: rolls.playerRoll, enemyRoll: rolls.enemyRoll,
-    effects: effects, qi: qi, stone: stone, dropName: '',
+    effects: effects, qiCost: economyData.BATTLE_QI, qiAfter: state.resources.qi,
+    stone: stone, stoneFactor: Math.round(stoneFactor * 1000) / 1000,
+    battleNo: winsBefore + (win ? 1 : 0), dropName: '',
     line: win ? '镜像散去，你觉得自己的路子好像也没走歪。' : '镜像收招：「回去再练练，不急。」',
     realmName: worldData.getWorld(state.worldId).realms[mirror.realm] ? worldData.getWorld(state.worldId).realms[mirror.realm].name : '未知境界',
     newTitles: checkTitles(state),
@@ -854,12 +981,19 @@ function breakthroughInfo(state) {
   const next = maxed ? null : w.realms[state.realmIndex + 1];
   const pd = powerDetail(state);
   const powerAfter = maxed ? pd.total : powerDetail(state, state.realmIndex + 1).total;
+  // 布阵的灵石：突破不只是「战力够了」，还要备得起阵材与丹药。
+  // available 仍只看战力（那是能不能冲关），stoneReady 另算——两件事合一个布尔，
+  // 就会出现「战力够了却说不能突破」的糊涂提示。
+  const stoneCost = maxed ? 0 : economyData.breakthroughStone(state.realmIndex + 1);
   return {
     maxed: maxed,
     currentName: w.realms[state.realmIndex].name,
     nextName: next ? next.name : '',
     need: next ? next.power : 0,
     power: pd.total,
+    stone: state.resources.stone,
+    stoneCost: stoneCost,
+    stoneReady: state.resources.stone >= stoneCost,
     // 突破之后战力会跳到多少：境界加成是乘数（筑基 ×1.06、金丹 ×1.14……），
     // 只写「还差 46」玩家算不出这一步的收益，得把这个数直接摆出来。
     powerAfter: powerAfter,
@@ -873,21 +1007,44 @@ function breakthroughInfo(state) {
 function applyBreakthrough(state, grade) {
   const info = breakthroughInfo(state);
   if (info.maxed || !info.available) return { ok: false, msg: '尚未到突破之时' };
-  if (grade === 'F') {
-    addLog(state, '冲击 ' + info.nextName + ' 未成，气机散了', 'realm');
-    return { ok: false, hit: false, msg: '气机一乱，未能突破。再来一次就好。' };
-  }
-  state.realmIndex += 1;
   const w = worldData.getWorld(state.worldId);
-  const qi = 50 * (state.realmIndex + 1);
-  const stone = (grade === 'S' ? 30 : grade === 'A' ? 20 : 10) * (state.realmIndex + 1);
-  state.resources.qi += qi;
-  state.resources.stone += stone;
+  // 布阵要备灵石：筑基 60 / 金丹 120 / 元婴 240。
+  // 突破花的是「阵材、丹药、护法」这些修仙界真正要买的东西——
+  // 旧版反过来发灵石，等于越突破越有钱，灵石也就失去了分量。
+  const cost = economyData.breakthroughStone(state.realmIndex + 1);
+  if (state.resources.stone < cost) {
+    return {
+      ok: false,
+      msg: '布阵需灵石 ' + cost + '，你只有 ' + state.resources.stone + ' 枚',
+      stoneCost: cost,
+      lackStone: cost - state.resources.stone,
+    };
+  }
+  if (grade === 'F') {
+    // 冲关不成，灵石散了些，阵基还在：退回一半。
+    // 全额不退会让一次失手掏空积蓄，全退又等于「失败无代价」。
+    const refund = Math.round(cost * economyData.BREAKTHROUGH_REFUND);
+    const lost = cost - refund;
+    state.resources.stone -= lost;
+    addLog(state, '冲击 ' + info.nextName + ' 未成，布阵灵石散去 ' + lost, 'realm');
+    return {
+      ok: false,
+      hit: false,
+      msg: '气机一乱，未能突破。布阵的灵石散了 ' + lost + ' 枚，余下的还在。',
+      stoneCost: lost,
+      stoneRefund: refund,
+      stoneAfter: state.resources.stone,
+    };
+  }
+  state.resources.stone -= cost;
+  state.realmIndex += 1;
   addLog(state, '突破至「' + w.realms[state.realmIndex].name + '」', 'realm');
   return {
     ok: true, hit: true, grade: grade,
     realmName: w.realms[state.realmIndex].name,
-    qi: qi, stone: stone,
+    // 灵石是花出去的：页面显示「−60」，不是「+60」。
+    stoneCost: cost,
+    stoneAfter: state.resources.stone,
     // 突破的最大收益就是这一跳：境界加成从 ×1.06 到 ×1.14，战力整体抬一档。
     // info 是在突破前算的，里面已经有突破后的战力，直接用。
     powerBefore: info.power,
@@ -910,15 +1067,16 @@ function buySkill(state, skillId) {
     return { ok: false, msg: '需「' + needName + '」境界方能修习' + tier.label + '功法' };
   }
   const cost = s.source.cost;
-  const lack = [];
-  if (state.resources.qi < cost.qi) lack.push('灵气 ' + (cost.qi - state.resources.qi));
-  if (state.resources.stone < cost.stone) lack.push('灵石 ' + (cost.stone - state.resources.stone));
-  if (lack.length > 0) return { ok: false, msg: '还差 ' + lack.join('、') };
-  state.resources.qi -= cost.qi;
-  state.resources.stone -= cost.stone;
+  // 功法只收灵石。灵气是练功的燃料，用它买功法等于「用油买油」，
+  // 两种货币的分工当场糊掉——而分工正是这套经济唯一的看点。
+  const need = Math.floor(num(cost.stone, 0));
+  if (state.resources.stone < need) {
+    return { ok: false, msg: '还差灵石 ' + (need - state.resources.stone) };
+  }
+  state.resources.stone -= need;
   state.skills[skillId].unlocked = true;
   addLog(state, '于藏经阁换得《' + s.name + '》', 'skill');
-  return { ok: true, name: s.name, cost: cost, newTitles: checkTitles(state) };
+  return { ok: true, name: s.name, cost: cost, stoneCost: need, newTitles: checkTitles(state) };
 }
 
 function equipTitle(state, id) {
@@ -959,23 +1117,37 @@ function importSaveCode(code) {
 // 与榜单里的真实玩家镜像论道：只取战力与名号，不接触对方存档内容。
 function battleRival(state, rival) {
   if (!rival || !isFinite(rival.power)) return { ok: false, msg: '没有找到这位道友' };
+  if (state.resources.qi < economyData.BATTLE_QI) {
+    return {
+      ok: false,
+      msg: '灵气不足：一场切磋要运功 ' + economyData.BATTLE_QI + ' 点，先回洞府打坐',
+      lackQi: economyData.BATTLE_QI - state.resources.qi,
+    };
+  }
   const enemyPower = Math.max(0, Math.floor(Number(rival.power)));
   const power = computePower(state);
   const effects = activeBattleEffects(state);
   const rolls = rollBattle(power, enemyPower, effectValue(state, 'variance'));
   const win = rolls.playerRoll >= rolls.enemyRoll;
-  const qi = win ? 60 : 10;
-  const stone = win ? 8 : 0;
-  state.resources.qi += qi;
+  if (!state.daily) state.daily = { date: todayKey(Date.now()), count: 0, claimed: false, battleWins: 0 };
+  const winsBefore = Math.floor(num(state.daily.battleWins, 0));
+  const stoneFactor = win ? economyData.battleStoneFactor(winsBefore) : 0;
+  const stone = win ? Math.round(8 * stoneFactor) : 0;
+  state.resources.qi -= economyData.BATTLE_QI;
   state.resources.stone += stone;
-  if (win) state.stats.wins += 1;
+  if (win) {
+    state.stats.wins += 1;
+    state.daily.battleWins = winsBefore + 1;
+  }
   const name = typeof rival.name === 'string' && rival.name ? rival.name.slice(0, 12) : '榜单道友';
   addLog(state, '与「' + name + '」论道，' + (win ? '胜' : '负') + '，' + rolls.playerRoll + ' : ' + rolls.enemyRoll, 'battle');
   return {
     ok: true, win: win, challengeName: name, challengeTitle: '实录切磋',
     power: power, enemyPower: enemyPower,
     playerRoll: rolls.playerRoll, enemyRoll: rolls.enemyRoll,
-    effects: effects, qi: qi, stone: stone, dropName: '',
+    effects: effects, qiCost: economyData.BATTLE_QI, qiAfter: state.resources.qi,
+    stone: stone, stoneFactor: Math.round(stoneFactor * 1000) / 1000,
+    battleNo: winsBefore + (win ? 1 : 0), dropName: '',
     line: win ? '这一场赢得干净，对方留了句「后会有期」。' : '对方收招：「道友根基还差些火候。」',
     realmName: rival.realmName || '未知境界',
     newTitles: checkTitles(state),
@@ -1038,23 +1210,21 @@ function unlockInfo(state, skill) {
   }
   if (src.kind === 'shop') {
     const cost = src.cost;
-    const lack = [];
-    if (state.resources.qi < cost.qi) lack.push('灵气 ' + (cost.qi - state.resources.qi));
-    if (state.resources.stone < cost.stone) lack.push('灵石 ' + (cost.stone - state.resources.stone));
+    const need = Math.floor(num(cost.stone, 0));
+    const lack = state.resources.stone < need ? ['灵石 ' + (need - state.resources.stone)] : [];
     const tier = practiceData.tierOf(skill.tier);
     const realmReady = realmNow >= tier.needRealm;
-    const qiPct = Math.min(1, state.resources.qi / cost.qi);
-    const stonePct = Math.min(1, state.resources.stone / cost.stone);
+    const stonePct = Math.min(1, state.resources.stone / need);
     return {
       kind: 'shop',
       label: '藏经阁兑换',
-      text: '灵气 ' + cost.qi + ' · 灵石 ' + cost.stone,
+      text: '灵石 ' + need,
       hint: !realmReady
         ? '需「' + realmNameOfNo(tier.needRealm) + '」境界方能修习'
-        : (lack.length ? '还差 ' + lack.join('、') : '资源已足，随时可换'),
+        : (lack.length ? '还差 ' + lack.join('、') : '灵石已足，随时可换'),
       action: !realmReady || lack.length ? 'home' : 'buy',
-      actionText: !realmReady || lack.length ? '去攒资源' : '兑换',
-      percent: Math.round(Math.min(qiPct, stonePct) * 100),
+      actionText: !realmReady || lack.length ? '去攒灵石' : '兑换',
+      percent: Math.round(stonePct * 100),
       enough: lack.length === 0 && realmReady,
     };
   }
@@ -1109,6 +1279,9 @@ function getOverview(state) {
     }),
     qi: state.resources.qi,
     stone: state.resources.stone,
+    // 今日已战几场：切磋灵石按 0.85^(n-1) 衰减，页面要能显示「这一场还能拿多少」。
+    battleWins: Math.floor(num(state.daily && state.daily.battleWins, 0)),
+    battleQi: economyData.BATTLE_QI,
     resource: w.resource,
     currency: w.currency,
     buff: buffInfo(state),
@@ -1144,7 +1317,7 @@ function bonusText(skill, worldId) {
 function sourceText(skill) {
   const src = skill.source;
   if (src.kind === 'start') return '入门即习得';
-  if (src.kind === 'shop') return '藏经阁：灵气 ' + src.cost.qi + ' / 灵石 ' + src.cost.stone;
+  if (src.kind === 'shop') return '藏经阁：灵石 ' + Math.floor(num(src.cost.stone, 0));
   if (src.kind === 'battle') {
     const c = opponentData.getChallenge(src.opponentId);
     return '首胜 ' + (c ? c.name : '某位对手') + ' 掉落';
@@ -1174,7 +1347,7 @@ function getSkillList(state) {
     const tier = practiceData.tierOf(s.tier);
     const diffNow = practiceData.difficultyOf(practiceData.bestDifficulty(rec.prof));
     // 与 applyPractice 同一根尺子：门槛决定「能不能开练」，上限只决定「收益衰不衰减」。
-    // 金丹期（3）看黄阶（上限 2）是「能练但只剩三成」，不是「练不了」。
+    // 金丹期（3）看黄阶（上限 2）是「能练但更费气」，不是「练不了」。
     const realmReady = realmNow >= tier.needRealm;
     const realmAbove = realmNow > tier.maxRealm;
     const decayed = !realmReady || realmAbove;
@@ -1200,7 +1373,7 @@ function getSkillList(state) {
       previewInline: guide ? guide.inline : '',
       unlock: unlock,
       sourceKind: s.source.kind,
-      // 品阶（天地玄黄）：只管收益倍率、属性加成与可修上限。
+      // 品阶（天地玄黄）：只管运功耗气、属性加成与可修上限。
       tierKey: tier.key,
       tierName: tier.name,
       tierLabel: tier.label,
@@ -1208,9 +1381,9 @@ function getSkillList(state) {
       tierStars: tier.stars,
       starsText: starsTextOf(tier.stars),
       tierDesc: tier.desc,
-      tierResource: tier.resource,
-      rewardText: '产出 ×' + tier.resource.toFixed(2),
-      // 可修境界：未达门槛或超过上限，收益都衰减到 30%，熟练度仍可涨。
+      tierQiCost: tier.qiCost,
+      rewardText: '耗气 ×' + tier.qiCost.toFixed(2),
+      // 可修境界：超上限只能更费气（×1.5），熟练度照涨、练照样能练。
       // realmReady 才是「能不能修习」；页面不许拿 decayed 去当门槛用。
       maxRealm: tier.maxRealm,
       maxRealmName: realmNameOf(state, tier.maxRealm),
@@ -1225,8 +1398,9 @@ function getSkillList(state) {
       realmAbove: realmAbove,
       // 难度档：只看本门熟练度，与品阶无关。
       diffName: diffNow.name,
-      diffMult: diffNow.mult,
-      diffText: '最高可选「' + diffNow.name + '」×' + diffNow.mult.toFixed(1),
+      // 难度档早就不给倍率了：这张卡片要说的是「最高能选哪档、那一档大概烧多少气」。
+      diffQi: diffNow.qi,
+      diffText: '最高可选「' + diffNow.name + '」· 基础耗气 ' + diffNow.qi,
       bestText: best ? best.score + ' 分 · ' + best.grade + ' 档' : '',
       // 连 S 层数：功法页与准备页都能直接显示「下一局 S 值多少点」。
       sCombo: comboOf(state, s.id),
@@ -1288,7 +1462,7 @@ function getSkillDetail(state, id) {
     effectNote: base.effectUnlocked ? '已生效' : '习得并练至大成后生效',
     gainLines: [
       { label: '属性加成', value: base.bonusText, note: '习得即有，随熟练度与品阶增长' },
-      { label: '资源产出', value: base.rewardText, note: base.maxRealmName + '以内不衰减' },
+      { label: '运功耗气', value: base.rewardText, note: base.maxRealmName + '以内不加价' },
       { label: '大成特效', value: base.effectText, note: base.effectUnlocked ? '已生效' : '习得并练至大成后生效' },
     ],
   });
@@ -1301,7 +1475,7 @@ function recommendScore(s) {
   const floor = worldData.TIERS[s.tierIndex] ? worldData.TIERS[s.tierIndex].threshold : 0;
   const span = Math.max(1, s.nextThreshold - floor);
   const ratio = Math.max(0, s.nextThreshold - s.prof) / span;
-  // 三段分明：能拿全额收益的在前，境界吃亏（只剩三成）的整段压后，已圆满的最后。
+  // 三段分明：按标价练的在前，境界超上限（耗气 ×1.5）的整段压后，已圆满的最后。
   // 列表不隐藏任何一门，只靠分段表达「现在该练谁」；主页推荐再从第一段里挑一个。
   const bias = (s.decayed ? 1 : 0) - (s.prof === 0 ? 0.05 : 0) + (s.maxed ? 2 : 0);
   return { ratio: ratio, score: ratio + bias };
@@ -1330,7 +1504,7 @@ function recommend(state) {
       profTierName: '大圆满', profTierColor: worldData.TIERS[worldData.TIERS.length - 1].color,
       gap: 0, percent: 100, maxed: true,
       reason: '手上的 ' + skillData.SKILLS.length + ' 门功法都练到了大圆满',
-      next: '去仙门切磋找还没首胜的对手，或去秘境探索攒兑换用的资源。',
+      next: '去仙门切磋找还没首胜的对手，或去秘境探索攒兑换用的灵石。',
     };
   }
 
@@ -1340,7 +1514,7 @@ function recommend(state) {
   const nextDiff = practiceData.DIFFICULTIES[idx + 1];
   let next;
   if (s.decayed) next = s.decayText + '，这门先放一放。';
-  else if (nextDiff && nextDiff.need - s.prof <= gap) next = '先到 ' + nextDiff.need + ' 熟练度解锁「' + nextDiff.name + '」档，倍率 ×' + nextDiff.mult.toFixed(1) + '。';
+  else if (nextDiff && nextDiff.need - s.prof <= gap) next = '先到 ' + nextDiff.need + ' 熟练度解锁「' + nextDiff.name + '」档。';
   else if (nextDiff) next = '本门现可选到「' + s.diffName + '」，往上一档是「' + nextDiff.name + '」。';
   else next = '本门已开到最高一档，练的是手上的稳。';
 
@@ -1382,7 +1556,7 @@ function getFamilies(state) {
         tierColor: tier.color,
         starsText: starsTextOf(tier.stars),
         gameName: method.gameName,
-        rewardText: '×' + tier.resource.toFixed(2),
+        rewardText: '耗气 ×' + tier.qiCost.toFixed(2),
         unlocked: !!rec.unlocked,
       });
     }
@@ -1399,7 +1573,7 @@ function getFamilies(state) {
         tierColor: tiers[r].color,
         starsText: starsTextOf(tiers[r].stars),
         gameName: '',
-        rewardText: '×' + tiers[r].resource.toFixed(2),
+        rewardText: '耗气 ×' + tiers[r].qiCost.toFixed(2),
         unlocked: false,
         empty: true,
       });
@@ -1438,8 +1612,16 @@ function getChallengeList(state) {
       title: c.title,
       desc: c.desc,
       power: c.power,
-      qi: c.reward.qi,
+      // 灵气不再是奖励，而是这一场的运功成本；灵石才是收入。
+      // 列表里要写清「花 5 换多少灵石」，否则玩家以为切磋还倒贴灵气。
+      qiCost: economyData.BATTLE_QI,
       stone: c.reward.stone,
+      // 今日第几场：灵石按 0.85^(n-1) 衰减，列表上直接给出「下一场能拿多少」。
+      stoneNow: (function () {
+        const n = Math.floor(num(state.daily && state.daily.battleWins, 0));
+        return Math.round(c.reward.stone * economyData.battleStoneFactor(n));
+      }()),
+      stoneFactor: Math.round(economyData.battleStoneFactor(Math.floor(num(state.daily && state.daily.battleWins, 0))) * 1000) / 1000,
       dropName: c.drop && skillData.getSkill(c.drop) ? skillData.getSkill(c.drop).name : '',
       cleared: state.defeated.indexOf(c.id) >= 0,
       hint: hint,
@@ -1514,10 +1696,13 @@ module.exports = {
   computeMetrics: computeMetrics,
   checkTitles: checkTitles,
   checkDaily: checkDaily,
+  idlePending: idlePending,
+  meditate: meditate,
   settleOffline: settleOffline,
   buffInfo: buffInfo,
   claimDaily: claimDaily,
   applyPractice: applyPractice,
+  practiceCostOf: practiceCostOf,
   battle: battle,
   battleCode: battleCode,
   parseBattleCode: parseBattleCode,
