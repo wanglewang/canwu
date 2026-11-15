@@ -37,6 +37,8 @@ Page({
   },
 
   onShow: function () {
+    // 先清再挂：两次 onShow 之间没走 onHide 的话，不清会叠出第二个定时器。
+    this.clearTick();
     this.refresh();
     // 灵气是参悟的油：坐着的每一分钟都在攒，所以这一行得自己走起来。
     // 半分钟刷一次只动这一行，不重算整页。
@@ -71,7 +73,9 @@ Page({
 
   // 打坐能收多少：只算不写，结算在引擎里（与冷启动那次闭关同一套算法）。
   refreshIdle: function () {
-    const pending = engine.idlePending(store.get());
+    const state = store.get();
+    if (!state) return;
+    const pending = engine.idlePending(state);
     // 一分钟只有 0.5 点，取整后可能还是 0：那一行写着「灵气 +0」比不出现更糟。
     const ready = pending.minutes >= 1 && pending.qi >= 1;
     let text = '';
