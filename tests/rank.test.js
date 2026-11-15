@@ -155,7 +155,7 @@ check('阵法难，挂地阶；扫雷轻，挂黄阶', function () {
   const wuxing = skills.getSkill('wuxingzhen');
   const leifu = skills.getSkill('leifu');
   assert.strictEqual(zhen.tier, 'di', '阵灯推演是十九门里最费脑的一门，不该留在低阶');
-  assert.strictEqual(wuxing.tier, 'xuan', '五行相生与燃灯诀要排成玄 → 地，撞阶会让谱系丢门');
+  assert.strictEqual(wuxing.tier, 'xuan', '五行相生与点灯破阵诀要排成玄 → 地，撞阶会让谱系丢门');
   assert.strictEqual(leifu.tier, 'huang', '数格辨禁难度低于阵法，应挂黄阶');
   // 改名不动 id：存档、纪录、参悟进度都按 id 索引。
   assert.strictEqual(zhen.id, 'zhen');
@@ -669,20 +669,20 @@ check('换承重轴的三门：变的是复杂度与盘面，不是时间', func
   let prevLen = -1;
   for (const d of practice.DIFFICULTIES) {
     const lv = practice.CLICK_LEVELS[d.depth];
-    assert.ok(lv.grid >= prevGrid, d.name + ' 开锋诀盘面反而变小');
-    assert.strictEqual(lv.cols * lv.cols, lv.grid, d.name + ' 开锋诀的 grid 与 cols 对不上');
-    assert.ok(lv.lenStep >= prevLen, d.name + ' 开锋诀刀路变短');
+    assert.ok(lv.grid >= prevGrid, d.name + ' 开锋斩桩诀盘面反而变小');
+    assert.strictEqual(lv.cols * lv.cols, lv.grid, d.name + ' 开锋斩桩诀的 grid 与 cols 对不上');
+    assert.ok(lv.lenStep >= prevLen, d.name + ' 开锋斩桩诀刀路变短');
     prevGrid = lv.grid;
     prevLen = lv.lenStep;
   }
   const c0 = practice.CLICK_LEVELS[0];
   const c4 = practice.CLICK_LEVELS[4];
   assert.ok(c4.grid / c0.grid >= 2.5,
-    '开锋诀盘面跨度只有 ' + (c4.grid / c0.grid).toFixed(2) + ' 倍，承重轴没立起来');
+    '开锋斩桩诀盘面跨度只有 ' + (c4.grid / c0.grid).toFixed(2) + ' 倍，承重轴没立起来');
   assert.ok((3 + c4.lenStep) / (3 + c0.lenStep) >= 2.5,
-    '开锋诀刀路跨度只有 ' + ((3 + c4.lenStep) / (3 + c0.lenStep)).toFixed(2) + ' 倍');
+    '开锋斩桩诀刀路跨度只有 ' + ((3 + c4.lenStep) / (3 + c0.lenStep)).toFixed(2) + ' 倍');
   // 简单档的刀路要短到「一眼扫得完」：3 桩是 3×3 小盘上的直线，读完不用二次思考。
-  assert.strictEqual(3 + c0.lenStep, 3, '开锋诀简单档刀路不是最短的 3 桩');
+  assert.strictEqual(3 + c0.lenStep, 3, '开锋斩桩诀简单档刀路不是最短的 3 桩');
 
   let prevCells = 0;
   let prevMines = 0;
@@ -690,13 +690,13 @@ check('换承重轴的三门：变的是复杂度与盘面，不是时间', func
     const lv = practice.MINES_LEVELS[d.depth];
     const cells = lv.cols * lv.rows;
     // 前两档同为 6×6，靠禁制数（5→6）区分；盘面只许变大，不许缩回去。
-    assert.ok(cells >= prevCells, d.name + ' 勘禁诀盘面反而变小');
-    assert.ok(lv.mines > prevMines, d.name + ' 勘禁诀禁制数没有增加');
+    assert.ok(cells >= prevCells, d.name + ' 循数勘禁诀盘面反而变小');
+    assert.ok(lv.mines > prevMines, d.name + ' 循数勘禁诀禁制数没有增加');
     const density = lv.mines / cells;
     // 密度必须稳在一个区间里：密度太低是空盘、太高是无处下脚，
     // 两种都不叫「变难」，叫「换了一盘棋」。
     assert.ok(density > 0.12 && density < 0.20,
-      d.name + ' 勘禁诀禁制密度 ' + (density * 100).toFixed(1) + '% 超出 12–20%');
+      d.name + ' 循数勘禁诀禁制密度 ' + (density * 100).toFixed(1) + '% 超出 12–20%');
     prevCells = cells;
     prevMines = lv.mines;
   }
@@ -704,11 +704,11 @@ check('换承重轴的三门：变的是复杂度与盘面，不是时间', func
   const mineSizes = {};
   for (const lv of practice.MINES_LEVELS) mineSizes[lv.cols] = true;
   assert.ok(Object.keys(mineSizes).length >= 4,
-    '勘禁诀盘面只有 ' + Object.keys(mineSizes).length + ' 种规格，撑不起五档阶梯');
+    '循数勘禁诀盘面只有 ' + Object.keys(mineSizes).length + ' 种规格，撑不起五档阶梯');
   const m0 = practice.MINES_LEVELS[0];
   const m4 = practice.MINES_LEVELS[4];
   assert.ok((m4.cols * m4.rows) / (m0.cols * m0.rows) >= 2.2,
-    '勘禁诀盘面跨度只有 ' + ((m4.cols * m4.rows) / (m0.cols * m0.rows)).toFixed(2) + ' 倍');
+    '循数勘禁诀盘面跨度只有 ' + ((m4.cols * m4.rows) / (m0.cols * m0.rows)).toFixed(2) + ' 倍');
 
   // 步法：五档必须是五个不同配置。旧表 segments 3/4/4/5/5、baseLen 3/3/3/4/4，
   // 算下来 hard 与 normal 都是 18 步、expert 与 desperate 都是 30 步——五档只有三个配置。
@@ -798,7 +798,7 @@ check('getFamilies 四档刻度齐全，缺变体的档位标空档', function (
   const sword = fams.find(function (f) { return f.type === '剑法'; });
   assert.strictEqual(sword.slots.length, 4);
   assert.ok(sword.core, '游戏族核心玩法缺失');
-  // 这一版先不做剑法：初始功法改刀法后，剑法族只余天阶的剑法·断岳诀。
+  // 这一版先不做剑法：初始功法改刀法后，剑法族只余天阶的剑法·截锋断岳诀。
   assert.strictEqual(sword.slots.filter(function (x) { return x.empty; }).length, 3, '剑法族应只剩一门、空三档');
   for (const f of fams) {
     for (const node of f.slots) {
@@ -842,7 +842,7 @@ check('v3 存档升到 v7，熟练度与纪录原样保留，灵力补到身家�
   assert.strictEqual(typeof n.daily.battleWins, 'number');
 });
 
-check('九套经典 + 勘禁诀默认已习得，藏经阁只留非经典', function () {
+check('九套经典 + 循数勘禁诀默认已习得，藏经阁只留非经典', function () {
   // 经典盘面（连连看 / 俄罗斯方块 / 三消 / 数独 / 2048 / 舒尔特 / 华容道 / 推箱子 / 挑最大）
   // 加上扫雷，是「点进去就知道怎么玩」的那一批。这一批不该拿去卖：
   // 玩家第一次打开游戏，最想玩的正是它们，摆一道灵石墙只会把人挡在门口。

@@ -45,25 +45,25 @@ docs/
 │
 ├── 20-minigames/                    玩法设计：一门功法一篇
 │   ├── README.md                    玩法总览矩阵与「不许重复」的判据
-│   ├── 01-forge-click.md            刀法·开锋诀 → 顺光扫斩
-│   ├── 02-snatch-hunt.md            剑法·断岳诀 → 辨伪择真
-│   ├── 03-recited-memory.md         心法·静心诀 → 记序复现
-│   ├── 04-stones-bridge.md          水术·凝露诀 → 循纹递推
-│   ├── 05-absorb-tempo.md           心法·吐纳诀 → 节律判定
-│   ├── 06-combo-sword.md            身法·踏云步 → 步法连环
-│   ├── 07-arrayeye-lights.md        阵法·燃灯诀 → 阵灯推演
-│   ├── 08-wuxing.md                 阵法·五行诀 → 五行相生
-│   ├── 09-tanlei-mines.md           阵法·勘禁诀 → 数格辨禁
-│   ├── 10-seal-pairs.md             心法·太虚诀 → 成对翻牌
-│   ├── 11-linkpair.md               御灵·并蒂引 → 灵纹连线
-│   ├── 12-stackstone-blocks.md      土术·垒岳诀 → 落石垒基
-│   ├── 13-harvest-match.md          灵植·三秀诀 → 三秀同收
-│   ├── 14-shudu-sudoku.md           术数·九宫诀 → 九宫填数
-│   ├── 15-heyuan-merge.md           合术·叠元诀 → 滑格相合
-│   ├── 16-shumu-schulte.md          目术·逐数诀 → 顺序点格
-│   ├── 17-rongdao-klotski.md        机巧·让路诀 → 滑块让路
-│   ├── 18-tuisuo-pushbox.md         挪移·入位诀 → 推石入位
-│   ├── 19-zeda-biggest.md           辨术·摘魁诀 → 数中取大
+│   ├── 01-forge-click.md            刀法·开锋斩桩诀 → 顺光扫斩
+│   ├── 02-snatch-hunt.md            剑法·截锋断岳诀 → 辨伪择真
+│   ├── 03-recited-memory.md         心法·静心记诵诀 → 记序复现
+│   ├── 04-stones-bridge.md          水术·叠纹凝露诀 → 循纹递推
+│   ├── 05-absorb-tempo.md           心法·吐纳周天诀 → 节律判定
+│   ├── 06-combo-sword.md            身法·踏云连环步 → 步法连环
+│   ├── 07-arrayeye-lights.md        阵法·点灯破阵诀 → 阵灯推演
+│   ├── 08-wuxing.md                 阵法·五灯相生诀 → 五行相生
+│   ├── 09-tanlei-mines.md           阵法·循数勘禁诀 → 数格辨禁
+│   ├── 10-seal-pairs.md             心法·太虚翻卦诀 → 成对翻牌
+│   ├── 11-linkpair.md               御灵·并蒂牵线引 → 灵纹连线
+│   ├── 12-stackstone-blocks.md      土术·万石成岳诀 → 落石垒基
+│   ├── 13-harvest-match.md          灵植·三秀连收诀 → 三秀同收
+│   ├── 14-shudu-sudoku.md           术数·九宫排数诀 → 九宫填数
+│   ├── 15-heyuan-merge.md           合术·同数叠元诀 → 滑格相合
+│   ├── 16-shumu-schulte.md          目术·扫目逐数诀 → 顺序点格
+│   ├── 17-rongdao-klotski.md        机巧·让主出阵诀 → 滑块让路
+│   ├── 18-tuisuo-pushbox.md         挪移·石箱归位诀 → 推石入位
+│   ├── 19-zeda-biggest.md           辨术·一眼摘魁诀 → 数中取大
 │   └── 20-charge-breakthrough.md    突破专用 → 蓄力停区
 │
 ├── 30-ui/                           界面与交互：从令牌到逐页

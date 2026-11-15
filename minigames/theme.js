@@ -65,12 +65,12 @@ const THEMES = {
   linkpair: {
     key: 'linkpair', name: '契纹', accent: '#3b7f8c', soft: '#dceef0', ink: '#20515c',
     bg: '#e4f0f2', frame: '#f7fcfd', glyph: '契', motif: '引',
-    hit: '灵契相合', miss: '纹不合', banner: '并蒂引', praise: '一纹不隔',
+    hit: '灵契相合', miss: '纹不合', banner: '并蒂牵线', praise: '一纹不隔',
   },
   stackstone: {
     key: 'stackstone', name: '垒石', accent: '#8a6a3c', soft: '#efe4cf', ink: '#5b4526',
     bg: '#f0e8d8', frame: '#fdf8ec', glyph: '石', motif: '垒',
-    hit: '化去一层', miss: '堆到了顶', banner: '垒岳起基', praise: '层层皆化',
+    hit: '化去一层', miss: '堆到了顶', banner: '万石起基', praise: '层层皆化',
   },
   harvest: {
     key: 'harvest', name: '灵畦', accent: '#4e8b5b', soft: '#dfeedf', ink: '#2c5b38',

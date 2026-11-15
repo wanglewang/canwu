@@ -492,7 +492,7 @@ check('气海：炼气 174 起，破境与真元都能把它拓深', function ()
     assert.ok(cap > prev, '第 ' + i + ' 境的谷气海没有比上一境更深');
     prev = cap;
   }
-  // 真元：勘禁诀加 ling，练满之后每点换 2 点上限。
+  // 真元：循数勘禁诀加 ling，练满之后每点换 2 点上限。
   s.realmIndex = 0;
   const before = game.qiCap(s);
   s.skills.leifu = { unlocked: true, prof: w.PROF_MAX, onboarded: true };

@@ -220,7 +220,7 @@ check('规则分层：准备页一行、局内两行、整篇在说明页', func
   const click = read('minigames/click.js');
   assert.ok(/edgeName: '金锋'/.test(read('data/weapons.js')), '预留剑 profile 的金色长招没叫金锋');
   assert.ok(/profile\.edgeName/.test(click), '金色长招名没走兵器轴，容易串回剑法');
-  assert.ok(/顺着每桩箭头把刀扫到靶心/.test(read('data/guides.js')), '刀法·开锋诀说明没讲清顺箭头扫到靶心');
+  assert.ok(/顺着每桩箭头把刀扫到靶心/.test(read('data/guides.js')), '刀法·开锋斩桩诀说明没讲清顺箭头扫到靶心');
 });
 
 check('顺光扫斩：透明触摸层 + 坐标插值还原划动轨迹', function () {
@@ -334,7 +334,7 @@ check('吸底条适配安全区且有高优先级底部留白', function () {
   assert.ok(/\.pg\.pg--with-bar \{/.test(css), '留白选择器优先级不足');
 });
 
-check('视觉标准落在唯一真源，样板阶段只对刀法·开锋诀开', function () {
+check('视觉标准落在唯一真源，样板阶段只对刀法·开锋斩桩诀开', function () {
   const v = require('../data/visual.js');
   assert.strictEqual(Object.keys(v.FAMILIES).length, 4, '四类主题色板不齐（兵刃 / 心法 / 丹道 / 阵法）');
   assert.deepStrictEqual(Object.keys(v.ENABLED), ['forge'], '样板阶段不该一次改十套');
@@ -445,8 +445,8 @@ check('兵器语言收在 data/weapons.js，玩法模块不硬编码招式名与
   assert.ok(/profile\.names/.test(click) && /words\./.test(click), '招式名与文案没走 profile');
   assert.ok(!/'平削'|'直刺'|'横劈'|'立劈'|'一剑中的'|'一刀斩中'/.test(click), '玩法模块里又硬编码了兵器称谓');
   assert.ok(/PROFILES = \{[\s\S]*sword:[\s\S]*dao:/.test(w), '兵器表没有剑 / 刀两套 profile');
-  assert.ok(/weapon: 'dao'/.test(read('data/practice.js')), '刀法·开锋诀没标兵器');
-  assert.ok(/weapon: 'sword'/.test(read('data/practice.js')), '剑法·断岳诀没标兵器');
+  assert.ok(/weapon: 'dao'/.test(read('data/practice.js')), '刀法·开锋斩桩诀没标兵器');
+  assert.ok(/weapon: 'sword'/.test(read('data/practice.js')), '剑法·截锋断岳诀没标兵器');
 });
 
 check('战力明细收进「说明」真源，首屏只留数值；指南保留完整算法', function () {
@@ -467,7 +467,7 @@ check('战力明细收进「说明」真源，首屏只留数值；指南保留�
   assert.ok(/title: '二 · 离线吐纳之规'/.test(guide), '插了新专节，后面章节编号没顺延');
 });
 
-check('勘禁诀按经典扫雷深耕：无猜、首点空白、连开、分数方向', function () {
+check('循数勘禁诀按经典扫雷深耕：无猜、首点空白、连开、分数方向', function () {
   const m = read('minigames/mines.js');
   const g = read('data/guides.js');
   const p = read('data/practice.js');
@@ -478,16 +478,16 @@ check('勘禁诀按经典扫雷深耕：无猜、首点空白、连开、分数�
   assert.ok(!/hard \? 3/.test(m), '还在 ctx.difficulty 上叠 +3，三档会挤成一盘');
   assert.ok(/MINE_GLYPH = '✕'/.test(m) && /FLAG_GLYPH = '⚑'/.test(m), '盘面还在写汉字');
   assert.ok(/不必猜/.test(g) && /连开/.test(g) && /⚑/.test(g), '玩法说明没讲无猜与连开');
-  assert.ok(/tanlei: \[/.test(p) && /洞玄/.test(p), '阶段新法没登记勘禁诀');
+  assert.ok(/tanlei: \[/.test(p) && /洞玄/.test(p), '阶段新法没登记循数勘禁诀');
 });
 
-check('勘禁诀局内只讲「在追哪一档」：不摆当前评级，HUD 不重复计数', function () {
+check('循数勘禁诀局内只讲「在追哪一档」：不摆当前评级，HUD 不重复计数', function () {
   const m = read('minigames/mines.js');
   const g = read('data/guides.js');
   const w = read('pages/practice/practice.wxml');
   // 评级只看用时，按当前用时反推出来的档，开局那一刻必是 S。摆进 HUD 等于告诉玩家
   // 「已经拿到 S 了」，之后只能看它一路往下掉。局内改成只报下一档的时限。
-  assert.ok(/showGradeNow = false/.test(m), '勘禁诀又把「当前评级」摆回 HUD 了');
+  assert.ok(/showGradeNow = false/.test(m), '循数勘禁诀又把「当前评级」摆回 HUD 了');
   // 时间线跟着盘面格数走（9×9 的 S 线是 56 秒而不是 25 秒），所以第二个实参
   // 可能是 GRADE_LINE 也可能是本盘算出来的 line；两者都算「给了下一档的时限」。
   assert.ok(/C\.paceGoal\(elapsed,\s*(GRADE_LINE|line)\)/.test(m), '局内没给「下一档还差几秒」');
@@ -612,9 +612,9 @@ check('阶段新法可关：只有「改规矩」的才给开关，关了真的�
   assert.ok(practice.STAGE_RULES.arrayEye.some(function (r) { return r.hard; }),
     '死门没被标成可关');
   assert.ok(!practice.STAGE_RULES.tanlei.some(function (r) { return r.hard; }),
-    '勘禁诀的纯加成也被给了开关');
+    '循数勘禁诀的纯加成也被给了开关');
   assert.ok(!practice.STAGE_RULES.stackstone.some(function (r) { return r.hard; }),
-    '垒岳诀的纯加成也被给了开关');
+    '万石成岳诀的纯加成也被给了开关');
 
   // 开关要一路通到底：准备页有 UI、页面把开关塞进 perks、玩法模块真的读它。
   // 用自己的胶囊不用原生 switch：后者在墨底上未选中轨道是一块白，与皮肤冲突。
@@ -1050,25 +1050,35 @@ check('指南目录按新手阅读流排：先挂机保底与资源，主动玩�
   }
 });
 
-check('功法命名统一：类别·三字正名，前缀严格等于类别', function () {
+check('功法命名统一：类别·四到六字正名，前缀严格等于类别', function () {
   const skills = require('../data/skills.js');
   const practice = require('../data/practice.js');
   assert.deepStrictEqual(skills.validateNames(), [], '命名规范校验没通过');
   assert.ok(skills.NAME_RULE && skills.NAME_RULE.sep === '·', '缺少命名规则真源');
+  assert.ok(skills.NAME_RULE.titleMin >= 4, '正名下限低于四字：三字说不清盘上做什么');
+  assert.ok(skills.NAME_RULE.titleMax <= 6, '正名上限高于六字：卡片一行放不下');
   for (const s of skills.SKILLS) {
     const parts = s.name.split(skills.NAME_RULE.sep);
     assert.strictEqual(parts.length, 2, s.id + ' 名字不是两段式');
     assert.strictEqual(parts[0], s.type, s.id + ' 前缀与类别不一致');
-    assert.strictEqual(parts[1].length, 3, s.id + ' 正名不是三字');
+    assert.ok(parts[1].length >= skills.NAME_RULE.titleMin && parts[1].length <= skills.NAME_RULE.titleMax,
+      s.id + ' 正名「' + parts[1] + '」不在 ' + skills.NAME_RULE.titleMin + '–' + skills.NAME_RULE.titleMax + ' 字之间');
     assert.ok(skills.NAME_RULE.suffixes.indexOf(parts[1].slice(-1)) >= 0, s.id + ' 正名末字不是体裁字');
     assert.ok(!/入门|基础|初级|小|大/.test(parts[1]), s.id + ' 正名带了等级词');
     assert.ok(practice.FAMILIES[s.type], s.id + ' 类别不在游戏族表内');
+    // 三字名一律退役：它们正是「看不懂这一门干什么」的来源。
+    assert.notStrictEqual(parts[1].length, 3, s.id + ' 又出现了三字正名');
   }
   // 十九门里不许再出现「有的没前缀」或「前缀和类别对不上」。
   assert.strictEqual(skills.SKILLS.length, 19, '功法数变了，命名断言要同步');
   const names = skills.SKILLS.map(function (s) { return s.name; });
   assert.strictEqual(new Set(names).size, names.length, '功法名重复');
-  assert.ok(names.indexOf('刀法·开锋诀') >= 0 && names.indexOf('剑法·断岳诀') >= 0, '刀 / 剑两门没按规范统一');
+  assert.ok(names.indexOf('刀法·开锋斩桩诀') >= 0 && names.indexOf('剑法·截锋断岳诀') >= 0, '刀 / 剑两门没按规范统一');
+  // 旧三字名不许回表。
+  const legacy = ['阵法·燃灯诀', '灵植·三秀诀', '合术·叠元诀', '辨术·摘魁诀', '御灵·并蒂引'];
+  for (const old of legacy) {
+    assert.ok(names.indexOf(old) < 0, '旧三字名又回到功法表：' + old);
+  }
 });
 
 check('功法图鉴：未习得也能查全玩法、收益与习得路径', function () {
@@ -1267,7 +1277,7 @@ check('阵灯推演：代价句按阶段出现，盘面只画图形不写汉字'
   assert.ok(/阵溃/.test(gd.scoring), '评级口径没写清阵溃');
 });
 
-check('燃灯诀：简介对齐熄灯谜题，死门误触有独立触感', function () {
+check('点灯破阵诀：简介对齐熄灯谜题，死门误触有独立触感', function () {
   const sk = require('../data/skills.js').SKILLS.filter(function (s) { return s.method === 'arrayEye'; })[0];
   assert.ok(/上下左右四格/.test(sk.desc), '功法简介没讲清翻转四格');
   assert.ok(/上下左右四格/.test(read('data/practice.js')), '准备页副标题没讲清翻转四格');
@@ -1610,7 +1620,7 @@ check('首局手把手：盘上引导而不是全屏弹窗，跳过有入口、�
   assert.ok(/if \(this\.canTeach\(\)\) \{ this\.startTeach\(\); return; \}/.test(js), '开局没先走引导');
   assert.ok(/engine\.markOnboarded/.test(js), '走完引导没写存档');
   assert.ok(/engine\.hasOnboarded/.test(js), '没读存档判断是否已看过');
-  assert.strictEqual(index.hasTeach('lights'), true, '燃灯诀没有教学脚本');
+  assert.strictEqual(index.hasTeach('lights'), true, '点灯破阵诀没有教学脚本');
   assert.ok(game.markOnboarded && game.hasOnboarded, '引擎没有引导标记接口');
 
   // 教学盘不该出现评级、重置与收功：那是一局才有的压力。

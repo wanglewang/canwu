@@ -33,7 +33,7 @@ const OPPONENTS = [
     id: 'liuhan', kind: 'npc', name: '内门弟子·柳含烟', title: '内门问剑',
     power: 190, desc: '阵法课从没低于甲上，最烦有人说「阵法是死物」。',
     reward: { stone: 36 }, drop: 'wuxingzhen',
-    winLine: '柳含烟收了阵盘：「这卷五行诀，借你抄。」',
+    winLine: '柳含烟收了阵盘：「这卷五灯相生诀，借你抄。」',
     loseLine: '柳含烟把阵盘收好：「先把灯点明白再来。」',
   },
   {
@@ -47,14 +47,14 @@ const OPPONENTS = [
     id: 'xueshou', kind: 'npc', name: '魔修·血手', title: '界外来客',
     power: 370, desc: '出手极快，话极多，两样都让人不太舒服。',
     reward: { stone: 70 }, drop: 'duanyue',
-    winLine: '血手留下半截断剑：「这卷断岳诀送你，别学我。」',
+    winLine: '血手留下半截断剑：「这卷截锋断岳诀送你，别学我。」',
     loseLine: '血手收了力：「今日不算，你还没练出手速。」',
   },
   {
     id: 'xuanzhen', kind: 'npc', name: '峰主·玄真', title: '青云之巅',
     power: 520, desc: '据说他早已看见别的世界，只是不肯细说。',
     reward: { stone: 120 }, drop: 'taixu',
-    winLine: '玄真把太虚诀推过来：「练到大成，自己去看看。」',
+    winLine: '玄真把太虚翻卦诀推过来：「练到大成，自己去看看。」',
     loseLine: '玄真拂了拂袖：「再去参悟几回。」',
   },
 ];

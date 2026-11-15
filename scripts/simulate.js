@@ -426,7 +426,7 @@ const baseCost = game.practiceCostOf(saveState, 'jian', 'hard');
 saveState.skills.jingxin.unlocked = true;
 saveState.skills.jingxin.prof = 6000;   // 大成（特效 3/4）只为验证省气叠满，不再当作生效门槛
 const savedCost = game.practiceCostOf(saveState, 'jian', 'hard');
-expect(savedCost < baseCost, '学了静心诀后耗气 ' + baseCost + ' → ' + savedCost + ' 点');
+expect(savedCost < baseCost, '学了静心记诵诀后耗气 ' + baseCost + ' → ' + savedCost + ' 点');
 
 // ⑩ 到顶后熟练度封顶，但灵力照扣（到顶再练就是纯烧气）。
 const cappedState = fullC.state;

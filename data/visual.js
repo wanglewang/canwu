@@ -3,7 +3,7 @@
 // 视觉标准唯一真源：舞台色板、四支主题色板、动效预算、结算分镜。
 // 色板只有四支——兵刃 / 心法 / 丹道（赤金）/ 阵法；功法类别有十六种，
 // 多族共用一支，映射见下方 FAMILY_OF。原「符箓」一类已随功法归类调整撤掉：
-// 那门改为阵法·勘禁诀，色板归阵法；太虚诀是心法，归心法。
+// 那门改为阵法·循数勘禁诀，色板归阵法；太虚翻卦诀是心法，归心法。
 // 只被 pages/practice 与 styles/scene.wxss 消费；minigames/ 下一行都不许引用。
 // 舞台与全站页面都是恒定额定深色：页面挂 .pg--imm 把 --c-* 映到 --c-imm-*，
 // 不跟系统翻色；tokens.wxss 的暗色令牌只服务没挂 .pg--imm 的基础层。
@@ -52,7 +52,7 @@ const FAMILY_OF = {
   forge: 'sword', snatch: 'sword',
   recite: 'mind', absorb: 'mind',
   stones: 'alchemy', combo: 'alchemy',
-  // 勘禁诀练的是格盘推演，不是画符，色板归阵法；太虚诀是心法，归心法。
+  // 循数勘禁诀练的是格盘推演，不是画符，色板归阵法；太虚翻卦诀是心法，归心法。
   tanlei: 'array', seal: 'mind',
   arrayEye: 'array', wuxing: 'array',
   // 三套经典盘面按各自主题的色相归支：契纹青蓝归兵刃，垒石土褐归赤金，灵畦青绿归心法。
@@ -65,7 +65,7 @@ const FAMILY_OF = {
   breakthrough: 'alchemy',
 };
 
-// 样板阶段只给刀法·开锋诀开沉浸舞台。真机验过再逐个放开，避免一次改十套、方向错了全废。
+// 样板阶段只给刀法·开锋斩桩诀开沉浸舞台。真机验过再逐个放开，避免一次改十套、方向错了全废。
 const ENABLED = { forge: true };
 
 // 低端机红线：粒子与循环动画有上限，所有动画只动 transform / opacity。

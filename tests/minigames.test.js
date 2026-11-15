@@ -391,7 +391,7 @@ check('同类功法（刀法/剑法/阵法/心法）也各用各的玩法', func
   for (const type of Object.keys(byType)) {
     assert.strictEqual(new Set(byType[type]).size, byType[type].length, type + ' 里有两门功法共用玩法');
   }
-  // 这一版先只做刀法，剑法暂留天阶的剑法·断岳诀一门。
+  // 这一版先只做刀法，剑法暂留天阶的剑法·截锋断岳诀一门。
   assert.strictEqual(new Set(byType['刀法']).size, 1);
   assert.strictEqual(new Set(byType['剑法']).size, 1);
   // 阵法三档齐全：黄阶勘禁（数格辨禁）、玄阶五行、地阶燃灯，三套内核互不复用。
@@ -545,7 +545,7 @@ check('顺光扫斩：刀路亮完才起寿命线，没划到就算漏', functio
   } finally { restoreClock(); }
 });
 
-check('顺光扫斩：划偏罚一息，与剑法·断岳诀同规矩', function () {
+check('顺光扫斩：划偏罚一息，与剑法·截锋断岳诀同规矩', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('forge'));
@@ -1094,7 +1094,7 @@ check('触雷不再一击出局，只扣一盏心神并显形', function () {
   } finally { restoreClock(); }
 });
 
-// ---------------------------------------------------------------- 勘禁诀：经典扫雷深耕
+// ---------------------------------------------------------------- 循数勘禁诀：经典扫雷深耕
 // 只读 vm.cells 的推理器，与 mines.js「无猜」判定同用最基础的单格规则。
 // 它看不到 mineSet，推得完就说明这一盘真的不用猜，而不是玩法层自己说了算。
 function mineNeighbors(i, cols, rows) {
@@ -1142,7 +1142,7 @@ function solveMines(ctx, cols) {
   return !!ctx.st.finished;
 }
 
-check('勘禁诀：开局不先布雷，首点九宫格全开且盘面无汉字', function () {
+check('循数勘禁诀：开局不先布雷，首点九宫格全开且盘面无汉字', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('tanlei'));
@@ -1165,7 +1165,7 @@ check('勘禁诀：开局不先布雷，首点九宫格全开且盘面无汉字'
   } finally { restoreClock(); }
 });
 
-check('勘禁诀：无猜布局能纯靠数字零失误翻完全盘', function () {
+check('循数勘禁诀：无猜布局能纯靠数字零失误翻完全盘', function () {
   installClock();
   try {
     let guessed = 0;
@@ -1186,7 +1186,7 @@ check('勘禁诀：无猜布局能纯靠数字零失误翻完全盘', function (
   } finally { restoreClock(); }
 });
 
-check('勘禁诀：首点不会把整盘开完（否则 0 秒拿 S，等于没参悟）', function () {
+check('循数勘禁诀：首点不会把整盘开完（否则 0 秒拿 S，等于没参悟）', function () {
   installClock();
   try {
     for (let round = 0; round < 30; round += 1) {
@@ -1199,7 +1199,7 @@ check('勘禁诀：首点不会把整盘开完（否则 0 秒拿 S，等于没�
   } finally { restoreClock(); }
 });
 
-check('勘禁诀：阵钉数对上点数字格可连开，压错位置照样踩禁制', function () {
+check('循数勘禁诀：阵钉数对上点数字格可连开，压错位置照样踩禁制', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('tanlei'));
@@ -1244,7 +1244,7 @@ check('勘禁诀：阵钉数对上点数字格可连开，压错位置照样踩�
   } finally { restoreClock(); }
 });
 
-check('勘禁诀：结算分数越大越好，玩得快不会反而输给磨洋工', function () {
+check('循数勘禁诀：结算分数越大越好，玩得快不会反而输给磨洋工', function () {
   installClock();
   try {
     function abandonScore(seconds) {
@@ -1262,7 +1262,7 @@ check('勘禁诀：结算分数越大越好，玩得快不会反而输给磨洋�
   } finally { restoreClock(); }
 });
 
-check('勘禁诀：五档禁制数与心神数真的分开，不再叠一次 hard +3', function () {
+check('循数勘禁诀：五档禁制数与心神数真的分开，不再叠一次 hard +3', function () {
   installClock();
   try {
     const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
@@ -1284,7 +1284,7 @@ check('勘禁诀：五档禁制数与心神数真的分开，不再叠一次 har
   } finally { restoreClock(); }
 });
 
-check('勘禁诀：大成勘出 3 处、大圆满 5 处，已勘出的禁制点了不再扣心神', function () {
+check('循数勘禁诀：大成勘出 3 处、大圆满 5 处，已勘出的禁制点了不再扣心神', function () {
   installClock();
   try {
     for (const pair of [[3, 3], [5, 5]]) {
@@ -1354,8 +1354,8 @@ check('20 套玩法都有「怎么玩」说明，盘面符号讲得清', functio
     }
   }
   const click = guides.guideOf('click');
-  assert.ok(click.terms.some(function (t) { return /刀路/.test(t.name); }), '刀法·开锋诀没解释「刀路」');
-  assert.ok(click.terms.some(function (t) { return /重斩/.test(t.name); }), '刀法·开锋诀没解释「重斩」');
+  assert.ok(click.terms.some(function (t) { return /刀路/.test(t.name); }), '刀法·开锋斩桩诀没解释「刀路」');
+  assert.ok(click.terms.some(function (t) { return /重斩/.test(t.name); }), '刀法·开锋斩桩诀没解释「重斩」');
   assert.ok(/扫到靶心/.test(click.inline), '局内速记没说这一门是把刀扫到靶心');
   assert.ok(/重斩/.test(click.inline), '局内速记没写重斩');
 });
@@ -1834,10 +1834,10 @@ check('兵器轴：剑与刀在轨迹、判定、节奏、称谓上都可区分'
   assert.ok(sw.stepMs < dao.stepMs, '剑光没有比刀势更快');
 });
 
-check('刀法标 dao、剑法·断岳诀仍标 sword，buildParams 原样透传兵器字段', function () {
+check('刀法标 dao、剑法·截锋断岳诀仍标 sword，buildParams 原样透传兵器字段', function () {
   const m = data.getMethod('forge');
-  assert.strictEqual(m.params.weapon, 'dao', '刀法·开锋诀没标兵器');
-  assert.strictEqual(data.getMethod('snatch').params.weapon, 'sword', '剑法·断岳诀没标兵器');
+  assert.strictEqual(m.params.weapon, 'dao', '刀法·开锋斩桩诀没标兵器');
+  assert.strictEqual(data.getMethod('snatch').params.weapon, 'sword', '剑法·截锋断岳诀没标兵器');
   for (const k of ['easy', 'normal', 'hard', 'expert', 'desperate']) {
     assert.strictEqual(data.buildParams(m, k).weapon, 'dao', k + ' 档把兵器字段弄丢了');
   }
@@ -1937,7 +1937,7 @@ check('阵灯推演：首局手把手两步走完就全亮，点错不推进', f
   installClock();
   try {
     const teach = index.MODULES.lights.teach;
-    assert.ok(teach, '燃灯诀没有教学脚本');
+    assert.ok(teach, '点灯破阵诀没有教学脚本');
     assert.deepStrictEqual(teach.steps, [4, 0], '教学步骤被改了（第一手必须先点正中）');
     const startBoard = teach.board();
     assert.strictEqual(startBoard.filter(Boolean).length, 5,
@@ -1975,7 +1975,7 @@ check('阵灯推演：首局手把手两步走完就全亮，点错不推进', f
 });
 
 check('首局手把手只给「自带脚本」的玩法，不是所有玩法硬塞过场', function () {
-  assert.strictEqual(index.hasTeach('lights'), true, '燃灯诀应该有教学脚本');
+  assert.strictEqual(index.hasTeach('lights'), true, '点灯破阵诀应该有教学脚本');
   assert.strictEqual(index.hasTeach('click'), false, '没写脚本的玩法不该被塞引导');
   assert.strictEqual(index.createTeach('click', {}), null, '没有脚本却返回了控制器');
 });
@@ -2027,7 +2027,7 @@ check('走火：有失败态的玩法判负给 F，没有失败态的玩法不�
   }
 });
 
-check('太虚诀：时辰到还没通完就是走火 F', function () {
+check('太虚翻卦诀：时辰到还没通完就是走火 F', function () {
   installClock();
   try {
     const method = data.getMethod('seal');

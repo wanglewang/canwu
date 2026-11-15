@@ -337,7 +337,7 @@ else checked += 1;
   }
 }
 
-// 8b. 功法命名规范：前缀 = 类别、分隔符唯一、正名三字且用体裁字、不写等级词。
+// 8b. 功法命名规范：前缀 = 类别、分隔符唯一、正名四到六字且用体裁字、不写等级词。
 // 规则写在 data/skills.js，这里只做兜底，避免有人直接改 name 绕过校验函数。
 const nameIssues = skillMod.validateNames();
 if (nameIssues.length) errors.push('功法命名不规范：' + nameIssues.join('；'));
@@ -352,17 +352,33 @@ for (const s of skillMod.SKILLS) {
 }
 // 旧命名口径黑名单：这些写法一回来，统一感就散了。
 // 黑名单字面量本身写在 scripts/verify.js 里，跳过自身，否则会自己把自己检出来。
+// 三字正名整批退役（2026-11）：三个字装不下一件东西加一个动作，十九门统一改五字，
+// 旧名全部留在这里——名字一旦回退，玩家在同一门功法上就会看到两个名字。
+const LEGACY_SKILL_NAMES = [
+  '刀法·开锋诀', '阵法·燃灯诀', '心法·吐纳诀', '心法·静心诀', '身法·踏云步',
+  '阵法·勘禁诀', '阵法·五行诀', '水术·凝露诀', '剑法·断岳诀', '心法·太虚诀',
+  '御灵·并蒂引', '土术·垒岳诀', '灵植·三秀诀', '术数·九宫诀', '合术·叠元诀',
+  '目术·逐数诀', '机巧·让路诀', '挪移·入位诀', '辨术·摘魁诀',
+  // 更早的一批（无前缀 / 类别错置），一并留着。
+  '基础刀法', '吐纳诀', '剑诀·断岳', '灵契·并蒂引', '阵法·小五行阵', '丹道·凝露丹方', '丹道·凝露方',
+];
 for (const f of files.filter(function (x) { return (x.endsWith('.js') || x.endsWith('.wxml')) && rel(x) !== 'scripts/verify.js'; })) {
   const src = fs.readFileSync(f, 'utf8');
-  for (const bad of ["name: '基础刀法'", "name: '吐纳诀'", "name: '剑诀·断岳'", "name: '灵契·并蒂引'", "name: '阵法·小五行阵'", "name: '丹道·凝露丹方'", "name: '丹道·凝露方'"]) {
-    if (src.indexOf(bad) >= 0) errors.push(rel(f) + ' 又写回了旧功法名：' + bad);
-    else checked += 1;
-  }
+  // 一个文件算一项：按「文件 × 名字」计数会让「多加一个旧名」凭空涨几十项，
+  // 静态项数就不再是「查了多少处」，而是「名单有多长」。
+  const back = LEGACY_SKILL_NAMES.filter(function (oldName) { return src.indexOf("name: '" + oldName + "'") >= 0; });
+  if (back.length) errors.push(rel(f) + ' 又写回了旧功法名：' + back.join('、'));
+  else checked += 1;
+  // 三字正名不再单独做「形状扫描」：全项目里带「·」的 name 还有对手（妖兽·青鳞狸），
+  // 扫形状只会误伤。真正的闸在 validateNames()：它逐门读 SKILLS，正名短于 titleMin 直接红。
 }
 
 // 8b-2. effect.text 的前缀是这门功法的门面（'九宫：参悟熟练度 +9%'），改名时最易漏。
-// 不硬性要求「等于正名前二字」——刀意 / 灯势是刻意的意象词——只挡住已废弃的旧正名：
-// 它一旦留在文案里，玩家就会在同一门功法上看到两个名字。
+// 规则：门面词必须出现在这一门的正名里，只有两个意象词可以例外——刀意（开锋斩桩诀）、
+// 灯势（点灯破阵诀），它们说的是「这一门的气」，不是动作。白名单同样反向自检：
+// 有词没人用就得删，否则它只是给下一次漏改留了个后门。
+// 另有 staleEffectWords 挡住更早的废弃名（择大）。
+const EFFECT_IMAGE_WORDS = ['刀意', '灯势'];
 const staleEffectWords = ['择大'];
 for (const s of skillMod.SKILLS) {
   const effectText = (s.effect && s.effect.text) || '';
@@ -370,6 +386,17 @@ for (const s of skillMod.SKILLS) {
     if (effectText.indexOf(word) >= 0) errors.push('功法效果文案还写着旧名「' + word + '」：' + s.id + ' → ' + effectText);
     else checked += 1;
   }
+  const title = String(s.name).split(skillMod.NAME_RULE.sep)[1] || '';
+  const label = effectText.split('：')[0];
+  if (!label) continue;
+  if (title.indexOf(label) < 0 && EFFECT_IMAGE_WORDS.indexOf(label) < 0) {
+    errors.push('功法效果的门面词「' + label + '」不在正名「' + title + '」里，改名漏了这一处：' + s.id);
+  } else checked += 1;
+}
+for (const word of EFFECT_IMAGE_WORDS) {
+  const used = skillMod.SKILLS.some(function (s) { return ((s.effect && s.effect.text) || '').indexOf(word + '：') === 0; });
+  if (!used) errors.push('意象词「' + word + '」在 EFFECT_IMAGE_WORDS 里已无人使用，请从白名单删掉');
+  else checked += 1;
 }
 
 // 8b-2b. 境界只回答两件事，必须是两个字段：realmReady（到没到学习门槛，管能不能开练）

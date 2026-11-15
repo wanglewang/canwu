@@ -122,7 +122,7 @@ Page({
         : s.methodName + ' · ' + s.gameName;
       return {
         id: s.id,
-        // 左侧方标已写出类别，列表只留三字正名，不再重复一遍「心法 ·」。
+        // 左侧方标已写出类别，列表只留正名（四到六字），不再重复一遍「心法 ·」。
         cardName: s.name.split(skillsData.NAME_RULE.sep)[1] || s.name,
         mark: s.type.slice(0, 1),
         tierLabel: s.tierLabel,

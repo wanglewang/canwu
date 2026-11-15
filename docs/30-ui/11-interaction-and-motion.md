@@ -179,7 +179,7 @@ Node 测试里跑玩法不需要真机音效。
 | --- | --- | --- |
 | 单点 | 绝大多数 | `bindtap` |
 | 长按 | 参悟页部分格子 | `bindlongpress` |
-| 划动 | 刀法·开锋诀 | 透明 `.swipe-layer` + `catchtouchmove` 用手势坐标还原轨迹 |
+| 划动 | 刀法·开锋斩桩诀 | 透明 `.swipe-layer` + `catchtouchmove` 用手势坐标还原轨迹 |
 | 按下 / 松开 | 蓄力停区 | `bindtouchstart` / `bindtouchend` / `bindtouchcancel` |
 
 **划刀为什么需要一层透明层**：格子本身要静态不动，划动需要连续坐标；盖一层 `.swipe-layer` 接管 `touchmove`，才能把离散的格子坐标还原成一条线。

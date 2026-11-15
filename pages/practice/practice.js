@@ -430,7 +430,7 @@ Page({
     // 开局卡那一行：整篇规则在说明页，首屏只留「这一局做什么」。
     const guideData = guides.guideOf(method.game);
     const ruleText = guideData ? guideData.goal : method.desc;
-    // 入门卡：第一次进这一门先摆三句「怎么玩」。教学盘（只有阵法·燃灯诀有）是跟着走一遍，
+    // 入门卡：第一次进这一门先摆三句「怎么玩」。教学盘（只有阵法·点灯破阵诀有）是跟着走一遍，
     // 入门卡是进门前读三行——十九门都得有，不然新门道只能靠试错。
     const introOn = !rec.introed && !!guideData;
     const intro = introOn ? {
@@ -1411,7 +1411,7 @@ Page({
       if (!btAfter.maxed) {
         lines.push({ k: '距离「' + btAfter.nextName + '」', v: '还差 ' + Math.max(0, btAfter.need - r.powerAfter) + ' 战力' });
       }
-      // 玩法层可以带自己的评级依据（燃灯诀写「走了几步 / 最优几步 / 为什么不是 S」）。
+      // 玩法层可以带自己的评级依据（点灯破阵诀写「走了几步 / 最优几步 / 为什么不是 S」）。
       // 它排在最前：玩家最先想知道的是这一局本身，而不是连 S 进度。
       const notes = Array.isArray(res.notes) ? res.notes.slice() : [];
       // 走火不是「成绩差」，是没走完：先把理由摆在最前，玩家才知道这一局到底栽在哪。
