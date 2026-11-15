@@ -254,7 +254,7 @@ const SKILLS = [
   {
     id: 'tuisuo', name: '挪移·入位诀', type: '挪移', kind: 'skill', tier: 'huang', method: 'tuisuo',
     desc: '人走在石格上，石箱只推不拉；每块都要推到自己的阵位，一处不落。',
-    flavor: '推错了就推不回来——这话师父只说一遍。',
+    flavor: '推错了退得回来，账退不回来——这话师父只说一遍。',
     bonus: { ti: 4 },
     effect: { type: 'power', value: 0.04, text: '入位：对战战力 +4%' },
     source: { kind: 'shop', cost: { stone: 26 } },

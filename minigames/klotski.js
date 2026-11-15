@@ -206,6 +206,9 @@ function create(ctx) {
   let moves = 0;
   let selected = 0;
   let failed = false;
+  // 复位过就本盘封顶 A：容错是给走死的人一条退路，不是免费重抽。
+  // 盘面固定、复位又把步数清零，不封顶的话「挪一步→复位→再挪」能白试出最优解。
+  let resetUsed = false;
   let done = false;
   let started = false;
 
@@ -229,13 +232,26 @@ function create(ctx) {
     vm.klotski = { cols: cols, rows: rows, blocks: blocks, exitC: Math.floor((cols - 2) / 2) };
   }
 
+  // 评级只认「走了几步」，不认时间：推演类玩法不该因为想得久而被扣。
+  // 借过外力（复位本盘）就封顶到 A——S 是同一条推演路径上一步没浪费的结果。
+  function gradeOf() {
+    if (failed) return 'F';
+    let g;
+    if (moves <= optimal) g = 'S';
+    else if (moves <= optimal + 2) g = 'A';
+    else if (moves <= optimal * 2) g = 'B';
+    else g = 'C';
+    if (g === 'S' && resetUsed) return 'A';
+    return g;
+  }
+
   function syncHud() {
     vm.timeText = '余 ' + Math.max(0, capSteps - moves) + ' 步';
     vm.progress = C.pct(moves, capSteps);
     vm.progressText = '已走 ' + moves + ' / ' + capSteps;
     vm.scoreText = '已走 ' + moves + ' 步';
     vm.goal = '已走 ' + moves + ' 步 · 最优 ' + optimal + ' 步 · 预算 ' + capSteps + ' 步';
-    vm.gradeNow = failed ? 'F' : moves <= optimal ? 'S' : moves <= optimal + 2 ? 'A' : moves <= optimal * 2 ? 'B' : 'C';
+    vm.gradeNow = gradeOf();
     vm.hint = costText + ' · 先点一块选中，再按方向键挪';
   }
 
@@ -261,6 +277,7 @@ function create(ctx) {
     moves = 0;
     selected = 0;
     failed = false;
+    resetUsed = false;
     vm.banner = theme.banner || '';
     vm.status = '先点一块选中，再按方向键挪';
   }
@@ -321,8 +338,7 @@ function create(ctx) {
     syncHud();
     if (isSolved(state, cols, rows)) {
       C.flash(vm, '脱身 · ' + moves + ' 步', 'gold');
-      finishOnce(moves <= optimal ? 'S' : moves <= optimal + 2 ? 'A' : moves <= optimal * 2 ? 'B' : 'C',
-        '脱身 · 用 ' + moves + ' 步（最优 ' + optimal + ' 步）');
+      finishOnce(gradeOf(), '脱身 · 用 ' + moves + ' 步（最优 ' + optimal + ' 步）');
       return;
     }
     if (checkFail()) return;
@@ -361,10 +377,11 @@ function create(ctx) {
       state = startState.map(function (q) { return [q[0], q[1]]; });
       moves = 0;
       failed = false;
+      resetUsed = true;
       paint();
       syncHud();
-      vm.status = '盘面已复位 · 步数清零';
-      C.flash(vm, '盘面复位 · 步数清零', 'good');
+      vm.status = '盘面已复位 · 本盘最高 A';
+      C.flash(vm, '盘面复位 · 本盘最高 A', 'good');
       render();
     },
     abandon: function () { finishOnce('F', '中途收功'); },
@@ -380,6 +397,7 @@ function lines(p) {
       'A：多 2 步以内',
       'B：不超过最优的两倍',
       'C：超过两倍才脱身（本档最优约 ' + minOpt + ' 步起）',
+      '复位过本盘，最高只到 A',
     ],
     fail: '步数预算走完主块还没到出口（困住了）→ 走火 F，这一局没有收益',
   };

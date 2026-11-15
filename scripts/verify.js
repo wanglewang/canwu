@@ -134,6 +134,13 @@ if (!/pages\/practice\/practice\?skillId=/.test(practiceShare)) {
   errors.push('参悟页分享没带 skillId：点开的人不知道自己要看哪一门');
 } else checked += 1;
 
+// 说明页的分享必须带回参悟那册的三个参数：topic=practice 的内容是按功法与本档
+// 难度现拼的，缺 method / game / diff 就退化成一份不带功法名与门槛的泛稿。
+const helpShare = fs.readFileSync(path.join(ROOT, 'pages/help/help.js'), 'utf8');
+if (!/method=/.test(helpShare) || !/game=/.test(helpShare) || !/diff=/.test(helpShare)) {
+  errors.push('说明页分享没带 method / game / diff：参悟那册转出去会变成泛稿');
+} else checked += 1;
+
 const APP_HOOKS = [
   ['getUpdateManager', '没有检查新版本：审核通过后玩家可能一直用旧版'],
   ['onError', '没有 onError：真机异常线索当场蒸发'],

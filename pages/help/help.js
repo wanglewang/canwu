@@ -4,6 +4,20 @@ const helpData = require('../../data/help.js');
 const copy = require('../../data/copy.js');
 const share = require('../../utils/share.js');
 
+// 分享查询串的唯一出口：onShareAppMessage 用带 ? 的路径，onShareTimeline 只要 `k=v&k=v`。
+// 参悟页的说明按功法与本档难度现拼，三个参数缺一个，对方看到的就不是同一册。
+function shareQuery(page) {
+    const parts = [];
+    if (page.topicKey) parts.push('topic=' + page.topicKey);
+    const t = page.topicQuery || {};
+    if (page.topicKey === 'practice') {
+        if (t.method) parts.push('method=' + t.method);
+        if (t.game) parts.push('game=' + t.game);
+        if (t.diff) parts.push('diff=' + t.diff);
+    }
+    return parts.join('&');
+}
+
 Page({
     data: {
         title: '',
@@ -19,6 +33,13 @@ Page({
         const q = query || {};
         // 分享要落回同一册：主题 key 记在实例上（不放进 data，WXML 用不到）。
         this.topicKey = q.topic || '';
+        // 参悟页的说明是「一门一册」，里面按功法名与本档难度列出 S/A/B/C 门槛。
+        // 这三个参数必须记下来一起转发，否则对方点开只剩一份不带功法名的泛稿。
+        this.topicQuery = {
+            method: q.method || '',
+            game: q.game || '',
+            diff: q.diff || '',
+        };
         const topic = q.topic === 'practice'
             ? helpData.practiceTopic({ method: q.method, game: q.game, diff: q.diff })
             : helpData.topicOf(q.topic);
@@ -60,11 +81,11 @@ Page({
     // 隐私与协议自己就是一个完整标题，不再套「修行指南」那句。
     onShareAppMessage: function () {
         const text = this.topicKey === 'privacy' ? this.data.title : copy.SHARE.help;
-        const q = this.topicKey ? '?topic=' + this.topicKey : '';
-        return share.page(text, '/pages/help/help' + q);
+        const qs = shareQuery(this);
+        return share.page(text, '/pages/help/help' + (qs ? '?' + qs : ''));
     },
     onShareTimeline: function () {
         return share.pageTimeline(this.topicKey === 'privacy' ? this.data.title : copy.SHARE.help,
-            this.topicKey ? 'topic=' + this.topicKey : 'from=timeline');
+            shareQuery(this) || 'from=timeline');
     },
 });

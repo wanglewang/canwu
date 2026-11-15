@@ -2071,4 +2071,119 @@ check('顺序点格：盘上不标「下一个在哪」，难度靠格子数与�
   } finally { restoreClock(); }
 });
 
+check('按最优步数评级的三门：反悔过就本盘封顶 A', function () {
+  // 阵灯推演早就这么做（感应 / 复位封顶 A），滑块让路与推石入位后补。
+  // 这三门的盘面是固定的、复位又把计数清零：不封顶的话「走一步 → 复位 → 再走」
+  // 能把最优解白试出来，S 变成「肯反复重来」的奖励，而不是「一步没浪费」。
+  const cases = ['lights', 'klotski', 'pushbox'];
+  for (const game of cases) {
+    const m = data.PRACTICE_METHODS.filter(function (x) { return x.game === game; })[0];
+    assert.ok(m, game + ' 没登记成功法');
+    const p = data.buildParams(m, 'easy');
+
+    // ① 干净一局：按最优路径走完，应当是 S。
+    installClock();
+    let clean;
+    try {
+      clean = makeCtx(m, {}, p);
+      clean.c.start();
+      drive(clean, game, LIMITS[game][0], LIMITS[game][1]);
+      assert.ok(clean.st.finished, game + ' 干净局没走完');
+      assert.strictEqual(clean.st.finished.grade, 'S',
+        game + ' 一步没浪费却不是 S，断言前提不成立');
+      clean.c.destroy();
+    } finally { restoreClock(); }
+
+    // ② 同一条路，先按一次复位再走：最高只能 A。
+    installClock();
+    try {
+      const dirty = makeCtx(m, {}, p);
+      dirty.c.start();
+      assert.strictEqual(typeof dirty.c.reset, 'function', game + ' 没有 reset 接口');
+      dirty.c.reset();
+      drive(dirty, game, LIMITS[game][0], LIMITS[game][1]);
+      assert.ok(dirty.st.finished, game + ' 复位局没走完');
+      assert.strictEqual(dirty.st.finished.grade, 'A',
+        game + ' 复位过还能拿 S——反悔就没有代价了');
+      dirty.c.destroy();
+    } finally { restoreClock(); }
+  }
+});
+
+check('推石入位：撤销只退位置，不退推数', function () {
+  installClock();
+  try {
+    const m = data.getMethod('tuisuo');
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
+    ctx.c.start();
+    const plan = pushboxMod.solutionMoves(pushboxMod.LEVELS[0]) || [];
+    assert.ok(plan.length >= 2, '这张图的最优解不到 2 步，断言前提不成立');
+    // 解里的前几步可能只是「走人」，先走到第一下真正推箱子为止。
+    let pushDir = null;
+    for (let i = 0; i < plan.length && !pushDir; i += 1) {
+      const before = ctx.st.vm.scoreText;
+      ctx.c.move(plan[i]);
+      if (ctx.st.vm.scoreText !== before) pushDir = plan[i];
+    }
+    assert.ok(pushDir, '这条解里没有推箱子的动作，断言前提不成立');
+    const atOne = ctx.st.vm.scoreText;
+    assert.strictEqual(atOne, '已推 1 次', '第一下推箱子的记账不对：' + atOne);
+    ctx.c.undo();
+    assert.strictEqual(ctx.st.vm.scoreText, atOne,
+      '撤销把推数也退回去了：' + atOne + ' → ' + ctx.st.vm.scoreText);
+    // 位置要真的退回去：同一方向再推一次还能推得动，且这次算第二推。
+    ctx.c.move(pushDir);
+    assert.strictEqual(ctx.st.vm.scoreText, '已推 2 次', '撤销后重推没有记账');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('两门的评级说明都写清「反悔封顶」，玩家查得到', function () {
+  // 说明页照抄 lines().items，局内只在复位时 flash 一句；少这一条，
+  // 玩家复位后会以为还能拿 S，结算给 A 就成了「凭什么」。
+  for (const game of ['klotski', 'pushbox']) {
+    const m = data.PRACTICE_METHODS.filter(function (x) { return x.game === game; })[0];
+    const r = index.MODULES[game].lines(data.buildParams(m, 'easy'), 'normal');
+    assert.ok(/最高(\s*只?到)?\s*A|最高 A/.test(r.items.join(' ')),
+      game + ' 的评级说明没写复位后封顶 A');
+  }
+});
+
+check('五档各生成一局：19 门 × 5 档都能开局，盘面不出空值', function () {
+  // 上面那条整局驱动只跑「本门基础参数」一档。难度是五档，参数差最大的一档
+  // （绝境：九宫 46 洞、逐数 6×6、入位第 5 张图、合数目标 1024）恰恰最少被走到，
+  // 而「参数拼出一个不存在的盘面」这类错在低档看不出来。这里只建局、不跑完。
+  installClock();
+  try {
+    const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+    for (const m of data.PRACTICE_METHODS) {
+      for (const dk of keys) {
+        const ctx = makeCtx(m, {}, data.buildParams(m, dk));
+        const vm = ctx.st.vm;
+        assert.ok(vm, m.id + ' 的 ' + dk + ' 档没渲染出第一帧');
+        assert.ok(['board', 'lane', 'ring', 'orbit', 'scroll', 'klotski'].indexOf(vm.stage) >= 0,
+          m.id + ' 的 ' + dk + ' 档舞台形态非法：' + vm.stage);
+        // 格子盘要真有格子；华容道走 vm.klotski.blocks；环形 / 轨道 / 卷轴类改验自己那块结构。
+        if (vm.stage === 'board') {
+          assert.ok(vm.cells && vm.cells.length > 0, m.id + ' 的 ' + dk + ' 档盘面没有格子');
+        } else if (vm.stage === 'klotski') {
+          assert.ok(vm.klotski && vm.klotski.blocks && vm.klotski.blocks.length > 0,
+            m.id + ' 的 ' + dk + ' 档没有块');
+        } else {
+          assert.ok(vm.ring || vm.orbit || vm.scroll || vm.lane,
+            m.id + ' 的 ' + dk + ' 档（' + vm.stage + '）没有盘面结构');
+        }
+        assert.ok(typeof vm.goal === 'string' && vm.goal.length > 0,
+          m.id + ' 的 ' + dk + ' 档没给这一局要做什么');
+        assert.ok(typeof vm.hint === 'string' && vm.hint.length > 0,
+          m.id + ' 的 ' + dk + ' 档没给代价句');
+        // 参数拼错最典型的表现是「目标 / 进度里冒出 undefined 或 NaN」。
+        assert.ok(!/undefined|NaN/.test(vm.goal + '|' + vm.timeText + '|' + vm.scoreText),
+          m.id + ' 的 ' + dk + ' 档目标行算出空值：' + vm.goal + ' / ' + vm.timeText);
+        ctx.c.destroy();
+      }
+    }
+  } finally { restoreClock(); }
+});
+
 console.log('\n小游戏层断言全部通过（' + passed + ' 项）');

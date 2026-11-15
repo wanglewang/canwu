@@ -6,7 +6,7 @@
 // 这里是人走、石箱只会被推、拉不回来，每个箱子都要对上自己的阵位。
 // 与「垒石垒基」的区别：那边是按时间落石堆层，这里是静态盘上的搬运。
 //
-// 一局一图：方向键走人，走到石箱后面就能推它一格（推不回来，撞墙与撞箱都推不动）。
+// 一局一图：方向键走人，走到石箱后面就能推它一格（只能推不能拉，撞墙与撞箱都推不动）。
 // 每个阵位都压上一块石箱即入位。推数预算按本图最优推数给，推满还没入位就是走火 F。
 // 评级看「已推次数 / 本图最优推数」——用推数而不是步数，是因为走多少步不值钱，
 // 把箱子推错方向才是真的费事。
@@ -34,7 +34,7 @@ const LEVELS = [
     '#.p..#',
     '######',
   ],
-  // 四推：路被墙角收窄，推错方向就再也推不回来。
+  // 四推：路被墙角收窄，推错方向得绕一圈补回来，绕不回来就只能复位（复位过最高 A）。
   [
     '######',
     '#....#',
@@ -289,7 +289,7 @@ function create(ctx) {
   const n = cols * rows;
   const optimal = Math.max(1, solve(level));
   const capPushes = Math.max(optimal + 4, Math.ceil(optimal * (p.capFactor || 1.9)));
-  const costText = ctx.tip || '推不回来：推错方向只能重来';
+  const costText = ctx.tip || '推错可退一步，推数照算；复位后本盘最高 A';
 
   const vm = C.makeVm(cols, n, '把每块石箱推到阵位上', costText);
   vm.extras.compact = true;
@@ -311,6 +311,9 @@ function create(ctx) {
   let steps = 0;
   let history = [];
   let failed = false;
+  // 复位过就本盘封顶 A（与阵灯推演、滑块让路同一条规矩）。
+  // 复位把推数清零、图又是固定的，不封顶的话「推一步→复位→再推」能白试出最优解。
+  let resetUsed = false;
   let done = false;
   let started = false;
 
@@ -358,6 +361,19 @@ function create(ctx) {
     };
   }
 
+  // 评级只认推数，不认用时。借过外力（复位本盘）就封顶到 A——
+  // S 是同一条推演路径上一次没推错的结果，靠清账重来拿到的不算。
+  function gradeOf() {
+    if (failed) return 'F';
+    let g;
+    if (pushes <= optimal) g = 'S';
+    else if (pushes <= optimal + 2) g = 'A';
+    else if (pushes <= optimal * 2) g = 'B';
+    else g = 'C';
+    if (g === 'S' && resetUsed) return 'A';
+    return g;
+  }
+
   function syncHud() {
     const ok = placed();
     vm.timeText = '余 ' + Math.max(0, capPushes - pushes) + ' 推';
@@ -365,8 +381,8 @@ function create(ctx) {
     vm.progressText = '入位 ' + ok + ' / ' + g.goals.length;
     vm.scoreText = '已推 ' + pushes + ' 次';
     vm.goal = '已推 ' + pushes + ' 次 · 最优 ' + optimal + ' 次 · 预算 ' + capPushes + ' 次';
-    vm.gradeNow = failed ? 'F' : pushes <= optimal ? 'S' : pushes <= optimal + 2 ? 'A' : pushes <= optimal * 2 ? 'B' : 'C';
-    vm.hint = costText + ' · 已走 ' + steps + ' 步 · 推不回来';
+    vm.gradeNow = gradeOf();
+    vm.hint = costText + ' · 已走 ' + steps + ' 步';
   }
 
   function finishOnce(grade, summary) {
@@ -384,7 +400,7 @@ function create(ctx) {
     const notes = [];
     if (failed) {
       notes.push('推数预算 ' + capPushes + ' 次走完，还有 ' + (g.goals.length - placed()) + ' 处阵位空着。');
-      notes.push('这一图最优 ' + optimal + ' 次；推不回来的箱子卡在角落就早点重来，别硬推。');
+      notes.push('这一图最优 ' + optimal + ' 次；石箱顶进角落就早点复位重来，别硬推（复位过最高只到 A）。');
       return notes;
     }
     const gap = pushes - optimal;
@@ -436,14 +452,14 @@ function create(ctx) {
         render();
         return;
       }
-      history.push({ player: player, boxes: boxes.slice(), pushes: pushes, steps: steps });
+      history.push({ player: player, boxes: boxes.slice(), steps: steps });
       boxes[bi] = to;
       player = target;
       pushes += 1;
       steps += 1;
       C.flash(vm, '推了一格', 'good');
     } else {
-      history.push({ player: player, boxes: boxes.slice(), pushes: pushes, steps: steps });
+      history.push({ player: player, boxes: boxes.slice(), steps: steps });
       player = target;
       steps += 1;
     }
@@ -451,8 +467,7 @@ function create(ctx) {
     syncHud();
     if (placed() >= g.goals.length) {
       C.flash(vm, '全部入位 · ' + pushes + ' 推', 'gold');
-      finishOnce(pushes <= optimal ? 'S' : pushes <= optimal + 2 ? 'A' : pushes <= optimal * 2 ? 'B' : 'C',
-        '入位 · 用 ' + pushes + ' 推（最优 ' + optimal + ' 推）');
+      finishOnce(gradeOf(), '入位 · 用 ' + pushes + ' 推（最优 ' + optimal + ' 推）');
       return;
     }
     if (checkFail()) return;
@@ -487,13 +502,15 @@ function create(ctx) {
   return C.fillController({
     start: start,
     move: push,
+    // 退回一步只退位置，不退推数：推错的那一下已经发生，撤销是「把人挪回来」，
+    // 不是把这一推抹掉。否则推一步→撤销→再推能把一张固定的图白试出最优解。
     undo: function () {
       if (done || vm.phase !== 'playing' || !history.length) return;
       const h = history.pop();
       player = h.player;
       boxes = h.boxes.slice();
-      pushes = h.pushes;
       steps = h.steps;
+      vm.status = '退回一步 · 这一推照算';
       paint();
       syncHud();
       render();
@@ -501,7 +518,9 @@ function create(ctx) {
     reset: function () {
       if (done || vm.phase !== 'playing') return;
       restore();
-      C.flash(vm, '盘面复位 · 推数清零', 'good');
+      resetUsed = true;
+      vm.status = '盘面复位 · 本盘最高 A';
+      C.flash(vm, '盘面复位 · 本盘最高 A', 'good');
       render();
     },
     abandon: function () { finishOnce('F', '中途收功'); },
@@ -532,6 +551,7 @@ function lines(p) {
       'A：多 2 次以内',
       'B：不超过最优的两倍',
       'C：超过两倍才全部入位',
+      '撤销不退推数；复位过本盘，最高只到 A',
     ],
     fail: '推数预算用尽还没全部入位 → 走火 F，这一局没有收益',
   };

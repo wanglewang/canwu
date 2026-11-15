@@ -49,7 +49,7 @@
         <text class="imm-check__text grow">{{item.text}}</text>
       </view>
       <view class="imm-btn-row">
-        <button class="imm-btn {{ov.breakthrough.available ? '' : 'imm-btn--off'}}" bindtap="onBreakthrough">突破境界</button>
+        <button class="imm-btn {{ov.breakthrough.available && ov.breakthrough.stoneReady ? '' : 'imm-btn--off'}}" bindtap="onBreakthrough">突破境界</button>
         <button class="imm-btn--ghost" bindtap="onToggleMore">背包</button>
       </view>
     </view>

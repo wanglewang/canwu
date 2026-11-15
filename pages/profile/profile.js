@@ -188,8 +188,15 @@ Page({
   onToggleSettings: function () { this.setData({ settingsOpen: !this.data.settingsOpen }); },
 
   onBreakthrough: function () {
-    if (!this.data.ov || !this.data.ov.breakthrough.available) {
+    const bt = this.data.ov && this.data.ov.breakthrough;
+    // 两件事分开判：条件是「够不够格」，灵石是「备不备得齐」。
+    // 原来只判前者，灵石不够也会跳进参悟页，再被那边拦下——等于白跳一次。
+    if (!bt || !bt.available) {
       toast('条件未齐，先修功法或积战力');
+      return;
+    }
+    if (!bt.stoneReady) {
+      toast('布阵灵石还差 ' + Math.max(0, bt.stoneCost - this.data.ov.stone) + ' 枚，去切磋或秘境挣');
       return;
     }
     wx.navigateTo({ url: '/pages/practice/practice?mode=breakthrough' });

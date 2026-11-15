@@ -161,7 +161,7 @@ const PRACTICE_METHODS = [
   {
     id: 'tuisuo', name: '归箱入阵', game: 'pushbox', theme: 'tuisuo', twist: 'tuisuo',
     desc: '人走在石格上，石箱只推不拉；把每块石箱推到自己的阵位上，一处不落。',
-    tip: '推不回来：推错方向只能重来',
+    tip: '推错可退一步，推数照算；复位后本盘最高 A',
     base: 36,
     params: {},
   },
