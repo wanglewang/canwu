@@ -64,8 +64,11 @@ function audit(method) {
     }
   });
   const lineVariants = new Set(lines).size;
-  // 盘面规格变了也算「评级线有对照」：九宫 / 阵灯 / 目术的难写在盘上，不写在数字上。
-  const boardChanged = vary.some(function (k) { return /size|holes|minSteps|hiSteps|budgetSlack|level/.test(k); });
+  // 盘面规格变了也算「评级线有对照」：九宫 / 阵灯 / 目术 / 灵纹连线的难写在盘上，
+  // 不写在数字上。cols / rows / kinds 也是盘面规格，别只认 size / 名字里带 level 的键。
+  const boardChanged = vary.some(function (k) {
+    return /size|holes|minSteps|hiSteps|budgetSlack|cols|rows|kinds|level/.test(k);
+  });
   return {
     game: method.game,
     name: practice.GAME_LABELS[method.game] || method.game,

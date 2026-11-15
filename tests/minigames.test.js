@@ -2756,6 +2756,167 @@ check('牵灵引线：连上的那一对真的画得出一条折线', function (
   assert.strictEqual(mod.findPath(near, cols, rows, 0, 2), null, '不同纹也给了路径');
 });
 
+// 评级改看「收干净那一刻剩几息」之后，四档必须都能真打出来。旧版按分数评，
+// 最低完成分 1200 > A 线 1199，B 与 C 是死线；这里把剩余息分别压到四条线上再收干净。
+check('牵灵引线：S / A / B / C 四档都真的拿得到，未收干净才是 F', function () {
+  const mod = require('../minigames/link.js');
+  const m = data.getMethod('linkpair');
+  const params = data.buildParams(m, 'easy');
+  const g = mod.gradeLefts(params.duration);
+  assert.ok(g.s > g.a && g.a > g.b && g.b > 0, '三条线挤在一起，C 带没了');
+  assert.deepStrictEqual([g.s, g.a, g.b, g.b - 1].map(function (x) {
+    return mod.gradeByLeft(x, params.duration);
+  }), ['S', 'A', 'B', 'C']);
+  const ls = mod.lines(params);
+  assert.strictEqual(ls.items.length, 4, '说明页少一条评级线');
+  assert.ok(ls.fail.indexOf('F') >= 0, '缺失败线：C 与 F 是两个结论');
+  assert.ok(!/分/.test(ls.rule), '评级说明还在讲分数');
+
+  installClock();
+  try {
+    const playTo = function (left) {
+      let vm = null;
+      let fin = null;
+      const c = index.createGame('link', {
+        params: params, difficulty: 'easy', perks: { tier: 0 }, tip: m.tip, twist: m.twist,
+        theme: themes.themeOf(m.id, m.game),
+        render: function (v) { vm = v; }, finish: function (r) { fin = r; },
+      });
+      c.start();
+      const leftOf = function () { return Number(vm.progressText.replace(' 息', '')); };
+      let guard = 0;
+      while (leftOf() > left && guard < 200) {
+        guard += 1;
+        // 照纹每次少 2 息；差 1 息时走一秒，别把剩余息压穿到 0（那是走火）。
+        if (leftOf() - left >= 2) c.hint();
+        else advance(1000);
+      }
+      assert.strictEqual(leftOf(), left, '没能把剩余息压到 ' + left);
+      let steps = 0;
+      while (!fin && steps < 40) {
+        steps += 1;
+        const p = mod.findPair(vm.link.board, vm.link.cols, vm.link.rows);
+        if (!p) break;
+        c.tap(p[0]);
+        c.tap(p[1]);
+      }
+      const grade = fin ? fin.grade : null;
+      c.destroy();
+      return grade;
+    };
+    assert.strictEqual(playTo(g.s), 'S', '剩 ' + g.s + ' 息没给 S');
+    assert.strictEqual(playTo(g.a), 'A', '剩 ' + g.a + ' 息没给 A');
+    assert.strictEqual(playTo(g.b), 'B', '剩 ' + g.b + ' 息没给 B');
+    assert.strictEqual(playTo(g.b - 1), 'C', '剩 ' + (g.b - 1) + ' 息没给 C：C 是死线');
+  } finally { restoreClock(); }
+});
+
+check('牵灵引线：局内不报「已入 S」，时辰到还剩对子才是走火 F', function () {
+  const mod = require('../minigames/link.js');
+  const m = data.getMethod('linkpair');
+  const params = data.buildParams(m, 'easy');
+  installClock();
+  try {
+    let vm = null;
+    let fin = null;
+    const c = index.createGame('link', {
+      params: params, difficulty: 'easy', perks: { tier: 0 }, tip: m.tip, twist: m.twist,
+      theme: themes.themeOf(m.id, m.game),
+      render: function (v) { vm = v; }, finish: function (r) { fin = r; },
+    });
+    c.start();
+    for (let i = 0; i < 9; i += 1) {
+      const p = mod.findPair(vm.link.board, vm.link.cols, vm.link.rows);
+      assert.ok(p, '第 ' + (i + 1) + ' 对找不到');
+      c.tap(p[0]);
+      c.tap(p[1]);
+      advance(500);
+    }
+    assert.ok(!fin, '才收 9 对就结算了');
+    assert.ok(!/已入 S/.test(vm.goal || ''), 'HUD 又在收完之前宣布 S，结算却会给 F');
+    assert.ok(/还差 3 对/.test(vm.goal), 'HUD 没报还差几对');
+    assert.ok(/S 线要剩/.test(vm.goal), 'HUD 没报 S 线要剩几息');
+    assert.strictEqual(vm.extras.showGradeNow, false, '局内评级徽章又被打开了');
+    advance(80000);
+    assert.ok(fin, '时辰到没结算');
+    assert.strictEqual(fin.grade, 'F', '没收干净却给了 ' + fin.grade);
+    assert.ok(/还剩/.test(fin.summary), '走火的结算没说清是没走完');
+    c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('牵灵引线：照纹按段位收费、双照一次照见两对、点空地不罚息', function () {
+  const mod = require('../minigames/link.js');
+  const m = data.getMethod('linkpair');
+  const params = data.buildParams(m, 'easy');
+  const open = function (tier) {
+    let vm = null;
+    let fin = null;
+    const c = index.createGame('link', {
+      params: params, difficulty: 'easy', perks: { tier: tier }, tip: m.tip, twist: m.twist,
+      theme: themes.themeOf(m.id, m.game),
+      render: function (v) { vm = v; }, finish: function (r) { fin = r; },
+    });
+    c.start();
+    return { c: c, vm: function () { return vm; }, fin: function () { return fin; } };
+  };
+  const lit = function (vm) {
+    return vm.cells.filter(function (x) { return /cell--hintpair/.test(x.cls); }).length;
+  };
+  installClock();
+  try {
+    const a = open(0);
+    assert.strictEqual(a.vm().progressText, params.duration + ' 息');
+    a.c.hint();
+    assert.strictEqual(a.vm().progressText, (params.duration - 2) + ' 息', '照纹没扣 2 息');
+    assert.strictEqual(a.vm().fx.text, '照纹 · 少 2 息', '代价写进了看不见的 vm.status');
+    assert.strictEqual(lit(a.vm()), 2, '照纹没照见一对');
+    a.c.destroy();
+
+    const b = open(3);
+    b.c.hint();
+    assert.strictEqual(b.vm().progressText, (params.duration - 1) + ' 息', '大成起照纹不该免费');
+    assert.strictEqual(b.vm().fx.text, '照纹 · 少 1 息');
+    b.c.destroy();
+
+    // 大圆满「双照」要照见两对不同的灵石；盘面随机，抽到只有一对可连的开局就重开。
+    let twin = false;
+    for (let t = 0; t < 12 && !twin; t += 1) {
+      const c = open(5);
+      const board = c.vm().link.board;
+      const cols = c.vm().link.cols;
+      const rows = c.vm().link.rows;
+      const p1 = mod.findPair(board, cols, rows);
+      const skip = {};
+      if (p1) { skip[p1[0]] = true; skip[p1[1]] = true; }
+      const p2 = p1 && mod.findPair(board, cols, rows, skip);
+      if (p1 && p2) {
+        c.c.hint();
+        assert.strictEqual(c.vm().fx.text, '双照 · 少 1 息', '大圆满没一次照见两对');
+        assert.strictEqual(lit(c.vm()), 4, '两对不同的灵石没同时亮起来');
+        assert.strictEqual(c.vm().progressText, (params.duration - 1) + ' 息', '双照仍要付 1 息');
+        twin = true;
+      }
+      c.c.destroy();
+    }
+    assert.ok(twin, '连开 12 局都没抽到「至少两对可连」的盘，双照没法验');
+
+    // 空地是通路，不是牌：收走一对之后点它只把已选的那枚放下，不罚息。
+    const d = open(0);
+    const pair = mod.findPair(d.vm().link.board, d.vm().link.cols, d.vm().link.rows);
+    assert.ok(pair, '开局没有可连的一对');
+    d.c.tap(pair[0]);
+    d.c.tap(pair[1]);
+    const before = d.vm().progressText;
+    const chip = d.vm().link.board.findIndex(function (v) { return v > 0; });
+    d.c.tap(chip);
+    d.c.tap(pair[0]);
+    assert.strictEqual(d.vm().progressText, before, '点空地被当成错配扣息了');
+    assert.ok(!/少 2 息/.test(d.vm().fx.text), '点空地不该报错配');
+    d.c.destroy();
+  } finally { restoreClock(); }
+});
+
 check('三秀同收：无效互换会抖，收走之后新苗会落下', function () {
   // 这两条是玩家判断「刚才发生了什么」的唯一线索：
   // 光少 2 息、不抖，他会以为没点上；收了牌却看不出新苗落下，连锁就像凭空发生。

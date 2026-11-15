@@ -96,6 +96,7 @@ Page({
     levelMax: 200,
     levelSub: '',
     levelChange: '',
+    chapterChange: '',
     diffName: '简单',
     rankLabel: '黄阶',
     rankChar: '黄',
@@ -469,9 +470,15 @@ Page({
         + ' 关 · 本门当前第 ' + curLevel + ' 关',
       levelChange: (function () {
         const d = practiceData.levelDelta(method, level);
-        if (!d.length) return '第 ' + level + ' 关与上一关规格相同（章内只收紧时辰与预算，盘面规格换章才换一副）';
-        return '本关变化：' + d.map(function (x) { return x.text; }).join(' · ');
+        if (!d.length) return '与上一关规格相同（本章第 '
+          + levelData.levelInChapter(level) + ' / ' + levelData.chapterSize(levelData.chapterOf(level))
+          + ' 关；盘面规格换章才换，章内只收时辰与评级线）';
+        return (d[0].chapter ? '' : '本关变化：') + d.map(function (x) { return x.text; }).join(' · ');
       })(),
+      // 换章提示不能只挂在「本章第 1 关」上：关号由熟练度算，一局 S 能往前走四五关，
+      // 第 41 / 81 / 121 / 161 关常常被整步跨过去。本章规格因此常驻，玩家在哪一关都能看见
+      // 「自己现在打的是哪一副盘」，而不是等一个永远没出现的换章动画。
+      chapterChange: practiceData.chapterSpec(method, level),
       diffName: diff.name,
       qi: qiNow,
       qiMax: qiMax,
@@ -523,7 +530,8 @@ Page({
       const skill = skillData.getSkill(this.skillId);
       const method = practiceData.getMethod(skill.method);
       gameId = method.game;
-      // 同一段五关参数逐位相同，跨段才收紧——「五关之内难度不变」就落在这个函数里。
+      // 一段一关：本关参数由章内进度现算，换章才换盘面规格。
+      // 盘面规格之外的收紧都是毫秒级，所以准备页另有一行常驻「本章规格」把换章说清。
       params = practiceData.buildParamsAt(method, this.data.level);
       methodName = method.name;
       // 代价句里的罚息随难度档变（三秀同收），不能用写死在功法表里的那一句。

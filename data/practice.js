@@ -103,13 +103,18 @@ const PRACTICE_METHODS = [
     params: { pairs: 6, cols: 4, flipMs: 850, timeLimit: 70 },
   },
   // 下面三门是「一看就懂」的经典玩法，都挂黄阶：规则不绕，前期就买得起。
-  // 品阶只管收益与可修境界，难度仍由熟练度档位拧数值（flashMs / dropMs / depth）。
+  // 品阶只管收益与可修境界，难度仍由熟练度档位拧数值（dropMs / depth 等）。
   {
     id: 'linkpair', name: '牵灵引线', game: 'link', theme: 'linkpair', twist: 'linkpair',
     desc: '同纹灵石两两相契，牵一条不过两折的灵线把这一对收回来。',
-    tip: '错配或连不上都少 2 息，息尽收功',
+    tip: '错配或连不上都少 2 息，时辰到没收干净是走火',
     base: 34,
-    params: { duration: 55, cols: 6, rows: 4, kinds: 6, flashMs: 900 },
+    // cols / rows / kinds 由 LINK_LEVELS 按档整表覆盖，这里只是简单档的种子。
+    // duration 不写种子：它由 linkDurationAt(关号) 现算，写一个没人读的 55 只会
+    // 让人误以为「时辰 55 秒」是这一门的基准。hintMs 是照纹高亮时长，与难度无关，
+    // 故意不叫 flashMs——那个键在 PACE_KEYS 里，会被按档缩放、还会在 200 关里
+    // 报出一百多处「0.75 秒 → 0.74 秒」的假变化。
+    params: { cols: 6, rows: 4, kinds: 6, hintMs: 900 },
   },
   {
     id: 'stackstone', name: '垒石筑基', game: 'blocks', theme: 'stackstone', twist: 'stackstone',
@@ -499,7 +504,7 @@ const LINK_LEVELS = [
   { cols: 7, rows: 4, kinds: 6 },   // 14 对
   { cols: 8, rows: 4, kinds: 6 },   // 16 对
 ];
-// 每对预算（息）：第 1 关 5.5 → 第 200 关 2.75，1.91 倍。
+// 每对预算（息）：第 1 关 5.5 → 第 200 关 2.75，正好 2 倍。
 // 拿「每对」而不是「总秒数」当主承重：换章盘面变大，总秒数跟着变长是应该的，
 // 玩家比较难度的尺子只能是「一对平均给几息」。
 const LINK_BUDGET = [5.5, 2.75];
@@ -514,11 +519,14 @@ function linkPerPairAt(level) {
 
 // 这一关的时辰 = 本档对数 × 每对预算（消费端在 minigames/link.js 的 p.duration）。
 // 盘面台阶（换章）与关内台阶（预算）分开承担：换章时辰会变长，但每对只会更紧。
+// 向下取整而不是四舍五入：取整只会让实际每对预算比名义值更紧，方向永远朝难；
+// 四舍五入在换章时会把 46.27 抬成 46、53.78 抬成 54，实际每对从 3.83 息涨到
+// 3.86 息——界面上就会出现「每对时辰 3.83 → 3.86」这种往松走的假台阶。
 function linkDurationAt(level) {
   const lv = Math.max(1, Math.min(levelData.LEVEL_MAX, Math.round(level) || 1));
   const board = LINK_LEVELS[levelData.chapterOf(lv)];
   const pairs = board.cols * board.rows / 2;
-  return Math.max(20, Math.round(linkPerPairAt(lv) * pairs));
+  return Math.max(20, Math.floor(linkPerPairAt(lv) * pairs));
 }
 
 // 局内那行代价句要跟着本档罚息走：以前写死「少 2 息」，改了档就变成假话。
@@ -690,6 +698,13 @@ const FIELD_LABELS = {
   startLen: '起始字数', baseLen: '每步长度', steps: '最少步数',
   duration: '时辰', timeLimit: '时辰', hearts: '心神', startTiles: '起手块',
   penaltySec: '点错罚', capFactor: '推数预算', budgetSlack: '步数余量',
+  // 结构键：换章时真正换了盘面的那些数。以前 levelDelta 的候选列里没有它们，
+  // 于是「气窍 5 → 6 对」「要合出 128 → 256」这种玩家一眼就看见的变化，
+  // 被「亮起时长 0.70 → 0.84 秒」挤掉，五门换章甚至直接报「与上一关规格相同」。
+  cols: '盘面列', rows: '盘面行', size: '盘面', kinds: '纹种', holes: '待填格',
+  count: '每批数目', rounds: '批数', target: '合出', minOpt: '最优下限', maxOpt: '最优上限',
+  boxes: '石箱', walls: '壁垒', minSteps: '最优下限', hiSteps: '最优上限',
+  lenStep: '刀路桩数', missCost: '认错罚息', grid: '盘面',
 };
 
 function capFor(key, src) {
@@ -751,6 +766,17 @@ function rawParams(method, depthIndex) {
     out.shuffleCost = lv.shuffleCost;
     out.hintCost = lv.hintCost;
     out.sLine = lv.sLine;
+  }
+  // 灵纹连线：盘面规格、纹种、时辰全部按整表 + 关号现算，不通用缩放。
+  // 时辰特意放在 TIME_LEVELS 与 LEVEL_TIGHTEN 之外：盘变大时本该多给息，
+  // 而「章内收三成、换章复位」会让第 40 关（约 39 息）比第 41 关（约 53 息）还紧。
+  // 现在换章时总时辰可以变长，但「一对平均给几息」永远只减不增——这才是玩家比较难度的尺子。
+  if (method && method.game === 'link') {
+    const lv = LINK_LEVELS[d.depth];
+    out.cols = lv.cols;
+    out.rows = lv.rows;
+    out.kinds = lv.kinds;
+    out.duration = linkDurationAt(levelData.chapterRange(d.depth).from);
   }
   // 阵灯推演按「比最优多走几步」评级，盘面规格、最优步数区间与步数余量由这一份表按档注入。
   if (method && method.game === 'lights') {
@@ -886,8 +912,12 @@ function buildParamsAt(method, level) {
   const f = levelData.progressOf(lv);
   const out = rawParams(method, ch);
   const tighten = 1 - LEVEL_TIGHTEN * f;
+  // 灵纹连线的时辰不进这一刀：它按「每对预算 × 本档对数」沿关号连续收，
+  // 再叠一次章内三成，就会在章末压出一个比下一章首关还紧的倒挂。
+  const linkGame = method && method.game === 'link';
   for (let i = 0; i < LEVEL_TIME_KEYS.length; i += 1) {
     const k = LEVEL_TIME_KEYS[i];
+    if (linkGame && k === 'duration') continue;
     if (typeof out[k] !== 'number') continue;
     const min = k === 'budgetSlack' ? 5 : k === 'timeLimit' || k === 'duration' ? 8 : 0;
     out[k] = Math.max(min, levelRound(k, out[k] * tighten));
@@ -900,6 +930,8 @@ function buildParamsAt(method, level) {
   // 章内收紧不许把判定窗压到生效下限以下：参数与盘面必须一起停，
   // 否则「本关小变化」会写出一个盘面上根本没有的变化。
   if (method.game === 'tempo') tuned.window = Math.max(tuned.window, tempoWindowFloor(tuned.speed));
+  // 灵纹连线的时辰在这一步统一收口：一关一个数，沿全书连续收，不按章回卷。
+  if (linkGame) tuned.duration = linkDurationAt(lv);
   return tuned;
 }
 
@@ -914,31 +946,108 @@ function levelRound(key, v) {
 
 // 这一关的「小变化」：拿上一关的参数逐项比，只报玩家看得懂的。
 // 比较基准一定是同一门、本关减一（`STAGE_SPAN`），而不是「与简单档比」——玩家看的是脚下这一步。
+// 结构键：玩家进局一眼能看见的盘面 / 数量 / 目标。章内一律不动，换章才换。
+// 候选列里要是没有它们，「本关变化」就永远只剩毫秒级微调。
+const LEVEL_STRUCT_KEYS = ['cols', 'rows', 'size', 'grid', 'kinds', 'holes', 'count', 'rounds',
+  'target', 'minOpt', 'maxOpt', 'boxes', 'walls', 'startTiles', 'hearts', 'steps',
+  'minSteps', 'hiSteps', 'startLevel', 'linesPerLevel', 'lenStep', 'decoys', 'pairs',
+  'mines', 'beats', 'segments', 'chainGoal', 'maxRound', 'scramble', 'startLen',
+  'baseLen', 'budgetSlack', 'missCost'];
+
+// 这一关的「小变化」：拿上一关的参数逐项比，只报玩家看得懂的。
+// 比较基准一定是同一门、本关减一（`STAGE_SPAN`），而不是「与简单档比」——玩家看的是脚下这一步。
+//
+// 换章是另一种事：盘面规格换一副，同时时辰 / 停留一律回弹给读盘（章末比下章首关还紧）。
+// 这时若照旧按 PACE_KEYS 顺序报，玩家看到的是「翻牌停留 0.70 → 0.84 秒」——
+// 又细、又像变简单，真正的大变化反而藏在后面。所以换章只报结构键，并给一个 chapter 标记。
 function levelDelta(method, level) {
   const lv = levelData.clampLevel(level);
   const prevLv = lv - levelData.STAGE_SPAN;
   if (prevLv < 1) return [];
   const now = buildParamsAt(method, lv);
   const prev = buildParamsAt(method, prevLv);
-  const ordered = PACE_KEYS.concat(GOAL_KEYS,
-    ['duration', 'timeLimit', 'sLine', 'hearts', 'startTiles', 'penaltySec', 'capFactor',
-      'budgetSlack', 'fourRate', 'lineScale', 'startLevel', 'linesPerLevel']).filter(function (k) {
-    return k !== 'speed';
-  });
-  const out = [];
-  for (let i = 0; i < ordered.length; i += 1) {
-    const k = ordered[i];
-    if (typeof now[k] !== 'number' || typeof prev[k] !== 'number') continue;
-    if (now[k] === prev[k]) continue;
+  // 灵纹连线只报三样玩家真看得见的东西：换盘、换纹种、每对时辰。
+  // 总时辰在换章时会因盘变大而变长，直接报「时辰 46 → 54 息」等于说这一关变松了；
+  // 玩家该看的是「一对平均给几息」，那个数永远只减不增。
+  // 照纹高亮时长（hintMs）恒定，旧版的 flashMs 会报出一百多关「0.75 → 0.74 秒」——
+  // 参数真的动了 10ms、盘面一点没动，正是这一条要挡住的假变化。
+  if (method && method.game === 'link') {
+    const chStart = levelData.chapterOf(lv) !== levelData.chapterOf(prevLv);
+    const out = [];
+    if (chStart) {
+      const c = levelData.chapterRange(levelData.chapterOf(lv));
+      out.push({ key: 'chapter', label: '换章', chapter: true,
+        text: '踏入' + c.label + '（' + c.name + '）' });
+    }
+    if (now.cols !== prev.cols || now.rows !== prev.rows) {
+      out.push({ key: 'cols', label: '盘面', text: '盘面 ' + prev.cols + '×' + prev.rows
+        + ' → ' + now.cols + '×' + now.rows });
+    }
+    if (now.kinds !== prev.kinds) {
+      out.push({ key: 'kinds', label: '灵纹', text: '灵纹 ' + prev.kinds + ' → ' + now.kinds + ' 种' });
+    }
+    const perPair = function (q) { return (q.duration / (q.cols * q.rows / 2)).toFixed(2); };
+    const a = perPair(prev);
+    const b = perPair(now);
+    if (a !== b) out.push({ key: 'perPair', label: '每对时辰', text: '每对时辰 ' + a + ' → ' + b + ' 息' });
+    return out.slice(0, chStart ? 3 : 2);
+  }
+
+  const isChapter = levelData.chapterOf(lv) !== levelData.chapterOf(prevLv);
+  const push = function (out, k) {
+    if (typeof now[k] !== 'number' || typeof prev[k] !== 'number') return;
+    if (now[k] === prev[k]) return;
     // 格式化之后一样就不再报：毫秒级差 1ms 写出来是「0.82 秒 → 0.82 秒」，
     // 玩家只会以为这游戏在骗他。
     const a = levelFmt(k, prev[k]);
     const b = levelFmt(k, now[k]);
-    if (a === b) continue;
+    if (a === b) return;
     out.push({ key: k, label: lineLabelOf(method, k), text: lineLabelOf(method, k) + ' ' + a + ' → ' + b });
-    if (out.length >= 2) break;
+  };
+
+  if (isChapter) {
+    const ch = levelData.chapterRange(levelData.chapterOf(lv));
+    const out = [{ key: 'chapter', label: '换章', chapter: true,
+      text: '踏入' + ch.label + '（' + ch.name + '）' }];
+    // 盘面宽高合并成一条，比「盘面列 6 → 7 / 盘面行 6 → 7」好读，也不占两条额度。
+    if (now.cols && now.rows && (now.cols !== prev.cols || now.rows !== prev.rows)) {
+      out.push({ key: 'cols', label: '盘面', text: '盘面 ' + prev.cols + '×' + prev.rows
+        + ' → ' + now.cols + '×' + now.rows });
+    }
+    for (let i = 0; i < LEVEL_STRUCT_KEYS.length && out.length < 3; i += 1) {
+      const k = LEVEL_STRUCT_KEYS[i];
+      if (k === 'cols' || k === 'rows') continue;
+      push(out, k);
+    }
+    if (out.length === 1) {
+      out.push({ key: 'sameBoard', label: '本章',
+        text: '这一章沿用同一副盘，改的是时辰与节奏' });
+    }
+    // 换章不报时间类：那些数一律回弹给读盘，报出来只会像「变简单了」。
+    return out;
   }
+
+  const ordered = LEVEL_STRUCT_KEYS.concat(PACE_KEYS, GOAL_KEYS,
+    ['duration', 'timeLimit', 'sLine', 'penaltySec', 'capFactor', 'fourRate', 'lineScale'])
+    .filter(function (k, i, arr) { return k !== 'speed' && arr.indexOf(k) === i; });
+  const out = [];
+  for (let i = 0; i < ordered.length && out.length < 2; i += 1) push(out, ordered[i]);
   return out;
+}
+
+// 本章规格：换章那一关「踏入第 X 章」的提示，不能只挂在章首关上。
+// 关号由熟练度算，一局 S 能往前走四五关，第 41 / 81 / 121 / 161 关常被整步跨过去；
+// 玩家在第 46 关进局，也该知道自己现在打的是哪一副盘。所以按「本章首关」取变化，
+// 再按任意关号常驻返回，页面不自己拼这一句。
+function chapterSpec(method, level) {
+  const ch = levelData.chapterOf(level);
+  if (ch === 0) return '';
+  const c = levelData.chapterRange(ch);
+  const d = levelDelta(method, c.from);
+  const spec = d.filter(function (x) { return x.key !== 'chapter' && x.key !== 'sameBoard'; })
+    .map(function (x) { return x.text; }).join(' · ');
+  return c.label + '（' + c.name + '）· '
+    + (spec ? '本章换了一副：' + spec : '沿用上一副盘，改的是时辰与节奏');
 }
 
 // 关卡表里独有的两个旋钮（合术起手 4 的比例、勘禁 S 线系数）没有通用标签。
@@ -956,6 +1065,8 @@ function levelFmt(key, value) {
   // 「本关小变化」那一行会一直是空的——玩家会以为这一关什么都没变。
   if (key === 'lineScale') return (Math.round(value * 1000) / 10).toFixed(1) + '%';
   if (key === 'startTiles') return Math.round(value) + ' 块';
+  if (key === 'size') return Math.round(value) + '×' + Math.round(value);
+  if (key === 'grid') return Math.round(value) + ' 格';
   // 判定窗与罚时是小数：fmtField 会四舍五入成整数，写出来就成了「0 → 0」「2 秒 → 2 秒」。
   if (key === 'window') return (Math.round(value * 1000) / 10).toFixed(1) + '%';
   if (key === 'penaltySec') return value.toFixed(1) + ' 秒';
@@ -1061,10 +1172,11 @@ function diffDetail(method, diffKey) {
     brief = lv.cols + '×' + lv.rows + ' 盘 · ' + lv.mines + ' 处禁制 · ' + lv.hearts + ' 盏心神';
   } else if (method && method.game === 'link') {
     // 这一门的难度不写在总秒数上（盘变大时辰就变长），写在「一对平均给几息」上。
-    const lv = LINK_LEVELS[d.depth];
-    const pairs = lv.cols * lv.rows / 2;
-    brief = lv.cols + '×' + lv.rows + ' 盘 · ' + pairs + ' 对 · ' + lv.kinds + ' 种灵纹 · 每对 '
-      + linkPerPairAt(levelData.chapterRange(d.depth).from).toFixed(2) + ' 息';
+    // 每对时辰从本档真实参数现算，不另抄一份 linkPerPairAt——向下取整之后两者会差到
+    // 0.08 息，准备页说 5.50、局内却是 5.42，玩家一眼就看得出是两张嘴。
+    const pairs = now.cols * now.rows / 2;
+    brief = now.cols + '×' + now.rows + ' 盘 · ' + pairs + ' 对 · ' + now.kinds + ' 种灵纹 · '
+      + now.duration + ' 息 · 每对 ' + (now.duration / pairs).toFixed(2) + ' 息';
   } else if (method && method.game === 'blocks') {
     // 盘面是标准场地（10×20），写出来是让玩家知道「这一门不是小盘俄罗斯方块」；
     // 真正随档变的是起手级数与每级层数——这两句才是难度。
@@ -1181,6 +1293,8 @@ module.exports = {
   tipFor: tipFor,
   TEMPO_FLOOR: TEMPO_FLOOR,
   tempoWindowFloor: tempoWindowFloor,
+  LEVEL_STRUCT_KEYS: LEVEL_STRUCT_KEYS,
+  chapterSpec: chapterSpec,
   TIME_LEVELS: TIME_LEVELS,
   MINES_HEARTS: MINES_HEARTS,
   CLICK_LEVELS: CLICK_LEVELS,

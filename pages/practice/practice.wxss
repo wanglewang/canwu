@@ -1518,6 +1518,19 @@
 .diff-chip__mult { font-size: var(--fs-caption); color: var(--c-text-2); }
 .diff-chip__need { font-size: var(--fs-caption); color: var(--c-imm-gold); }
 /* 选中这一档实际收紧了什么：一行小字，跟在档位下面，不占一格。 */
+/* 本章规格：准备页唯一一处常驻的「你打的是哪一副盘」。
+   旧金描边、不铺色块、不从 opacity:0 起跳——一屏只允许一处金色实心（开始参悟）。 */
+.chapter-note {
+    display: block;
+    padding: 10rpx 14rpx;
+    border-left: 3rpx solid var(--c-imm-gold-dim);
+    border-radius: 0 var(--r-xs) var(--r-xs) 0;
+    background: var(--c-imm-gold-soft);
+    color: var(--c-imm-gold);
+    font-size: var(--fs-caption);
+    line-height: 1.6;
+}
+
 .diff-brief {
     display: block;
     margin-top: var(--sp-3);

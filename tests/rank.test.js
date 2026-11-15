@@ -452,6 +452,42 @@ check('一关一段：章内只往难走，每门规格台阶不少于本条门�
   }
 });
 
+check('换章要报出盘面规格，不许把结构变化藏在毫秒后面', function () {
+  // 真机反馈「玩了一百多关没发现任何变化」：换章是 200 关里唯一一次玩家看得见的
+  // 盘面变化，旧版 levelDelta 却按 PACE_KEYS 顺序只报两条，结果第一章里报的全是
+  // 「亮起时长 0.66 → 0.65 秒」，换章那次的「气窍 5 → 6 对」被挤掉，五门直接报「同」。
+  const struct = practice.LEVEL_STRUCT_KEYS;
+  for (const m of practice.PRACTICE_METHODS) {
+    for (const lv of [41, 81, 121, 161]) {
+      const d = practice.levelDelta(m, lv);
+      const now = practice.buildParamsAt(m, lv);
+      const prev = practice.buildParamsAt(m, lv - 1);
+      assert.ok(d.length, m.id + ' 第 ' + lv + ' 关换章没报任何变化');
+      assert.ok(d[0].chapter === true, m.id + ' 第 ' + lv + ' 关没打换章标记');
+      const changed = struct.filter(function (k) {
+        return typeof now[k] === 'number' && typeof prev[k] === 'number' && now[k] !== prev[k];
+      });
+      for (const x of d.slice(1)) {
+        assert.ok(x.key === 'sameBoard' || x.key === 'cols' || x.key === 'perPair'
+          || struct.indexOf(x.key) >= 0,
+        m.id + ' 第 ' + lv + ' 关把「' + x.key + '」当换章变化报了出来（那是毫秒/时辰，不是盘面）');
+      }
+      if (changed.length) {
+        assert.ok(!d.some(function (x) { return x.key === 'sameBoard'; }),
+          m.id + ' 第 ' + lv + ' 关明明换了盘，却报「沿用同一副盘」');
+        assert.ok(d.length > 1, m.id + ' 第 ' + lv + ' 关有结构变化却一条都没报');
+      }
+      // 关号一局能跳四五关，章首关常被整个跨过去：第 46 关也得拿到本章规格。
+      const label = L.chapterRange(L.chapterOf(lv)).label;
+      for (const later of [lv + 3, lv + 9]) {
+        if (L.chapterOf(later) !== L.chapterOf(lv)) continue;
+        assert.ok(practice.chapterSpec(m, later).indexOf(label) >= 0,
+          m.id + ' 第 ' + later + ' 关取不到本章规格（跳关把换章提示跨过去了）');
+      }
+    }
+  }
+});
+
 check('关卡由熟练度决定进度：越权回落、走火不倒退', function () {
   const s = game.createNewState();
   assert.strictEqual(L.levelFromProf(s.skills.jian.prof), 1);
@@ -619,9 +655,11 @@ check('藏经阁按品阶拦境界：炼气买不了玄阶', function () {
 // ---------------------------------------------------------------- 参数与展示
 
 check('难度档缩放不碰盘面尺寸，且各档参数确有区分', function () {
-  // 规格按档递增的五门由各自的档位表管（lights / sudoku / klotski / click / mines），
+  // 规格按档递增的几门由各自的档位表管（lights / sudoku / klotski / click / mines / link），
   // 见下面的专条断言。它们的盘面「该变」，所以不在这条里被判。
-  const tableGames = ['lights', 'sudoku', 'klotski', 'click', 'mines'];
+  // link 的 6×4 → 8×4 是 LINK_LEVELS 显式表：连连看加列买的是搜索空间，
+  // 与「缩场地把手感挤成手速」不是一回事。
+  const tableGames = ['lights', 'sudoku', 'klotski', 'click', 'mines', 'link'];
   // 档位表住在玩法模块里的四门（merge / schulte / pushbox / biggest）：params 只有 depth，
   // 「难度确实变了」要看它们的评级线随档收紧——线不变才是真没区分度。
   const internalGames = ['merge', 'schulte', 'pushbox', 'biggest'];
@@ -976,6 +1014,59 @@ check('十九门五档都至少两个可见参数在变，且评级线或盘面�
     assert.ok(variants > 1 || boardChanged,
       m.id + ' 的说明页五档写同一行，玩家没法对照');
   }
+});
+
+check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备页与局内同一份时辰', function () {
+  const m = practice.getMethod('linkpair');
+  const link = require('../minigames/link.js');
+  const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const ps = keys.map(function (k) { return practice.buildParams(m, k); });
+  // 档差的判据不是「秒表差几秒」，是这一档换了哪种盘、纹种多了几种。
+  const specs = ps.map(function (p) { return p.cols + '×' + p.rows + '/' + p.kinds + ' 种'; });
+  assert.ok(new Set(specs).size >= 4, '五档盘面或纹种没换够：' + specs.join(' '));
+  assert.ok(ps[4].cols > ps[0].cols, '绝境档没加列：五档又是同一张 6×4');
+  assert.ok(ps[2].kinds > ps[0].kinds, '困难档没加纹种');
+  for (let i = 1; i < ps.length; i += 1) {
+    const before = ps[i - 1].duration / (ps[i - 1].cols * ps[i - 1].rows / 2);
+    const after = ps[i].duration / (ps[i].cols * ps[i].rows / 2);
+    assert.ok(after < before, keys[i] + ' 的每对预算反而宽了（' + before + ' → ' + after + '）');
+  }
+  // 时辰由 linkDurationAt(章首关号) 现算；准备页 brief 里的息数必须就是局内那个数，
+  // 否则「每对 5.50 息」与倒计时会是两张嘴。
+  for (let i = 0; i < keys.length; i += 1) {
+    assert.strictEqual(ps[i].duration, practice.linkDurationAt(L.chapterRange(i).from),
+      keys[i] + ' 的时辰不是按关号现算的');
+    const brief = practice.diffDetail(m, keys[i]).brief;
+    assert.ok(brief.indexOf(ps[i].duration + ' 息') >= 0, keys[i] + ' 准备页写的时辰与局内分叉了');
+    assert.ok(/每对 /.test(brief), keys[i] + ' 准备页没写「一对平均给几息」');
+    const g = link.gradeLefts(ps[i].duration);
+    assert.ok(g.s > g.a && g.a > g.b && g.b > 0, keys[i] + ' 的评级线挤在一起，C 带没了');
+    assert.ok(link.lines(ps[i]).fail, keys[i] + ' 缺失败线：C 与 F 得是两个结论');
+  }
+  // 200 关：每对预算只减不增；界面报得出的关数必须等于参数真变的关数
+  //（旧版靠 flashMs 报「199 关真的变了」，其中一百多关只是提示短了 10ms）。
+  let changed = 0;
+  let reported = 0;
+  let prev = practice.buildParamsAt(m, 1);
+  let prevPP = prev.duration / (prev.cols * prev.rows / 2);
+  for (let lv = 2; lv <= 200; lv += 1) {
+    const q = practice.buildParamsAt(m, lv);
+    const pp = q.duration / (q.cols * q.rows / 2);
+    assert.ok(pp <= prevPP + 1e-9, '第 ' + lv + ' 关每对预算往松走：章界倒挂了');
+    if (q.duration !== prev.duration || q.cols !== prev.cols || q.rows !== prev.rows
+      || q.kinds !== prev.kinds) changed += 1;
+    const ds = practice.levelDelta(m, lv);
+    if (ds.length) reported += 1;
+    assert.ok(ds.every(function (x) { return !/flashMs|hintMs|亮起时长/.test(x.text); }),
+      '第 ' + lv + ' 关又报毫秒假变化');
+    prev = q;
+    prevPP = pp;
+  }
+  assert.strictEqual(changed, reported, '逐关真变 ' + changed + ' 关、界面可报 ' + reported + ' 关，两者对不上');
+  assert.ok(changed >= 30, '规格台阶掉到 ' + changed + ' 级');
+  assert.strictEqual(m.tip, practice.tipFor(m, 'easy'), '功法表的兜底代价句与简单档分叉了');
+  assert.ok(!/flashMs/.test(JSON.stringify(m.params)), '种子参数里还有 flashMs');
+  assert.strictEqual(typeof m.params.hintMs, 'number', 'hintMs 没有生成端');
 });
 
 check('连 S 层数上限与存档版本对齐，三连晋级已彻底退役', function () {

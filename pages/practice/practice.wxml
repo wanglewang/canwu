@@ -127,6 +127,8 @@
       <view wx:if="{{level < curLevel}}" class="mt8">
         <text class="text-link tiny pressable" hover-class="pressable--on" bindtap="onLevelResume">回到本门当前第 {{curLevel}} 关</text>
       </view>
+      <!-- 本章规格常驻：关号一局能跳好几关，换章那一关常被整个跨过去。 -->
+      <text wx:if="{{chapterChange}}" class="chapter-note mt8">{{chapterChange}}</text>
       <!-- 一关一处小变化，写清楚变的是哪一项。 -->
       <text class="tiny diff-brief mt8">{{levelChange}}</text>
       <!-- 灵力不够时不给「开始」，先说明差多少、去哪儿补，以及气海能装多少。 -->

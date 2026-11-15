@@ -592,6 +592,100 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
     }
   }
 }
+// 8b-5e. 灵纹连线整段整改的守卫。这一门同时踩过四种「全绿但没生效」：
+//   ① 生成了没消费：flashMs 按档缩放，玩法层根本不读，200 关报「0.75 → 0.74 秒」；
+//   ② 消费了没生成：duration 写 p.duration || 55，档位表却没人给，五档一个数；
+//   ③ 尺子量不出东西：最低完成分 1200 > A 线 1199，B/C 是死线，HUD 还报「已入 S」再结算 F；
+//   ④ 方向反了：时辰「越小越难」却走「章内收三成、换章复位」，章末比下章首关还紧。
+// 这一段守的是结果，不只是「参数有没有变」——A8 / A9 两次都是静态全绿、玩家层全错。
+{
+  const m = practiceMod.getMethod('linkpair');
+  const linkMod = gameMod.MODULES.link;
+  const linkSrc = fs.readFileSync(path.join(ROOT, 'minigames/link.js'), 'utf8');
+  // 头注释里写着旧版怎么错的（「已入 S」是反面教材），断言只查真代码。
+  const linkCode = linkSrc.replace(/\/\/[^\n]*/g, '');
+  const seed = m.params || {};
+  if (typeof seed.hintMs !== 'number' || typeof seed.flashMs === 'number') {
+    errors.push('linkpair 的种子参数没换成 hintMs：flashMs 会被按档缩放并报毫秒假变化');
+  } else checked += 1;
+  if (!/(p|params)[ ]*[.][ ]*hintMs(?![a-zA-Z])/.test(linkSrc)) {
+    errors.push('minigames/link.js 没读 hintMs：照纹高亮时长只生成不消费');
+  } else checked += 1;
+  if (/(p|params)[ ]*[.][ ]*flashMs(?![a-zA-Z])/.test(linkSrc)) {
+    errors.push('minigames/link.js 还在读 flashMs：提示变短不是玩家本事要求变高');
+  } else checked += 1;
+  let hintStable = true;
+  let sourced = true;
+  let perPairOk = true;
+  let reportOk = true;
+  let reported = 0;
+  let prevPP = null;
+  for (let lv = 1; lv <= 200; lv += 1) {
+    const q = practiceMod.buildParamsAt(m, lv);
+    if (q.hintMs !== seed.hintMs) hintStable = false;
+    // 时辰必须由 linkDurationAt(关号) 现算，不许退回「章内收三成、换章复位」。
+    if (q.duration !== practiceMod.linkDurationAt(lv)) sourced = false;
+    const pp = q.duration / (q.cols * q.rows / 2);
+    if (prevPP !== null && pp > prevPP + 1e-9) perPairOk = false;
+    prevPP = pp;
+    if (lv > 1) {
+      const txt = practiceMod.levelDelta(m, lv).map(function (x) { return x.text; }).join(' / ');
+      if (/flashMs|hintMs|亮起时长/.test(txt)) reportOk = false;
+      const mm = /每对时辰 ([\d.]+) → ([\d.]+) 息/.exec(txt);
+      if (mm && Number(mm[2]) > Number(mm[1])) reportOk = false;
+      if (txt) reported += 1;
+    }
+  }
+  if (!hintStable) errors.push('linkpair 的 hintMs 在 200 关里变了：照纹亮多久不是难度旋钮');
+  else checked += 1;
+  if (!sourced) errors.push('linkpair 的时辰没按 linkDurationAt(关号) 现算：章末会倒挂到下章首关之上');
+  else checked += 1;
+  if (!perPairOk) errors.push('linkpair 的每对预算有一关往松走：换章时辰变长可以，每对不该变宽');
+  else checked += 1;
+  if (!reportOk) errors.push('linkpair 的 levelDelta 又报毫秒假变化，或把变长的总时辰写成变难');
+  else checked += 1;
+  if (reported < 30) errors.push('linkpair 只有 ' + reported + ' 关有规格台阶，低于 30 级下限');
+  else checked += 1;
+
+  // 评级四条线逐档可达，且 C 带非空；失败线必须单独给（C 与 F 是两个结论）。
+  let gradesOk = true;
+  for (const k of practiceMod.DIFFICULTIES.map(function (d) { return d.key; })) {
+    const p = practiceMod.buildParams(m, k);
+    const g = linkMod.gradeLefts(p.duration);
+    if (!(g.s > g.a && g.a > g.b && g.b > 0)) { gradesOk = false; break; }
+    const got = [g.s, g.a, g.b, g.b - 1].map(function (x) { return linkMod.gradeByLeft(x, p.duration); });
+    if (got.join('') !== 'SABC') { gradesOk = false; break; }
+    const ls = linkMod.lines(p);
+    if (ls.items.length !== 4 || !ls.fail) { gradesOk = false; break; }
+  }
+  if (!gradesOk) errors.push('linkpair 的 S/A/B/C 有一档取不到，或 lines() 缺失败线');
+  else checked += 1;
+  // 局内不许摆「当前评级」：评级按收干净那一刻的剩余息定，倒计时一开始是满的，摆出来必然是 S。
+  if (/已入 S/.test(linkCode) || /goalFor\s*\(/.test(linkCode) || !/showGradeNow = false/.test(linkCode)) {
+    errors.push('link.js 把局内评级摆回 HUD 了：收完之前评级定不下来，旧版会报「已入 S」再结算 F');
+  } else checked += 1;
+  if (/function reshuffle\(\)[\s\S]*?\n  }/.test(linkSrc)) {
+    const body = /function reshuffle\(\)[\s\S]*?\n  }/.exec(linkSrc)[0];
+    if (/left\s*=/.test(body) || !/combo = 0/.test(body)) {
+      errors.push('link.js 的死局重排又罚息了，或没断连收：死局是运气，罚息是罚运气');
+    } else checked += 1;
+  }
+  // 阶段新法要「加规则」不是「减难度」；旧版「照纹 / 自移不再扣息」两条都已退役。
+  const names = practiceMod.stageRulesOf('linkpair').map(function (r) { return r.name; });
+  if (names.join('/') !== '照纹/双照') errors.push('linkpair 的阶段新法不是「照纹 / 双照」：便利必须留明码代价');
+  else checked += 1;
+  const guidesSrc = fs.readFileSync(path.join(ROOT, 'data/guides.js'), 'utf8');
+  const at = guidesSrc.indexOf('  link: {');
+  const end = at >= 0 ? guidesSrc.indexOf('\n  },', at) : -1;
+  const guide = at >= 0 && end > at ? guidesSrc.slice(at, end) : '';
+  if (!guide || /不再扣息|少 3 息|按已收对数结算|剩余息数 ×4/.test(guide)) {
+    errors.push('data/guides.js 的 link 段还写着旧代价句，说明页会照抄成假话');
+  } else checked += 1;
+  const doc = fs.readFileSync(path.join(ROOT, 'docs/20-minigames/11-linkpair.md'), 'utf8');
+  if (!/收干净那一刻的剩余息/.test(doc) || !/39 关参数真变/.test(doc)) {
+    errors.push('11-linkpair.md 又是旧版：改了机制必须同批改那一篇');
+  } else checked += 1;
+}
 // 8b-7. 兑换只有一向。灵石买灵力是允许的，反过来永远不开——那是「挂机时长直接印钱」
 // 的入口：气海一满就白坐着，最优解变成挂着不回来，灵石立刻退化成计件工资。
 // 这一条靠三件事守：常量在、换算函数对、世界里没有反向接口。
@@ -714,10 +808,11 @@ for (let i = 1; i < practiceMod.DIFFICULTIES.length; i += 1) {
   else checked += 1;
 }
 // 盘面尺寸只许按「显式规格表」变。规格阶梯写在 CLICK_LEVELS / MINES_LEVELS / MEMORY_LEVELS
-// （以及 lights / sudoku / klotski 各自那张表）里，玩法层真的读它，玩家在准备页也看得到
-// 「本档几乘几」。不允许的是另一件事：让 pace / goal 那套通用缩放顺手把 grid / cols /
-// rows 改掉——那是「调难度不小心改了盘面」，玩家会以为换了一门玩法。
-const BOARD_TABLE_GAMES = ['click', 'mines', 'lights', 'sudoku', 'klotski', 'pushbox', 'memory'];
+// （以及 lights / sudoku / klotski / LINK_LEVELS 各自那张表）里，玩法层真的读它，玩家在
+// 准备页也看得到「本档几乘几」。不允许的是另一件事：让 pace / goal 那套通用缩放顺手把
+// grid / cols / rows 改掉——那是「调难度不小心改了盘面」，玩家会以为换了一门玩法。
+// 灵纹连线 6×4 → 8×4 是显式的 LINK_LEVELS 表，买的是搜索空间，不是「缩场地逼手速」。
+const BOARD_TABLE_GAMES = ['click', 'mines', 'lights', 'sudoku', 'klotski', 'pushbox', 'memory', 'link'];
 let boardSafe = true;
 let boardStray = '';
 for (const m of practiceMod.PRACTICE_METHODS) {

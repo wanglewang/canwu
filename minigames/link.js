@@ -391,9 +391,12 @@ function create(ctx) {
       if (second) hintPairs.push(second);
     }
     left = Math.max(0, left - hintCost);
-    vm.status = hintPairs.length > 1
-      ? '双照：两对都连得上 · 少 ' + hintCost + ' 息'
-      : '照纹：这两枚连得上 · 少 ' + hintCost + ' 息';
+    // 明码代价要当场看得见：HUD 那行取的是 goal || status，goal 一直有值，
+    // 光改 vm.status 等于把「少 2 息」写进一个不显示的字段。倒计时确实少了，
+    // 但玩家得自己把两件事连起来；浮字直接说出来，且与错配的代价反馈同一套。
+    const costText = (hintPairs.length > 1 ? '双照' : '照纹') + ' · 少 ' + hintCost + ' 息';
+    vm.status = (hintPairs.length > 1 ? '双照：两对都连得上' : '照纹：这两枚连得上') + ' · 少 ' + hintCost + ' 息';
+    C.flash(vm, costText, 'bad');
     paint();
     syncHud();
     render();
