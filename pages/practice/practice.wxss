@@ -510,8 +510,26 @@
     box-shadow: 0 0 0 1rpx rgba(180, 69, 60, 0.72), inset 0 0 0 1rpx rgba(180, 69, 60, 0.72);
 }
 
+/* 判定打在带子上，不只是打在珠子上：珠子说的是「你现在多大」，带说的是「该多大」。
+   命中把带点亮成旧金，缩过头把带压重——两者都只动颜色与光晕，不动 transform，
+   也不做从 opacity: 0 起跳的入场动画（减少动效的设置下会整块消失）。 */
+.ring-judge--perfect {
+    border-color: rgba(207, 174, 109, 0.34);
+    box-shadow: 0 0 0 2rpx rgba(207, 174, 109, 0.86), inset 0 0 0 2rpx rgba(207, 174, 109, 0.86),
+        0 0 24rpx rgba(207, 174, 109, 0.38);
+}
+
+.ring-judge--miss {
+    border-color: rgba(180, 69, 60, 0.26);
+    box-shadow: 0 0 0 3rpx rgba(180, 69, 60, 0.9), inset 0 0 20rpx rgba(180, 69, 60, 0.3);
+}
+
 .ring-orb {
     position: absolute;
+    /* 判定带是按「200rpx 盒子、半径 100 × scale」算出来的（见 tempo.js 的 bandBox）。
+       这里必须 border-box：内容盒加两侧 8rpx 边框是 216rpx，视觉半径凭空大 8%，
+       珠子扫过带子的时刻会比判定早一截——玩家照着带点，判出来却是晚的。 */
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
