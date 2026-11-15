@@ -26,6 +26,12 @@ const SHAPES = [
 
 const DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
+// 挪不动时要说清是谁挡着。只说「挪不动」等于让玩家自己在盘上找一遍——
+// 这一门的每一步都是「给谁让路」的判断，不该花在找障碍上。
+const BLOCK_NAME = { main: '主块', wide: '横石', tall: '竖石', ga: '散石', gb: '散石' };
+// 方向键的键序是「上 / 左 / 下 / 右」，DIRS 是「上 / 下 / 左 / 右」：两套下标不能混用。
+const KEY_DIR = { up: 0, down: 1, left: 2, right: 3 };
+
 function occupancy(state, shapes, cols, rows) {
   const grid = new Array(cols * rows).fill(-1);
   for (let i = 0; i < shapes.length; i += 1) {
@@ -190,15 +196,22 @@ function create(ctx) {
   // 挪错一步就退不回去：给一个「盘面复位」，步数清零但最优步数不变。
   vm.extras.showReset = true;
   vm.pad = {
+    // shut 由 paint() 每次重算：选中块在这一边挪不动时键上压暗。
+    // 压暗不是禁用——按下去照样给「挪不动」的浮字，规则一个字没改；
+    // 压掉的只是「先按一下试试能不能过」这件试错。
     keys: [
-      { id: 'up', dir: 'up', icon: 'up', glyph: '上' },
-      { id: 'left', dir: 'left', icon: 'left', glyph: '左' },
-      { id: 'down', dir: 'down', icon: 'down', glyph: '下' },
-      { id: 'right', dir: 'right', icon: 'right', glyph: '右' },
+      { id: 'up', dir: 'up', icon: 'up', glyph: '上', shut: false },
+      { id: 'left', dir: 'left', icon: 'left', glyph: '左', shut: false },
+      { id: 'down', dir: 'down', icon: 'down', glyph: '下', shut: false },
+      { id: 'right', dir: 'right', icon: 'right', glyph: '右', shut: false },
     ],
   };
 
   const costText = ctx.tip || '步数用尽还没脱身就是困住了';
+  const bag = C.TimerBag();
+  let blockedIds = [];
+  let blockTimer = null;
+  let escaped = false;
   let state = [];
   let startState = [];
   let optimal = minOpt;
@@ -214,6 +227,42 @@ function create(ctx) {
 
   function render() { ctx.render(vm); }
 
+  // 挪一步之后的局面：能把越界与相撞一次问清，不必在调用处各写一遍。
+  function tryStep(i, k) {
+    const next = state.map(function (q) { return [q[0], q[1]]; });
+    next[i][0] += DIRS[k][0];
+    next[i][1] += DIRS[k][1];
+    return occupancy(next, SHAPES, cols, rows) ? next : null;
+  }
+
+  // 目标位被哪几块占着。只要「是 / 不是」，不要格数——拦路的是块，不是格子。
+  function blockersOf(i, k) {
+    const s = SHAPES[i];
+    const r0 = state[i][0] + DIRS[k][0];
+    const c0 = state[i][1] + DIRS[k][1];
+    const out = [];
+    for (let j = 0; j < SHAPES.length; j += 1) {
+      if (j === i) continue;
+      const o = SHAPES[j];
+      if (r0 + s.h <= state[j][0] || state[j][0] + o.h <= r0) continue;
+      if (c0 + s.w <= state[j][1] || state[j][1] + o.w <= c0) continue;
+      out.push(j);
+    }
+    return out;
+  }
+
+  function namesOf(list) {
+    const seen = {};
+    const names = [];
+    for (let i = 0; i < list.length; i += 1) {
+      const n = BLOCK_NAME[SHAPES[list[i]].id] || '一块';
+      if (seen[n]) continue;
+      seen[n] = true;
+      names.push(n);
+    }
+    return names.join('、');
+  }
+
   function paint() {
     const blocks = [];
     for (let i = 0; i < SHAPES.length; i += 1) {
@@ -226,10 +275,27 @@ function create(ctx) {
         h: s.h * 25,
         sel: i === selected,
         main: i === 0,
+        blocked: blockedIds.indexOf(i) >= 0,
+        escaped: escaped && i === 0,
         emblem: s.id === 'main' ? 20 : 0,
       });
     }
-    vm.klotski = { cols: cols, rows: rows, blocks: blocks, exitC: Math.floor((cols - 2) / 2) };
+    // 选中块的四个方向现在能不能挪，在键上先标出来。
+    for (let d = 0; d < vm.pad.keys.length; d += 1) {
+      const key = vm.pad.keys[d];
+      key.shut = !tryStep(selected, KEY_DIR[key.dir]);
+    }
+    const exitC = Math.floor((cols - 2) / 2);
+    vm.klotski = {
+      cols: cols,
+      rows: rows,
+      blocks: blocks,
+      exitC: exitC,
+      // 主块与出口同一列时，出口亮起来：这条道是对的，只差把下面让开。
+      aligned: state[0][1] === exitC,
+      // 脱身那一步出口从「缺口」变成「开了的门」。
+      open: escaped,
+    };
   }
 
   // 评级只认「走了几步」，不认时间：推演类玩法不该因为想得久而被扣。
@@ -273,20 +339,20 @@ function create(ctx) {
     state = pick.state.map(function (q) { return [q[0], q[1]]; });
     startState = pick.state.map(function (q) { return [q[0], q[1]]; });
     optimal = pick.steps;
-    capSteps = Math.max(optimal + 5, Math.ceil(optimal * capFactor));
+    capSteps = Math.max(optimal + 2, Math.ceil(optimal * capFactor));
     moves = 0;
     selected = 0;
     failed = false;
     resetUsed = false;
     vm.banner = theme.banner || '';
-    vm.status = '先点一块选中，再按方向键挪';
+    // 选中提示留在 vm.hint 里（HUD 那一行取 goal || status，写 status 永远不会露面）。
   }
 
   function finishOnce(grade, summary) {
     if (done) return;
     done = true;
     vm.phase = 'done';
-    vm.status = grade === 'F' ? '困住了' : '脱身';
+    vm.goal = grade === 'F' ? '困住了' : '脱身 · 用 ' + moves + ' 步';
     vm.gradeNow = grade;
     vm.banner = grade === 'S' ? (theme.praise || '') : '';
     render();
@@ -321,28 +387,48 @@ function create(ctx) {
 
   function slide(dir) {
     if (done || vm.phase !== 'playing') return;
-    const k = { up: 0, down: 1, left: 2, right: 3 }[dir];
+    const k = KEY_DIR[dir];
     if (k === undefined) return;
-    const next = state.map(function (q) { return [q[0], q[1]]; });
-    next[selected][0] += DIRS[k][0];
-    next[selected][1] += DIRS[k][1];
-    if (!occupancy(next, SHAPES, cols, rows)) {
-      vm.status = '那边挪不动，换一块或换个方向';
-      C.flash(vm, '挪不动', 'bad');
+    const next = tryStep(selected, k);
+    if (!next) {
+      // 挪不动要指名道姓。盘沿与被占是两件事：一个是「到头了」，一个是「谁挡着」，
+      // 玩家下一步要做的动作完全不同。
+      const s = SHAPES[selected];
+      const tr = state[selected][0] + DIRS[k][0];
+      const tc = state[selected][1] + DIRS[k][1];
+      const edge = tr < 0 || tc < 0 || tr + s.h > rows || tc + s.w > cols;
+      blockedIds = edge ? [] : blockersOf(selected, k);
+      paint();
+      C.flash(vm, edge ? '那边是盘沿' : namesOf(blockedIds) + '挡着', 'bad');
+      if (blockTimer !== null) bag.off(blockTimer);
+      // 描红留一小会儿就撤：它是「刚才是谁挡的」，不是常驻状态。
+      blockTimer = bag.after(function () {
+        blockTimer = null;
+        blockedIds = [];
+        paint();
+        render();
+      }, 460);
       render();
       return;
     }
+    // 能挪的时候上一手的描红要收掉：它还挂在「刚才是谁挡的」那个方向上，
+    // 再留着会让玩家以为现在这一块也被挡着。
+    if (blockTimer !== null) { bag.off(blockTimer); blockTimer = null; }
+    blockedIds = [];
     state = next;
     moves += 1;
     paint();
     syncHud();
     if (isSolved(state, cols, rows)) {
+      // 主块沉进出口、出口从缺口变成开着的门：这一手做对了，盘面自己会说。
+      escaped = true;
+      paint();
       C.flash(vm, '脱身 · ' + moves + ' 步', 'gold');
       finishOnce(gradeOf(), '脱身 · 用 ' + moves + ' 步（最优 ' + optimal + ' 步）');
       return;
     }
     if (checkFail()) return;
-    C.flash(vm, '挪了一格', 'good');
+    // 挪成功不给浮字：块已经滑过去了，再报一句「挪了一格」是噪音。
     render();
   }
 
@@ -367,8 +453,15 @@ function create(ctx) {
       if (done || vm.phase !== 'playing') return;
       if (index < 0 || index >= SHAPES.length) return;
       selected = index;
-      vm.status = '已选中一块 · 按方向键挪';
+      // 选中本身就是反馈（金环箍住），不必另写一句。
       paint();
+      // 四面都堵的块：四个键会一起压暗，玩家要一个个试完才知道它根本动不了。
+      // 这种情况在 4×4 上并不罕见（横石被主块与散石夹在角上），值得说一句。
+      let free = 0;
+      for (let d = 0; d < vm.pad.keys.length; d += 1) {
+        if (!vm.pad.keys[d].shut) free += 1;
+      }
+      if (!free) C.flash(vm, '这块四面都堵着 · 换一块', 'bad');
       render();
     },
     move: slide,
@@ -380,11 +473,13 @@ function create(ctx) {
       resetUsed = true;
       paint();
       syncHud();
-      vm.status = '盘面已复位 · 本盘最高 A';
+      // flash 已经说了「本盘最高 A」，不再写一遍进 status。
       C.flash(vm, '盘面复位 · 本盘最高 A', 'good');
       render();
     },
-    abandon: function () { finishOnce('F', '中途收功'); },
+    // 中途收功也要撤掉描红计时：它会在结完账之后再调一次 render。
+    abandon: function () { bag.clear(); finishOnce('F', '中途收功'); },
+    destroy: function () { bag.clear(); },
   });
 }
 
@@ -399,7 +494,7 @@ function lines(p) {
       'C：超过两倍才脱身（本档最优约 ' + minOpt + ' 步起）',
       '复位过本盘，最高只到 A',
     ],
-    fail: '步数预算走完主块还没到出口（困住了）→ 走火 F，这一局没有收益',
+    fail: '步数预算走完主块还没到出口（困住了）→ 走火 F，这一局没有收益。预算 = max(最优 + 2, 最优 × 本档系数)',
   };
 }
 

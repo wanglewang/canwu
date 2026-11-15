@@ -553,9 +553,12 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   if (blocksMod.SHAPES.length !== 7) errors.push('落石垒基不是七种块（7-bag 要求七种各一个）');
   else checked += 1;
 }
-// 8b-5d. 章内旋钮必须真被玩法层读走。只生成不消费是最隐蔽的一种失效：界面上写着
-// 「S 线 94%」，盘面却一关都没变，200 关打下来是同一局——而且静态校验全绿，因为值
-// 确实生成了。勘位辨禁的 lineScale 就这样静默失效过（buildParamsAt 生成、没人读）。
+// 8b-5d. 章内旋钮必须真被玩法层读走，而且必须真有人给值。只生成不消费是最隐蔽的一种
+// 失效：界面上写着「S 线 94%」，盘面却一关都没变，200 关打下来是同一局——而且静态校验
+// 全绿，因为值确实生成了。勘位辨禁的 lineScale 就这样静默失效过。
+//
+// 反过来也一样：玩法层写了 p.capFactor || 2.4，档位表却不给 capFactor，那句 || 就永远
+// 生效——界面上写「预算 ×2.40」，五档一模一样。滑块让路的预算系数这样错过一次。
 {
   const KNOB_READ = {
     merge: ['fourRate'],
@@ -564,6 +567,7 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
     blocks: ['startLevel', 'linesPerLevel'],
     biggest: ['timeLimit'],
   };
+  const practiceMod = require(path.join(ROOT, 'data/practice.js'));
   for (const knobGame of Object.keys(KNOB_READ)) {
     const knobSrc = fs.readFileSync(path.join(ROOT, 'minigames/' + knobGame + '.js'), 'utf8');
     for (const knobKey of KNOB_READ[knobGame]) {
@@ -571,7 +575,19 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
       // 空格用字符类，点号用 [.]，词尾用否定前瞻。
       if (!new RegExp('(p|params)[ ]*[.][ ]*' + knobKey + '(?![a-zA-Z])').test(knobSrc)) {
         errors.push('minigames/' + knobGame + '.js 没读 ' + knobKey + '：章内旋钮只生成不消费，界面报的「本段变化」就是假话');
-      } else checked += 1;
+        continue;
+      }
+      checked += 1;
+      // 消费端有人读，还得有人喂：档位表或章内收紧给出的参数里必须有这个键，
+      // 否则模块里那句 || 兜底永远生效，五档其实是同一个数。
+      const method = practiceMod.PRACTICE_METHODS.filter(function (x) { return x.game === knobGame; })[0];
+      if (!method) { errors.push('PRACTICE_METHODS 里没有 ' + knobGame + '，8b-5d 查不了它的旋钮'); continue; }
+      const seenAt = [1, 200].some(function (lv) {
+        const q = practiceMod.buildParamsAt(method, lv);
+        return q && typeof q[knobKey] === 'number';
+      });
+      if (!seenAt) errors.push(knobGame + ' 的 ' + knobKey + ' 没有任何一关给出数值：玩法层那句 || 兜底永远生效，五档其实是同一个数');
+      else checked += 1;
     }
   }
 }

@@ -572,12 +572,19 @@ function sudokuLevelOf(diffKey) {
 
 // 滑块让路的档位表：这一盘「最少几步脱身」的上下限。
 // 只放最优步数不放盘面：4×4 的小盘已经够看，靠步数上下限就能一档一比一档难。
+// 滑块让路的两条轴：最优步数（这一局有多绕）与预算系数（走错多少步还救得回来）。
+// 预算以前固定 2.4，档越高最优步数越长、预算也越宽——「越难容错越大」，方向是反的。
+// 系数一律不低于 2：C 线是「超过最优两倍才脱身」，预算若压到两倍以下，C 这一档就
+// 直接不存在了（还没走到两倍就先判困住）。收紧的是「高档的余量比例」，不是把 C 砍掉。
+// 现在系数随档收紧：简单 2.8 步余量宽，绝境 1.9 步余量窄，绝境才真会「困住了」。
+// 系数只乘在最优步数上，另有 max(最优 + 2, …) 兜底——预算永远不会小于最优步数，
+// 不会出现「明明能解却判 F」。
 const KLOTSKI_LEVELS = [
-  { minOpt: 2, maxOpt: 4 },
-  { minOpt: 3, maxOpt: 6 },
-  { minOpt: 4, maxOpt: 8 },
-  { minOpt: 5, maxOpt: 10 },
-  { minOpt: 6, maxOpt: 12 },
+  { minOpt: 2, maxOpt: 4, capFactor: 3.20 },
+  { minOpt: 3, maxOpt: 6, capFactor: 2.90 },
+  { minOpt: 4, maxOpt: 8, capFactor: 2.70 },
+  { minOpt: 5, maxOpt: 10, capFactor: 2.50 },
+  { minOpt: 6, maxOpt: 12, capFactor: 2.20 },
 ];
 
 function klotskiLevelOf(diffKey) {
@@ -741,11 +748,14 @@ function rawParams(method, depthIndex) {
     out.tA = lv.tA;
     out.tB = lv.tB;
   }
-  // 滑块让路：只注入「本盘最优步数」的上下限，盘面固定 4×4。
+  // 滑块让路：本盘最优步数的上下限 + 步数预算系数，盘面固定 4×4。
+  // capFactor 以前不注入，模块里那句 `p.capFactor || 2.4` 永远走兜底——
+  // 界面上写着「预算 ×2.40」，五档其实一模一样。
   if (method && method.game === 'klotski') {
     const lv = KLOTSKI_LEVELS[d.depth];
     out.minOpt = lv.minOpt;
     out.maxOpt = lv.maxOpt;
+    out.capFactor = lv.capFactor;
   }
   // 档位表住在模块里的四门：只注入本档最关键的那个数，给准备页的难度说明用。
   if (method && method.game === 'merge') out.target = MERGE_TARGETS[d.depth];
@@ -917,6 +927,13 @@ function fmtField(key, value) {
 }
 
 // 给参悟准备页看的难度说明：与最简单档对比，列出这一档实际收紧了哪几处。
+// 同一个字段在不同门里的叫法不同：capFactor 对推石入位是「推数预算」，对滑块让路是
+// 「步数预算」。两边共用一个键，但玩家的口径不一样——写错一边就等于说明页在说别人的话。
+function labelOf(method, key) {
+  if (key === 'capFactor') return method && method.game === 'klotski' ? '步数预算' : '推数预算';
+  return FIELD_LABELS[key] || key;
+}
+
 function diffDetail(method, diffKey) {
   const d = difficultyOf(diffKey);
   const base = buildParams(method, 'easy');
@@ -935,8 +952,8 @@ function diffDetail(method, diffKey) {
     if (now[k] === base[k]) continue;
     changes.push({
       key: k,
-      label: FIELD_LABELS[k] || k,
-      text: FIELD_LABELS[k] + ' ' + fmtField(k, base[k]) + ' → ' + fmtField(k, now[k]),
+      label: labelOf(method, k),
+      text: labelOf(method, k) + ' ' + fmtField(k, base[k]) + ' → ' + fmtField(k, now[k]),
     });
   }
   // 阵灯推演的难度不是「快慢」而是「盘面多大、预算多紧」，按时间类字段拼 brief 只会
@@ -954,7 +971,7 @@ function diffDetail(method, diffKey) {
     brief = lv.size + '×' + lv.size + ' 盘 · 要填 ' + lv.holes + ' 格 · S 线 ' + lv.tS + ' 秒';
   } else if (method && method.game === 'klotski') {
     const lv = klotskiLevelOf(diffKey);
-    brief = '4×4 小盘 · 最优 ' + lv.minOpt + '～' + lv.maxOpt + ' 步';
+    brief = '4×4 小盘 · 最优 ' + lv.minOpt + '～' + lv.maxOpt + ' 步 · 预算 ×' + lv.capFactor.toFixed(2);
   } else if (method && method.game === 'merge') {
     brief = '本档要合出 ' + now.target + ' 一块 · 起手 ' + now.startTiles + ' 块';
   } else if (method && method.game === 'schulte') {

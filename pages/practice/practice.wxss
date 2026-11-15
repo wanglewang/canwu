@@ -1978,11 +1978,18 @@
    这不是禁用——点下去照样落子、填错照样罚 10 秒，规则一个字没改；压暗的只是
    「扫一遍同行列宫」这件眼力活。候选里只剩一个亮着时等于把唯余法摆出来，
    这是这一门（黄阶入门）有意接受的代价，写在 14-shudu-sudoku.md。 */
-.pad__key--seen {
+/* 压暗的键：九宫填数（同行列宫已有的数）与滑块让路（这一边挪不动）共用一套语汇。
+   两处都只是提示，不是禁用——按下去照样有反应、照样算账。 */
+.pad__key--seen,
+.pad__key--shut {
   background-color: var(--jade-dim, #b3ab96);
   background-image: none;
   color: rgba(60, 56, 42, 0.52);
   box-shadow: inset 0 2rpx 6rpx rgba(60, 50, 30, 0.26);
+}
+/* 方向键压暗时再弱一点：它是「这一边过不去」，比「这个数已经用掉了」更硬。 */
+.pad__key--shut .pad__icon {
+  opacity: 0.45;
 }
 .pad__key--press {
   transform: translateY(3rpx);
@@ -2238,20 +2245,58 @@
     background-size: 25% 25%, 25% 25%, 100% 100%, 100% 100%;
 }
 
+/* 出口：盘底正中那两格。虚线是「这里能出去」，箭头是「往这边」。
+   以前只有一个虚线框，主块该往哪走全靠猜——四边都是墙，只有底边那一段是缺口，
+   但缺口长得跟盘沿的描边差不多。 */
 .klotski__exit {
     position: absolute;
     bottom: 0;
     width: 50%;
     height: 25%;
-    border: 4rpx dashed rgba(207, 174, 109, 0.85);
+    box-sizing: border-box;
+    border: 4rpx dashed rgba(207, 174, 109, 0.62);
     border-bottom-width: 8rpx;
     border-radius: 12rpx 12rpx 0 0;
-    background: radial-gradient(80% 70% at 50% 100%, rgba(207, 174, 109, 0.22), rgba(207, 174, 109, 0) 70%);
+    background: radial-gradient(80% 70% at 50% 100%, rgba(207, 174, 109, 0.16), rgba(207, 174, 109, 0) 70%);
+    transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
 }
 
+/* 主块与出口同一列：缺口亮一档。这是这一门唯一的方向提示，不指路、只说「这条道对」。 */
+.klotski__exit--aligned {
+    border-color: rgba(207, 174, 109, 0.95);
+    background: radial-gradient(80% 70% at 50% 100%, rgba(207, 174, 109, 0.3), rgba(207, 174, 109, 0) 72%);
+    box-shadow: inset 0 -12rpx 26rpx rgba(207, 174, 109, 0.2);
+}
+
+/* 脱身：缺口变成「开了的门」。 */
+.klotski__exit--open {
+    border-color: var(--c-imm-gold, #cfae6d);
+    border-style: solid;
+    background: radial-gradient(80% 70% at 50% 100%, rgba(207, 174, 109, 0.5), rgba(207, 174, 109, 0) 74%);
+    box-shadow: 0 0 34rpx rgba(207, 174, 109, 0.42), inset 0 -14rpx 30rpx rgba(207, 174, 109, 0.3);
+}
+
+/* 向下的箭头用两条边画：字符箭头在部分安卓机上会被系统换成彩色 emoji。 */
+.klotski__arrow {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 22rpx;
+    height: 22rpx;
+    margin: -16rpx 0 0 -11rpx;
+    border-right: 4rpx solid rgba(207, 174, 109, 0.85);
+    border-bottom: 4rpx solid rgba(207, 174, 109, 0.85);
+    transform: rotate(45deg);
+}
+.klotski__exit--open .klotski__arrow { border-color: var(--c-imm-gold, #cfae6d); }
+
+/* 滑块让路：挪一格要有「滑过去」的过程，不是瞬移。只过渡 left / top——
+   块的位置本来就由这两个百分比决定，另加 transform 会和后面脱身的位移打架。
+   这条过渡就是这一门的手感本身：让路是一格一格推的，不是闪的。 */
 .klotski__blk {
     position: absolute;
     box-sizing: border-box;
+    transition: left 0.14s cubic-bezier(0.22, 0.8, 0.3, 1), top 0.14s cubic-bezier(0.22, 0.8, 0.3, 1);
     /* 边框取台色 = 块与块之间留沟槽，和盘上的玉牌同一套「摆在一块板上」的做法。 */
     border: 4rpx solid var(--well, #0b2331);
     border-radius: 12rpx;
@@ -2267,6 +2312,22 @@
 .klotski__blk--tall { background-color: #b5836a; }
 .klotski__blk--ga,
 .klotski__blk--gb { background-color: #cdbb9a; }
+
+/* 挡路：挪不动时把挡着的那一块描红一小会儿（460ms 后自己撤）。
+   这是「刚才是谁挡的」，不是常驻状态，所以用外环而不是换底色——底色一变，
+   玩家会以为这块被禁用了。 */
+.klotski__blk--blocked {
+    box-shadow: 0 0 0 6rpx var(--c-imm-danger, #e0928a), 0 10rpx 20rpx rgba(0, 0, 0, 0.3),
+        inset 0 2rpx 0 rgba(255, 255, 255, 0.5);
+}
+
+/* 脱身：主块沉进出口（往下沉一点、缩一点），出口同一帧变成「开了的门」。
+   只动 transform，不回退到 opacity——淡出在减少动效或截首帧时会让主块凭空消失。 */
+.klotski__blk--escaped {
+    transform: translateY(16%) scale(0.9);
+    box-shadow: 0 0 0 6rpx var(--c-imm-gold, #cfae6d), 0 0 40rpx rgba(207, 174, 109, 0.5);
+    z-index: 3;
+}
 
 /* 选中：金环箍住 + 抬高一档。只动阴影与位移，块的位置仍由 left/top 的百分比决定。 */
 .klotski__blk--sel {

@@ -135,14 +135,27 @@ function mixParams(a, b, f) {
 // 就给一门一个专属的连续旋钮。它们都真的被玩法层读走，不是给界面看的装饰：
 //   merge   起手给 4 的比例：越往后越少白送 4，凑同数就得多走几步；
 //   mines   S 线系数：盘面不变，S 线按段收紧，考的是推理不是手速；
-//   klotski 推数预算系数：滑块让路本来只有「最优几步」两档，靠预算才有连续量。
+//   klotski 步数预算系数：滑块让路本来只有「最优几步」两档，靠预算才有连续量。
 function tweakParams(method, out, level) {
   if (!method || !out) return out;
   const lv = clampLevel(level);
   const t = (chapterOf(lv) + progressOf(lv)) / CHAPTERS.length;
   if (method.game === 'merge') out.fourRate = Math.round((0.45 - 0.25 * t) * 1000) / 1000;
   if (method.game === 'mines') out.lineScale = Math.round((1 - 0.30 * t) * 1000) / 1000;
-  if (method.game === 'klotski') out.capFactor = Math.round((2.6 - 0.95 * t) * 100) / 100;
+  // 滑块让路的档位表已经有 capFactor（2.80 → 1.90），这里只按章内进度再收一次，
+  // 不是覆盖。以前这一行把档位值整个盖掉，结果五档的预算系数都从 2.6 起算——
+  // 「绝境比简单紧」这句话在参数里其实不成立。
+  //
+  // 也不能按全书进度收：buildParamsAt 已经对 capFactor 按时间键收过一次（1 − 0.30f），
+  // 两刀叠上去，第 200 关（简单档末）的预算只剩 ×1.87，比第 201 关（绝境档首）的
+  // ×2.37 还紧——低档被自己的章节进度吃掉了。这里先把前一刀除掉，再按一章 18% 重收。
+  if (method.game === 'klotski') {
+    const f = progressOf(lv);
+    const pre = 1 - 0.30 * f;
+    // 封底 2.05：C 线是「超过最优两倍才脱身」，预算一旦压到两倍以下，这一档的评价
+    // 就从「C 或更好」变成「B 或困住」——那不是变难，是把一档评语删掉。
+    out.capFactor = Math.max(2.05, Math.round(((out.capFactor || 2.8) / pre) * (1 - 0.18 * f) * 100) / 100);
+  }
   // 落石垒基：章内两件事——起始级每 13 段抬一级（一章 40 段抬两级），
   // 每级层数每 10 段减一层。两个数玩法层都读：前者决定重力，后者决定 meter 与提速坡度。
   if (method.game === 'blocks') {

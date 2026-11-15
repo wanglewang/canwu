@@ -2599,4 +2599,123 @@ check('推填九宫：点题面格 / 没选格就落子，要给浮字而不是�
   } finally { restoreClock(); }
 });
 
+// ---------------------------------------------------------------- 滑块让路：看得见的三件事
+check('滑块让路：选中块的四个方向先标在键上，标出来的一定按不动', function () {
+  // 这一门的每一步都是「给谁让路」，不该花在「先按一下看能不能过」上。
+  // 方向键压暗只是提示：按下去照样给浮字、照样不动，规则一个字没改。
+  installClock();
+  try {
+    const m = data.getMethod('rongdao');
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'hard'));
+    ctx.c.start();
+    const stepOf = function () {
+      const hit = String(ctx.st.vm.goal || '').match(/已走\s*(\d+)\s*步/);
+      return hit ? Number(hit[1]) : -1;
+    };
+    // 步数解析要是拿不到数（恒为 -1），下面「压暗的键按不动」会假通过。
+    assert.strictEqual(stepOf(), 0, '开局步数解析不对，这条断言会空转');
+    let checked = 0;
+    // 主块先跳过：它恰好在出口上方时，一挪就脱身，后面就没盘可测了。
+    for (let i = 1; i < 5; i += 1) {
+      ctx.c.tap(i);
+      for (let d = 0; d < 4; d += 1) {
+        const key = ctx.st.vm.pad.keys[d];
+        const shut = key.shut;
+        const before = stepOf();
+        ctx.c.move(key.dir);
+        const after = stepOf();
+        if (shut) assert.strictEqual(after, before, '键上压暗了，按下去却真的挪了：' + key.dir);
+        else assert.strictEqual(after, before + 1, '键上没压暗，按下去却不动：' + key.dir);
+        checked += 1;
+        // 挪动过就复位回开局，后面的键才有同一个局面可比。
+        if (after > before) { ctx.c.reset(); ctx.c.tap(i); }
+      }
+    }
+    assert.ok(checked >= 16, '四个块 × 四个方向没测全（' + checked + '）');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('滑块让路：挪不动要说清是盘沿还是谁挡着，描红 460ms 后自己撤', function () {
+  installClock();
+  try {
+    const m = data.getMethod('rongdao');
+    const seen = { edge: false, block: false };
+    // 一盘里未必同时出现两种情形，抽几盘凑。
+    for (let round = 0; round < 14 && !(seen.edge && seen.block); round += 1) {
+      const ctx = makeCtx(m, {}, data.buildParams(m, 'normal'));
+      ctx.c.start();
+      for (let i = 0; i < 5 && !(seen.edge && seen.block); i += 1) {
+        ctx.c.tap(i);
+        for (let d = 0; d < 4; d += 1) {
+          const key = ctx.st.vm.pad.keys[d];
+          if (!key.shut) continue;
+          ctx.c.move(key.dir);
+          const fx = ctx.st.vm.fx;
+          assert.ok(fx, '挪不动却没有浮字');
+          const red = ctx.st.vm.klotski.blocks.filter(function (b) { return b.blocked; });
+          if (fx.text.indexOf('盘沿') >= 0) {
+            assert.strictEqual(red.length, 0, '撞盘沿不该把某一块描红：' + fx.text);
+            seen.edge = true;
+          } else {
+            assert.ok(/挡着$/.test(fx.text), '浮字没说清谁挡着：' + fx.text);
+            assert.ok(red.length > 0, '浮字说了有人挡着，盘上却没有一块被描红：' + fx.text);
+            seen.block = true;
+          }
+          advance(500);
+          const still = ctx.st.vm.klotski.blocks.filter(function (b) { return b.blocked; });
+          assert.strictEqual(still.length, 0, '描红过了 460ms 还挂着');
+        }
+      }
+      ctx.c.destroy();
+    }
+    assert.ok(seen.edge && seen.block, '十四盘里没凑齐「盘沿」与「被块挡住」两种情形');
+
+    // 四面都堵的块：四个键一起压暗，选中时要说一句，别让玩家一个个试完才知道。
+    let stuckSeen = 0;
+    for (let round = 0; round < 20 && stuckSeen < 2; round += 1) {
+      const one = makeCtx(m, {}, data.buildParams(m, 'normal'));
+      one.c.start();
+      for (let i = 0; i < 5; i += 1) {
+        one.c.tap(i);
+        const keys = one.st.vm.pad.keys;
+        const free = keys.filter(function (k) { return !k.shut; }).length;
+        if (free > 0) continue;
+        stuckSeen += 1;
+        const fx = one.st.vm.fx || {};
+        assert.ok(/四面都堵着/.test(fx.text || ''), '四键全压暗却没说话：' + JSON.stringify(fx));
+      }
+      one.c.destroy();
+    }
+    assert.ok(stuckSeen > 0, '二十盘里一次四面全堵都没遇到，这条断言没测到东西');
+  } finally { restoreClock(); }
+});
+
+check('滑块让路：脱身时主块沉进出口，出口从缺口变成开着的门', function () {
+  installClock();
+  try {
+    const m = data.getMethod('rongdao');
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'normal'));
+    ctx.c.start();
+    const toState = function () {
+      return ctx.st.vm.klotski.blocks.map(function (b) {
+        return [Math.round(b.y / 25), Math.round(b.x / 25)];
+      });
+    };
+    const DIR_NAME = { "0,-1": 'left', "0,1": 'right', "-1,0": 'up', "1,0": 'down' };
+    const plan = klotskiMod.solvePath(toState(), klotskiMod.SHAPES, 4, 4, 30);
+    assert.ok(plan && plan.length, '这一盘解不出来，断言前提不成立');
+    for (let s = 0; s < plan.length; s += 1) {
+      ctx.c.tap(plan[s].piece);
+      ctx.c.move(DIR_NAME[plan[s].dir[0] + ',' + plan[s].dir[1]]);
+    }
+    assert.ok(ctx.st.finished, '按最优路径走完却没结账');
+    assert.strictEqual(ctx.st.finished.grade, 'S', '一步没浪费却不是 S');
+    assert.strictEqual(ctx.st.vm.klotski.open, true, '脱身了出口没打开');
+    const main = ctx.st.vm.klotski.blocks[0];
+    assert.strictEqual(main.escaped, true, '主块到出口了却没沉进去');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
 console.log('\n小游戏层断言全部通过（' + passed + ' 项）');

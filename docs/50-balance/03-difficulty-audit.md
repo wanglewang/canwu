@@ -81,11 +81,11 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 | 九宫填数 | 6 | 5 种 | 5.75× `holes` | `size`, `holes`, `timeLimit`, `tS`, `tA`, `tB` |
 | 滑格相合 | 2 | 4 种 | 8.00× `target` | `target`, `startTiles` |
 | 顺序点格 | 2 | 5 种 | 2.50× `penaltySec` | `size`, `penaltySec` |
-| 滑块让路 | 2 | 5 种 | 3.00× `minOpt` | `minOpt`, `maxOpt` |
+| 滑块让路 | 3 | 5 种 | 3.00× `minOpt` | `minOpt`, `maxOpt`, `capFactor` |
 | 推石入位 | 2 | 5 种 | 1.38× `capFactor` | `level`, `capFactor` |
 | 数中取大 | 2 | 5 种 | 2.00× `rounds` | `count`, `rounds` |
 
-分布：参数 2 个的 8 门、3 个的 5 门、4 个的 2 门、5 个的 2 门、6 个的 1 门、7 个的 1 门。评级线 5 种的 14 门、4 种的 2 门、3 种的 2 门、1 种的 1 门。主轴跨度 ≥2 倍的 10 门、<2 倍的 9 门。
+分布：参数 2 个的 7 门、3 个的 6 门、4 个的 2 门、5 个的 2 门、6 个的 1 门、7 个的 1 门。评级线 5 种的 14 门、4 种的 2 门、3 种的 2 门、1 种的 1 门。主轴跨度 ≥2 倍的 10 门、<2 倍的 9 门。
 
 ## 主轴跨度：审计的第三个数
 
@@ -198,6 +198,7 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 | | `penaltySec` 秒 | 2 | 2 | 3 | 4 | 5 |
 | 滑块让路 | `minOpt` | 2 | 3 | 4 | 5 | 6 |
 | | `maxOpt` | 4 | 6 | 8 | 10 | 12 |
+| | `capFactor` | 3.20 | 2.90 | 2.70 | 2.50 | 2.20 |
 | 推石入位 | `level` | 0 | 1 | 2 | 3 | 4 |
 | | `capFactor` | 2.20 | 2.00 | 1.90 | 1.75 | 1.60 |
 | 数中取大 | `count` | 9 | 11 | 13 | 15 | 16 |

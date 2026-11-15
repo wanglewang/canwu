@@ -533,12 +533,44 @@ check('关卡越界夹回、章末取本章末关，且不越权到未解锁的�
     let prev = null;
     for (let lv = 1; lv <= 200; lv += 5) {
       const p = practice.buildParamsAt(m, lv);
-      for (const k of ['duration', 'timeLimit', 'flashMs', 'gapMs', 'flipMs', 'dropMs', 'msPerNote']) {
+      for (const k of ['duration', 'timeLimit', 'flashMs', 'gapMs', 'flipMs', 'dropMs', 'msPerNote', 'capFactor']) {
         if (typeof p[k] !== 'number' || !prev) continue;
         assert.ok(p[k] <= prev[k], m.id + ' 第 ' + lv + ' 关的 ' + k + ' 反而放宽了');
       }
       prev = p;
     }
+  }
+});
+
+check('滑块让路：预算系数随档收紧，但永不压到 C 线以下', function () {
+  // 这一门的两条轴是「最优步数」与「预算系数」。
+  //
+  // 以前预算系数固定 2.4，档越高最优步数越长、预算也跟着变宽——「越难容错越大」，
+  // 方向是反的。现在系数随档收紧，但有一条硬约束：不能压到 2 以下。
+  //
+  // C 线是「超过最优两倍才脱身」。预算若小于两倍最优，玩家还没走到两倍就先判
+  // 「困住了」——C 这一档永远拿不到，评级表里那行评语等于删掉。那不是变难，是断档。
+  const DIFFS = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  let prev = null;
+  const seen = [];
+  for (const key of DIFFS) {
+    const lv = practice.klotskiLevelOf(key);
+    assert.strictEqual(typeof lv.capFactor, 'number', key + ' 没给预算系数：模块里那句 p.capFactor || 2.8 会永远走兜底');
+    assert.ok(lv.capFactor >= 2, key + ' 的预算系数 ' + lv.capFactor + ' 压到两倍最优以下，C 这一档不存在了');
+    if (prev !== null) assert.ok(lv.capFactor < prev, key + ' 的预算比上一档还宽（越难容错越大）');
+    prev = lv.capFactor;
+    seen.push(lv.capFactor);
+  }
+  assert.ok(seen[0] - seen[seen.length - 1] > 0.5, '五档预算系数几乎没有差别：' + seen.join(' / '));
+
+  // 章内也要收：同一档的一章 40 段里，预算只许紧不许松。
+  const m = practice.getMethod('rongdao');
+  let last = null;
+  for (let lv = 401; lv <= 600; lv += 5) {
+    const q = practice.buildParamsAt(m, lv);
+    if (last !== null) assert.ok(q.capFactor <= last, '第 ' + lv + ' 关的预算反而放宽了');
+    assert.ok(q.capFactor >= 2, "第 " + lv + " 关的预算压到 C 线以下：" + q.capFactor);
+    last = q.capFactor;
   }
 });
 
