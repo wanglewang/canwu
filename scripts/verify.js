@@ -952,21 +952,21 @@ if (!fs.existsSync(checklistPath)) {
   else checked += 1;
   if (/分步新手引导[^\n]*明确不做/.test(doc)) errors.push('自检清单还把新手引导写成「明确不做」');
   else checked += 1;
-  // 低档折减与默认档是同一根尺子的两面，文档必须写成真源里的那个数，
-  // 否则以后照文档调数值，玩家看到的和代码算的就对不上。
-  const belowCapLine = '每低一档折半 ×' + practiceData.DIFF_BELOW_CAP.toFixed(1);
-  if (doc.indexOf(belowCapLine) < 0) errors.push('自检清单的低档折减与 DIFF_BELOW_CAP 不一致（应为 ' + belowCapLine + '）');
+  // 回关折减与「关卡由熟练度算出」是同一根尺子的两面：文档写成另一套口径，
+  // 以后照文档调数值，玩家看到的和代码算的就对不上。
+  if (doc.indexOf('回关折减') < 0) errors.push('自检清单没写「回关折减」的口径');
   else checked += 1;
-  // 熟练度是整数点：折减必须逐档「÷2 + 四舍五入」，写回一次性取整会让结算卡对不上。
+  if (doc.indexOf('关卡由熟练度算出') < 0) errors.push('自检清单没写「关卡由熟练度算出」');
+  else checked += 1;
   const gameSrc = fs.readFileSync(path.join(ROOT, 'utils/game.js'), 'utf8');
-  if (!/practiceData\.profBelowCap\(/.test(gameSrc)) errors.push('utils/game.js 没走 profBelowCap() 逐档取整');
+  if (!/practiceData\.profByLevel\(/.test(gameSrc)) errors.push('utils/game.js 没走 profByLevel() 按关折减');
+  else checked += 1;
+  if (!/levelData\.levelFromProf\(/.test(gameSrc)) errors.push('utils/game.js 没把关卡交给 levelFromProf()');
   else checked += 1;
   if (/Math\.round\(profBase \* lowFactor\)/.test(gameSrc)) {
     errors.push('熟练度折减又退回「先乘总系数、最后取整一次」');
   } else checked += 1;
-  if (doc.indexOf('四舍五入') < 0) errors.push('自检清单没写「除以 2 后四舍五入」的取整口径');
-  else checked += 1;
-  if (doc.indexOf('最高已解锁档') < 0) errors.push('自检清单没写「默认档 = 本门最高已解锁档」');
+  if (doc.indexOf('四舍五入') < 0) errors.push('自检清单没写取整口径');
   else checked += 1;
   // 连 S 叠倍率是熟练度的唯一曲线：三连 S 晋级的旧字段必须整体消失，收功必须断连。
   const worldSrc = fs.readFileSync(path.join(ROOT, 'data/world.js'), 'utf8');

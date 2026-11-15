@@ -90,7 +90,7 @@ Page({
     diffBrief: '',
     goalText: '',
     difficulty: 'easy',
-    // 关卡：999 关，五章各 200 关（末章 199）。难度档只是章节的内部名字，
+    // 关卡：200 关，五章各 40 关。关由熟练度算出（只增不减），难度档只是章节的内部名字，
     // 玩家看到与操作的是「第几关」，档位由关号反推，不再是一个可以随便挑的胶囊。
     level: 1,
     levelMax: 200,
@@ -339,34 +339,29 @@ Page({
     const twist = themes.twistOf(method.twist);
     const tier = practiceData.tierOf(skill.tier);
 
-    // 难度默认值 = 本门最高已解锁档，每次进这一页都按熟练度重算。
-    // 手动选过的档只在这一页停留期间有效；一旦跨过新门槛（最高档变了），
-    // 就清掉手选、回到新档——解锁新档是玩家练出来的结果，第一局就该打它。
-    // 想练手可以随时点回低档，但每低一档收益再折半、本局也不叠连 S（见 belowCapText）。
-    const maxIdx = practiceData.diffIndexOf(rec.prof);
-    if (maxIdx > this.maxIdxSeen) this.levelOverride = 0;
-    this.maxIdxSeen = maxIdx;
-    // 玩家能打到已解锁最高章的末关。章内不再设关卡锁（一关一关磨 200 局不叫关卡，叫罚站），
-    // 但默认停在「已通 + 1」——打完一局点「再来」正好是下一关。
-    const levelMax = levelData.maxLevelOf(maxIdx);
-    const levelBest = Math.floor((state.levelBest && state.levelBest[skill.id]) || 0);
-    const wantLv = this.levelOverride || Math.min(levelMax, levelBest + 1);
-    const level = Math.max(1, Math.min(levelMax, Math.round(wantLv) || 1));
+    // 当前关由熟练度算出（levels.levelFromProf），只增不减。玩家不能往上挑关——
+    // 「打过哪一关」不再是一个动作，练到哪就是哪。
+    // 想找手感可以回关：每退一关熟练度按「本关 ÷ 当前关」折、本局不叠连 S（见 retreatText）。
+    const curLevel = levelData.levelFromProf(rec.prof);
+    const override = Math.round(this.levelOverride) || 0;
+    const level = Math.max(1, Math.min(curLevel, override || curLevel));
+    const levelMax = curLevel;
     const diffKey = practiceData.DIFFICULTIES[levelData.chapterOf(level)].key;
     const diff = practiceData.diffDetail(method, diffKey);
     const diffList = practiceData.difficultyList(rec.prof, diffKey);
-    const belowCapText = practiceData.belowCapText(rec.prof, diffKey);
+    const belowCapText = practiceData.retreatText(level, curLevel);
     // 本局要烧的灵力，与结算走同一个函数（engine.practiceCostOf）。
     // 面板与结算各算一遍的话，最后一定会出现「写 17、扣 24」这种对不上的账。
-    const qiCost = engine.practiceCostOf(state, skill.id, diffKey);
+    const qiCost = engine.practiceCostOf(state, skill.id, level);
     const qiNow = state.resources.qi;
     const qiMax = engine.qiCap(state);
     const canStart = qiNow >= qiCost;
     const costText = '耗灵力 ' + qiCost + ' · 余 ' + qiNow + ' / ' + qiMax;
     // 五个胶囊各写自己的耗气：低档便宜、高档贵，玩家在选之前就看得到代价。
     // 这是难度面板上唯一还与资源有关的数——收益倍率已经随「参悟不产资源」一起退役了。
-    diffList.forEach(function (d) {
-      d.qiText = '灵力 ' + engine.practiceCostOf(state, skill.id, d.key);
+    // 五档胶囊各报「这一档首关」的价：回关到章首就是最便宜的那一局。
+    diffList.forEach(function (d, i) {
+      d.qiText = '灵力 ' + engine.practiceCostOf(state, skill.id, levelData.chapterRange(i).from);
       d.locked = !d.unlocked;
     });
 
@@ -480,14 +475,14 @@ Page({
       difficulty: diffKey,
       level: level,
       levelMax: levelMax,
-      levelBest: levelBest,
+      curLevel: curLevel,
       levelSub: levelData.chapterRange(levelData.chapterOf(level)).name + ' · 第 '
         + levelData.levelInChapter(level) + ' / ' + levelData.chapterSize(levelData.chapterOf(level))
-        + ' 关 · 已通 ' + levelBest,
+        + ' 关 · 本门当前第 ' + curLevel + ' 关',
       levelChange: (function () {
         const d = practiceData.levelDelta(method, level);
-        if (!d.length) return '本段（第 ' + (level - ((level - 1) % 5)) + '～' + (level - ((level - 1) % 5) + 4) + ' 关）沿用上一段规格';
-        return '本段变化：' + d.map(function (x) { return x.text; }).join(' · ');
+        if (!d.length) return '第 ' + level + ' 关与上一关规格相同（章内只收紧时辰与预算，盘面规格换章才换一副）';
+        return '本关变化：' + d.map(function (x) { return x.text; }).join(' · ');
       })(),
       diffList: diffList,
       diffName: diff.name,
@@ -1050,13 +1045,13 @@ Page({
     const next = this.data.level + dir;
     if (next < 1 || next > this.data.levelMax) {
       if (next > this.data.levelMax) {
-        // 章末不让人白点：说清下一章要多少熟练度，而不是只把按钮变灰。
+        // 到顶不让人白点：说清「再往上要靠练」，而不是只把按钮变灰。
         const prof = store.get().skills[this.skillId].prof;
         const idx = practiceData.diffIndexOf(prof);
         const nextDiff = practiceData.DIFFICULTIES[idx + 1];
         toast(nextDiff
-          ? '本章到头：熟练度到 ' + nextDiff.need + ' 开「' + nextDiff.name + '」'
-          : '已是最后一关');
+          ? '本门当前到第 ' + this.data.levelMax + ' 关：熟练度到 ' + nextDiff.need + ' 才开新关'
+          : '已是第 ' + this.data.levelMax + ' 关（本门已到顶）');
       }
       return;
     }
@@ -1449,13 +1444,13 @@ Page({
           + (r.qiSave > 0 ? '，心法省 ' + Math.round(r.qiSave * 100) + '%' : '')
           + '，悟性再省一截。');
       }
-      // 折减要当场说：面板上选了简单档、结算只给一半，不解释就像算错了。
-      if (r.diffBelowCap) {
-        // 折减只作用在基础熟练度上（逐档 ÷2 四舍五入）；耗气不跟着折，低档本来就便宜。
-        notes.push('本档比已解锁的「' + r.diffCapName + '」低 ' + r.diffBelowGap
-          + ' 档：基础熟练度每低一档 ÷2 后四舍五入（现在 '
-          + practiceData.factorText(r.diffBelowCapFactor) + '），低档不叠连 S，但已有层数原样保留；回「'
-          + r.diffCapName + '」打才全额。');
+      // 回关折减要当场说：面板上退了几关、结算只给一部分，不解释就像算错了。
+      if (r.levelBelowCap) {
+        // 折减只作用在基础熟练度上（本关 ÷ 当前关）；耗气不跟着折，回关本来就便宜。
+        notes.push('回打第 ' + r.level + ' 关（本门当前第 ' + r.curLevel + ' 关，退 '
+          + r.levelGap + ' 关）：基础熟练度按 ×'
+          + String(Math.round(r.levelBelowFactor * 1000) / 1000) + ' 计，本局不叠连 S，已有层数原样保留；'
+          + '回第 ' + r.curLevel + ' 关打才全额。');
       }
       // 连 S 回执：本局叠了几层、下一局值多少点，数字全部由 world.comboGain 同源给。
       if (r.comboActive) {
@@ -1463,13 +1458,13 @@ Page({
           + (r.comboNow - 1) + ' → ' + r.comboGain + ' 点；下一局 S ' + r.comboNextGain
           + ' 点' + (r.comboCapped ? '（已封顶）' : '') + '。非 S 或走火都会归零。');
       } else if (grade !== 'F' && r.comboTransparent) {
-        notes.push('本门连 S ' + r.comboNow + ' 层原样保留：低档不叠也不清。');
+        notes.push('本门连 S ' + r.comboNow + ' 层原样保留：回关不叠也不清。');
       } else if (grade !== 'F') {
         notes.push('非 S，连 S 归零；下一局 S 重新从 34 点起算。');
       }
       if (r.tierUp) notes.push('【' + r.skillName + '】升段至「' + r.tierName + '」，属性加成提高。');
       if (r.cross) notes.push('触类旁通：换了门功法，本局运功更顺，耗气少 8%。');
-      if (r.diffFellBack) notes.push('所选难度尚未解锁，已按「' + r.diffMaxName + '」结算。');
+      if (r.levelFellBack) notes.push('所选关超出本门当前进度，已按第 ' + r.curLevel + ' 关结算。');
       if (r.realmAbove) {
         notes.push('人物境界已超本门可修上限「' + r.maxRealmName + '」：照样能练，但本局耗气 ×'
           + r.realmOverCost.toFixed(1) + '；熟练度照给，该换更高阶的功法了。');

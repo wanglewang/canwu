@@ -15,7 +15,7 @@
 //   标准场地 10×20 / 重力曲线 / 每 10 层一级 / 7-bag / 三块预告 / 暂存（hold）
 //   / 落定延迟 500ms（移动复位上限 15 次）/ SRS 踢墙 / 阶梯计分（1·3·5·8 行 × 级数）。
 //
-// 999 关只拧两个数：起始级与每级要化几层（见 data/practice.js 的 BLOCK_LEVELS）。
+// 关卡只拧两个数：起始级与每级要化几层（见 data/practice.js 的 BLOCK_LEVELS 与 levels.js 的 tweakParams）。
 // 盘面尺寸不随关变——它一变，这一门就不是俄罗斯方块了。
 
 const C = require('./common.js');

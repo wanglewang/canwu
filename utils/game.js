@@ -7,6 +7,7 @@ const worldData = require('../data/world.js');
 const skillData = require('../data/skills.js');
 const practiceData = require('../data/practice.js');
 const economyData = require('../data/economy.js');
+const levelData = require('../data/levels.js');
 const guideData = require('../data/guides.js');
 const opponentData = require('../data/opponents.js');
 const moveData = require('../data/moves.js');
@@ -166,7 +167,7 @@ function normalizeState(input) {
   const rawLv = raw.levelBest && typeof raw.levelBest === 'object' ? raw.levelBest : {};
   for (let i = 0; i < skillData.SKILLS.length; i += 1) {
     const lv = Math.floor(num(rawLv[skillData.SKILLS[i].id], 0));
-    if (lv > 0) base.levelBest[skillData.SKILLS[i].id] = Math.max(1, Math.min(999, lv));
+    if (lv > 0) base.levelBest[skillData.SKILLS[i].id] = Math.max(1, Math.min(levelData.LEVEL_MAX, lv));
   }
 
   for (let i = 0; i < skillData.SKILLS.length; i += 1) {
@@ -767,9 +768,18 @@ function applyPractice(state, skillId, grade, options) {
   const opts = options || {};
   checkDaily(state);
   const rec = state.skills[skillId];
-  // 关卡进度：走完这一局才把「已通」推到这一关（走火不算通，但已经打过的关可以重打）。
-  // 关卡不影响熟练度公式——熟练度仍只看评级与连 S，关卡只决定这一局的参数与耗气档。
-  const playedLevel = Math.max(0, Math.round(num(opts.level, 0)));
+  // 关卡由熟练度算出（levels.levelFromProf），所以这一局「打第几关」不是往上挑的，只能回关。
+  // 关卡决定这一局的参数与耗气档，也决定回关折减——「刷最低关」那条老最优解就是从这里堵掉的
+  // （见 practice.profByLevel）。熟练度本身仍只看评级与连 S，关卡不改变公式，只改变折减。
+  const curLevel = levelData.levelFromProf(rec.prof);
+  // opts.difficulty 是旧入口（只说章、不说关）：换算成该章首关，再由 level 统一裁决。
+  // 两处都在时以 level 为准——页面早就只传 level 了，留着这条是为了老调用与审计脚本不炸。
+  const hintIdx = opts.difficulty ? practiceData.diffKeyIndex(opts.difficulty) : -1;
+  // 它是「下限提示」而不是「回关指令」：老调用写 easy 只表示至少打第一章，不该把玩家拽回第 1 关。
+  const hintedLevel = hintIdx >= 0 ? Math.max(curLevel, levelData.chapterRange(hintIdx).from) : curLevel;
+  const wantLevel = Math.max(1, Math.round(num(opts.level, hintedLevel)));
+  const levelFellBack = wantLevel > curLevel;
+  const playedLevel = Math.min(curLevel, wantLevel);
   if (!state.levelBest) state.levelBest = {};
   const levelBestBefore = Math.max(0, Math.floor(num(state.levelBest[skillId], 0)));
   if (grade !== 'F' && playedLevel > levelBestBefore) state.levelBest[skillId] = playedLevel;
@@ -824,16 +834,13 @@ function applyPractice(state, skillId, grade, options) {
 
   // 难度档只认这门功法自己的熟练度；越权选高档（例如改页面参数）自动回落到已解锁的最高档。
   // 没传难度就按「本门最高已解锁档」结算：老默认是 easy，会让没带参数的调用在高段位被静默折半。
-  const fallbackDiff = opts.hard ? 'hard' : practiceData.bestDifficulty(rec.prof);
-  const wantIdx = practiceData.diffKeyIndex(opts.difficulty || fallbackDiff);
-  const maxIdx = practiceData.diffIndexOf(rec.prof);
-  const fellBack = wantIdx > maxIdx;
-  const diff = practiceData.DIFFICULTIES[Math.min(wantIdx, maxIdx)];
-  // 低档折减现在只作用一处：基础熟练度逐档 ÷2 四舍五入（见 practice.profBelowCap）。
-  // 耗气不跟着折——低档本来就便宜（7 点起），再折会让「刷简单」变成省气的聪明选择。
-  const lowFactor = practiceData.lowDiffFactor(rec.prof, diff.key);
+  // 难度档由关卡反推：章 = 档。不再有「选档」这件事——关能到哪，档就在哪。
+  const diff = practiceData.DIFFICULTIES[levelData.chapterOf(playedLevel)];
+  // 回关折减现在只作用一处：基础熟练度按「本关 ÷ 当前关」连续折（见 practice.profByLevel）。
+  // 耗气不跟着折——回关本来就便宜（7 点起），再折会让「回关刷分」变成省气的聪明选择。
+  const lowFactor = practiceData.levelFactor(playedLevel, curLevel);
   const belowCap = lowFactor < 1;
-  const diffGap = practiceData.diffGapOf(rec.prof, diff.key);
+  const diffGap = curLevel - playedLevel;
 
   // 连 S 与低档完全解耦：只有最高已解锁档的 S 才叠层，本局按 34 × 1.5^(层数-1) 独立取整；
   // 低档局不叠层、不砍连击收益、层数原样保留；走火（F）不分档位一律断连。
@@ -846,7 +853,7 @@ function applyPractice(state, skillId, grade, options) {
   if (wiped) {
     comboNow = 0;
   } else if (belowCap) {
-    rawGain = practiceData.profBelowCap(worldData.PROF_BASE[grade] || 0, rec.prof, diff.key);
+    rawGain = practiceData.profByLevel(worldData.PROF_BASE[grade] || 0, playedLevel, curLevel);
   } else if (grade === 'S') {
     comboNow = Math.min(worldData.COMBO_MAX, comboBefore + 1);
     comboGainNow = worldData.comboGain(comboNow);
@@ -1004,13 +1011,13 @@ function applyPractice(state, skillId, grade, options) {
     tierColor: tier.color,
     diffKey: diff.key,
     diffName: diff.name,
-    // 低于本门最高已解锁档：基础熟练度已按档差逐档折半、本局不叠连 S，结算要如实报出档差与系数。
-    diffBelowCap: belowCap,
-    diffBelowCapFactor: lowFactor,
-    diffBelowGap: diffGap,
-    diffCapName: practiceData.DIFFICULTIES[maxIdx].name,
-    diffFellBack: fellBack,
-    diffMaxName: practiceData.DIFFICULTIES[maxIdx].name,
+    // 当前关与本局打的关：回关时基础熟练度按「本关 ÷ 当前关」折、本局不叠连 S，
+    // 结算要如实报出退了几关与系数。
+    curLevel: curLevel,
+    levelGap: diffGap,
+    levelBelowCap: belowCap,
+    levelBelowFactor: lowFactor,
+    levelFellBack: levelFellBack,
     // 境界超限只加耗气，不禁练：结算说的是「这局更贵」，不是「练不了」。
     realmOverCost: realmAbove ? economyData.REALM_OVER : 1,
     realmReady: realmReady,
@@ -1032,7 +1039,10 @@ function applyPractice(state, skillId, grade, options) {
 
 // 这一局要烧多少灵力：准备页在开局前显示它，与 applyPractice 内部用的是同一个函数，
 // 不在这儿另写一遍系数（两处一漂，玩家就会看到「面板写 17、结算扣 24」）。
-function practiceCostOf(state, skillId, diffKey) {
+//
+// 参数是「这一局打第几关」，不是「哪一档」：关卡由熟练度算出，章 = 档，
+// 所以档位在函数里反推一次，页面不许自己先换算好再传（那正是两处一漂的入口）。
+function practiceCostOf(state, skillId, level) {
   const skill = skillData.getSkill(skillId);
   if (!skill) return 0;
   const rec = state.skills[skillId];
@@ -1040,9 +1050,10 @@ function practiceCostOf(state, skillId, diffKey) {
   const tier = practiceData.tierOf(skill.tier);
   const realmNow = state.realmIndex + 1;
   const attrs = computeAttributes(state);
-  const key = diffKey || practiceData.bestDifficulty(rec ? rec.prof : 0);
+  const curLevel = levelData.levelFromProf(rec ? rec.prof : 0);
+  const lv = Math.min(curLevel, levelData.clampLevel(level || curLevel));
   return economyData.practiceQiCost({
-    diffIndex: practiceData.diffKeyIndex(key),
+    diffIndex: levelData.chapterOf(lv),
     tierKey: tier.key,
     methodBase: method.base,
     realmAbove: realmNow > tier.maxRealm,

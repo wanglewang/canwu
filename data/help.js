@@ -497,24 +497,21 @@ function practiceTopic(opts) {
         practiceData.DIFFICULTIES.forEach(function (d, i) {
             diffLines.push(d.name + ' · 门槛 ' + d.need + ' · 基础耗气 ' + economyData.RUN_QI[i] + ' 点');
         });
-        diffLines.push('默认打本门最高已解锁档：门槛到了就说明本门的本事到了，不必再手动挑。');
+        diffLines.push('难度不靠挑：本门当前第几关由熟练度算出，练到哪就在哪，关只增不减。'
+            + '每章 40 关、共 200 关，关号往前一关，盘面就紧一分。');
         diffLines.push('一局实际耗气 = 档位基数 × 时长系数（本门盘面 15–70 秒，0.85–1.30）'
             + ' × 品阶（黄 1.00 / 玄 1.15 / 地 1.30 / 天 1.45）'
             + ' × 境界超限（超可修上限时 ×1.5）'
             + ' ×（1 − 心法省气，最多 50%）'
             + ' ÷ 悟性（1 + 悟性/200，最多 ÷1.6）'
             + ' ×（换门 0.92）。结算卡会把这几项逐条写出来，可以照着自己复算。');
-        diffLines.push('刻意退回低档也能练，但基础熟练度每低一档就 ÷2 后四舍五入：'
-            + [1, 2, 3, 4].map(function (n) {
-                return '低 ' + n + ' 档 ' + practiceData.factorText(Math.pow(practiceData.DIFF_BELOW_CAP, n));
-            }).join('、')
-            + '；低档不叠连 S，但已有层数原样保留——低档是练手，不是刷分。');
-        diffLines.push('耗气不跟着折：低档本来就便宜（7 点起）。以 S（' + worldData.PROF_BASE.S + ' 点）/ C（'
-            + worldData.PROF_BASE.C + ' 点）为例，低 0～4 档的熟练度依次是 '
-            + practiceData.profLadder(worldData.PROF_BASE.S).join(' / ') + ' 与 '
-            + practiceData.profLadder(worldData.PROF_BASE.C).join(' / ') + ' 点。');
-        diffLines.push('比如刚解锁普通时打简单，熟练度只剩一半；再解锁困难，简单只剩四分之一、普通一半。'
-            + '只有本门最高已解锁档才算全额。');
+        diffLines.push('想找手感可以回关：退回第几关，基础熟练度就按「这一关 ÷ 当前关」折一次、四舍五入，'
+            + '本局不叠连 S，但已有层数原样保留。');
+        diffLines.push('耗气不跟着折：回关本来就便宜（7 点起）。以 S（' + worldData.PROF_BASE.S + ' 点）为例，'
+            + '当前第 40 关时回打 40 / 30 / 20 / 10 / 1 关依次是 '
+            + [40, 30, 20, 10, 1].map(function (lv) {
+                return practiceData.profByLevel(worldData.PROF_BASE.S, lv, 40);
+            }).join(' / ') + ' 点——退得越远越薄，第 1 关几乎为零，回关是练手不是刷分。');
         diffLines.push('单局基础：C ' + worldData.PROF_BASE.C + ' / B ' + worldData.PROF_BASE.B
             + ' / A ' + worldData.PROF_BASE.A + ' / S ' + worldData.PROF_BASE.S
             + ' 点，走火 F 是 0。只有连续的 S 才叠倍率，C / B / A 不叠层且会让连 S 归零。');
@@ -524,7 +521,7 @@ function practiceTopic(opts) {
             + worldData.COMBO_CAP_GAIN + ' 点，一轮十连共 ' + worldData.COMBO_ROUND + ' 点。');
         diffLines.push('全程不断 S、都打最高档，' + worldData.PROF_S_RUNS + ' 局到大圆满；全 C 则是 '
             + (worldData.PROF_C_RUNS + 1) + ' 局。走火、主动收功与非 S 都会让连 S 归零；'
-            + '换一门各算各的，不互蹭；低档局既不叠也不清。');
+            + '换一门各算各的，不互蹭；回关局既不叠也不清。');
         sections.push({ key: 'difficulty', title: '难度与耗气', lines: diffLines });
 
         // 品阶与一脉：图鉴页也有，但玩家是在准备页起念「这门值不值得练」的，就地给一句。

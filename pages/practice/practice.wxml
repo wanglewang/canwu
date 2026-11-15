@@ -112,10 +112,10 @@
       <view class="row--between">
         <text class="section__title">关卡</text>
         <!-- 关卡行只报三件事：第几关、在哪一章、这一局烧多少气。 -->
-        <text class="tiny">第 {{level}} / 999 关 · 耗灵力 {{qiCost}}</text>
+        <text class="tiny">第 {{level}} / {{levelMax}} 关 · 耗灵力 {{qiCost}}</text>
       </view>
-      <!-- 一关一格：章内随便挑，章末靠熟练度开下一章。999 关不是一张要一次画完的图，
-           一格一格翻就够用了；「已通 + 1」是默认落点，打完点「再来」正好接上。 -->
+      <!-- 一关一格：关号由熟练度算出，只能往回翻找手感，不能往上挑。
+           向上唯一的走法是把这一门练上去——练到哪，关就开到哪。 -->
       <view class="lv-row mt12">
         <view class="lv-step {{level > 1 ? '' : 'lv-step--off'}} pressable" hover-class="pressable--on" data-d="-1" bindtap="onLevel">‹</view>
         <view class="lv-mid">
@@ -124,15 +124,15 @@
         </view>
         <view class="lv-step {{level < levelMax ? '' : 'lv-step--off'}} pressable" hover-class="pressable--on" data-d="1" bindtap="onLevel">›</view>
       </view>
-      <view wx:if="{{levelBest + 1 < level && levelBest + 1 <= levelMax}}" class="mt8">
-        <text class="text-link tiny pressable" hover-class="pressable--on" bindtap="onLevelResume">回到第 {{levelBest + 1}} 关</text>
+      <view wx:if="{{level < curLevel}}" class="mt8">
+        <text class="text-link tiny pressable" hover-class="pressable--on" bindtap="onLevelResume">回到本门当前第 {{curLevel}} 关</text>
       </view>
-      <!-- 每五关一处小变化，写清楚变的是哪一项：同一段五关之内逐位相同。 -->
+      <!-- 一关一处小变化，写清楚变的是哪一项。 -->
       <text class="tiny diff-brief mt8">{{levelChange}}</text>
       <!-- 灵力不够时不给「开始」，先说明差多少、去哪儿补，以及气海能装多少。 -->
       <text wx:if="{{!canStart}}" class="warn-note mt8">灵力 {{qi}} / {{qiMax}}，本局要 {{qiCost}} 点。回洞府闭关片刻即可补上；气海不够用时，破境或练真元都能拓深。</text>
       <text wx:else class="tiny diff-brief">耗灵力 {{qiCost}} · 余 {{qi}} / {{qiMax}}</text>
-      <!-- 折减只在真的选了低档时出现一行：说清折的是基础熟练度、S 算不算、该回哪一档。 -->
+      <!-- 折减只在真的回关时出现一行：说清退了几关、熟练度折成多少、还叠不叠连 S。 -->
       <text wx:if="{{belowCapText}}" class="warn-note mt8">{{belowCapText}}</text>
       <!-- 高档位还收紧了哪几处（亮起时长 / 口诀轮数…），一一摆出来。 -->
       <text wx:if="{{diffBrief}}" class="tiny diff-brief">{{diffBrief}}</text>

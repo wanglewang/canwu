@@ -25,7 +25,7 @@
 
 ## 3. 单局熟练度：四种情况
 
-`applyPractice()` 里的顺序是**先判作废，再判低档，再判 S，最后是普通评级**。顺序不能换。
+`applyPractice()` 里的顺序是**先判作废，再判回关，再判 S，最后是普通评级**。顺序不能换。
 
 ### 情况 A：走火（F）→ 0 点，断连
 
@@ -42,15 +42,16 @@ const wiped = factor === 0;
 
 > `GRADE_FACTOR.F = 0` 是唯一的 0，所以不能用 `||` 兜底（`0 || 0.6` 会静默变成 0.6）。这行注释在代码里留了三年。
 
-### 情况 B：低档（低于本门最高已解锁档）→ 基础值逐档折半，不叠连 S
+### 情况 B：回关（打的关低于本门当前关）→ 基础值按 本关÷当前关 折，不叠连 S
 
 ```js
-rawGain = practiceData.profBelowCap(worldData.PROF_BASE[grade] || 0, rec.prof, diff.key);
+rawGain = practiceData.profByLevel(worldData.PROF_BASE[grade] || 0, playedLevel, curLevel);
 ```
 
-- 例如 S 在低一档是 17、低两档 9、低三档 5、低四档 3；
-- 本局**不参与连 S**，但**已有层数原样保留**（回高档接着叠）；
-- 层数不涨也不清零——这是「与低档完全解耦」的具体含义。
+- 例如当前第 40 关：S 回打 30 关是 26、20 关是 17、10 关是 9、第 1 关是 1；
+- 折减只乘一次、只取整一次，玩家按「34 × 20 ÷ 40」能复算；
+- 本局**不参与连 S**，但**已有层数原样保留**（回当前关照接下一层）；
+- 层数不涨也不清零——这是「与回关完全解耦」的具体含义。
 
 ### 情况 C：S 且在本门最高档 → 叠层
 
@@ -116,9 +117,9 @@ const gain = Math.min(rawGain, Math.max(0, worldData.PROF_MAX - rec.prof));
 | 方案 | 为什么否掉 |
 | --- | --- |
 | 熟练度 × 品阶系数 | 天阶是黄阶 3.2 倍，低阶功法在成长线上被直接淘汰，黄阶十一门成装饰 |
-| 熟练度 × 难度倍率 | 与「低档折半」重复计一次，且会让「越难越划算」压过「按承诺打」 |
+| 熟练度 × 难度倍率 | 与「回关折减」重复计一次，且会让「越难越划算」压过「按承诺打」 |
 | 熟练度 × 境界 / 属性 | 熟练度就不再是「你练了多少」，而变成「你有多富」。`resMult / MAX_MULTIPLIER` 那套已整条退役 |
-| 三连 S 直接晋级（补额到下一门槛） | 补额不看难度档，而低档 S 概率更高，于是「只刷简单」能反超「逐档升」。这条在模拟里被抓到过，机制已整体退役 |
+| 三连 S 直接晋级（补额到下一门槛） | 补额不看难度档，而回关 S 概率更高，于是「只刷第 1 关」能反超「逐档升」。这条在模拟里被抓到过，机制已整体退役 |
 | 连练递减（练同一门收益递减） | 攒连 S 本来就要连练同一门，在最该上瘾的地方反着来。已废弃，换门改为正激励（省 8% 灵力） |
 | 圆满后归零 | 等于这门功法死了，玩家只能换门 |
 | 熟练度也给灵石/灵力 | 参悟变成印钞线，两种货币的分工塌掉 |
@@ -150,9 +151,9 @@ const gain = Math.min(rawGain, Math.max(0, worldData.PROF_MAX - rec.prof));
 
 - `utils/game.js` —— `applyPractice()`（四种情况的判定顺序）、`tierIndex()`、`breakCombo()`
 - `data/world.js` —— `TIERS`、`PROF_BASE`、`PROF_MAX`、`GRADE_FACTOR`、`comboGain()`
-- `data/practice.js` —— `profLadder()` / `profBelowCap()`（逐档折半）
-- `tests/game.test.js` —— 1–14 连逐局入账、非 S / 收功 / 走火断连、跨功法、低档解耦、大圆满后层数照常、v5→v6 迁移
-- `tests/rank.test.js` —— 逐档取整对照表、四品阶同值
+- `data/practice.js` —— `levelFactor()` / `profByLevel()`（按关折）
+- `tests/game.test.js` —— 1–14 连逐局入账、非 S / 收功 / 走火断连、跨功法、回关解耦、大圆满后层数照常、v5→v6 迁移
+- `tests/rank.test.js` —— 回关系数对照表与单调性、四品阶同值
 
 ## 待验
 

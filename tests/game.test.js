@@ -222,9 +222,10 @@ check('第 1～14 连 S：前十局走 1.5 曲线，之后每局锁死 1307', fu
   const s = game.createNewState();
   s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   s.skills.jian.unlocked = true;
-  s.skills.jian.prof = 24000;   // 绝境已开，每局都打最高档，不吃低档折减
+  s.skills.jian.prof = 24000;   // 绝境已开，每局都打当前关，不吃回关折减
+  const levels = require('../data/levels.js');
   for (let i = 1; i <= 14; i += 1) {
-    const r = game.applyPractice(s, 'jian', 'S', { difficulty: 'desperate', score: 0 });
+    const r = game.applyPractice(s, 'jian', 'S', { level: levels.levelFromProf(s.skills.jian.prof), score: 0 });
     assert.strictEqual(r.comboNow, Math.min(i, 10), '第 ' + i + ' 连层数不对');
     assert.strictEqual(r.gain, world.comboGain(i), '第 ' + i + ' 连收益不是曲线值');
     assert.strictEqual(r.comboActive, true);
@@ -249,22 +250,22 @@ check('非 S、走火、主动收功都归零，下一局 S 重新从 34 点起'
   const world = require('../data/world.js');
   const s = game.createNewState();
   s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
-  game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
-  game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
-  const a = game.applyPractice(s, 'jian', 'A', { difficulty: 'easy', score: 0 });
+  game.applyPractice(s, 'jian', 'S', { score: 0 });
+  game.applyPractice(s, 'jian', 'S', { score: 0 });
+  const a = game.applyPractice(s, 'jian', 'A', { score: 0 });
   assert.strictEqual(a.comboNow, 0, 'A 档没有断掉连 S');
   assert.strictEqual(a.gain, world.PROF_BASE.A);
-  const one = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  const one = game.applyPractice(s, 'jian', 'S', { score: 0 });
   assert.strictEqual(one.comboNow, 1);
   assert.strictEqual(one.gain, 34, '断连后没从第 1 连重起');
-  const f = game.applyPractice(s, 'jian', 'F', { difficulty: 'easy', score: 0 });
+  const f = game.applyPractice(s, 'jian', 'F', { score: 0 });
   assert.strictEqual(f.comboNow, 0, '走火没有断连');
   assert.strictEqual(f.gain, 0);
-  game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  game.applyPractice(s, 'jian', 'S', { score: 0 });
   const br = game.breakCombo(s, 'jian');   // 主动收功：不进结算，只断连
   assert.strictEqual(br.ok, true);
   assert.strictEqual(s.sCombo.jian, 0, '收功没断连，能靠中途退出保住连击');
-  const restart = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
+  const restart = game.applyPractice(s, 'jian', 'S', { score: 0 });
   assert.strictEqual(restart.comboNow, 1);
   assert.strictEqual(restart.gain, 34);
 });
@@ -282,23 +283,25 @@ check('连 S 按功法各算各的，换一门不会蹭到别人的层数', func
   assert.strictEqual(s.sCombo.tuna, 1, '收功把别的门的连击也清了');
 });
 
-check('低档局与连 S 无关：不叠层、不砍连击收益、层数原样保留', function () {
+check('回关局与连 S 无关：不叠层、不砍连击收益、层数原样保留', function () {
   const practice = require('../data/practice.js');
   const world = require('../data/world.js');
+  const levels = require('../data/levels.js');
   const s = game.createNewState();
   s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   s.skills.jian.unlocked = true;
-  s.skills.jian.prof = 1500;   // 最高已解锁档 = 困难，简单档低 2 档
-  game.applyPractice(s, 'jian', 'S', { difficulty: 'hard', score: 0 });
-  game.applyPractice(s, 'jian', 'S', { difficulty: 'hard', score: 0 });
-  const low = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
-  assert.strictEqual(low.comboActive, false, '低档 S 走了连击曲线');
-  assert.strictEqual(low.comboNow, 2, '低档 S 动了两局攒下的层数');
-  assert.strictEqual(low.gain, practice.profBelowCap(world.PROF_BASE.S, 1500, 'easy'));
-  assert.strictEqual(low.gain, 9, '低两档 S 应是 34 → 17 → 9');
-  const third = game.applyPractice(s, 'jian', 'S', { difficulty: 'hard', score: 0 });
+  s.skills.jian.prof = 1500;   // 当前第 81 关（第三章首关）
+  const cur = levels.levelFromProf(1500);
+  game.applyPractice(s, 'jian', 'S', { level: cur, score: 0 });
+  game.applyPractice(s, 'jian', 'S', { level: levels.levelFromProf(s.skills.jian.prof), score: 0 });
+  const low = game.applyPractice(s, 'jian', 'S', { level: 20, score: 0 });   // 回关到第一章
+  assert.strictEqual(low.comboActive, false, '回关 S 走了连击曲线');
+  assert.strictEqual(low.comboNow, 2, '回关 S 动了两局攒下的层数');
+  assert.strictEqual(low.gain, practice.profByLevel(world.PROF_BASE.S, 20, cur));
+  assert.ok(low.gain < world.PROF_BASE.S / 2, '回关到第 20 关还拿了一半以上：折减没生效');
+  const third = game.applyPractice(s, 'jian', 'S', { level: levels.levelFromProf(s.skills.jian.prof), score: 0 });
   assert.strictEqual(third.comboNow, 3);
-  assert.strictEqual(third.gain, 77, '回高档没接上第 3 连');
+  assert.strictEqual(third.gain, 77, '回关练手后没接上第 3 连');
 });
 
 check('大圆满后熟练度封顶，连 S 与纪录照常，但灵力照扣', function () {

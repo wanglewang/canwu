@@ -1289,7 +1289,7 @@ check('循数勘禁诀：章内 lineScale 真被读走，S 线随段收紧而不
   try {
     const m = data.getMethod('tanlei');
     const first = data.buildParamsAt(m, 1);
-    const last = data.buildParamsAt(m, 200);
+    const last = data.buildParamsAt(m, 40);   // 一章 40 关：章内收紧只在本章里比
     assert.ok(typeof first.lineScale === 'number' && typeof last.lineScale === 'number', 'buildParamsAt 没给 lineScale');
     assert.ok(last.lineScale < first.lineScale, '章内 lineScale 没有随段收紧');
     // 只生成不消费是最容易漏的一种：界面报「S 线 −3%」，盘面一关都没变。

@@ -309,20 +309,6 @@ function diffKeyIndex(key) {
   return d ? DIFFICULTIES.indexOf(d) : 0;
 }
 
-// 低于「本门最高已解锁档」时，每低一档就把熟练度与资源再打一次对折。
-//
-// 为什么要有这一条：难度档是事前承诺，不是面板上的装饰。解锁了普通档却一直刷简单档，
-// 等于想拿全额熟练度又躲开难盘——模拟里「只刷简单」曾经反超「逐档升」。
-// 连 S 是另一套机制，与这里完全解耦：低档局不叠连 S、连击层数原样保留，
-// 连击收益也不被折减砍；这里折的只有「低档基础熟练度」，耗气不跟着折。
-//
-// 按落差累进：解锁普通后打简单 ×0.5；再解锁困难，简单 ×0.25、普通 ×0.5；
-// 绝境都开了还回头刷简单就只剩 ×0.0625。「差几档折几次半」一句话讲完，
-// 不需要记第二套规则。熟练度不到 300 时简单档就是最高档，本项不生效，新手不受罚。
-// 熟练度是整数点，所以「折半」要逐档做：每除一次 2 就四舍五入一次，拿这个整数再除下一次。
-// 资源是浮点倍率，仍按总系数一次折完（两者在小数意义上等价，不必取整）。
-const DIFF_BELOW_CAP = 0.5;
-
 // 这门功法当前熟练度实际解锁到第几档。
 function diffIndexOf(prof) {
   const p = Math.max(0, Number(prof) || 0);
@@ -337,55 +323,44 @@ function bestDifficulty(prof) {
   return DIFFICULTIES[diffIndexOf(prof)].key;
 }
 
-// 这一档比本门最高已解锁档低几档：0 = 就是最高档，1 = 低一档，以此类推。
-function diffGapOf(prof, diffKey) {
-  return Math.max(0, diffIndexOf(prof) - diffKeyIndex(diffKey));
+// ---------------------------------------------------------------- 回关折减
+// 关卡由熟练度算出（levels.levelFromProf），所以「打哪一关」就是「打多难」。
+// 回打低关按「本关 ÷ 当前关」连续折减：
+//
+//   当前第 40 关，回打第 40 关 → ×1.00
+//   当前第 40 关，回打第 30 关 → ×0.75
+//   当前第 40 关，回打第 1  关 → ×0.03
+//
+// 为什么不用「每档折半」：档只有五级，同一章内第 1 关与第 40 关的折减系数都是 1，
+// 而第 1 关的 S 率远高于第 40 关——**档内折减是空的**。老版最优点就是「在本章内刷第 1 关」，
+// 这比刷最低档严重得多，因为章内第 1 关和第 40 关的收益完全一样，难度却差一整章。
+// 按关折是连续的，也没有「一次退两档就 ×0.25」那种断崖。
+function levelFactor(level, curLevel) {
+  const cur = Math.max(1, Math.round(Number(curLevel) || 1));
+  const lv = Math.max(1, Math.min(cur, Math.round(Number(level) || 1)));
+  return lv / cur;
 }
 
-// 折减系数 = 0.5^档差。熟练度折减与「是否算低档」都从这一个函数取，
-// 玩家只需记一句「只有最高已解锁档才算全额；每退一档再折半」。
-function lowDiffFactor(prof, diffKey) {
-  return Math.pow(DIFF_BELOW_CAP, diffGapOf(prof, diffKey));
+// 回关这一局的基础熟练度：四舍五入一次，不做逐档取整。
+// 逐档取整是为「÷2 阶梯」服务的（34 → 17 → 9 → 5 要能对上），按关折是连续量，
+// 只有一次乘法，取整也只有一次，玩家按「34 × 30 ÷ 40 = 25.5 → 26」能复算。
+function profByLevel(base, level, curLevel) {
+  return Math.round(Math.max(0, Math.round(Number(base) || 0)) * levelFactor(level, curLevel));
 }
 
-// 熟练度折减的逐档对照表：低 0 / 1 / 2 / 3 / 4 档各给几点。
-// 每一步都是「÷2 再四舍五入」，不是「先乘 0.5^档差，最后取整一次」：
-// S 的 34 点低三档是 34 → 17 → 9 → 5，一次性算 34 × 0.125 = 4.25 只会给 4，
-// 玩家照「除以 2 四舍五入」复算会对不上结算卡。逐档取整也不会归零（1 ÷ 2 = 0.5 → 1），
-// 不再需要「至少给 1 点」的兜底。档差判定仍只有 diffGapOf() 一个。
-function profLadder(base) {
-  const out = [];
-  let n = Math.max(0, Math.round(Number(base) || 0));
-  for (let i = 0; i < DIFFICULTIES.length; i += 1) {
-    out.push(n);
-    n = Math.round(n / 2);
-  }
-  return out;
+// 准备页那一行回关提示：说清退了几关、熟练度折成多少。只在真的回关时出现。
+function retreatText(level, curLevel) {
+  const cur = Math.max(1, Math.round(Number(curLevel) || 1));
+  const lv = Math.max(1, Math.min(cur, Math.round(Number(level) || 1)));
+  if (lv >= cur) return '';
+  return '回打第 ' + lv + ' 关（本门当前第 ' + cur + ' 关）：熟练度按 ×'
+    + String(Math.round(levelFactor(lv, cur) * 1000) / 1000) + ' 计，本局不叠连 S。'
+    + '关只增不减，练到哪就在哪——回打只为找手感。';
 }
 
-function profBelowCap(base, prof, diffKey) {
-  const ladder = profLadder(base);
-  return ladder[Math.min(diffGapOf(prof, diffKey), ladder.length - 1)];
-}
-
-// 0.0625 也要原样显示，toFixed(2) 会把它写成 0.06 骗人。
+// 小系数也要原样显示，toFixed(2) 会把 0.0625 写成 0.06 骗人。
 function factorText(f) {
   return '×' + String(Math.round(f * 10000) / 10000);
-}
-
-function belowCapOf(prof, diffKey) {
-  return diffGapOf(prof, diffKey) > 0;
-}
-
-// 准备页那一行折减提示：说清低了几档、熟练度折成多少，只在真的折减时出现。
-// 现在只有熟练度会折——耗气按档位基数照算（低档本来就便宜，再折等于奖励刷低档）。
-function belowCapText(prof, diffKey) {
-  const gap = diffGapOf(prof, diffKey);
-  if (!gap) return '';
-  const cap = DIFFICULTIES[diffIndexOf(prof)];
-  return '比已解锁的「' + cap.name + '」低 ' + gap + ' 档：熟练度每低一档 ÷2 后四舍五入计 '
-    + factorText(lowDiffFactor(prof, diffKey)) + '，耗气仍按这一档的基数算。'
-    + '低档不叠连 S，但已有层数原样保留；想快些练，回到「' + cap.name + '」打。';
 }
 
 // 给选择器用的五档列表，含解锁状态与所需熟练度。
@@ -682,7 +657,7 @@ function capFor(key, src) {
 }
 
 // 一个难度档的原始参数，不做章内混合。depthIndex 允许取到 5：
-// 第 5 章后面没有第 6 张表，就在绝境档上再压 6%，好让第 999 关真的是最难一关。
+// 第 5 章后面没有第 6 张表，就在绝境档上再压 6%，好让第 200 关真的是最难一关。
 function pseudoDiff(depthIndex) {
   const idx = Math.round(depthIndex);
   if (idx <= 4) return DIFFICULTIES[Math.max(0, idx)];
@@ -813,7 +788,7 @@ function rawParams(method, depthIndex) {
   // steps 是「这盘最少几步」这类按档递增的量：params 里写的是简单档的值，每档 +1。
   if (typeof out.steps === 'number') out.steps += d.depth;
   if (typeof out[SPEED_KEY] === 'number') out[SPEED_KEY] = Math.round(out[SPEED_KEY] / d.pace * 10000) / 10000;
-  // 末章没有「下一档」，靠这一行继续收紧，否则第 900 关与第 999 关会一模一样。
+  // 末章没有「下一档」，靠这一行继续收紧，否则第 161 关与第 200 关会一模一样。
   if (depthIndex > 4) {
     if (typeof out.duration === 'number') out.duration = Math.max(8, Math.round(out.duration * 0.94));
     if (typeof out.timeLimit === 'number') out.timeLimit = Math.max(8, Math.round(out.timeLimit * 0.94));
@@ -833,8 +808,9 @@ const LEVEL_TIME_KEYS = ['duration', 'timeLimit', 'interval', 'flashMs', 'gapMs'
   'shuffleMs', 'flipMs', 'dropMs', 'msPerNote', 'life', 'capFactor', 'capSteps', 'minSteps',
   'window', 'penaltySec'];
 
-// 某一关的完整参数。同一段（5 关）里的调用结果逐位相同，这是「五关之内难度不变」
-// 的落点；段与段之间一定有一处变，界面把它报成「本段变化」。
+// 某一关的完整参数。一段一关，所以相邻两关本该逐位不同——但「本该」不等于「一定」：
+// 规格类玩法（阵灯 31 级台阶 / 合术 36 / 摘魁 37 / 数术 52）的可动范围只有三五十格，
+// 其余各关参数一字不动。界面据实报「与上一关规格相同」，见 `levelDelta`。
 //
 // 章内只做一件事：把本档的时间与预算按段收紧，方向永远是「更难」。
 // 不朝下一章插值——九宫从 4×4 换 6×6 时下一章的时间反而更多（换盘要留读盘时间），
@@ -867,8 +843,8 @@ function levelRound(key, v) {
   return Math.round(v);
 }
 
-// 这一段的「小变化」：拿上一段（5 关之前）的参数逐项比，只报玩家看得懂的。
-// 比较基准一定是同一门、本关减 5，而不是「与简单档比」——玩家看的是脚下这一步。
+// 这一关的「小变化」：拿上一关的参数逐项比，只报玩家看得懂的。
+// 比较基准一定是同一门、本关减一（`STAGE_SPAN`），而不是「与简单档比」——玩家看的是脚下这一步。
 function levelDelta(method, level) {
   const lv = levelData.clampLevel(level);
   const prevLv = lv - levelData.STAGE_SPAN;
@@ -1096,14 +1072,10 @@ module.exports = {
   diffKeyIndex: diffKeyIndex,
   diffIndexOf: diffIndexOf,
   bestDifficulty: bestDifficulty,
-  belowCapOf: belowCapOf,
-  diffGapOf: diffGapOf,
-  lowDiffFactor: lowDiffFactor,
-  profLadder: profLadder,
-  profBelowCap: profBelowCap,
+  levelFactor: levelFactor,
+  profByLevel: profByLevel,
+  retreatText: retreatText,
   factorText: factorText,
-  belowCapText: belowCapText,
-  DIFF_BELOW_CAP: DIFF_BELOW_CAP,
   difficultyList: difficultyList,
   buildParams: buildParams,
   buildParamsAt: buildParamsAt,
