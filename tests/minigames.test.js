@@ -526,13 +526,20 @@ check('顺光扫斩：刀路亮完才起寿命线，没划到就算漏', functio
       trail.path.length, '亮起的桩数与刀路长度不符');
     const last = trail.path[trail.path.length - 1];
     assert.strictEqual(ctx.st.vm.cells[last].life, 0, '光还没走到收势桩就开始倒计时了');
-    advance(720);                       // 刀势起手沉，3 桩两步才走到收势桩（简单档 343ms/桩）
+    advance(720);                       // 刀势起手沉，3 桩两步才走到收势桩（简单档 273ms/桩）
     assert.ok(ctx.st.vm.cells[last].life > 0, '收势桩没有寿命线，玩家看不出还剩多久');
     const before = ctx.st.vm.scoreText;
-    advance(720);                       // 站着不动，等寿命线走完（别等到下一招出来，否则状态被覆盖）
+    // 站着不动等寿命线走完。这里不写死「推到第几毫秒」：漏刀报出状态之后 170ms
+    // 就出新招，而新招会把 status 覆盖掉——写死一个数会被时序调整悄悄打红。
+    // 逐小步推进，见到「慢」就停，测的是「漏刀有没有提示」这件事本身。
+    let sawMiss = false;
+    for (let i = 0; i < 40 && !sawMiss; i += 1) {
+      advance(100);
+      if (ctx.st.vm.status.indexOf('慢') >= 0) sawMiss = true;
+    }
+    assert.ok(sawMiss, '漏刀没有给出提示');
     assert.strictEqual(ctx.st.vm.scoreText, before, '漏刀不该加分');
     assert.strictEqual(ctx.st.vm.comboText, '', '漏刀之后刀势该断');
-    assert.ok(ctx.st.vm.status.indexOf('慢') >= 0, '漏刀没有给出提示');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
@@ -1523,10 +1530,15 @@ check('顺光扫斩：档位越高刀路越长，重斩是更长的金桩长招'
   installClock();
   try {
     const m = data.getMethod('forge');
+    const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
     const maxLens = [];
     let sawGold = false;
     for (let d = 0; d <= 4; d += 1) {
-      const ctx = makeCtx(m, {}, Object.assign({}, m.params, { depth: d, duration: 30, life: 700 }));
+      // 用 buildParams 而不是手拼 params：刀路桩数与盘面规格都是按档整表注入的
+      // （CLICK_LEVELS），手拼会把 len / grid / cols 漏掉，五档就测成同一个盘面。
+      // 时长与寿命仍然放宽，好让 30 挥之内能撞见重斩。
+      const pr = data.buildParams(m, keys[d]);
+      const ctx = makeCtx(m, {}, Object.assign({}, pr, { duration: 30, life: 700 }));
       ctx.c.start();
       let longest = 0;
       for (let k = 0; k < 30; k += 1) {
@@ -1543,7 +1555,7 @@ check('顺光扫斩：档位越高刀路越长，重斩是更长的金桩长招'
     }
     assert.ok(sawGold, '整局都没出现重斩');
     assert.ok(maxLens[0] <= 4, '简单档不该出现 5 桩长招：' + maxLens[0]);
-    assert.ok(maxLens[4] >= 5, '绝境档应该有 5 桩长招：' + maxLens[4]);
+    assert.ok(maxLens[4] >= 6, '绝境档刀路太短（整表给的是 8 桩）：' + maxLens[4]);
     assert.ok(maxLens[0] < maxLens[4], '五档刀路长度没有拉开');
     for (let i = 1; i < maxLens.length; i += 1) {
       assert.ok(maxLens[i] >= maxLens[i - 1], '刀路长度随档位倒退了：' + maxLens.join(','));

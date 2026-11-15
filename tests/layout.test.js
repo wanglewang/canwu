@@ -488,7 +488,9 @@ check('勘禁诀局内只讲「在追哪一档」：不摆当前评级，HUD 不
   // 评级只看用时，按当前用时反推出来的档，开局那一刻必是 S。摆进 HUD 等于告诉玩家
   // 「已经拿到 S 了」，之后只能看它一路往下掉。局内改成只报下一档的时限。
   assert.ok(/showGradeNow = false/.test(m), '勘禁诀又把「当前评级」摆回 HUD 了');
-  assert.ok(/C\.paceGoal\(elapsed, GRADE_LINE\)/.test(m), '局内没给「下一档还差几秒」');
+  // 时间线跟着盘面格数走（9×9 的 S 线是 56 秒而不是 25 秒），所以第二个实参
+  // 可能是 GRADE_LINE 也可能是本盘算出来的 line；两者都算「给了下一档的时限」。
+  assert.ok(/C\.paceGoal\(elapsed,\s*(GRADE_LINE|line)\)/.test(m), '局内没给「下一档还差几秒」');
   // 同样的反推逻辑不止探禁一家：搭桥、翻牌也按用时评级。凡是这类玩法都不许摆当前档位。
   for (const name of ['bridge', 'seal']) {
     const src = read('minigames/' + name + '.js');

@@ -37,11 +37,14 @@ const EDGE_MULT = 2;       // 重斩得分翻倍
 // 低档缓入：入门档要留出「看清刀路 → 决定从哪起手 → 划过去」的时间，
 // 高档则迅速收回，不拖慢本已变紧的节奏。用比例而不是固定毫秒，
 // 剑刀各自的基准速度都能保住自己的比例差。
-// 简单档 156 → 343ms/桩（3 桩要走 0.7 秒才亮完，看得清每一步该往哪拐），
-// 绝境档仍是 120ms/桩。入门档不是「稍慢一点」，而是慢到能边看边想。
-const EASE_STEP = [2.2, 1.45, 1.08, 1.02, 1];
-// 接招间隔同样缓入：190 → 418ms，斩完有一拍实打实的喘息。
-const EASE_GAP = [2.2, 1.45, 1.08, 1.02, 1];
+// 简单档 156 → 304ms/桩（3 桩刀路要走 0.6 秒，看得清每一步该往哪拐），
+// 绝境档 140ms/桩，跨度 2.17 倍。
+// 这个跨度是**故意压小的**：旧值 343 → 120 是 2.86 倍，难度几乎全压在「快」上，
+// 练十局也只是眼睛更累。现在承重交给刀路长度与盘面（3→8 桩、3×3→5×5，2.67 倍），
+// 速度只负责紧张感——玩家输了会想「那段路我没记住」，而不是「我手太慢」。
+const EASE_STEP = [1.95, 1.55, 1.25, 1.1, 1];
+// 接招间隔同样缓入：190 → 323ms，斩完有一拍实打实的喘息。
+const EASE_GAP = [1.7, 1.3, 1.1, 1.03, 1];
 
 // 阶段新法：与 data/practice.js 的 STAGE_RULES 一一对应。
 const STAGE_HOLD = 3;      // 大成：收势
@@ -339,7 +342,13 @@ function create(ctx) {
   // 数值旋钮：全部挂 depth。后摇是刀法唯一能压到「高手也变紧」的速度项，
   // 因为能读图的人会抢在光走完之前划掉，光速与寿命只卡新手。
   const stepMs = Math.max(72, Math.round(profile.stepMs * EASE_STEP[depth]) - depth * profile.stepDecay);
-  const baseLen = Math.min(profile.maxLen, profile.baseLen + Math.floor(depth / 2));
+  // 刀路桩数 = 本兵器的基准 + 档位增量（CLICK_LEVELS.lenStep：0/1/2/3/5）。
+  // 刀基准 3 → 3/4/5/6/8，跨度 2.67 倍；剑基准 2 → 2/3/4/4/4（受 maxLen 封顶）。
+  // 旧写法 `baseLen + floor(depth/2)` 只有 3→5，多出来的难度全靠光速补——
+  // 那是把「刀法」压成「手速」。更长的刀路练的是记路与预判，玩家能说清自己错在哪一段。
+  // 手拼 params 不带 lenStep 时退回旧公式，好让探针不带整表也能开局。
+  const lenUp = typeof p.lenStep === 'number' ? p.lenStep : Math.floor(depth / 2);
+  const baseLen = Math.min(profile.maxLen, profile.baseLen + lenUp);
   const wanderChance = Math.min(0.9, profile.bentBase + depth * profile.bentStep);
   const gapMs = Math.max(96, Math.round(profile.gap * EASE_GAP[depth]) - depth * 12);
   const edgeEvery = Math.max(3, 5 - Math.floor(depth / 2));

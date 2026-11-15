@@ -524,16 +524,27 @@ for (let i = 1; i < practiceMod.DIFFICULTIES.length; i += 1) {
   if (cur.need <= prev.need || cur.qi <= prev.qi) errors.push('难度档门槛或耗气未递增: ' + cur.key);
   else checked += 1;
 }
+// 盘面尺寸只许按「显式规格表」变。规格阶梯写在 CLICK_LEVELS / MINES_LEVELS（以及
+// lights / sudoku / klotski 各自那张表）里，玩法层真的读它，玩家在准备页也看得到
+// 「本档几乘几」。不允许的是另一件事：让 pace / goal 那套通用缩放顺手把 grid / cols /
+// rows 改掉——那是「调难度不小心改了盘面」，玩家会以为换了一门玩法。
+const BOARD_TABLE_GAMES = ['click', 'mines', 'lights', 'sudoku', 'klotski'];
 let boardSafe = true;
+let boardStray = '';
 for (const m of practiceMod.PRACTICE_METHODS) {
   for (const d of practiceMod.DIFFICULTIES) {
     const out = practiceMod.buildParams(m, d.key);
     for (const key of ['grid', 'cols', 'rows', 'size']) {
-      if (typeof m.params[key] === 'number' && out[key] !== m.params[key]) boardSafe = false;
+      if (typeof m.params[key] === 'number' && out[key] !== m.params[key]) {
+        if (BOARD_TABLE_GAMES.indexOf(m.game) < 0) {
+          boardSafe = false;
+          boardStray = m.id + '.' + key;
+        }
+      }
     }
   }
 }
-if (!boardSafe) errors.push('难度档缩放改动了盘面尺寸字段');
+if (!boardSafe) errors.push('盘面尺寸在没有规格表的门里被缩放了: ' + boardStray);
 else checked += 1;
 
 // 9. 页面规范：设计令牌单一真源、明暗一致性、导航栏标题与暗色、页面样式不写裸色值

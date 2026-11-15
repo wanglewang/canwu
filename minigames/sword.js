@@ -21,12 +21,15 @@ const STEP = {
 
 function create(ctx) {
   const p = ctx.params || {};
-  const hard = ctx.difficulty === 'hard';
   const perks = ctx.perks || {};
   const theme = ctx.theme || {};
-  const duration = Math.max(12, (p.duration || 20) + (perks.easy ? 4 : 0) - (hard ? 3 : 0));
+  // 时长不再按 gear 扣 3 秒：段数从 3 涨到 6（12→39 步），时间不该跟着收。
+  // 这一门练的是「跟住一串符号」，不是手速；收时间只会把它变成连点比赛。
+  const duration = Math.max(12, (p.duration || 20) + (perks.easy ? 4 : 0));
   const totalSegments = (p.segments || 4);
-  const baseLen = (p.baseLen || 3) + (hard ? 1 : 0);
+  const baseLen = (p.baseLen || 3);
+  // 键位每段重排：位置记忆失效，必须读符号。困难档起开（见 SWORD_LEVELS）。
+  const shuffleKeys = !!p.shuffle;
   const keyList = (p.moves || MOVES).slice();
   const comboLabel = theme.comboLabel || '连招';
   const vm = C.makeVm(0, 0, '看清卷轴，按序踏位', ctx.tip || '照着卷轴上的步位，依次点下方四个步法键');
@@ -36,16 +39,21 @@ function create(ctx) {
   vm.extras.showMeter = true;
   vm.timeText = C.mmss(duration);
   vm.scoreText = '成步 0';
-  vm.scroll = {
-    moves: [],
-    keys: keyList.map(function (g, i) {
+  vm.scroll = { moves: [], keys: [], cursor: 0, segment: 1, total: totalSegments };
+
+  // 键位顺序与判定解耦：keys 的数组顺序只决定「屏幕上的先后」，每一项的 index
+  // 仍指向 keyList 原位，所以 tap(index) 一个字都不用改。
+  // 重排的意义是毁掉位置记忆——固定顺序打到第三局，玩家就不再读符号、只按位置点，
+  // 那时这套盘面练的其实什么都不是。重排逼他每一步都看一眼。
+  function buildKeys() {
+    const arr = keyList.map(function (g, i) {
       const s = STEP[g] || {};
       return { id: 'k' + i, glyph: g, dir: s.dir || 'up', name: s.name || '', index: i };
-    }),
-    cursor: 0,
-    segment: 1,
-    total: totalSegments,
-  };
+    });
+    if (shuffleKeys) C.shuffle(arr);
+    vm.scroll.keys = arr;
+  }
+  buildKeys();
 
   const bag = C.TimerBag();
   let left = duration;
@@ -102,6 +110,8 @@ function create(ctx) {
   }
 
   function newSegment() {
+    // 每段都重排一次：位置记忆连一局之内都用不上，只能一路读符号。
+    if (shuffleKeys) buildKeys();
     const len = Math.min(baseLen + vm.scroll.segment - 1, 9);
     const moves = [];
     let last = '';
@@ -199,8 +209,9 @@ function create(ctx) {
 
 function lines(p) {
   const t = Math.max(1, (p && p.segments) || 4);
+  const shuffled = !!(p && p.shuffle);
   return {
-    rule: '只看走完的段数（踏错不算走完）',
+    rule: '只看走完的段数（踏错不算走完）' + (shuffled ? '；本档键位每段重排，须读符号' : ''),
     items: ['S：' + t + ' 段全成', 'A：走完 ' + (t - 1) + ' 段',
       'B：走完 ' + Math.max(0, t - 2) + ' 段', '其余为 C'],
   };

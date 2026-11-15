@@ -416,9 +416,61 @@ const TIME_LEVELS = [1, 0.97, 0.94, 0.91, 0.88];
 //   mines → 心神盏数（HUD 上有几盏灯）；merge → 起手几块（开局盘面就少几格空地）；
 //   schulte → 点错罚几秒（局内已经这么写）；pushbox → 推数预算系数（capPushes 直接读）。
 // 不许为了过审计往 params 里塞一个玩法层不读的字段，那是假区分度。
-const MINES_HEARTS = [3, 3, 3, 2, 2];
 const MERGE_START_TILES = [2, 2, 3, 3, 4];
 const PUSHBOX_CAP_FACTORS = [2.2, 2.0, 1.9, 1.75, 1.6];
+
+// 下面三张表换的是「承重轴」：把难度从时间挪到复杂度上。
+//
+// 起因：五档的时间参数走同一套 pace / windowPace / TIME_LEVELS，跨度天然只有 1.7–2.3 倍，
+// 而且人的反应时间练不出来——把难度压在「快」上，玩家越玩越焦虑而不是越玩越会。
+// 复杂度不一样：盘面更大、路线更长、键位重排，玩家可以靠「想得透」跨过去。
+//
+// 三张表都只动「结构性」的量（盘面规格、需要记住的长度、要不要读符号），
+// 不去压时间；时间在三门里几乎不动，只负责让节奏别拖。
+//
+// 顺光扫斩：旧版刀路 3→5 桩、盘面恒 3×3，真正的跨度全在光速（2.86 倍）。
+// 现在盘面 3×3→5×5（9→25 格）、刀路 3→8 桩，复杂度 2.67 倍成为承重轴；
+// 光速压缩同步收到 2.17 倍（见 weapons.js 的 dao.stepDecay 与 click.js 的 EASE_STEP），
+// 刀光寿命从 windowPace 改走 pace，从 2.34 倍降到 1.69 倍——时间是佐味，不是主菜。
+//
+// lenStep 存的是「比本兵器的基准长几桩」，不是绝对桩数：params 是刀剑共用的，
+// 存绝对值会把刀的 8 桩塞给剑（剑的 profile.maxLen 只有 4，语义就乱了）。
+// 刀基准 3 桩 → 3/4/5/6/8；剑基准 2 桩 → 2/3/4/4/4（受 maxLen 封顶，剑本就只预留）。
+const CLICK_LEVELS = [
+  { grid: 9, cols: 3, lenStep: 0 },
+  { grid: 9, cols: 3, lenStep: 1 },
+  { grid: 16, cols: 4, lenStep: 2 },
+  { grid: 16, cols: 4, lenStep: 3 },
+  { grid: 25, cols: 5, lenStep: 5 },
+];
+
+// 步法连环：旧表 segments 3/4/4/5/5、baseLen 3/3/3/4/4——按模块的段长算法算，
+// hard 与 normal 都是 18 步、expert 与 desperate 都是 30 步，五档实际只有三个配置。
+// 现在五档各不相同（12/18/22/30/39 步，3.25 倍），并从困难档起「键位每段重排」：
+// 玩家的位置记忆失效，必须真的读符号。时长反而从 20 调到 23（缩放后仍在 20 秒上下），
+// 因为步数涨了三倍而时间不该跟着收——这一门练的是跟招，不是手速。
+const SWORD_LEVELS = [
+  { segments: 3, baseLen: 3, shuffle: false, duration: 20 },
+  { segments: 4, baseLen: 3, shuffle: false, duration: 20 },
+  { segments: 4, baseLen: 4, shuffle: true, duration: 21 },
+  { segments: 5, baseLen: 4, shuffle: true, duration: 22 },
+  { segments: 6, baseLen: 4, shuffle: true, duration: 23 },
+];
+
+// 数格辨禁：旧版盘面恒 6×6，五档只动禁制数（5→8）与心神（3→2），评级又只看用时——
+// 复杂度几乎没有变化的空间，而 6×6 的扫雷本来就太浅。
+// 现在盘面 6×6→9×9（36→81 格，2.25 倍）、禁制 5→12（2.4 倍，密度稳在 14–17%）。
+// 时间线跟着格数走（见 mines.js 的 gradeLine），是「给足」不是「压缩」：
+// 9×9 的 S 线 56 秒。推理链变长才是这一门真正的难，不是秒表。
+const MINES_LEVELS = [
+  { cols: 6, rows: 6, mines: 5, hearts: 3 },
+  { cols: 6, rows: 6, mines: 6, hearts: 3 },
+  { cols: 7, rows: 7, mines: 8, hearts: 3 },
+  { cols: 8, rows: 8, mines: 10, hearts: 2 },
+  { cols: 9, rows: 9, mines: 12, hearts: 2 },
+];
+// 旧的 MINES_HEARTS 仍然导出（测试与文档引用它），但改成从表里派生，只留一份真源。
+const MINES_HEARTS = MINES_LEVELS.map(function (lv) { return lv.hearts; });
 
 // 三秀同收的五档：盘面（花色）、时辰、三处罚息与评级线，一张表管全。
 // 旧版只有「S 线 620 + depth×150」在变，60 息 / 5 色 / 罚 2 息四档全写死——
@@ -540,10 +592,13 @@ function sLineText(method, diffKey) {
 
 // ---------------------------------------------------------------- 参数缩放
 // 时间 / 判定窗类：pace 越小越难。window 是 0~1 的小数，保留三位。
-const PACE_KEYS = ['interval', 'flashMs', 'gapMs', 'windowMs', 'shuffleMs', 'flipMs', 'dropMs', 'window', 'msPerNote'];
-// 判定窗口类：只影响「亮着的那一下有多久来得及」，收紧得比 pace 陡 ——
-// 窗口每短一成，容错掉的不是一成。多个玩法共用同一个字段名也互不影响。
-const WINDOW_KEYS = ['life'];
+const PACE_KEYS = ['interval', 'flashMs', 'gapMs', 'windowMs', 'shuffleMs', 'flipMs', 'dropMs', 'window', 'msPerNote', 'life'];
+// 判定窗口类曾经单独一档：窗口每短一成，容错掉的不是一成，所以收紧得比 pace 陡。
+// 现在只剩刀光寿命（`life`）一个成员，而它正是「把难度压在时间上」最典型的一处——
+// 2.34 倍的压缩让扫斩的绝境档变成纯手速活。把它并回 PACE_KEYS（1.69 倍）之后，
+// 扫斩的承重交给刀路与盘面，时间退成佐味。WINDOW_KEYS 保留为空数组，
+// 是为了 diffDetail 的拼接不用改分支；将来真有第二个「窗口类」参数时把它放回来。
+const WINDOW_KEYS = [];
 // 数量 / 目标类：goal 越大越难。均为整数。
 const GOAL_KEYS = ['chainGoal', 'maxRound', 'segments', 'beats', 'scramble', 'mines', 'pairs', 'decoys', 'startLen', 'baseLen'];
 // speed 是光环每 tick 的收缩量，方向与时间类相反。
@@ -641,8 +696,32 @@ function buildParams(method, diffKey) {
     out.count = BIGGEST_LEVELS[d.depth].count;
     out.rounds = BIGGEST_LEVELS[d.depth].rounds;
   }
+  // 换承重轴的三门：盘面规格、刀路长度、键位是否重排，全由整表注入。
+  // 表里每个数都真的被玩法层读走（grid/cols 决定生成层，len 决定刀路桩数，
+  // shuffle 决定按键要不要重排），不塞「玩法不读」的字段去骗审计。
+  if (method && method.game === 'click') {
+    const lv = CLICK_LEVELS[d.depth];
+    out.grid = lv.grid;
+    out.cols = lv.cols;
+    // 存增量而不是绝对值：见 CLICK_LEVELS 上方注释（刀剑共用 params）。
+    out.lenStep = lv.lenStep;
+  }
+  if (method && method.game === 'sword') {
+    const lv = SWORD_LEVELS[d.depth];
+    out.segments = lv.segments;
+    out.baseLen = lv.baseLen;
+    out.shuffle = lv.shuffle;
+    // 时长也走表：段数涨了三倍，时间不该跟着收——这一门练的是跟招，不是手速。
+    out.duration = lv.duration;
+  }
+  if (method && method.game === 'mines') {
+    const lv = MINES_LEVELS[d.depth];
+    out.cols = lv.cols;
+    out.rows = lv.rows;
+    out.mines = lv.mines;
+    out.hearts = lv.hearts;
+  }
   // 四门原本只有一个可见参数在变：把第二个数按档注入，玩法层逐个读走（见上方表注释）。
-  if (method && method.game === 'mines') out.hearts = MINES_HEARTS[d.depth];
   if (method && method.game === 'merge') out.startTiles = MERGE_START_TILES[d.depth];
   if (method && method.game === 'schulte') out.penaltySec = SCHULTE_PENALTIES[d.depth];
   if (method && method.game === 'pushbox') out.capFactor = PUSHBOX_CAP_FACTORS[d.depth];
@@ -711,6 +790,17 @@ function diffDetail(method, diffKey) {
     brief = '第 ' + (now.level + 1) + ' 张石图 · 推数预算 ×' + now.capFactor.toFixed(2) + ' · 越少越好';
   } else if (method && method.game === 'biggest') {
     brief = '本档 ' + now.rounds + ' 轮 · 每轮盘上 ' + now.count + ' 个数';
+  } else if (method && method.game === 'click') {
+    const lv = CLICK_LEVELS[d.depth];
+    // 3 是刀的基准桩数（weapons.js 的 dao.baseLen）。CLICK_LEVELS 只服务刀这一套 profile，
+    // 将来真有剑法挂上来时，基准要从 profile 里取，别把这个 3 抄过去。
+    brief = lv.cols + '×' + lv.cols + ' 盘 · 刀路 ' + (lv.lenStep + 3) + ' 桩';
+  } else if (method && method.game === 'sword') {
+    const lv = SWORD_LEVELS[d.depth];
+    brief = lv.segments + ' 段 · 段长 ' + lv.baseLen + ' 起' + (lv.shuffle ? ' · 每段键位重排' : '');
+  } else if (method && method.game === 'mines') {
+    const lv = MINES_LEVELS[d.depth];
+    brief = lv.cols + '×' + lv.rows + ' 盘 · ' + lv.mines + ' 处禁制 · ' + lv.hearts + ' 盏心神';
   } else {
     brief = changes.length
       ? changes.map(function (c) { return c.text; }).join(' · ')
@@ -788,6 +878,9 @@ module.exports = {
   tipFor: tipFor,
   TIME_LEVELS: TIME_LEVELS,
   MINES_HEARTS: MINES_HEARTS,
+  CLICK_LEVELS: CLICK_LEVELS,
+  SWORD_LEVELS: SWORD_LEVELS,
+  MINES_LEVELS: MINES_LEVELS,
   MERGE_START_TILES: MERGE_START_TILES,
   PUSHBOX_CAP_FACTORS: PUSHBOX_CAP_FACTORS,
   FAMILIES: FAMILIES,

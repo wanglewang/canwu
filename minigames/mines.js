@@ -25,7 +25,14 @@ const FLAG_GLYPH = '⚑';   // 阵钉：长按钉下的记号，仍是个通用�
 // 评级只看用时，所以「按当前用时换算出来的档」在开局那一刻一定是 S。那个字母摆在局内
 // 等于骗人：玩家会以为 S 已经到手，之后只会看着它一路往下掉。
 // 局内不给档位（extras.showGradeNow = false），只给下一档的时限，让玩家知道在追什么。
-const GRADE_LINE = [25, 45, 75];
+//
+// 时间线跟着盘面走，方向是「盘大了给足」不是「盘大了还压」：
+// 6×6 沿用 25/45/75，9×9 是 56/101/169。复杂度已经交给盘面与禁制数承担，
+// 秒表只负责让一局别拖太久——把 9×9 也卡在 25 秒，那不叫难，那叫不可能。
+function gradeLine(n) {
+  const base = 25 * (n / 36);
+  return [Math.round(base), Math.round(base * 1.8), Math.round(base * 3)];
+}
 
 function create(ctx) {
   const p = ctx.params || {};
@@ -34,6 +41,8 @@ function create(ctx) {
   const cols = p.cols || 6;
   const rows = p.rows || 6;
   const n = cols * rows;
+  // 本盘的三条时间线：跟着格数走（6×6 是 25/45/75，9×9 是 56/101/169）。
+  const line = gradeLine(n);
   const depth = Math.max(0, Math.min(4, typeof p.depth === 'number' ? p.depth : 0));
   // 禁制数已由 buildParams 按 goal 缩放过（简单 5 → 绝境 8）。
   // 旧写法在这里又叠一次 hard ? +3，与缩放重复，且 ctx.difficulty 只有 normal / hard
@@ -230,9 +239,9 @@ function create(ctx) {
   }
 
   function gradeTime(t) {
-    if (t <= GRADE_LINE[0]) return 'S';
-    if (t <= GRADE_LINE[1]) return 'A';
-    if (t <= GRADE_LINE[2]) return 'B';
+    if (t <= line[0]) return 'S';
+    if (t <= line[1]) return 'A';
+    if (t <= line[2]) return 'B';
     return 'C';
   }
 
@@ -253,7 +262,7 @@ function create(ctx) {
     vm.progressText = opened + ' / ' + safeTotal + ' 格';
     vm.scoreText = '已探 ' + opened + ' / ' + safeTotal;
     vm.hearts = { value: hearts, max: maxHearts };
-    vm.goal = C.paceGoal(elapsed, GRADE_LINE);
+    vm.goal = C.paceGoal(elapsed, line);
   }
 
   function paint() {
@@ -441,11 +450,14 @@ function create(ctx) {
 function lines(p) {
   const depth = Math.max(0, Math.min(4, (p && p.depth) || 0));
   const hearts = (p && typeof p.hearts === 'number') ? p.hearts : HEARTS_BY_DEPTH[depth];
+  const cols = (p && p.cols) || 6;
+  const rows = (p && p.rows) || 6;
+  const line = gradeLine(cols * rows);
   return {
     rule: '按探完全盘的用时（本档 ' + hearts + ' 盏心神，折了只扣结算分，不影响档位）',
-    items: ['本档 ' + ((p && p.mines) || 6) + ' 处禁制 · ' + hearts + ' 盏心神',
-      'S ≤ ' + GRADE_LINE[0] + ' 秒', 'A ≤ ' + GRADE_LINE[1] + ' 秒',
-      'B ≤ ' + GRADE_LINE[2] + ' 秒', '其余为 C'],
+    items: ['本档 ' + cols + '×' + rows + ' 盘 · ' + ((p && p.mines) || 6) + ' 处禁制 · ' + hearts + ' 盏心神',
+      'S ≤ ' + line[0] + ' 秒', 'A ≤ ' + line[1] + ' 秒',
+      'B ≤ ' + line[2] + ' 秒', '其余为 C'],
     fail: '本档 ' + hearts + ' 盏心神全折（禁制没探完）→ 走火 F，这一局没有收益',
   };
 }

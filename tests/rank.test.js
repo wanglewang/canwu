@@ -550,8 +550,9 @@ check('藏经阁按品阶拦境界：炼气买不了玄阶', function () {
 // ---------------------------------------------------------------- 参数与展示
 
 check('难度档缩放不碰盘面尺寸，且各档参数确有区分', function () {
-  // 规格按档递增的三门由各自的档位表管（lights / sudoku / klotski），见下面的专条断言。
-  const tableGames = ['lights', 'sudoku', 'klotski'];
+  // 规格按档递增的五门由各自的档位表管（lights / sudoku / klotski / click / mines），
+  // 见下面的专条断言。它们的盘面「该变」，所以不在这条里被判。
+  const tableGames = ['lights', 'sudoku', 'klotski', 'click', 'mines'];
   // 档位表住在玩法模块里的四门（merge / schulte / pushbox / biggest）：params 只有 depth，
   // 「难度确实变了」要看它们的评级线随档收紧——线不变才是真没区分度。
   const internalGames = ['merge', 'schulte', 'pushbox', 'biggest'];
@@ -573,6 +574,68 @@ check('难度档缩放不碰盘面尺寸，且各档参数确有区分', functio
       } else if (easy[key] !== hard[key]) changed = true;
     }
     assert.ok(changed, m.id + ' 各难度档参数没有区分度');
+  }
+});
+
+check('换承重轴的三门：变的是复杂度与盘面，不是时间', function () {
+  // 起因：五档时间参数走同一套 pace / TIME_LEVELS，跨度天然只有 1.7–2.3 倍，
+  // 而且反应速度练不出来——把难度压在「快」上，玩家只会更焦虑。
+  // 这三门把承重交给盘面、刀路、键位与禁制，时间只负责让节奏别拖。
+  let prevGrid = 0;
+  let prevLen = -1;
+  for (const d of practice.DIFFICULTIES) {
+    const lv = practice.CLICK_LEVELS[d.depth];
+    assert.ok(lv.grid >= prevGrid, d.name + ' 开锋诀盘面反而变小');
+    assert.strictEqual(lv.cols * lv.cols, lv.grid, d.name + ' 开锋诀的 grid 与 cols 对不上');
+    assert.ok(lv.lenStep >= prevLen, d.name + ' 开锋诀刀路变短');
+    prevGrid = lv.grid;
+    prevLen = lv.lenStep;
+  }
+  const c0 = practice.CLICK_LEVELS[0];
+  const c4 = practice.CLICK_LEVELS[4];
+  assert.ok(c4.grid / c0.grid >= 2.5,
+    '开锋诀盘面跨度只有 ' + (c4.grid / c0.grid).toFixed(2) + ' 倍，承重轴没立起来');
+  assert.ok((3 + c4.lenStep) / (3 + c0.lenStep) >= 2.5,
+    '开锋诀刀路跨度只有 ' + ((3 + c4.lenStep) / (3 + c0.lenStep)).toFixed(2) + ' 倍');
+  // 简单档的刀路要短到「一眼扫得完」：3 桩是 3×3 小盘上的直线，读完不用二次思考。
+  assert.strictEqual(3 + c0.lenStep, 3, '开锋诀简单档刀路不是最短的 3 桩');
+
+  let prevCells = 0;
+  let prevMines = 0;
+  for (const d of practice.DIFFICULTIES) {
+    const lv = practice.MINES_LEVELS[d.depth];
+    const cells = lv.cols * lv.rows;
+    // 前两档同为 6×6，靠禁制数（5→6）区分；盘面只许变大，不许缩回去。
+    assert.ok(cells >= prevCells, d.name + ' 勘禁诀盘面反而变小');
+    assert.ok(lv.mines > prevMines, d.name + ' 勘禁诀禁制数没有增加');
+    const density = lv.mines / cells;
+    // 密度必须稳在一个区间里：密度太低是空盘、太高是无处下脚，
+    // 两种都不叫「变难」，叫「换了一盘棋」。
+    assert.ok(density > 0.12 && density < 0.20,
+      d.name + ' 勘禁诀禁制密度 ' + (density * 100).toFixed(1) + '% 超出 12–20%');
+    prevCells = cells;
+    prevMines = lv.mines;
+  }
+  // 五档至少四种盘面规格，否则「盘面变难」只是名义上的。
+  const mineSizes = {};
+  for (const lv of practice.MINES_LEVELS) mineSizes[lv.cols] = true;
+  assert.ok(Object.keys(mineSizes).length >= 4,
+    '勘禁诀盘面只有 ' + Object.keys(mineSizes).length + ' 种规格，撑不起五档阶梯');
+  const m0 = practice.MINES_LEVELS[0];
+  const m4 = practice.MINES_LEVELS[4];
+  assert.ok((m4.cols * m4.rows) / (m0.cols * m0.rows) >= 2.2,
+    '勘禁诀盘面跨度只有 ' + ((m4.cols * m4.rows) / (m0.cols * m0.rows)).toFixed(2) + ' 倍');
+
+  // 步法：五档必须是五个不同配置。旧表 segments 3/4/4/5/5、baseLen 3/3/3/4/4，
+  // 算下来 hard 与 normal 都是 18 步、expert 与 desperate 都是 30 步——五档只有三个配置。
+  const seen = {};
+  for (const d of practice.DIFFICULTIES) {
+    const lv = practice.SWORD_LEVELS[d.depth];
+    const sig = lv.segments + '段/' + lv.baseLen + '起';
+    assert.ok(!seen[sig], d.name + ' 步法连环与前面某档配置完全一样（' + sig + '）');
+    seen[sig] = true;
+    if (d.depth >= 2) assert.strictEqual(lv.shuffle, true, d.name + ' 步法键位没有每段重排');
+    else assert.strictEqual(lv.shuffle, false, d.name + ' 步法入门档不该重排键位');
   }
 });
 
