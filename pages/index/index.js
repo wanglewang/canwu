@@ -173,7 +173,9 @@ Page({
       dailyAction: dailyWill > 0 ? '领取 ›' : '气海已满 ›',
       dailyGain: dailyWill >= ov.daily.qi
         ? copy.formatGain(dailyWill, 0)
-        : '灵力 +' + dailyWill + '（气海只余 ' + ov.qiFree + '）',
+        : (dailyWill > 0
+          ? '灵力 +' + dailyWill + '（气海只余 ' + ov.qiFree + '）'
+          : '气海满了 · 先练一局再来领'),
       quickSkillId: rec.id || (learned.length > 0 ? learned[0].id : ''),
       // 「参悟」进这一门的详情，「开始参悟」才开一局：两个词分别代表两件事，不再混用。
       quickLabel: rec.id ? '参悟 · ' + rec.name : copy.UI.actions.goSkills,
