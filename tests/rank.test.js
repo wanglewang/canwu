@@ -3,8 +3,8 @@
 // 品阶与难度体系常驻断言：零依赖，node tests/rank.test.js 直接跑。
 //
 // 一句话约定：熟练度只由「评级 + 连 S 层数」决定；品阶（天地玄黄）、难度档、境界只管
-// 「一局烧多少灵气」与战力。连 S 与低档折减互不串联 —— 任何一条被写回另一条身上，
-// 这里的断言都要炸。参悟不产资源，灵气只从闭关与份例来（data/economy.js）。
+// 「一局烧多少灵力」与战力。连 S 与低档折减互不串联 —— 任何一条被写回另一条身上，
+// 这里的断言都要炸。参悟不产资源，灵力只从闭关与份例来（data/economy.js）。
 
 const assert = require('assert');
 const fs = require('fs');
@@ -31,7 +31,7 @@ function freshState(skillId, prof, realmIndex) {
     s.skills[skillId].prof = prof || 0;
   }
   if (typeof realmIndex === 'number') s.realmIndex = realmIndex;
-  // 参悟现在要先付灵气：这些断言测的是公式，不是钱包，一律给足。
+  // 参悟现在要先付灵力：这些断言测的是公式，不是钱包，一律给足。
   s.resources.qi = 100000;
   return s;
 }
@@ -278,7 +278,7 @@ check('退回低档：资源与基础熟练度折半；连 S 不叠层也不断�
   assert.ok(easyS.qiCost < normalS.qiCost,
     '简单档该比普通档便宜（' + easyS.qiCost + ' vs ' + normalS.qiCost + '）');
   assert.ok(easyS.gain / easyS.qiCost < normalS.gain / normalS.qiCost,
-    '折半后简单档 S 的「每点灵气熟练度」不该还高过普通档 S');
+    '折半后简单档 S 的「每点灵力熟练度」不该还高过普通档 S');
 
   // 熟练度还没到 300 时，简单档就是最高档：不折减，新手照常起手 34 点。
   const rookie = freshState('jingxin', 120, 1);
@@ -385,7 +385,7 @@ check('走火：F 算一局，但熟练度为零——气照烧、灵石不动�
   assert.strictEqual(s.skills.jingxin.prof, profBefore, '走火把熟练度写进存档了');
   // 气在起手时就烧掉了：走火不退，这才是「走火」真正的分量。
   assert.ok(r.qiCost > 0, '走火这一局没有报价');
-  assert.strictEqual(s.resources.qi, qiBefore - r.qiCost, '走火没扣灵气（或扣错了数）');
+  assert.strictEqual(s.resources.qi, qiBefore - r.qiCost, '走火没扣灵力（或扣错了数）');
   assert.strictEqual(s.resources.stone, stoneBefore, '走火动了灵石——灵石只从对战来');
   assert.strictEqual(s.buff.multiplier, 1, '走火还给了挂机加成');
   assert.strictEqual(r.comboNow, 0, '走火没有断连');
@@ -406,9 +406,9 @@ check('走火：F 算一局，但熟练度为零——气照烧、灵石不动�
   assert.strictEqual(s3.records.jingxin.score, 640, '走火之后的正常一局没立纪录');
 });
 
-check('参悟是纯支出：一百局里灵石一分不动，灵气只按 qiCost 减', function () {
+check('参悟是纯支出：一百局里灵石一分不动，灵力只按 qiCost 减', function () {
   // 这条是「双货币分工」的底线守卫：参悟一旦又开始产资源，整张货币表就不成立了。
-  // 灵感来自一个真实漏洞——旧版 6% 的机缘里有 88% 会给灵气或灵石，
+  // 灵感来自一个真实漏洞——旧版 6% 的机缘里有 88% 会给灵力或灵石，
   // 一晚上练三十局摸到的灵石比打十场切磋还多。
   const economy = require('../data/economy.js');
   const s = freshState('jingxin', 1200, 1);
@@ -420,8 +420,8 @@ check('参悟是纯支出：一百局里灵石一分不动，灵气只按 qiCost
     const r = game.applyPractice(s, 'jingxin', 'B', { difficulty: 'hard', score: i });
     assert.strictEqual(r.ok, true, '第 ' + (i + 1) + ' 局没开起来');
     assert.strictEqual(before - s.resources.qi, r.qiCost,
-      '第 ' + (i + 1) + ' 局的灵气差不是 qiCost');
-    assert.strictEqual(r.qi, undefined, '结算还在返回灵气产出');
+      '第 ' + (i + 1) + ' 局的灵力差不是 qiCost');
+    assert.strictEqual(r.qi, undefined, '结算还在返回灵力产出');
     assert.strictEqual(r.stone, undefined, '结算还在返回灵石产出');
     if (r.fortune) {
       assert.strictEqual(r.fortune.type, 'skill',
@@ -430,17 +430,17 @@ check('参悟是纯支出：一百局里灵石一分不动，灵气只按 qiCost
     spent += r.qiCost;
   }
   assert.strictEqual(s.resources.stone, stoneBefore, '参悟产出了灵石');
-  assert.strictEqual(s.resources.qi, 5000 - spent, '灵气账不平');
+  assert.strictEqual(s.resources.qi, 5000 - spent, '灵力账不平');
   // 机缘的概率常量只有一个出处，且确实是「百局一册」的量级。
   assert.strictEqual(economy.FORTUNE_SCROLL_RATE, 0.012);
   const eng = fs.readFileSync(path.join(ROOT, 'utils/game.js'), 'utf8');
-  // 只在 applyPractice 的函数体里找：闭关与对战当然要给灵气灵石，参悟不许。
+  // 只在 applyPractice 的函数体里找：闭关与对战当然要给灵力灵石，参悟不许。
   const start = eng.indexOf('function applyPractice(');
   const end = eng.indexOf('\nfunction ', start + 10);
   assert.ok(start > 0 && end > start, '没找到 applyPractice 的函数体');
   const body = eng.slice(start, end);
   assert.ok(!/resources\.(qi|stone) \+=/.test(body),
-    'applyPractice 里还有一处直接给存档加灵气或灵石');
+    'applyPractice 里还有一处直接给存档加灵力或灵石');
 });
 
 check('默认难度跟熟练度走：门槛一到就默认最高档，不记忆手选', function () {
@@ -670,23 +670,27 @@ check('纪录只记最高分，低分不覆盖', function () {
   assert.strictEqual(s.records.jian.score, 30);
 });
 
-check('v3 存档升到 v7，熟练度与纪录原样保留，灵气只补不削', function () {
+check('v3 存档升到 v7，熟练度与纪录原样保留，灵力补到身家并夹到气海', function () {
   const old = freshState('jian', 812, 0);
   old.version = 3;
   old.records = { jian: { score: 42, grade: 'A', at: 1 } };
-  old.resources.qi = 0;   // 老档的灵气没有任何意义（旧版参悟产灵气，攒下来的没处花）
+  old.resources.qi = 0;   // 老档的灵力没有任何意义（旧版参悟产灵力，攒下来的没处花）
   const n = game.normalizeState(old);
   assert.strictEqual(n.version, 7);
   assert.strictEqual(n.skills.jian.prof, 812);
   assert.strictEqual(n.records.jian.score, 42);
   // 只补不削：抬到开局身家，否则更新后一局都开不了。
   const economy = require('../data/economy.js');
-  assert.strictEqual(n.resources.qi, economy.START_QI, '老档灵气没补到开局身家');
+  assert.strictEqual(n.resources.qi, economy.START_QI, '老档灵力没补到开局身家');
+  // 灵力有了气海上限：旧版没有上限，老档可能攒到几百点。读档时一次夹平，
+  // 否则主页会写出「660 / 174」——上限在那一天才出现，玩家只会以为算错了。
   const rich = freshState('jian', 812, 0);
   rich.version = 3;
   rich.resources.qi = economy.START_QI + 500;
-  assert.strictEqual(game.normalizeState(rich).resources.qi, economy.START_QI + 500,
-    '迁移把老档的灵气削掉了');
+  const richState = game.normalizeState(rich);
+  const richCap = game.qiCap(richState);
+  assert.ok(richCap < economy.START_QI + 500, '夹具没造出超上限的余额');
+  assert.strictEqual(richState.resources.qi, richCap, '读档没把超上限的灵力夹平');
   // 当日胜场记账要补上，否则切磋灵石会从「第 1 场」重新算。
   assert.strictEqual(typeof n.daily.battleWins, 'number');
 });
@@ -705,9 +709,9 @@ check('九套经典玩法都挂黄阶，价格也按品阶阶梯走', function (
       assert.ok(h.source.cost.stone <= x.source.cost.stone, h.name + ' 灵石比玄阶还贵');
     }
   }
-  // 功法只收灵石：灵气是练功的燃料，不进价目表。
+  // 功法只收灵石：灵力是练功的燃料，不进价目表。
   for (const s of shop) {
-    assert.strictEqual(s.source.cost.qi, undefined, s.name + ' 的价格里还有灵气');
+    assert.strictEqual(s.source.cost.qi, undefined, s.name + ' 的价格里还有灵力');
     assert.ok(s.source.cost.stone > 0, s.name + ' 没有灵石价格');
   }
 });

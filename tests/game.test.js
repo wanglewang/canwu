@@ -15,7 +15,7 @@ check('新档版本为 7，带纪录、连 S 层数与双货币身家，不再�
   const economy = require('../data/economy.js');
   const s = game.createNewState();
   assert.strictEqual(s.version, 7);
-  assert.strictEqual(s.resources.qi, economy.START_QI, '开局灵气不是 START_QI');
+  assert.strictEqual(s.resources.qi, economy.START_QI, '开局灵力不是 START_QI');
   assert.strictEqual(s.resources.stone, economy.START_STONE, '开局灵石不是 START_STONE');
   assert.strictEqual(s.daily.battleWins, 0, '当日胜场没初始化');
   assert.strictEqual('avatar' in s, false, '头像已下线，存档里不该再留空字段');
@@ -55,12 +55,14 @@ check('存档码导出导入往返一致', function () {
   const s = game.createNewState();
   s.roleName = '青云散人';
   s.portrait = 3;
-  s.resources.qi = 321;
+  // 灵力有气海上限（炼气 174），夹具取上限内的数——超出的部分读档会夹平，
+  // 那是「存档规范化」的规则，不归往返一致性这一条管。
+  s.resources.qi = 120;
   const r = game.importSaveCode(game.exportSaveCode(s));
   assert.strictEqual(r.ok, true);
   assert.strictEqual(r.state.roleName, '青云散人');
   assert.strictEqual(r.state.portrait, 3);
-  assert.strictEqual(r.state.resources.qi, 321);
+  assert.strictEqual(r.state.resources.qi, 120);
   assert.strictEqual(r.state.version, 7);
 });
 
@@ -90,7 +92,7 @@ check('时钟倒退时不结算离线收益也不写入回拨值', function () {
   assert.strictEqual(s.resources.qi, 0);
 });
 
-check('正常离线 1 小时会结算灵气与熟练度', function () {
+check('正常离线 1 小时会结算灵力与熟练度', function () {
   const s = game.createNewState();
   s.lastSeen = Date.now() - 3600000;
   const report = game.settleOffline(s);
@@ -106,7 +108,7 @@ check('离线收益受 8 小时上限约束', function () {
   assert.ok(report.minutes <= 480);
 });
 
-check('打坐：灵气见底时不用退出重进也能补，且不产灵石', function () {
+check('打坐：灵力见底时不用退出重进也能补，且不产灵石', function () {
   const economy = require('../data/economy.js');
   const s = game.createNewState();
   s.resources.qi = 0;
@@ -121,11 +123,11 @@ check('打坐：灵气见底时不用退出重进也能补，且不产灵石', f
 
   const r = game.meditate(s);
   assert.strictEqual(r.ok, true, '打坐没成：' + r.msg);
-  assert.strictEqual(s.resources.qi, pending.qi, '打坐收到手的灵气与预演不一致');
+  assert.strictEqual(s.resources.qi, pending.qi, '打坐收到手的灵力与预演不一致');
   assert.ok(s.resources.qi >= economy.QI_COST_MIN, '打坐十分钟还不够开一局最简单的');
   assert.strictEqual(s.resources.stone, stoneBefore, '打坐产出了灵石');
 
-  // 收过一次就清零：不许连点刷灵气。
+  // 收过一次就清零：不许连点刷灵力。
   assert.strictEqual(game.idlePending(s).minutes, 0);
   const again = game.meditate(s);
   assert.strictEqual(again.ok, false, '连着点两下都收到了');
@@ -144,7 +146,7 @@ check('成就共 14 项且字段完整', function () {
 
 check('参悟次数达标后对应成就解锁', function () {
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   s.stats.practiceCount = 10;
   const list = game.getAchievements(s);
   assert.strictEqual(list.find(function (a) { return a.id === 'practice_10'; }).unlocked, true);
@@ -153,7 +155,7 @@ check('参悟次数达标后对应成就解锁', function () {
 
 check('道号与道相可改，头像补丁不再生效', function () {
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   assert.strictEqual(game.updateRole(s, { name: '小道', portrait: 4 }).ok, true);
   assert.strictEqual(s.roleName, '小道');
   assert.strictEqual(s.portrait, 4);
@@ -167,7 +169,7 @@ check('道号与道相可改，头像补丁不再生效', function () {
 
 check('战力码可解析且能打镜像', function () {
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   const code = game.battleCode(s);
   assert.ok(code.indexOf('CW1-') === 0);
   const parsed = game.parseBattleCode(code);
@@ -179,7 +181,7 @@ check('战力码可解析且能打镜像', function () {
 
 check('真实玩家镜像对战返回完整结果', function () {
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   const wins = s.stats.wins;
   const r = game.battleRival(s, { name: '榜单道友', power: 120, realmName: '筑基' });
   assert.strictEqual(r.ok, true);
@@ -207,7 +209,7 @@ check('v5 存档升到 v6：熟练度与纪录原样保留，旧三连计数不�
 
 check('连 S 层数随存档码往返，伪造的超额层数被截到 10', function () {
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   s.sCombo = { jian: 3, tuna: 99 };
   const r = game.importSaveCode(game.exportSaveCode(s));
   assert.strictEqual(r.ok, true);
@@ -218,7 +220,7 @@ check('连 S 层数随存档码往返，伪造的超额层数被截到 10', func
 check('第 1～14 连 S：前十局走 1.5 曲线，之后每局锁死 1307', function () {
   const world = require('../data/world.js');
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   s.skills.jian.unlocked = true;
   s.skills.jian.prof = 24000;   // 绝境已开，每局都打最高档，不吃低档折减
   for (let i = 1; i <= 14; i += 1) {
@@ -246,7 +248,7 @@ check('第 3 连取 77 而不是 76，第 4 连不拿上局整数接着乘', fun
 check('非 S、走火、主动收功都归零，下一局 S 重新从 34 点起', function () {
   const world = require('../data/world.js');
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
   game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
   const a = game.applyPractice(s, 'jian', 'A', { difficulty: 'easy', score: 0 });
@@ -269,7 +271,7 @@ check('非 S、走火、主动收功都归零，下一局 S 重新从 34 点起'
 
 check('连 S 按功法各算各的，换一门不会蹭到别人的层数', function () {
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
   game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 0 });
   const r = game.applyPractice(s, 'tuna', 'S', { difficulty: 'easy', score: 0 });
@@ -284,7 +286,7 @@ check('低档局与连 S 无关：不叠层、不砍连击收益、层数原样�
   const practice = require('../data/practice.js');
   const world = require('../data/world.js');
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   s.skills.jian.unlocked = true;
   s.skills.jian.prof = 1500;   // 最高已解锁档 = 困难，简单档低 2 档
   game.applyPractice(s, 'jian', 'S', { difficulty: 'hard', score: 0 });
@@ -299,9 +301,9 @@ check('低档局与连 S 无关：不叠层、不砍连击收益、层数原样�
   assert.strictEqual(third.gain, 77, '回高档没接上第 3 连');
 });
 
-check('大圆满后熟练度封顶，连 S 与纪录照常，但灵气照扣', function () {
+check('大圆满后熟练度封顶，连 S 与纪录照常，但灵力照扣', function () {
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   s.skills.jian.prof = 99999;
   s.resources.qi = 500;
   const before = s.resources.qi;
@@ -310,7 +312,7 @@ check('大圆满后熟练度封顶，连 S 与纪录照常，但灵气照扣', f
   assert.strictEqual(s.skills.jian.prof, 99999);
   assert.strictEqual(r.comboNow, 1, '到顶后连 S 不该停');
   // 到顶再练就是纯烧气：没有熟练度，气照样烧掉——所以到顶就该换门。
-  assert.strictEqual(s.resources.qi, before - r.qiCost, '到顶后灵气该照扣');
+  assert.strictEqual(s.resources.qi, before - r.qiCost, '到顶后灵力该照扣');
   assert.ok(r.qiCost >= 1);
   assert.strictEqual(r.tierAfter, 5);
 });
@@ -319,7 +321,7 @@ check('全程不断 S、都打最高档：84 局到大圆满；全 C 是 10000 �
   const practice = require('../data/practice.js');
   const world = require('../data/world.js');
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   s.skills.jian.unlocked = true;
   let runs = 0;
   while (s.skills.jian.prof < world.PROF_MAX && runs < 500) {
@@ -333,7 +335,7 @@ check('全程不断 S、都打最高档：84 局到大圆满；全 C 是 10000 �
   assert.strictEqual(world.PROF_C_RUNS + 1, 10000, '全 C 的 10000 局基准变了');
   // 断一次连就得重新叠：在第 10 连后插一局 A，总局数必然变多。
   const b = game.createNewState();
-  b.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  b.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   b.skills.jian.unlocked = true;
   let broken = 0;
   while (b.skills.jian.prof < world.PROF_MAX && broken < 500) {
@@ -346,7 +348,7 @@ check('全程不断 S、都打最高档：84 局到大圆满；全 C 是 10000 �
 
 check('getSkillList 输出每门功法的连 S 层数与下一局收益', function () {
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   s.sCombo.jian = 2;
   const item = game.getSkillList(s).find(function (x) { return x.id === 'jian'; });
   assert.strictEqual(item.sCombo, 2);
@@ -356,7 +358,7 @@ check('getSkillList 输出每门功法的连 S 层数与下一局收益', functi
 
 check('同一门连练不减收益：换门只给正激励，不罚专精', function () {
   const solo = game.createNewState();
-  solo.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  solo.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   solo.skills.jian.unlocked = true;
   const gains = [];
   for (let i = 0; i < 6; i += 1) {
@@ -368,7 +370,7 @@ check('同一门连练不减收益：换门只给正激励，不罚专精', func
   assert.strictEqual(solo.repeatCount, undefined, '连练计数不该再写进存档');
 
   const alt = game.createNewState();
-  alt.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  alt.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   alt.skills.jian.unlocked = true;
   alt.skills.tuna.unlocked = true;
   const seq = ['jian', 'tuna', 'jian', 'tuna', 'jian', 'tuna'];
@@ -383,9 +385,9 @@ check('同一门连练不减收益：换门只给正激励，不罚专精', func
   // 换门只省气，不加减熟练度：熟练度是评级定额，连练与轮换必须一模一样。
   assert.strictEqual(sum(gains), sum(altGains), '连练与轮换的熟练度被写成了两套（'
     + sum(gains) + ' vs ' + sum(altGains) + '）');
-  // 触类旁通从「多拿资源」换成了「少花灵气」：换门那一局比同一门便宜。
+  // 触类旁通从「多拿资源」换成了「少花灵力」：换门那一局比同一门便宜。
   assert.ok(altQi[1] < altQi[0],
-    '换门那一局没拿到触类旁通（' + altQi[1] + ' vs ' + altQi[0] + ' 点灵气）');
+    '换门那一局没拿到触类旁通（' + altQi[1] + ' vs ' + altQi[0] + ' 点灵力）');
   const r = game.applyPractice(solo, 'jian', 'A', { difficulty: 'easy', score: 0 });
   assert.strictEqual(r.restless, undefined, '结算里不该再出现递减文案的数据');
   assert.strictEqual(r.cross, false, '同一门连练不该算换门');
@@ -404,7 +406,7 @@ check('旧存档的连练计数字段被丢弃，上一门记录仍在', functio
 
 check('功法页排序与主页推荐同源，境界吃亏的整段压后', function () {
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   for (const id of Object.keys(s.skills)) s.skills[id].unlocked = true;
   s.skills.jingxin.prof = 392; // 距小成很近，但玄阶在炼气期只有三成收益
   s.skills.jian.prof = 20;
@@ -419,7 +421,7 @@ check('功法页排序与主页推荐同源，境界吃亏的整段压后', func
 
 check('金丹期练得了黄阶：门槛管能不能开练，上限只管这一局多费气', function () {
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   s.realmIndex = 2; // 金丹，此时已是黄阶「收益不衰减上限（筑基）」之外
   const list = game.getSkillList(s);
   const huang = list.filter(function (x) { return x.tierKey === 'huang'; });
@@ -443,7 +445,7 @@ check('金丹期练得了黄阶：门槛管能不能开练，上限只管这一�
   assert.ok(rec.id, '金丹期推不出该练哪门');
   // 反过来：没到门槛才是硬门槛（炼气期拿不到天阶的开练资格）。
   const low = game.createNewState();
-  low.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  low.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   const tian = game.getSkillList(low).filter(function (x) { return x.tierKey === 'tian'; })[0];
   assert.ok(tian, '没有天阶功法可测');
   assert.strictEqual(tian.realmReady, false, '炼气期不该能开天阶');
@@ -455,7 +457,7 @@ check('金丹期练得了黄阶：门槛管能不能开练，上限只管这一�
 
 check('首局引导标记：与技能同级存，老档读出来是「没看过」', function () {
   const s = game.createNewState();
-  s.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   assert.strictEqual(game.hasOnboarded(s, 'jian'), false, '新档不该已经标记看过引导');
 
   game.markOnboarded(s, 'jian');
@@ -467,12 +469,107 @@ check('首局引导标记：与技能同级存，老档读出来是「没看过�
 
   // 老存档没有这个键：默认 false，等于老玩家第一次进也会看到一次引导。
   const old = game.createNewState();
-  old.resources.qi = 100000;   // 参悟要先付灵气，这些断言测公式、不测钱包
+  old.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
   delete old.skills.jian.onboarded;
   old.version = 4;
   const migrated = game.normalizeState(old);
   assert.strictEqual(migrated.version, 7);
   assert.strictEqual(game.hasOnboarded(migrated, 'jian'), false);
 });
+
+check('气海：炼气 174 起，破境与真元都能把它拓深', function () {
+  const economy = require('../data/economy.js');
+  const w = require('../data/world.js');
+  const s = game.createNewState();
+  const open = game.qiCap(s);
+  assert.strictEqual(open, w.getWorld().realms[0].qiCap + 12 * economy.QI_CAP_PER_LING,
+    '炼气气海不等于「境界基数 + 真元 × 2」');
+  // 境界：炼气 150 → 元婴 620，一路单调变深。
+  let prev = 0;
+  for (let i = 0; i < w.getWorld().realms.length; i += 1) {
+    s.realmIndex = i;
+    const cap = game.qiCap(s);
+    assert.ok(cap > prev, '第 ' + i + ' 境的谷气海没有比上一境更深');
+    prev = cap;
+  }
+  // 真元：勘禁诀加 ling，练满之后每点换 2 点上限。
+  s.realmIndex = 0;
+  const before = game.qiCap(s);
+  s.skills.leifu = { unlocked: true, prof: w.PROF_MAX, onboarded: true };
+  const after = game.qiCap(s);
+  const ling = game.computeAttributes(s).ling;
+  assert.ok(after > before, '真元涨了，气海却没变深');
+  assert.strictEqual(after - before, Math.round((ling - 12) * economy.QI_CAP_PER_LING),
+    '真元到气海的换算不是每点 2 点');
+});
+
+check('闭关溢出：气海装不下的部分收不到，且如实报出来', function () {
+  const s = game.createNewState();
+  s.resources.qi = 100;
+  s.lastSeen = Date.now() - 8 * 3600 * 1000;
+  const p = game.idlePending(s);
+  const cap = game.qiCap(s);
+  assert.strictEqual(p.qi, cap - 100, '收紧的灵力不等于气海空位');
+  assert.ok(p.overflow > 0, '溢出没被算出来');
+  assert.strictEqual(p.qi + p.overflow, p.qiRaw, '三个数对不上：收到 + 溢出 ≠ 坐出来的');
+});
+
+check('满池打坐不静默：说清「灵力已满」而不是「还没攒够」', function () {
+  const s = game.createNewState();
+  s.resources.qi = game.qiCap(s);
+  s.lastSeen = Date.now() - 60 * 1000;
+  const r = game.meditate(s);
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.full, true, '满池被当成了「坐得不够久」');
+  assert.ok(/已满/.test(r.msg), '满池提示没写清原因：' + r.msg);
+});
+
+check('突破：气海随境界变宽，破境即补满', function () {
+  const s = game.createNewState();
+  const w = require('../data/world.js');
+  for (const id of Object.keys(s.skills)) {
+    s.skills[id].unlocked = true;
+    s.skills[id].prof = w.PROF_MAX;
+  }
+  s.resources.stone = 1000;
+  s.resources.qi = 5;
+  const info = game.breakthroughInfo(s);
+  assert.strictEqual(info.available, true, '夹具没造出可突破的状态');
+  assert.ok(info.qiCapAfter > info.qiCap, '突破预告里气海没变宽');
+  const r = game.applyBreakthrough(s, 'S');
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(s.resources.qi, r.qiCapAfter, '破境之后气海没补满');
+  assert.strictEqual(r.qiCapAfter, info.qiCapAfter, '结算与预告的气海不一致');
+});
+
+check('功法特效按段位兑现：入门 25%，圆满满额，未入门不给', function () {
+  const s = game.createNewState();
+  const w = require('../data/world.js');
+  assert.strictEqual(game.effectValue(s, 'power'), 0, '还没入门就给了特效');
+  s.skills.jian.prof = w.TIERS[1].threshold;        // 入门
+  assert.ok(Math.abs(game.effectValue(s, 'power') - 0.06 * 0.25) < 1e-9, '入门不是 1/4');
+  s.skills.jian.prof = w.TIERS[3].threshold;        // 大成
+  assert.ok(Math.abs(game.effectValue(s, 'power') - 0.06 * 0.75) < 1e-9, '大成不是 3/4');
+  s.skills.jian.prof = w.PROF_MAX;                  // 大圆满
+  assert.ok(Math.abs(game.effectValue(s, 'power') - 0.06) < 1e-9, '满级没给满额');
+});
+
+check('四个属性各有一件正事：真元换气海、悟性省灵力、身法稳波动', function () {
+  const w = require('../data/world.js').getWorld();
+  const roles = {};
+  for (const a of w.attributes) roles[a.key] = a.role || '';
+  assert.ok(/灵力上限/.test(roles.ling), '真元没有说明它管气海');
+  assert.ok(/省灵力/.test(roles.wu), '悟性没有说明它省灵力');
+  assert.ok(/波动/.test(roles.shen), '身法没有说明它稳波动');
+  assert.ok(roles.ti, '体魄没有说明它管什么');
+
+  const s = game.createNewState();
+  const base = game.shenFloorBonus(s);
+  assert.ok(base > 0, '基础身法没有换来波动下限');
+  s.skills.shumu = { unlocked: true, prof: 99999, onboarded: true };  // 目术 +身法，练满
+  assert.ok(game.shenFloorBonus(s) > base, '身法涨了，波动下限没跟着涨');
+  assert.ok(game.shenFloorBonus(s) <= 0.10 + 1e-9, '身法波动超过了 10% 的封顶');
+});
+
 
 console.log('\ngame.test: ' + passed + ' assertions passed');

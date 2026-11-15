@@ -4,7 +4,7 @@
     <view class="imm-tab {{tab === 'shop' ? 'imm-tab--on' : ''}} pressable" hover-class="pressable--on" data-tab="shop" bindtap="onTab">{{copy.skillsTabs.shop}} {{shopCount}}</view>
   </view>
 
-  <!-- 藏经阁分区才报身家：已持玉简里看的是熟练度，不是还有多少灵气。 -->
+  <!-- 藏经阁分区才报身家：已持玉简里看的是熟练度，不是还有多少灵力。 -->
   <view wx:if="{{tab === 'shop'}}" class="imm-panel sk-wallet">
     <view class="imm-stats">
       <view class="imm-stat">

@@ -40,7 +40,7 @@ Page({
     // 先清再挂：两次 onShow 之间没走 onHide 的话，不清会叠出第二个定时器。
     this.clearTick();
     this.refresh();
-    // 灵气是参悟的油：坐着的每一分钟都在攒，所以这一行得自己走起来。
+    // 灵力是参悟的油：坐着的每一分钟都在攒，所以这一行得自己走起来。
     // 半分钟刷一次只动这一行，不重算整页。
     const self = this;
     this.tick = setInterval(function () { self.refreshIdle(); }, 30000);
@@ -55,6 +55,10 @@ Page({
           qi: report.qi,
           prof: report.prof,
           skillName: report.skillName,
+          // 气海：这一趟坐出来的灵力有没有装下、散了多少，都要在弹窗里说清。
+          qiCap: report.qiCap,
+          overflow: report.overflow || 0,
+          overflowText: report.overflow > 0 ? '气海已满，散去的 ' + report.overflow + ' 点未收' : '',
         },
       });
     }
@@ -76,20 +80,25 @@ Page({
     const state = store.get();
     if (!state) return;
     const pending = engine.idlePending(state);
-    // 一分钟只有 0.5 点，取整后可能还是 0：那一行写着「灵气 +0」比不出现更糟。
-    const ready = pending.minutes >= 1 && pending.qi >= 1;
+    // 一分钟只有 0.5 点，取整后可能还是 0：那一行写着「灵力 +0」比不出现更糟。
+    // 满池时仍然给入口——打坐还在涨熟练度，只是灵力装不下了，那也得让人看得见。
+    const ready = pending.minutes >= 1 && (pending.qi >= 1 || pending.prof >= 1);
     let text = '';
     if (ready) {
-      text = '已坐 ' + pending.minutes + ' 分 · 灵气 +' + pending.qi;
+      text = pending.qi >= 1
+        ? '已坐 ' + pending.minutes + ' 分 · 灵力 +' + pending.qi + ' / 上限 ' + pending.qiCap
+        : '灵力已满 ' + pending.qiCap + ' · 只涨熟练度';
       if (pending.prof > 0) text += ' · ' + pending.skillName + ' +' + pending.prof;
     }
-    this.setData({ idleReady: ready, idleText: text });
+    this.setData({ idleReady: ready, idleText: text, idleFull: !!pending.full });
   },
 
   onMeditate: function () {
     const r = store.commitCritical(function (s) { return engine.meditate(s); });
     if (!r.ok) { toast(r.msg); return; }
-    let msg = '打坐 ' + r.minutes + ' 分：灵气 +' + r.qi;
+    let msg = r.qi > 0
+      ? '打坐 ' + r.minutes + ' 分：灵力 +' + r.qi + '（' + r.qiCap + ' 满）'
+      : '灵力已满（' + r.qiCap + '），这一坐只涨熟练度';
     if (r.prof > 0) msg += ' · ' + r.skillName + ' +' + r.prof;
     toast(msg);
     this.refresh();
@@ -108,7 +117,10 @@ Page({
     let hintText = '今日之课：' + (rec.name || '去功法页择一门');
     const near = learned.filter(function (s) { return !s.maxed && s.percent >= 75; });
     near.sort(function (a, b) { return b.percent - a.percent; });
-    if (near.length > 0) hintText = near[0].name + ' 即将升段。';
+    // 灵力满着是最该被点出来的浪费：气海满了，挂机一分钟都不再生。
+    // 它排「即将升段」之前，因为那是运营层面的损失，而升段只是进度上的好消息。
+    if (ov.qiFull) hintText = '灵力已满 ' + ov.qi + ' / ' + ov.qiMax + ' · 去参一局，气海存不住更多了';
+    else if (near.length > 0) hintText = near[0].name + ' 即将升段。';
     else if (bt.available) hintText = '境界已足，可去人物页突破 · 突破后战力 +' + bt.powerGain;
     // 门槛只有战力（world.realms[].power）：到这条线就够，不必再列第二个条件。
     // 但缺口是个冷数字，得同时说清「填平之后战力跳到多少」——那是玩家攒战力的理由。

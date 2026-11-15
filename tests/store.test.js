@@ -122,7 +122,7 @@ async function main() {
     clearMem();
     const cloudState = game.createNewState();
     cloudState.roleName = '云端道友';
-    cloudState.resources.qi = 999;
+    cloudState.resources.qi = 150;   // 气海上限内：超上限会在读档时夹平，另有一条守着
     const a = makeAdapter({
       save: okSave,
       load: async function () { return { status: 'ok', state: cloudState, version: 5, updatedAt: new Date().toISOString() }; },
@@ -132,7 +132,7 @@ async function main() {
     const result = await store.hydrate();
     assert.strictEqual(result.status, 'ok');
     assert.strictEqual(store.get().roleName, '云端道友');
-    assert.strictEqual(store.get().resources.qi, 999);
+    assert.strictEqual(store.get().resources.qi, 150);
   });
 
   await check('云端无档时 hydrate 立刻建档', async function () {

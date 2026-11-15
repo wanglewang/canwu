@@ -154,6 +154,13 @@
     margin-top: var(--sp-2);
 }
 
+/* 「96 / 174」里的分母：比主数小一号、压成灰，让上限读起来是注脚而不是第二个数。 */
+.imm-stat__cap {
+    color: var(--c-imm-text-3);
+    font-size: var(--fs-caption);
+    font-weight: 400;
+}
+
 /* 一行提示：一句话说下一步，不做胶囊盒 */
 .imm-hint {
     display: flex;
@@ -639,3 +646,11 @@
 
 /* 行内按钮不参与压缩，也不让名字把按钮挤成两行 */
 .imm-row > .imm-btn { flex: none; }
+
+/* 属性格第三行：这一项管什么。四项各有一件正事，写出来才知道该练谁。 */
+.imm-attr__role {
+    display: block;
+    margin-top: var(--sp-1);
+    color: var(--c-imm-text-3);
+    font-size: var(--fs-caption);
+}

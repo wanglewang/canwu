@@ -3,9 +3,17 @@
 const practiceData = require('./practice.js');
 
 // 技能表。熟练度阈值走 world.js 的 TIERS，品阶与可修境界走 practice.js 的 TIERS。
-// effect.type：power 对战战力 / variance 对战波动 / qiSave 参悟省气 / offline 挂机灵气
+// effect.type 五种，各管一件事，互不重叠（见 utils/game.js 的 effectValue）：
+//   power    对战战力 %；
+//   variance 对战波动下限；
+//   qiSave   参悟省灵力 %；
+//   offline  闭关养回灵力的速度 %；
+//   qiCap    气海上限 %（心法专属：练心法＝把池子挖深）。
+// 强度随段位成长：入门 1/4、小成 1/2、大成 3/4、圆满起满额（EFFECT_TIER_SCALE）。
+// 旧版是「练到大成（6000）才一次性生效」，中前期所有特效都等于不存在——
+// 那正是「练了也感觉不到」的来源，所以改成逐段兑现。
 // source.kind：start 初始 / shop 藏经阁 / battle 首胜掉落 / chance 机缘
-// source.cost：只收灵石。灵气是练功的燃料，不是通货——参悟本身就要烧它，
+// source.cost：只收灵石。灵力是练功的燃料，不是通货——参悟本身就要烧它，
 //              再用它买功法等于让玩家「用油买油」，两种货币的分工当场糊掉。
 // kind：main 主修（心法，决定修炼速度）/ skill 技艺（刀法、剑法、阵法、身法、御灵、土术、灵植、
 //       水术、术数、合术、目术、机巧、挪移、辨术——丹道这一类暂时空着，留给真正炼丹的功课）
@@ -103,7 +111,10 @@ const SKILLS = [
     desc: '最不起眼的功课，也是最长久的功课。',
     flavor: '一日不练，自己知道。',
     bonus: { ling: 2, ti: 2 },
-    effect: { type: 'offline', value: 0.10, text: '周天：离线灵气 +10%' },
+    // 心法管气海：三重心法合起来把池子挖深 25%（economy.QI_CAP_SKILL_MAX = 30% 封顶）。
+    // 它不再给「离线灵力 +10%」——恢复速度已由另外三门（五行 / 三秀 / 摘魁）管着，
+    // 一门效果只管一件事，玩家才看得懂自己练的是哪一项。
+    effect: { type: 'qiCap', value: 0.10, text: '周天：灵力上限 +10%' },
     source: { kind: 'start' },
   },
   {
@@ -111,7 +122,7 @@ const SKILLS = [
     desc: '心不浮，气才沉得下去。',
     flavor: '师兄说这口诀没用，他练了三年还在炼气。',
     bonus: { wu: 4 },
-    effect: { type: 'qiSave', value: 0.08, text: '静心：参悟耗气 −8%' },
+    effect: { type: 'qiSave', value: 0.08, text: '静心：参悟耗灵力 −8%' },
     source: { kind: 'shop', cost: { stone: 70 } },
   },
   {
@@ -133,7 +144,7 @@ const SKILLS = [
     desc: '禁制埋在石格下，只有周围几格露出的数字能看。按数字把禁位一处处勘出来。',
     flavor: '禁制不响，只数数给你听。',
     bonus: { ling: 4, wu: 1 },
-    effect: { type: 'qiSave', value: 0.10, text: '勘禁：参悟耗气 −10%' },
+    effect: { type: 'qiSave', value: 0.10, text: '勘禁：参悟耗灵力 −10%' },
     source: { kind: 'shop', cost: { stone: 32 } },
   },
   {
@@ -144,7 +155,7 @@ const SKILLS = [
     desc: '五盏阵灯，牵一发而动全身。',
     flavor: '师父说这叫举一反三，你觉得这叫加班。',
     bonus: { ling: 3, wu: 3 },
-    effect: { type: 'offline', value: 0.15, text: '五行：离线灵气 +15%' },
+    effect: { type: 'offline', value: 0.15, text: '五行：灵力恢复 +15%' },
     source: { kind: 'battle', opponentId: 'liuhan' },
   },
   {
@@ -174,7 +185,8 @@ const SKILLS = [
     desc: '青云界压箱底的功课，据说练到大成能看见别的世界。',
     flavor: '别的世界？大概是科幻和都市吧。',
     bonus: { wu: 5, ling: 3 },
-    effect: { type: 'qiSave', value: 0.12, text: '太虚：参悟耗气 −12%' },
+    // 天阶心法给的是「气海最宽」：+15% 上限，与吐纳的 +10% 合成 25%。
+    effect: { type: 'qiCap', value: 0.15, text: '太虚：灵力上限 +15%' },
     source: { kind: 'battle', opponentId: 'xuanzhen' },
   },
   // 三套「看一眼就会玩」的经典玩法统一挂黄阶：品阶按功课难度定，不按新奇程度定。
@@ -185,7 +197,7 @@ const SKILLS = [
     desc: '两枚同纹灵石本是一对，牵一条不过两折的灵线，把它们收回契中。',
     flavor: '师父说这叫并蒂，你觉得这叫连连看。',
     bonus: { ling: 3, shen: 2 },
-    effect: { type: 'qiSave', value: 0.08, text: '并蒂：参悟耗气 −8%' },
+    effect: { type: 'qiSave', value: 0.08, text: '并蒂：参悟耗灵力 −8%' },
     source: { kind: 'shop', cost: { stone: 18 } },
   },
   {
@@ -201,7 +213,7 @@ const SKILLS = [
     desc: '灵畦植苗：互换相邻两株灵苗，三株同色连成一线即可采收；采收后新苗落下，还能再连锁。',
     flavor: '一畦三秀，收完又长，长得比你收得还快。',
     bonus: { wu: 3, ti: 2 },
-    effect: { type: 'offline', value: 0.12, text: '三秀：离线灵气 +12%' },
+    effect: { type: 'offline', value: 0.12, text: '三秀：灵力恢复 +12%' },
     source: { kind: 'shop', cost: { stone: 22 } },
   },
   // 六门经典盘面：与上面三套一样是「看一眼就会玩」，统一黄阶、走藏经阁。
@@ -212,7 +224,7 @@ const SKILLS = [
     desc: '九宫盘上留着空格，每行、每列、每宫各要 1 到 9 一遍；填满且全对才算完。',
     flavor: '师父说这是数，不是算——算的是别人，数的是自己。',
     bonus: { wu: 4, ling: 1 },
-    effect: { type: 'qiSave', value: 0.09, text: '九宫：参悟耗气 −9%' },
+    effect: { type: 'qiSave', value: 0.09, text: '九宫：参悟耗灵力 −9%' },
     source: { kind: 'shop', cost: { stone: 28 } },
   },
   {
@@ -236,7 +248,7 @@ const SKILLS = [
     desc: '滑块一次挪一格，把主块一路让到盘底出口；走的路越省越算功夫。',
     flavor: '让一步不是退，是给别人腾地方。',
     bonus: { wu: 3, shen: 2 },
-    effect: { type: 'qiSave', value: 0.08, text: '让路：参悟耗气 −8%' },
+    effect: { type: 'qiSave', value: 0.08, text: '让路：参悟耗灵力 −8%' },
     source: { kind: 'shop', cost: { stone: 30 } },
   },
   {
@@ -252,7 +264,7 @@ const SKILLS = [
     desc: '一批数散在盘上，只挑最大的那一个；一批接一批，越往后数越长。',
     flavor: '一眼看出谁最强，剩下的就不必看了。',
     bonus: { shen: 3, wu: 1 },
-    effect: { type: 'offline', value: 0.10, text: '摘魁：离线灵气 +10%' },
+    effect: { type: 'offline', value: 0.10, text: '摘魁：灵力恢复 +10%' },
     source: { kind: 'shop', cost: { stone: 16 } },
   },
 ];

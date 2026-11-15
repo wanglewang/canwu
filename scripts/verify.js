@@ -277,6 +277,59 @@ for (const s of skillMod.SKILLS) {
 if (Object.keys(tierSeen).length !== 4) errors.push('天地玄黄中存在空阶');
 else checked += 1;
 
+// 8a. 灵力体系：一种「运功的本钱」，不是钱包。
+// 三条一起守，因为它们是一件事的三个面：叫什么、往哪涨、练什么才涨。
+//  ① 资源名必须是「灵力」——旧名「灵气」留在页面上，玩家就会问「灵力能不能买功法」；
+//  ② 气海基数随境界单调递增——若不单调，破境反而变穷，境界就只剩战力一个卖点；
+//  ③ 扩容特效只能是心法（kind=main）——「练剑法把气海练大」在设定上讲不通，
+//     而且会让「心法」这条主修线失去独占价值。
+{
+  const worldMod = require('../data/world.js');
+  const economyMod = require('../data/economy.js');
+  const w = worldMod.getWorld();
+  if (w.resource !== '灵力') errors.push('资源名不是「灵力」：' + w.resource);
+  else checked += 1;
+  if (w.currency !== '灵石') errors.push('通货名不是「灵石」：' + w.currency);
+  else checked += 1;
+  // 四个属性各有一件正事：没有 role 就等于「练了也不知道有什么用」。
+  for (const a of w.attributes) {
+    if (!a.role) errors.push('属性缺 role（这一项管什么）：' + a.key);
+    else checked += 1;
+  }
+  let prevCap = 0;
+  for (const r of w.realms) {
+    if (!(r.qiCap > prevCap)) errors.push('气海基数没有随境界递增：' + r.name + ' ' + r.qiCap);
+    else checked += 1;
+    prevCap = r.qiCap;
+  }
+  const effectTypes = new Set(['power', 'variance', 'qiSave', 'offline', 'qiCap']);
+  for (const sk of skillMod.SKILLS) {
+    if (!sk.effect || !effectTypes.has(sk.effect.type)) {
+      errors.push('功法特效类型不在约定内：' + sk.id + ' → ' + (sk.effect && sk.effect.type));
+      continue;
+    }
+    checked += 1;
+    if (sk.effect.type === 'qiCap' && sk.kind !== 'main') {
+      errors.push('扩容特效只能是心法：' + sk.id + ' 是 ' + sk.kind);
+    } else checked += 1;
+  }
+  // 扩容比例有封顶（economy.QI_CAP_SKILL_MAX），全表加起来不许越过它。
+  const capSum = skillMod.SKILLS.reduce(function (n, sk) {
+    return n + (sk.effect.type === 'qiCap' ? sk.effect.value : 0);
+  }, 0);
+  if (capSum > economyMod.QI_CAP_SKILL_MAX + 1e-9) {
+    errors.push('所有心法的扩容加起来超过了封顶：' + capSum + ' > ' + economyMod.QI_CAP_SKILL_MAX);
+  } else checked += 1;
+  // 旧名「灵气」不许再出现在玩家看得见的文字里（含 README 的当前事实段）。
+  for (const f of files.filter(function (x) {
+    return /\.(js|wxml|wxss|json|md)$/.test(x) && rel(x) !== 'scripts/verify.js';
+  })) {
+    const src = fs.readFileSync(f, 'utf8');
+    if (src.indexOf('灵气') >= 0) errors.push(rel(f) + ' 还写着旧资源名「灵气」');
+    else checked += 1;
+  }
+}
+
 // 8b. 功法命名规范：前缀 = 类别、分隔符唯一、正名三字且用体裁字、不写等级词。
 // 规则写在 data/skills.js，这里只做兜底，避免有人直接改 name 绕过校验函数。
 const nameIssues = skillMod.validateNames();
@@ -735,7 +788,7 @@ if (!fs.existsSync(checklistPath)) {
   const needLine = practiceData.DIFFICULTIES.map(function (d) { return d.need; }).join(' / ');
   if (doc.indexOf(needLine) < 0) errors.push('自检清单的难度门槛与 DIFFICULTIES 不一致（应为 ' + needLine + '）');
   else checked += 1;
-  // 经济口径：参悟从「产出资源」改成「消耗灵气」，清单必须写明唯一真源与各档耗气。
+  // 经济口径：参悟从「产出资源」改成「消耗灵力」，清单必须写明唯一真源与各档耗气。
   // 旧版守的是资源总倍率 MAX_MULTIPLIER，那条常量已随资源产出一起退役。
   const economyData = require(path.join(ROOT, 'data/economy.js'));
   if (doc.indexOf('practiceQiCost') < 0) errors.push('自检清单没讲明耗气走 economy.practiceQiCost()');
@@ -743,7 +796,7 @@ if (!fs.existsSync(checklistPath)) {
   const runQiLine = economyData.RUN_QI.join(' / ');
   if (doc.indexOf(runQiLine) < 0) errors.push('自检清单的五档耗气与 RUN_QI 不一致（应为 ' + runQiLine + '）');
   else checked += 1;
-  if (doc.indexOf('互不兑换') < 0) errors.push('自检清单没写「灵气与灵石互不兑换」的双货币口径');
+  if (doc.indexOf('互不兑换') < 0) errors.push('自检清单没写「灵力与灵石互不兑换」的双货币口径');
   else checked += 1;
   // 结算主按钮是上一轮刚定的「留在本页」，文档不许写回「再来一局」当默认动作。
   if (doc.indexOf('留在本页') < 0) errors.push('自检清单没写结算主按钮「留在本页」');
@@ -784,7 +837,7 @@ if (!fs.existsSync(checklistPath)) {
     errors.push('utils/game.js 还留着三连 S 晋级的旧字段');
   } else checked += 1;
   const engineApi = require(path.join(ROOT, 'utils/game.js'));
-  if (engineApi.SAVE_VERSION !== 7) errors.push('存档版本没升到 v7（灵气与灵石换了收支方向）');
+  if (engineApi.SAVE_VERSION !== 7) errors.push('存档版本没升到 v7（灵力与灵石换了收支方向）');
   else checked += 1;
   // 参悟页的说明是按功法现拼的，不能塞进静态主题表（那里只放整页主题）。
   const navData = require(path.join(ROOT, 'data/navigation.js'));

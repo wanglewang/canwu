@@ -59,7 +59,7 @@ Page({
     comboDots: [],
     // 开局卡第一行：这一局做什么。整篇规则在说明页，这里只留一句。
     ruleText: '',
-    // 开局前要先付的两笔：参悟烧灵气、突破备灵石。数字全部由 economy 同源给，
+    // 开局前要先付的两笔：参悟烧灵力、突破备灵石。数字全部由 economy 同源给，
     // 页面只负责显示与拦截——两处各算一遍，就会出现「面板写 17、结算扣 24」。
     qi: 0,
     stone: 0,
@@ -286,16 +286,17 @@ Page({
     const diff = practiceData.diffDetail(method, diffKey);
     const diffList = practiceData.difficultyList(rec.prof, diffKey);
     const belowCapText = practiceData.belowCapText(rec.prof, diffKey);
-    // 本局要烧的灵气，与结算走同一个函数（engine.practiceCostOf）。
+    // 本局要烧的灵力，与结算走同一个函数（engine.practiceCostOf）。
     // 面板与结算各算一遍的话，最后一定会出现「写 17、扣 24」这种对不上的账。
     const qiCost = engine.practiceCostOf(state, skill.id, diffKey);
     const qiNow = state.resources.qi;
+    const qiMax = engine.qiCap(state);
     const canStart = qiNow >= qiCost;
-    const costText = '耗灵气 ' + qiCost + ' · 余 ' + qiNow;
+    const costText = '耗灵力 ' + qiCost + ' · 余 ' + qiNow + ' / ' + qiMax;
     // 五个胶囊各写自己的耗气：低档便宜、高档贵，玩家在选之前就看得到代价。
     // 这是难度面板上唯一还与资源有关的数——收益倍率已经随「参悟不产资源」一起退役了。
     diffList.forEach(function (d) {
-      d.qiText = '灵气 ' + engine.practiceCostOf(state, skill.id, d.key);
+      d.qiText = '灵力 ' + engine.practiceCostOf(state, skill.id, d.key);
       d.locked = !d.unlocked;
     });
 
@@ -362,7 +363,7 @@ Page({
     const ruleText = guideData ? guideData.goal : method.desc;
 
     // 详情页已经不在了：这一门的来历、风味与「练成之后」跟着准备页走。
-    // 大成特效未达成时是空头支票，只取前两行；完整三行仍在功法页图鉴里。
+    // 只取前两行：属性加成与本门特效（都已是按段位兑现的真实数字），代价与气海留给图鉴。
     const detail = engine.getSkillDetail(state, skill.id);
     const archive = detail ? {
       desc: detail.desc,
@@ -400,6 +401,7 @@ Page({
       diffList: diffList,
       diffName: diff.name,
       qi: qiNow,
+      qiMax: qiMax,
       stone: state.resources.stone,
       qiCost: qiCost,
       stoneCost: 0,
@@ -705,8 +707,8 @@ Page({
   },
 
   // 资源不够时的唯一出口：说清差多少、差什么，给一个真能解决问题的去处。
-  // 参悟缺的是灵气——回洞府闭关（离线也在攒）或去切磋（耗气换灵石）；
-  // 冲关缺的是灵石——只能去切磋与秘境挣，灵气再多也换不来。
+  // 参悟缺的是灵力——回洞府闭关（离线也在攒）或去切磋（耗气换灵石）；
+  // 冲关缺的是灵石——只能去切磋与秘境挣，灵力再多也换不来。
   askCost: function () {
     if (this.mode === 'breakthrough') {
       const lack = Math.max(0, this.data.stoneCost - this.data.stone);
@@ -724,11 +726,12 @@ Page({
     }
     const lack = Math.max(0, this.data.qiCost - this.data.qi);
     wx.showModal({
-      title: '灵气不足',
-      content: '本局需 ' + this.data.qiCost + ' 点灵气，尚差 ' + lack
-        + ' 点。回洞府闭关打坐，每分钟 ' + worldData.getWorld().idle.qiPerMinute
-        + ' 点，约坐 ' + Math.ceil(lack / worldData.getWorld().idle.qiPerMinute)
-        + ' 分钟可足。',
+      title: '灵力不足',
+      content: '本局需 ' + this.data.qiCost + ' 点，尚差 ' + lack
+        + ' 点（气海上限 ' + this.data.qiMax + '）。回洞府闭关打坐，每分钟 '
+        + worldData.getWorld().idle.qiPerMinute + ' 点，约坐 '
+        + Math.ceil(lack / worldData.getWorld().idle.qiPerMinute)
+        + ' 分钟可足；上限不够用时，破境或练真元都能把气海拓深。',
       confirmText: '回洞府打坐',
       cancelText: '容再思量',
       success: function (res) {
@@ -1108,7 +1111,7 @@ Page({
     const self = this;
     wx.showModal({
       title: '中途收功',
-      content: '本局作废，不计所得；连 S 归零，起手耗去的灵气不退。确定收功？',
+      content: '本局作废，不计所得；连 S 归零，起手耗去的灵力不退。确定收功？',
       confirmText: '收功',
       confirmColor: '#b4453c',
       success: function (res) {
@@ -1138,7 +1141,7 @@ Page({
     // F 有两种来历，处置完全不同：
     //   ① 玩家点「收功」→ 这一局作废，不进结算，由 onAbandon 把连 S 归零；
     //   ② 玩法自己判负（阵溃 / 心神耗尽 / 时辰到没通完）→ 是一局打完的结果，
-    //      按「走火」结算：零收益（熟练度 / 灵气 / 灵石 / 加成都不给），连 S 断。
+    //      按「走火」结算：零收益（熟练度 / 灵力 / 灵石 / 加成都不给），连 S 断。
     // 突破局只有一种 F：气机一乱，走 ①。
     if (grade === 'F' && (this.aborting || this.mode === 'breakthrough')) {
       let btFail = null;
@@ -1181,10 +1184,12 @@ Page({
           // 布阵是花出去的钱：写「−60」而不是「+60」。
           { k: '灵石', v: '−' + r.stoneCost + ' · 余 ' + r.stoneAfter },
           { k: '境界', v: r.realmName },
-          // 突破最实在的收益就是这一跳，摆在最后一行收尾。
           { k: '战力', v: r.powerBefore + ' → ' + r.powerAfter + '（+' + (r.powerAfter - r.powerBefore) + '）' },
+          // 气海是突破的第二重所得，而且当天就能摸到：破境即补满，一趟能多练几局。
+          { k: '灵力上限', v: r.qiCapBefore + ' → ' + r.qiCapAfter + '（+' + (r.qiCapAfter - r.qiCapBefore) + '）' },
+          { k: '灵力', v: '已补满 ' + r.qiAfter + ' / ' + r.qiCapAfter },
         ],
-        notes: ['此后闭关与对战都按新境界计算：闭关每分钟的灵气与每日份例不变，但可修上限更高。'],
+        notes: ['此后闭关与对战都按新境界计算：闭关每分钟的灵力与每日份例不变，但可修上限更高、气海更深。'],
         titles: (r.newTitles || []).map(function (t) { return t.name; }),
         primary: copy.UI.actions.backHome,
         secondary: copy.UI.actions.goSkills,
@@ -1193,19 +1198,19 @@ Page({
       const r = store.commitCritical(function (s) {
         return engine.applyPractice(s, skillId, grade, { difficulty: diffKey, score: res.score || 0 });
       });
-      // 参悟只换熟练度，不产资源：结算卡里灵气是「花掉的」，不是「赚到的」。
+      // 参悟只换熟练度，不产资源：结算卡里灵力是「花掉的」，不是「赚到的」。
       // 这一行是玩家唯一能核对的账，所以耗气的三个修正也要在同一屏写清（见 notes）。
       const lines = r.wiped
         // 走火不是「得 0 分」，是这一局不作数：一排 +0 会让人以为自己算错了。
         ? [
           { k: '所得', v: '无 · 走火' },
-          { k: '灵气', v: '−' + r.qiCost + '（不退）' },
+          { k: '灵力', v: '−' + r.qiCost + '（不退）' },
           { k: '局内得分', v: String(res.score || 0) },
         ]
         : [
           // 三连晋级取消后，这一栏就是本局实得点数，与 profAfter - profBefore 严格对齐。
           { k: '熟练度', v: r.gain > 0 ? '+' + r.gain : '已圆满' },
-          { k: '灵气', v: '−' + r.qiCost + ' · 余 ' + r.qiAfter },
+          { k: '灵力', v: '−' + r.qiCost + ' · 余 ' + r.qiAfter + ' / ' + r.qiMax },
           { k: '局内得分', v: String(res.score || 0) },
         ];
       // 走火没给加成：这行留着会让玩家以为「崩了还蹭到了 30 分钟加速」。
@@ -1224,12 +1229,12 @@ Page({
       // 它排在最前：玩家最先想知道的是这一局本身，而不是连 S 进度。
       const notes = Array.isArray(res.notes) ? res.notes.slice() : [];
       // 走火不是「成绩差」，是没走完：先把理由摆在最前，玩家才知道这一局到底栽在哪。
-      // 灵气不退是这套经济的硬规则——起手就烧了，崩掉的只是熟练度与加成。
+      // 灵力不退是这套经济的硬规则——起手就烧了，崩掉的只是熟练度与加成。
       if (grade === 'F') {
         notes.unshift('本局未走完，按「走火」不计所得：熟练度与挂机加成不给、连 S 归零；'
-          + '起手烧掉的 ' + r.qiCost + ' 点灵气不退。');
+          + '起手烧掉的 ' + r.qiCost + ' 点灵力不退。');
       }
-      // 耗气要当场可复算：玩家看到「灵气 −17」，得知道这个 17 是怎么来的。
+      // 耗气要当场可复算：玩家看到「灵力 −17」，得知道这个 17 是怎么来的。
       // 只在真被修正时才展开，标准档位不啰嗦。
       if (r.methodQiFactor !== 1 || r.tierQiCost > 1 || r.realmOverCost > 1 || r.qiSave > 0) {
         notes.push('本局耗气 ' + r.qiCost + '：' + r.diffName + '档基数'

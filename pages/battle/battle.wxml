@@ -6,7 +6,8 @@
     </view>
     <text class="imm-realm">{{ov.power}}</text>
     <view class="imm-strip">
-      <text>{{ov.realmName}} · {{ov.roleName}}</text>
+      <!-- 灵力余量放在这里：这一页每打一场都扣 5 点，玩家要一眼看出「还能打几场」。 -->
+      <text>{{ov.realmName}} · 灵力 {{ov.qi}} / {{ov.qiMax}}</text>
       <text class="text-link" bindtap="onGoBoard">战力仙榜 ›</text>
     </view>
   </view>
@@ -30,7 +31,7 @@
         </view>
         <text wx:if="{{item.dropName && !item.cleared}}" class="riv-drop">首胜掉落《{{item.dropName}}》</text>
         <text wx:elif="{{item.dropName}}" class="riv-note">首胜功法已得，再战只给灵石</text>
-        <text wx:else class="riv-note">运功 −{{item.qiCost}} 灵气 · 灵石 +{{item.stoneNow}}<text wx:if="{{item.stoneFactor < 1}}">（今日第 {{ov.battleWins + 1}} 场 ×{{item.stoneFactor}}）</text></text>
+        <text wx:else class="riv-note">运功 −{{item.qiCost}} 灵力 · 灵石 +{{item.stoneNow}}<text wx:if="{{item.stoneFactor < 1}}">（今日第 {{ov.battleWins + 1}} 场 ×{{item.stoneFactor}}）</text></text>
       </view>
       <button class="imm-btn imm-btn--sm {{item.cleared ? 'imm-btn--ghost' : ''}}" data-id="{{item.id}}" bindtap="onFight">{{item.cleared ? copy.actions.rechallenge : copy.actions.challenge}}</button>
     </view>

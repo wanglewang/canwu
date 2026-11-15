@@ -24,6 +24,7 @@
       <view class="imm-attr" wx:for="{{ov.attrs}}" wx:key="key">
         <text class="imm-attr__name">{{item.name}}</text>
         <text class="imm-attr__value">{{item.value}}</text>
+        <text class="imm-attr__role">{{item.role}}</text>
       </view>
     </view>
 

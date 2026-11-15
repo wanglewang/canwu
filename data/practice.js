@@ -18,12 +18,12 @@ const economyData = require('./economy.js');
 // 同理，「丹道·凝露方」练的是一条竖向河道采露，与炼丹无关，已按玩法改为「水术·凝露诀」；
 // 丹道这一门暂时空缺，留给以后真正炼丹的功课。
 // id 是稳定键（存档、纪录都按它索引），改文案时不要动 id。
-// base 是灵气基数（/4 后即 8–14），按各玩法的通关难度分别配平；熟练度走 world.PROF_BASE / comboGain，不用 base。
+// base 是灵力基数（/4 后即 8–14），按各玩法的通关难度分别配平；熟练度走 world.PROF_BASE / comboGain，不用 base。
 //
 // 一个维度只管一件事：
 //   类型 → 玩什么（游戏族，见 FAMILIES）
 //   兵器 → 怎么动（刀法走 click；剑 profile 预留，先不做剑法）
-//   品阶 → 战力加成与灵气灵石倍率（见 TIERS，天地玄黄；不加速熟练度）
+//   品阶 → 战力加成与灵力灵石倍率（见 TIERS，天地玄黄；不加速熟练度）
 //   熟练度 → 可选难度档（见 DIFFICULTIES）
 //   境界 → 可修上限与收益衰减（品阶的 maxRealm）
 
@@ -59,7 +59,7 @@ const PRACTICE_METHODS = [
     params: { rows: 5, cols: 3, shuffleMs: 3200, timeLimit: 45 },
   },
   {
-    id: 'absorb', name: '吸纳灵气', game: 'tempo', theme: 'absorb', twist: 'absorb',
+    id: 'absorb', name: '吸纳灵力', game: 'tempo', theme: 'absorb', twist: 'absorb',
     desc: '一呼一吸皆有节律，气机收到最匀处才纳得进去。慢些，反而更难走偏。',
     tip: '偏一点就断连，缩过头算失拍',
     base: 30,
@@ -255,14 +255,14 @@ function familyOf(type) {
 // 让高级功法练得更快，等于把低阶功法从成长线上直接淘汰，也和「难度跟人走」自相矛盾。
 // 天地玄黄因此只决定三件事：运功耗气系数（qiCost，见 data/economy.js）、
 // 属性加成系数（attr）、可修境界上下限。
-// 高品阶更强，但练起来更费灵气，门槛靠获取方式与境界限制来制衡——不加速熟练度。
+// 高品阶更强，但练起来更费灵力，门槛靠获取方式与境界限制来制衡——不加速熟练度。
 // needRealm 是学习门槛（1 炼气 / 2 筑基 / 3 金丹 / 4 元婴），maxRealm 是耗气不涨的上限。
 
 const TIERS = [
   { key: 'huang', name: '黄', label: '黄阶', stars: 1, qiCost: economyData.TIER_QI.huang, attr: 1.00, needRealm: 1, maxRealm: 2, color: '#8a8f83', desc: '最常见的外门功课，便宜、够用，前期靠它起步。' },
   { key: 'xuan', name: '玄', label: '玄阶', stars: 2, qiCost: economyData.TIER_QI.xuan, attr: 1.30, needRealm: 2, maxRealm: 3, color: '#3d8c74', desc: '藏经阁里换得到的中阶功法，运功比黄阶费气。' },
-  { key: 'di', name: '地', label: '地阶', stars: 3, qiCost: economyData.TIER_QI.di, attr: 1.70, needRealm: 3, maxRealm: 4, color: '#b8893b', desc: '多从切磋首胜里得的高阶功法，属性加成明显，也更耗灵气。' },
-  { key: 'tian', name: '天', label: '天阶', stars: 4, qiCost: economyData.TIER_QI.tian, attr: 2.20, needRealm: 4, maxRealm: 9, color: '#b4453c', desc: '压箱底的绝学，战力最高，运功一次也最烧灵气。' },
+  { key: 'di', name: '地', label: '地阶', stars: 3, qiCost: economyData.TIER_QI.di, attr: 1.70, needRealm: 3, maxRealm: 4, color: '#b8893b', desc: '多从切磋首胜里得的高阶功法，属性加成明显，也更耗灵力。' },
+  { key: 'tian', name: '天', label: '天阶', stars: 4, qiCost: economyData.TIER_QI.tian, attr: 2.20, needRealm: 4, maxRealm: 9, color: '#b4453c', desc: '压箱底的绝学，战力最高，运功一次也最烧灵力。' },
 ];
 
 const TIER_MAP = {};
@@ -286,11 +286,11 @@ function tierIndexOf(key) {
 // 留着 mult 只会让卡片上写一个算不出来的 ×1.70。
 
 const DIFFICULTIES = [
-  { key: 'easy', name: '简单', need: 0, qi: economyData.RUN_QI[0], pace: 1.18, windowPace: 1.50, goal: 0.85, gear: 'normal', depth: 0, desc: '节奏最缓、目标最宽，也最省灵气，宜先练稳本门火候。' },
+  { key: 'easy', name: '简单', need: 0, qi: economyData.RUN_QI[0], pace: 1.18, windowPace: 1.50, goal: 0.85, gear: 'normal', depth: 0, desc: '节奏最缓、目标最宽，也最省灵力，宜先练稳本门火候。' },
   { key: 'normal', name: '普通', need: 300, qi: economyData.RUN_QI[1], pace: 1.00, windowPace: 1.21, goal: 1.00, gear: 'normal', depth: 1, desc: '标准节奏与目标，入门之后方开。' },
   { key: 'hard', name: '困难', need: 1500, qi: economyData.RUN_QI[2], pace: 0.88, windowPace: 1.00, goal: 1.12, gear: 'hard', depth: 2, desc: '节奏收紧、目标抬高，失误余地更小。' },
   { key: 'expert', name: '极难', need: 6000, qi: economyData.RUN_QI[3], pace: 0.78, windowPace: 0.83, goal: 1.22, gear: 'hard', depth: 3, desc: '几乎没有容错，一乱即落。' },
-  { key: 'desperate', name: '绝境', need: 24000, qi: economyData.RUN_QI[4], pace: 0.70, windowPace: 0.64, goal: 1.32, gear: 'hard', depth: 4, desc: '给练到极处的人：最快节奏、最高目标，也最耗灵气。' },
+  { key: 'desperate', name: '绝境', need: 24000, qi: economyData.RUN_QI[4], pace: 0.70, windowPace: 0.64, goal: 1.32, gear: 'hard', depth: 4, desc: '给练到极处的人：最快节奏、最高目标，也最耗灵力。' },
 ];
 
 const DIFF_MAP = {};
@@ -394,7 +394,7 @@ function difficultyList(prof, current) {
       name: d.name,
       // 胶囊上给的是这一档的耗气基数：玩家真正要权衡的就是它，倍率早就不存在了。
       qiBase: d.qi,
-      qiText: '灵气 ' + d.qi,
+      qiText: '灵力 ' + d.qi,
       below: i < idx,
       need: d.need,
       desc: d.desc,

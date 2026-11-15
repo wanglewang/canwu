@@ -13,9 +13,9 @@
 const copy = require('../../data/copy.js');
 
 function toView(r) {
-  // 切磋与秘境都要先运功：灵气是付出去的，灵石是挣回来的，两行分开写。
+  // 切磋与秘境都要先运功：灵力是付出去的，灵石是挣回来的，两行分开写。
   const lines = [];
-  if (r.qiCost) lines.push({ k: '灵气', v: '−' + r.qiCost });
+  if (r.qiCost) lines.push({ k: '灵力', v: '−' + r.qiCost });
   if (r.stone > 0) {
     // 当日第 n 场的灵石按 0.85^(n-1) 衰减：不写清，玩家会以为赢了却少给了。
     const decay = r.stoneFactor && r.stoneFactor < 1

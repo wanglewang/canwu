@@ -1034,7 +1034,7 @@ check('指南目录按新手阅读流排：先挂机保底与资源，主动玩�
   const names = [];
   for (const m of src.matchAll(/title: '[一二三四五六七八九十]+ · ([^']+)'/g)) names.push(m[1]);
   assert.deepStrictEqual(names, [
-    '怎么变强', '离线吐纳之规', '灵气与灵石', '战力从哪来', '熟练度与境界',
+    '怎么变强', '离线吐纳之规', '灵力与灵石', '战力从哪来', '熟练度与境界',
     '参悟与盘面', '连 S 叠倍率', '切磋与战力码', '称号与道牒',
     '存档与换设备', '成就与榜单',
   ], '指南目录顺序又变了：新手要先搞懂挂机保底与资源，再学主动玩法');
@@ -1343,7 +1343,7 @@ check('只奖不罚：连练递减全站清零，换门的「省气」有单一�
     assert.ok(!/心浮气躁|收益递减|restless|repeatCount/.test(read(f)),
       f + ' 还留着连练递减的旧口径');
   }
-  // 触类旁通从「多拿资源」换成了「少花灵气」，真源搬进了 data/economy.js。
+  // 触类旁通从「多拿资源」换成了「少花灵力」，真源搬进了 data/economy.js。
   const economy = require('../data/economy.js');
   assert.strictEqual(economy.CROSS_QI, 0.92, '换门省气系数没进数值真源');
   assert.ok(/const CROSS_QI = 0\.92;/.test(read('data/economy.js')), '省气真源没写在常量段');

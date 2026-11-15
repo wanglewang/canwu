@@ -1,10 +1,10 @@
 'use strict';
 
-// 收支曲线模拟：验证「熟练度」与「灵气」这两条线各自的形状，以及两者之间的兑换比。
+// 收支曲线模拟：验证「熟练度」与「灵力」这两条线各自的形状，以及两者之间的兑换比。
 //   ① 熟练度 = 单局基础（C 10 / B 15 / A 23 / S 34 / F 0）+ 连 S 倍率
 //      （第 k 连 S = round(34 × 1.5^(k-1))，10 层封顶）；每局独立取整，
 //      低档局按档差逐档 ÷2 四舍五入、且不参与连 S；不吃品阶 / 难度 / 境界 / 属性；
-//   ② 灵气 = 参悟与对战的运功消耗，唯一真源 economy.practiceQiCost()；
+//   ② 灵力 = 参悟与对战的运功消耗，唯一真源 economy.practiceQiCost()；
 //      它不产出，只从闭关（world.idle）与份例来。所以「一局练多久」的度量是
 //      「这一局烧掉的气，要闭关几分钟才回得来」——本脚本把它一起算出来；
 //   ③ 灵石 = 切磋与秘境所得，当日第 n 场按 0.85^(n-1) 衰减，只出不进的是花销。
@@ -27,9 +27,13 @@ const GRADE_DIST = {
 };
 
 // 一次「闭关」的产量：world.idle.qiPerMinute，封顶 capHours。
+// 但真正到手的是「产能」与「气海空位」的较小者——灵力有上限（见 economy.qiCapOf），
+// 所以这里同时算两个数：8 小时坐得出来多少（产能）与一次装得下多少（气海）。
 const IDLE = world.getWorld().idle;
 const QI_PER_MIN = IDLE.qiPerMinute;
 const QI_PER_CAP = Math.round(QI_PER_MIN * IDLE.capHours * 60);
+const OPEN_QI_CAP = game.qiCap(game.createNewState());
+const FILL_HOURS = (OPEN_QI_CAP / QI_PER_MIN / 60).toFixed(1);
 
 function makeRng(seed) {
   let s = seed >>> 0;
@@ -72,8 +76,8 @@ function qiByDiff(skillId) {
   });
 }
 
-// 固定灵气预算下能练成什么样：模式只有三种，全按「本门最高已解锁档」推算当前可选档。
-// 预算制而不是局数制，是因为灵气才是约束——同样的局数在低档要烧的气少得多，
+// 固定灵力预算下能练成什么样：模式只有三种，全按「本门最高已解锁档」推算当前可选档。
+// 预算制而不是局数制，是因为灵力才是约束——同样的局数在低档要烧的气少得多，
 // 拿局数比会让「刷简单」显得划算。
 function runBudget(opts) {
   const state = game.createNewState();
@@ -177,13 +181,16 @@ const qiTable = qiByDiff('jian');
 for (const q of qiTable) {
   const perQi = (world.PROF_BASE.S / q.cost).toFixed(2);
   console.log('  ' + q.name + '  基数 ' + String(q.base).padStart(3) + ' → 实价 '
-    + String(q.cost).padStart(3) + ' 点（剑法时长系数 + 悟性 10）· 首局 S 每点灵气换 '
+    + String(q.cost).padStart(3) + ' 点（剑法时长系数 + 悟性 10）· 首局 S 每点灵力换 '
     + perQi + ' 点熟练度');
 }
-console.log('  单价随档上升、单点灵气的首局熟练度反而下降——这是刻意的：难盘该更贵。');
+console.log('  单价随档上升、单点灵力的首局熟练度反而下降——这是刻意的：难盘该更贵。');
 console.log('  往上走的回报不在单价，在「连 S 只在本门最高档叠、低档还要折半」（见文末预算实验）。');
-console.log('  闭关 ' + QI_PER_MIN + ' 点/分，封顶 ' + IDLE.capHours + ' 小时 = ' + QI_PER_CAP
-  + ' 点：一整天攒满 = 绝境 ' + Math.floor(QI_PER_CAP / qiTable[4].cost) + ' 局');
+console.log('  闭关 ' + QI_PER_MIN + ' 点/分：8 小时产能 ' + QI_PER_CAP + ' 点，但炼气气海只装 '
+  + OPEN_QI_CAP + ' 点（' + FILL_HOURS + ' 小时即满，溢出 ' + (QI_PER_CAP - OPEN_QI_CAP) + ' 点收不到）');
+console.log('  一池灵力 = 绝境 ' + Math.floor(OPEN_QI_CAP / qiTable[4].cost)
+  + ' 局 / 困难 ' + Math.floor(OPEN_QI_CAP / qiTable[2].cost) + ' 局'
+  + '；想把一池练大，靠破境（气海 150→620）与真元（每点 +2）。');
 
 console.log('\n== 天阶对照（时长系数与品阶一起抬价）==');
 const tianTable = qiByDiff('taixu');
@@ -200,7 +207,7 @@ for (let t = 1; t < world.TIERS.length; t += 1) {
   console.log('  ' + world.TIERS[t].name.padEnd(10) + fmt(fullC.milestones[t - 1])
     + fmt(world.TIERS[t].threshold));
 }
-console.log('  共烧灵气 ' + fullC.spent + ' 点 ≈ 闭关 ' + Math.round(fullC.spent / QI_PER_MIN / 60) + ' 小时');
+console.log('  共烧灵力 ' + fullC.spent + ' 点 ≈ 闭关 ' + Math.round(fullC.spent / QI_PER_MIN / 60) + ' 小时');
 
 const fullS = fullSRun();
 console.log('\n== 全程不断 S：按默认档一路走到大圆满 ==');
@@ -209,7 +216,7 @@ for (let t = 1; t < world.TIERS.length; t += 1) {
   console.log('  ' + world.TIERS[t].name.padEnd(10) + fmt(fullS.milestones[t - 1])
     + fmt(world.TIERS[t].threshold));
 }
-console.log('  共烧灵气 ' + fullS.spent + ' 点 ≈ 闭关 ' + Math.round(fullS.spent / QI_PER_MIN / 60) + ' 小时');
+console.log('  共烧灵力 ' + fullS.spent + ' 点 ≈ 闭关 ' + Math.round(fullS.spent / QI_PER_MIN / 60) + ' 小时');
 
 const BUDGET = 6000;
 const strategies = [
@@ -220,14 +227,14 @@ const strategies = [
   { name: '黄阶 · 金丹后', skillId: 'jian', realmIndex: 2, mode: 'auto' },
 ];
 
-console.log('\n== 固定灵气预算 ' + BUDGET + ' 点（≈ 闭关 '
+console.log('\n== 固定灵力预算 ' + BUDGET + ' 点（≈ 闭关 '
   + Math.round(BUDGET / QI_PER_MIN / 60) + ' 小时）：各刷法能练成什么样 ==');
 const results = [];
 for (const st of strategies) {
   const r = runBudget({ skillId: st.skillId, realmIndex: st.realmIndex, budget: BUDGET, mode: st.mode });
   results.push({ name: st.name, profGain: r.profGain, sRuns: r.sRuns, runs: r.runs, prof: r.prof, spent: r.spent });
   console.log('  ' + st.name.padEnd(16) + ' ' + fmt(r.runs) + ' 局 · 熟练度 ' + fmt(r.prof)
-    + ' · 平均 ' + (r.profGain / Math.max(1, r.spent)).toFixed(2) + ' 点/灵气');
+    + ' · 平均 ' + (r.profGain / Math.max(1, r.spent)).toFixed(2) + ' 点/灵力');
 }
 
 const easy = results[0];
@@ -236,13 +243,13 @@ const belowOne = results[2];
 const tian = results[3];
 const decayed = results[4];
 
-// 切磋：灵石按当日第几场衰减，运功另扣 5 点灵气。
+// 切磋：灵石按当日第几场衰减，运功另扣 5 点灵力。
 console.log('\n== 当日切磋灵石（0.85^(n-1)）==');
 const stoneRow = [];
 for (let n = 0; n < 10; n += 1) stoneRow.push(Math.round(economy.battleStoneFactor(n) * 1000) / 1000);
 console.log('  第 1～10 场系数：' + stoneRow.join(' / '));
 console.log('  撑到第 15 场只剩 ' + economy.battleStoneFactor(14).toFixed(3)
-  + '：一场 ' + economy.BATTLE_QI + ' 点灵气换不回几枚，玩家自己会停手');
+  + '：一场 ' + economy.BATTLE_QI + ' 点灵力换不回几枚，玩家自己会停手');
 
 console.log('\n== 检查 ==');
 let bad = 0;
@@ -401,14 +408,14 @@ for (const d of practice.DIFFICULTIES) {
   expect(guess === real, d.name + ' 预判 ' + guess + ' 点 = 结算扣除 ' + real + ' 点');
 }
 
-// ⑧ 灵气不足直接拒绝开局，不扣任何东西。
+// ⑧ 灵力不足直接拒绝开局，不扣任何东西。
 const poorState = game.createNewState();
 poorState.skills.jian.unlocked = true;
 poorState.resources.qi = 1;
 const poor = game.applyPractice(poorState, 'jian', 'C', { difficulty: 'desperate', score: 0 });
 expect(poor.ok === false && poor.lackQi > 0 && poorState.skills.jian.prof === 0
   && poorState.resources.qi === 1,
-  '灵气不足被拦下（差 ' + poor.lackQi + ' 点），熟练度与灵气都没动');
+  '灵力不足被拦下（差 ' + poor.lackQi + ' 点），熟练度与灵力都没动');
 
 // ⑨ 心法与悟性真的省气。
 const saveState = game.createNewState();
@@ -417,11 +424,11 @@ saveState.skills.jian.prof = 30000;
 saveState.resources.qi = 1e6;
 const baseCost = game.practiceCostOf(saveState, 'jian', 'hard');
 saveState.skills.jingxin.unlocked = true;
-saveState.skills.jingxin.prof = 6000;   // 大成起心法特效生效
+saveState.skills.jingxin.prof = 6000;   // 大成（特效 3/4）只为验证省气叠满，不再当作生效门槛
 const savedCost = game.practiceCostOf(saveState, 'jian', 'hard');
 expect(savedCost < baseCost, '学了静心诀后耗气 ' + baseCost + ' → ' + savedCost + ' 点');
 
-// ⑩ 到顶后熟练度封顶，但灵气照扣（到顶再练就是纯烧气）。
+// ⑩ 到顶后熟练度封顶，但灵力照扣（到顶再练就是纯烧气）。
 const cappedState = fullC.state;
 cappedState.resources.qi = 1e6;
 const qiBefore = cappedState.resources.qi;
@@ -429,7 +436,7 @@ const afterCap = game.applyPractice(cappedState, 'jian', 'S', { difficulty: 'des
 expect(afterCap.gain === 0 && afterCap.comboNow === 1
   && cappedState.resources.qi === qiBefore - afterCap.qiCost
   && cappedState.skills.jian.prof === world.PROF_MAX,
-  '到顶后熟练度不再涨，但灵气照扣 ' + afterCap.qiCost + ' 点、连 S 照记');
+  '到顶后熟练度不再涨，但灵力照扣 ' + afterCap.qiCost + ' 点、连 S 照记');
 
 // ⑪ 参悟不再产出资源：结算里没有 qi / stone 这两个产出字段。
 const prodState = game.createNewState();
@@ -447,17 +454,17 @@ wipedState.resources.qi = 200;
 const wipedRun = game.applyPractice(wipedState, 'jian', 'F', { difficulty: 'easy', score: 0 });
 expect(wipedRun.gain === 0 && wipedRun.comboNow === 0
   && wipedState.resources.qi === 200 - wipedRun.qiCost,
-  '走火：熟练度 0、连 S 归零，已扣的 ' + wipedRun.qiCost + ' 点灵气不退');
+  '走火：熟练度 0、连 S 归零，已扣的 ' + wipedRun.qiCost + ' 点灵力不退');
 
 // ⑬ 预算制护栏：只刷简单 / 退一档刷都不该反超逐档升。
 expect(easy.prof <= auto.prof,
-  '同样 ' + BUDGET + ' 点灵气，只刷简单不该反超逐档升（' + easy.prof + ' vs ' + auto.prof + '）');
+  '同样 ' + BUDGET + ' 点灵力，只刷简单不该反超逐档升（' + easy.prof + ' vs ' + auto.prof + '）');
 expect(belowOne.prof <= auto.prof,
-  '同样 ' + BUDGET + ' 点灵气，退一档刷也不该反超逐档升（' + belowOne.prof + ' vs ' + auto.prof + '）');
+  '同样 ' + BUDGET + ' 点灵力，退一档刷也不该反超逐档升（' + belowOne.prof + ' vs ' + auto.prof + '）');
 expect(decayed.prof < auto.prof,
   '金丹后练黄阶（耗气 ×' + economy.REALM_OVER + '）进度明显变慢（' + decayed.prof + ' vs ' + auto.prof + '）');
 expect(tian.profGain / Math.max(1, tian.spent) > auto.profGain / Math.max(1, auto.spent) * 0.5,
-  '天阶每点灵气的熟练度不该被品阶加价吃掉太多（'
+  '天阶每点灵力的熟练度不该被品阶加价吃掉太多（'
   + (tian.profGain / tian.spent).toFixed(2) + ' vs ' + (auto.profGain / auto.spent).toFixed(2) + '）');
 
 // ⑭ 切磋：先运功扣气，灵石按当日场次衰减，首胜另给 8 枚。
@@ -480,13 +487,13 @@ expect(!!firstBattle && firstBattle.firstClear && firstBattle.stone >= c0.reward
 const qiBeforeBattle = battleState.resources.qi;
 const second = game.battle(battleState, c0.id);
 expect(second.ok && battleState.resources.qi === qiBeforeBattle - economy.BATTLE_QI,
-  '再来一场仍先运功扣 ' + economy.BATTLE_QI + ' 点灵气');
+  '再来一场仍先运功扣 ' + economy.BATTLE_QI + ' 点灵力');
 expect(second.stoneFactor <= 1 && second.battleNo >= 2,
   '第 ' + second.battleNo + ' 场系数 ' + second.stoneFactor + '（首胜之后开始衰减）');
 const poorBattle = game.createNewState();
 poorBattle.resources.qi = 0;
 const refused = game.battle(poorBattle, c0.id);
-expect(refused.ok === false && refused.lackQi > 0, '灵气不够时切磋直接拒绝，不许空手打');
+expect(refused.ok === false && refused.lackQi > 0, '灵力不够时切磋直接拒绝，不许空手打');
 
 console.log(bad === 0 ? '\n收支曲线检查全部通过' : '\n有 ' + bad + ' 项不达标，需要调数值');
 process.exit(bad === 0 ? 0 : 1);

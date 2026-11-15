@@ -122,7 +122,8 @@ Page({
     const worlds = worldData.WORLDS.map(function (w) {
       return { id: w.id, label: w.label, name: w.name, enabled: w.enabled, intro: w.intro, style: w.style };
     });
-    const attrsLine = ov.attrs.map(function (a) { return a.name + ' ' + a.value; }).join(' · ');
+    const attrsLine = ov.attrs.map(function (a) { return a.name + ' ' + a.value; }).join(' · ')
+      + ' · 灵力上限 ' + ov.qi + ' / ' + ov.qiMax;
     const sync = syncView(store.getSyncStatus());
     const achievements = engine.getAchievements(state);
     const sorted = achievements.slice().sort(function (a, b) {
@@ -141,6 +142,13 @@ Page({
       mark: bt.stoneReady ? '✓' : '✕',
       markCls: bt.stoneReady ? 'imm-check__mark--on' : 'imm-check__mark--off',
       off: !bt.stoneReady,
+    }]).concat(bt.maxed ? [] : [{
+      // 气海不是条件而是所得：破境之后一趟能多练几局，比「战力 +46」更贴日常。
+      // 用中性点标，不参与「够不够格」的判断。
+      text: '气海 ' + bt.qiCap + ' → ' + bt.qiCapAfter + '（+' + bt.qiCapGain + '）· 破境即补满',
+      mark: '·',
+      markCls: 'imm-check__mark--ref',
+      off: false,
     }]).concat(top.map(function (s) {
       return {
         text: '主修 · ' + s.name + ' ' + s.tierName,
@@ -454,7 +462,7 @@ Page({
     const self = this;
     wx.showModal({
       title: '重置存档',
-      content: '所有熟练度、功法、称号与灵气灵石都会清空，且无法撤销。',
+      content: '所有熟练度、功法、称号与灵力灵石都会清空，且无法撤销。',
       confirmText: '确认重置',
       confirmColor: '#b4453c',
       success: function (res) {

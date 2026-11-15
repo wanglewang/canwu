@@ -15,7 +15,7 @@ function toast(title) {
 function detailOf(state, id) {
   const d = engine.getSkillDetail(state, id);
   if (!d) return null;
-  // 功法只收灵石： affordability 只看灵石，灵气再厚也换不来一卷功法。
+  // 功法只收灵石： affordability 只看灵石，灵力再厚也换不来一卷功法。
   d.costText = d.cost ? copy.formatCost(d.cost.stone) : '';
   d.affordable = !!d.cost && state.resources.stone >= d.cost.stone;
   d.stateText = d.unlocked ? copy.UI.states.learned

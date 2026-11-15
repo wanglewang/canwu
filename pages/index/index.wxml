@@ -33,8 +33,8 @@
           <text class="imm-stat__value">{{ov.power}}</text>
         </view>
         <view class="imm-stat">
-          <text class="imm-stat__label">灵 气</text>
-          <text class="imm-stat__value">{{ov.qi}}</text>
+          <text class="imm-stat__label">灵 力</text>
+          <text class="imm-stat__value">{{ov.qi}}<text class="imm-stat__cap">/{{ov.qiMax}}</text></text>
         </view>
         <view class="imm-stat">
           <text class="imm-stat__label">灵 石</text>
@@ -88,8 +88,11 @@
       <text class="modal__sub">离线 {{offline.duration}} · 最多累计 8 小时</text>
       <view class="modal__body">
         <view class="res-line">
-          <text class="muted">灵气</text>
-          <text class="h3 jade">+{{offline.qi}}</text>
+          <text class="muted">灵力</text>
+          <text class="h3 jade">+{{offline.qi}}<text class="imm-stat__cap"> / {{offline.qiCap}}</text></text>
+        </view>
+        <view wx:if="{{offline.overflowText}}" class="res-line">
+          <text class="muted">{{offline.overflowText}}</text>
         </view>
         <view class="res-line">
           <text class="muted">{{offline.skillName}} 熟练度</text>

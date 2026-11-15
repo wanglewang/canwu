@@ -98,7 +98,7 @@
       <view class="row--between">
         <text class="section__title">难度</text>
         <!-- 难度行只报两件事：这一档叫什么、这一局烧多少气。收益倍率已随「参悟不产资源」退役。 -->
-        <text class="tiny">{{diffName}} · 耗气 {{qiCost}}</text>
+        <text class="tiny">{{diffName}} · 耗灵力 {{qiCost}}</text>
       </view>
       <view class="diff-row mt12">
         <view wx:for="{{diffList}}" wx:key="key" class="diff-chip {{item.current ? 'diff-chip--on' : ''}} {{item.unlocked ? '' : 'diff-chip--lock'}}" data-d="{{item.key}}" bindtap="onDifficulty">
@@ -108,9 +108,9 @@
           <text wx:if="{{!item.unlocked}}" class="diff-chip__need">{{item.lockedText}}</text>
         </view>
       </view>
-      <!-- 灵气不够时不给「开始」，先说明差多少、去哪儿补。 -->
-      <text wx:if="{{!canStart}}" class="warn-note mt8">灵气只有 {{qi}} 点，本局要 {{qiCost}} 点。回洞府闭关片刻即可补上；切磋也耗灵气，但能换灵石。</text>
-      <text wx:else class="tiny diff-brief">耗气 {{qiCost}} · 余 {{qi}}</text>
+      <!-- 灵力不够时不给「开始」，先说明差多少、去哪儿补，以及气海能装多少。 -->
+      <text wx:if="{{!canStart}}" class="warn-note mt8">灵力 {{qi}} / {{qiMax}}，本局要 {{qiCost}} 点。回洞府闭关片刻即可补上；气海不够用时，破境或练真元都能拓深。</text>
+      <text wx:else class="tiny diff-brief">耗灵力 {{qiCost}} · 余 {{qi}} / {{qiMax}}</text>
       <!-- 折减只在真的选了低档时出现一行：说清折的是基础熟练度、S 算不算、该回哪一档。 -->
       <text wx:if="{{belowCapText}}" class="warn-note mt8">{{belowCapText}}</text>
       <!-- 高档位还收紧了哪几处（亮起时长 / 口诀轮数…），一一摆出来。 -->
@@ -373,7 +373,7 @@
     <text class="text-link text-link--muted" bindtap="onBack">{{copy.actions.leave}}</text>
     <!-- 底栏常驻这一局的代价：滚到页面底部也知道要付多少、还剩多少。 -->
     <text class="tiny start-cost {{canStart ? '' : 'start-cost--lack'}}">{{costText}}</text>
-    <button class="btn btn--primary {{canStart ? '' : 'btn--off'}}" bindtap="onStart">{{canStart ? copy.actions.start : (stoneCost > 0 ? '灵石不足' : '灵气不足')}}</button>
+    <button class="btn btn--primary {{canStart ? '' : 'btn--off'}}" bindtap="onStart">{{canStart ? copy.actions.start : (stoneCost > 0 ? '灵石不足' : '灵力不足')}}</button>
   </view>
 
   <!-- 本局已终、盘面留在屏上：盘面不能再点，去处全在这一条。 -->
