@@ -149,7 +149,7 @@ const PRACTICE_METHODS = [
   },
   {
     id: 'shumu', name: '循数疾点', game: 'schulte', theme: 'shumu', twist: 'shumu',
-    desc: '盘上的数散乱摆着，从 1 顺着点到最后，点完即完成。',
+    desc: '盘上的数散乱摆着，从 1 顺着点到最后，点完即完成；盯住盘心、用余光扫四周，别用手指追着数走。',
     tip: '点错按档罚时',
     base: 32,
     params: {},
@@ -600,10 +600,17 @@ function klotskiLevelOf(diffKey) {
 // 「这一档换成了什么」，不然高档位那行会照旧写「入门基准」。
 // 模块里的默认表只在没带参数时兜底（测试探针直接 create 就是走那条路）。
 const MERGE_TARGETS = [128, 256, 256, 512, 1024];
-const SCHULTE_SIZES = [4, 5, 6, 6, 6];
+// 顺序点格：盘面 4→5→6→7，且「困难」之后不再只靠秒表收紧。
+// 旧表是 4/5/6/6/6：后三档同一个 6×6，档与档只差 1–3 秒 S 线，
+// 而同一尺寸换个随机布局的成绩本来就波动 3–5 秒——档差被方差吃掉，三档在体感上是同一局。
+// 现在最后一档换 7×7（每格仍 98×96rpx，两倍于「每格 ≥25px」的下限），
+// 中间那一对同盘面的档改用一条规则分开：极难起点过的格不再退场。
+const SCHULTE_SIZES = [4, 5, 6, 6, 7];
 // 与 minigames/schulte.js 的 PENALTIES 同值：这里只给准备页写「这一档罚几秒」，
 // 局内判定仍以模块为准，两边由 verify 比对锁死（与 MERGE_TARGETS 同一套做法）。
-const SCHULTE_PENALTIES = [2, 2, 3, 4, 5];
+const SCHULTE_PENALTIES = [2, 3, 4, 5, 6];
+// 点过的格退不退场。真源在 minigames/schulte.js 的 LEVELS，这里只为准备页那一行。
+const SCHULTE_FADE = [true, true, true, false, false];
 // 推石入位的档位表：原来是「第几张石图」——五张图固定，第三遍开始玩家记的是答案，
 // 「先给谁让路」的推演就退化成回忆。现在这一列写的是**这一档的规格**：
 // 盘面恒六格（4×4 内盘），变的是几处阵位、几道内墙、最优推数落在哪个区间。
@@ -767,7 +774,14 @@ function rawParams(method, depthIndex) {
   }
   // 档位表住在模块里的四门：只注入本档最关键的那个数，给准备页的难度说明用。
   if (method && method.game === 'merge') out.target = MERGE_TARGETS[d.depth];
-  if (method && method.game === 'schulte') out.size = SCHULTE_SIZES[d.depth];
+  // 顺序点格注三样：盘面边长、点错罚几秒、点过的格退不退场。
+  // 前两样决定「换了几格」与「一次失误多贵」，第三样是高档唯一的新规则，
+  // 三样玩法层都真的读（`size` 定生成、`penaltySec` 进罚时、`fade` 进 paint）。
+  if (method && method.game === 'schulte') {
+    out.size = SCHULTE_SIZES[d.depth];
+    out.fade = SCHULTE_FADE[d.depth];
+    out.penaltySec = SCHULTE_PENALTIES[d.depth];
+  }
   // 推石入位：档位不再指定「第几张图」，而是给生成器三样规格——几处阵位、几道内墙、
   // 最优推数区间。图每局现抽，玩家打第二局时盘面就是新的。
   if (method && method.game === 'pushbox') {
@@ -816,7 +830,6 @@ function rawParams(method, depthIndex) {
     out.sLine = lv.sLine;
   }
   if (method && method.game === 'merge') out.startTiles = MERGE_START_TILES[d.depth];
-  if (method && method.game === 'schulte') out.penaltySec = SCHULTE_PENALTIES[d.depth];
   if (method && method.game === 'pushbox') out.capFactor = PUSHBOX_CAP_FACTORS[d.depth];
   // steps 是「这盘最少几步」这类按档递增的量：params 里写的是简单档的值，每档 +1。
   if (typeof out.steps === 'number') out.steps += d.depth;
@@ -846,9 +859,11 @@ function buildParams(method, diffKey) {
 // 这一门章内真正收紧的是 `budgetSlack`（余量 7 → 5），下限 5：余量压到 4，
 // A 线（冗余 2）与 B 线（余量 − 2 = 2）重合成一条，B 档当场消失。
 const LEVEL_TIGHTEN = 0.30;
+// 罚时不在这一列里：它是「代价」，方向与时间类相反——乘 0.7 只会让越深的关卡手滑越便宜，
+// 是这一整章里唯一一处「越往后越松」。罚时按档走整表（SCHULTE_PENALTIES），章内不动。
 const LEVEL_TIME_KEYS = ['duration', 'timeLimit', 'interval', 'flashMs', 'gapMs', 'windowMs',
   'shuffleMs', 'flipMs', 'dropMs', 'msPerNote', 'life', 'capFactor', 'budgetSlack',
-  'window', 'penaltySec'];
+  'window'];
 
 // 某一关的完整参数。一段一关，所以相邻两关本该逐位不同——但「本该」不等于「一定」：
 // 七门的可动范围只够三五十格到一百多格（点灯破阵 31 / 踏云连环 36 / 一眼摘魁 37 /
@@ -909,7 +924,7 @@ function levelDelta(method, level) {
     const a = levelFmt(k, prev[k]);
     const b = levelFmt(k, now[k]);
     if (a === b) continue;
-    out.push({ key: k, label: LEVEL_LABELS[k] || FIELD_LABELS[k] || k, text: (LEVEL_LABELS[k] || FIELD_LABELS[k] || k) + ' ' + a + ' → ' + b });
+    out.push({ key: k, label: lineLabelOf(method, k), text: lineLabelOf(method, k) + ' ' + a + ' → ' + b });
     if (out.length >= 2) break;
   }
   return out;
@@ -917,9 +932,18 @@ function levelDelta(method, level) {
 
 // 关卡表里独有的两个旋钮（合术起手 4 的比例、勘禁 S 线系数）没有通用标签。
 const LEVEL_LABELS = { fourRate: '起手给 4', lineScale: 'S 线', startLevel: '起手级数', linesPerLevel: '每级层数' };
+// lineScale 在勘禁诀里只缩 S 线，在逐数诀里缩的是整条尺子（S/A/B 与时辰）——同一个键，两种口径。
+// 写错一边，第 3 关的「本关小变化」就会说「S 线 96% → 95%」，而实际连 A 线也收了。
+function lineLabelOf(method, key) {
+  if (key === 'lineScale' && method && method.game === 'schulte') return '评级线';
+  return LEVEL_LABELS[key] || FIELD_LABELS[key] || key;
+}
 
 function levelFmt(key, value) {
-  if (key === 'fourRate' || key === 'lineScale') return Math.round(value * 100) + '%';
+  if (key === 'fourRate') return Math.round(value * 100) + '%';
+  // 评级线每关只动 0.09%（全书 18% ÷ 200 关），取整到 1% 就永远是「96% → 96%」，
+  // 「本关小变化」那一行会一直是空的——玩家会以为这一关什么都没变。
+  if (key === 'lineScale') return (Math.round(value * 1000) / 10).toFixed(1) + '%';
   if (key === 'startTiles') return Math.round(value) + ' 块';
   // 判定窗与罚时是小数：fmtField 会四舍五入成整数，写出来就成了「0 → 0」「2 秒 → 2 秒」。
   if (key === 'window') return (Math.round(value * 1000) / 10).toFixed(1) + '%';
@@ -951,6 +975,7 @@ function fmtField(key, value) {
 // 「步数预算」。两边共用一个键，但玩家的口径不一样——写错一边就等于说明页在说别人的话。
 function labelOf(method, key) {
   if (key === 'capFactor') return method && method.game === 'klotski' ? '步数预算' : '推数预算';
+  if (key === 'lineScale') return lineLabelOf(method, key);
   // 同一个键在不同门里不是同一件事：三秀同收的 kinds 是花色，灵纹连线的是纹样。
   if (key === 'kinds') return method && method.game === 'match' ? '花色' : '灵纹';
   if (key === 'cols') return '盘面宽';
@@ -1000,7 +1025,9 @@ function diffDetail(method, diffKey) {
   } else if (method && method.game === 'merge') {
     brief = '本档要合出 ' + now.target + ' 一块 · 起手 ' + now.startTiles + ' 块';
   } else if (method && method.game === 'schulte') {
-    brief = now.size + '×' + now.size + ' 盘 · ' + now.size * now.size + ' 个数 · 误点罚 ' + SCHULTE_PENALTIES[d.depth] + ' 秒';
+    brief = now.size + '×' + now.size + ' 盘 · ' + now.size * now.size + ' 个数 · 误点罚 '
+      + SCHULTE_PENALTIES[d.depth] + ' 秒'
+      + (SCHULTE_FADE[d.depth] ? ' · 点过的格退场' : ' · 点过的格不退场');
   } else if (method && method.game === 'pushbox') {
     // 每局现抽图，所以写「本档规格」而不是「第几张」：玩家要知道的是这一档会给他几处阵位、
     // 最难难到哪里，而不是一张他这辈子只会见到一次的图的编号。
@@ -1184,6 +1211,7 @@ module.exports = {
   MERGE_TARGETS: MERGE_TARGETS,
   SCHULTE_SIZES: SCHULTE_SIZES,
   SCHULTE_PENALTIES: SCHULTE_PENALTIES,
+  SCHULTE_FADE: SCHULTE_FADE,
   PUSHBOX_LEVELS: PUSHBOX_LEVELS,
   BIGGEST_LEVELS: BIGGEST_LEVELS,
   hintLabelOf: hintLabelOf,

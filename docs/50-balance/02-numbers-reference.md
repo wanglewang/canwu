@@ -135,14 +135,15 @@ SPEED_KEY   = 'speed'   // 方向相反：除以 pace
 | `KLOTSKI_LEVELS` | 滑块让路 | minOpt / maxOpt |
 | `MERGE_TARGETS` | 滑格相合 | 128 / 256 / 256 / 512 / 1024 |
 | `MERGE_START_TILES` | 滑格相合 | 2 / 2 / 3 / 3 / 4 |
-| `SCHULTE_SIZES` | 顺序点格 | 4 / 5 / 6 / 6 / 6 |
-| `SCHULTE_PENALTIES` | 顺序点格 | 2 / 2 / 3 / 4 / 5 |
+| `SCHULTE_SIZES` | 顺序点格 | 4 / 5 / 6 / 6 / 7 |
+| `SCHULTE_PENALTIES` | 顺序点格 | 2 / 3 / 4 / 5 / 6 |
+| `SCHULTE_FADE` | 顺序点格 | 退场 / 退场 / 退场 / 不退场 / 不退场 |
 | `PUSHBOX_LEVELS` | 推石入位 | 0 / 1 / 2 / 3 / 4 |
 | `PUSHBOX_CAP_FACTORS` | 推石入位 | 2.2 / 2.0 / 1.9 / 1.75 / 1.6 |
 | `BIGGEST_LEVELS` | 数中取大 | `{count, rounds}` 五组 |
 | `MINES_HEARTS` | 数格辨禁 | 3 / 3 / 3 / 2 / 2 |
 
-**前四张是整表注入**（覆盖 `buildParams` 的缩放）；中间五张是「档位表住在模块里，只注入本档最关键的那个数」；后两个是「区分度审计补上的第二个参数」。
+**前四张是整表注入**（覆盖 `buildParams` 的缩放）；中间几张是「档位表住在模块里，只注入本档最关键的那个数」；`PUSHBOX_CAP_FACTORS` / `MINES_HEARTS` / `SCHULTE_FADE` 是「区分度审计补上的第二、第三个参数」——它们都不是给界面看的装饰，玩法层真的读走。
 
 ## 6. 19 门功法总表（`data/skills.js`）
 

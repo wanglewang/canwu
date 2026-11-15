@@ -646,6 +646,35 @@ check('难度档缩放不碰盘面尺寸，且各档参数确有区分', functio
   }
 });
 
+check('顺序点格：五档两两不同，同盘面的那两档必须差一条规则', function () {
+  // 旧表是 4/5/6/6/6：后三档同一个 6×6，档与档只差 1–3 秒 S 线。
+  // 而同一尺寸换个随机布局，成绩本来就波动 3–5 秒——档差被方差吃掉，
+  // 三档在体感上是同一局，评级就变成「结算时乘个数」。
+  // 所以判据不是「参数不同」（罚时也不同，照样过），而是「同盘面就必须差一条规则」。
+  const schulte = require('../minigames/schulte.js');
+  const method = practice.getMethod('shumu');
+  const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const seen = keys.map(function (k) {
+    const p = practice.buildParams(method, k);
+    return { key: k, text: schulte.lines(p).items.join('|'), row: schulte.LEVELS[p.depth] };
+  });
+  const uniq = {};
+  seen.forEach(function (s) { uniq[s.text] = true; });
+  assert.strictEqual(Object.keys(uniq).length, 5, '五档里有说明页一字不差的档');
+  for (let i = 1; i < seen.length; i += 1) {
+    assert.notStrictEqual(seen[i].text, seen[i - 1].text,
+      seen[i].key + ' 的说明页与 ' + seen[i - 1].key + ' 完全相同');
+    if (seen[i].row.size !== seen[i - 1].row.size) continue;
+    assert.notStrictEqual(seen[i].row.fade, seen[i - 1].row.fade,
+      seen[i - 1].key + ' → ' + seen[i].key + ' 同盘面、同退场规则：这两档只差秒表');
+  }
+  // 盘面规格至少四种：五档挤在三种规格里，「盘面变难」只是名义上的。
+  const specs = {};
+  seen.forEach(function (s) { specs[s.row.size] = true; });
+  assert.ok(Object.keys(specs).length >= 4,
+    '顺序点格只有 ' + Object.keys(specs).length + ' 种盘面规格，撑不起五档阶梯');
+});
+
 check('换承重轴的三门：变的是复杂度与盘面，不是时间', function () {
   // 起因：五档时间参数走同一套 pace / TIME_LEVELS，跨度天然只有 1.7–2.3 倍，
   // 而且反应速度练不出来——把难度压在「快」上，玩家只会更焦虑。

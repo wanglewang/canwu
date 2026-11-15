@@ -139,6 +139,15 @@ function tweakParams(method, out, level) {
   const t = (chapterOf(lv) + progressOf(lv)) / CHAPTERS.length;
   if (method.game === 'merge') out.fourRate = Math.round((0.45 - 0.25 * t) * 1000) / 1000;
   if (method.game === 'mines') out.lineScale = Math.round((1 - 0.30 * t) * 1000) / 1000;
+  // 顺序点格：盘面与罚时都是整数、档内不变，时辰又不是参数（模块按 B 线现推），
+  // 章内没有任何能收的数——不收的话一章 40 关一字不差，关卡制在这一门上就是假的。
+  // 于是给它一根和勘禁诀同形的连续旋钮：整条评级线（S/A/B 与时辰）按关收紧，全书收 18%。
+  //
+  // 为什么不复用 buildParamsAt 那 30%：那一刀只能落在 params.timeLimit 上，可这一门的时辰
+  // 是「B 线 + 8」现推的，收进 B 线里 C 档就没了。要么收成「参数收了、盘面没变」，
+  // 要么收出一个不存在的 C 档——所以这里不动时辰键，只按比例缩三条线。
+  // 18% 而不是 30%：S 线在绝境档已经压到「优秀」档位，再收三成就成「没人到得了」。
+  if (method.game === 'schulte') out.lineScale = Math.round((1 - 0.18 * t) * 1000) / 1000;
   // 滑块让路的档位表已经有 capFactor（2.80 → 1.90），这里只按章内进度再收一次，
   // 不是覆盖。以前这一行把档位值整个盖掉，结果五档的预算系数都从 2.6 起算——
   // 「绝境比简单紧」这句话在参数里其实不成立。

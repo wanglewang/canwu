@@ -494,6 +494,7 @@ const fallbackPairs = [
   ['merge', 'TARGETS', 'MERGE_TARGETS'],
   ['schulte', 'SIZES', 'SCHULTE_SIZES'],
   ['schulte', 'PENALTIES', 'SCHULTE_PENALTIES'],
+  ['schulte', 'FADE', 'SCHULTE_FADE'],
 ];
 for (const [game, modKey, dataKey] of fallbackPairs) {
   const modVal = gameMod.MODULES[game] && gameMod.MODULES[game][modKey];
@@ -615,20 +616,64 @@ for (const f of ['minigames/schulte.js', 'pages/practice/practice.wxss']) {
   else checked += 1;
 }
 
-// 8b-7. 逐数诀的难度只由「格子多少 + 罚时 + 时限」承担，三件事都得随档变重，
-// 但盘面到 6×6 封顶（7×7 在 4.7 寸屏上每格不到 100rpx，数字看不清就成了猜）。
+// 8b-7. 逐数诀的五档必须「每换一档就换点东西」，而且换的东西要真的更难。
+// 旧版只守「格子不降 + 罚时不降 + 盘面不超 6×6」，于是 4/5/6/6/6 这张表全绿通过——
+// 后三档同一个 6×6、只差 1–3 秒 S 线，而同一尺寸换个布局本来就波动 3–5 秒，
+// 档差被方差吃掉，三档在体感上是同一局。这一条现在守四件事：
+//   ① 至少四种盘面规格（4/5/6/6/7 是四档规格，中间那一对同盘面另有规则分开）；
+//   ② 同盘面的相邻两档，三条线与时辰都不许放宽，S 必须更紧；
+//   ③ 盘面变大时，每格预算必须更紧（否则「变大」只是多给时间）；
+//   ④ 时辰必须压在 B 线之上且留出 C 带——收进 B 线里，C 档就整个消失。
 {
-  const sizes = practiceMod.SCHULTE_SIZES;
-  const pens = practiceMod.SCHULTE_PENALTIES;
-  if (sizes.length !== 5 || pens.length !== 5) errors.push('逐数诀的档位表不是五档');
+  const mod = gameMod.MODULES.schulte;
+  const rows = mod.LEVELS || [];
+  if (rows.length !== 5) errors.push('逐数诀的档位表不是五档');
   else checked += 1;
-  for (let i = 1; i < 5; i += 1) {
-    if (sizes[i] < sizes[i - 1]) errors.push('逐数诀第 ' + i + ' 档比上一档格子还少：被调反了');
+  const specs = {};
+  for (let i = 0; i < rows.length; i += 1) {
+    const r = rows[i];
+    const tag = '逐数诀第 ' + (i + 1) + ' 档';
+    specs[r.size] = true;
+    const n = r.size * r.size;
+    if (!(r.s > 0 && r.a > r.s && r.b > r.a)) errors.push(tag + '的三条线没有递增');
     else checked += 1;
-    if (pens[i] < pens[i - 1]) errors.push('逐数诀第 ' + i + ' 档点错罚时反而更轻：被调反了');
+    // ④ C 带：时辰至少比 B 线多 leave 秒，否则「点完了但慢」无处可落。
+    if (r.limit - r.b < mod.C_WINDOW) {
+      errors.push(tag + '的时辰离 B 线只差 ' + (r.limit - r.b) + ' 秒，C 档会被挤没');
+    } else checked += 1;
+    if (i === 0) continue;
+    const p = rows[i - 1];
+    if (r.size < p.size) errors.push(tag + '的盘面比上一档还小：被调反了');
     else checked += 1;
+    if (r.penalty <= p.penalty) errors.push(tag + '点错罚时没有加重：两档的手滑一样贵');
+    else checked += 1;
+    // ③ 每格预算（含找 + 点）只许递减：盘面变大时秒数可以变多，但每格不能越给越宽。
+    const eta = r.s / n;
+    const etaPrev = p.s / (p.size * p.size);
+    if (!(eta < etaPrev)) {
+      errors.push(tag + '的每格预算 ' + eta.toFixed(3) + ' 秒不比上一档 ' + etaPrev.toFixed(3) + ' 秒更紧');
+    } else checked += 1;
+    // ② 同盘面的相邻两档：三条线与时辰都不许放宽。
+    if (r.size === p.size) {
+      if (!(r.s < p.s)) errors.push(tag + '与上一档同盘面，S 线却没有更紧');
+      else checked += 1;
+      if (r.a > p.a || r.b > p.b || r.limit > p.limit) {
+        errors.push(tag + '与上一档同盘面，A / B / 时辰却放宽了');
+      } else checked += 1;
+    }
+    // 容错度：从 S 掉到 A 还能错几次（(A−S) ÷ 罚时），越往上只许越少——
+    // 以前「普通」比「简单」还能多错 50%，与「简单档手滑不心疼」正好相反。
+    const tol = (r.a - r.s) / r.penalty;
+    const tolPrev = (p.a - p.s) / p.penalty;
+    if (tol > tolPrev + 0.001) {
+      errors.push(tag + '的容错 ' + tol.toFixed(2) + ' 次反而比上一档 ' + tolPrev.toFixed(2) + ' 次更宽');
+    } else checked += 1;
   }
-  if (sizes[sizes.length - 1] > 6) errors.push('逐数诀盘面超过 6×6：小屏上数字看不清，难度会变成猜');
+  if (Object.keys(specs).length < 4) {
+    errors.push('逐数诀只有 ' + Object.keys(specs).length + ' 种盘面规格，撑不起五档阶梯');
+  } else checked += 1;
+  // 尺寸上限：8×8 每格只剩 84rpx（22rpx 字号），两位数认不快就变成猜。
+  if (rows[rows.length - 1].size > 7) errors.push('逐数诀盘面超过 7×7：两位数在小屏上认不快，难度会变成猜');
   else checked += 1;
 }
 

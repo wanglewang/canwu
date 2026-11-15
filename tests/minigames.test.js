@@ -2316,7 +2316,7 @@ check('太虚翻卦诀：时辰到还没通完就是走火 F', function () {
   } finally { restoreClock(); }
 });
 
-check('顺序点格：盘上不标「下一个在哪」，难度靠格子数与罚时', function () {
+check('顺序点格：盘上不标「下一个在哪」，五档各自换盘面或换规则', function () {
   installClock();
   try {
     const method = data.getMethod('shumu');
@@ -2335,14 +2335,24 @@ check('顺序点格：盘上不标「下一个在哪」，难度靠格子数与�
       const labels = vm.cells.map(function (x) { return Number(x.label); }).sort(function (a, b) { return a - b; });
       assert.deepStrictEqual(labels, Array.from({ length: n }, function (_, i) { return i + 1; }), '盘上不是 1…N 各一次');
 
-      // 点错一格的代价随档加重：简单 2 秒，绝境 5 秒。
+      // 点错一格的代价随档加重：简单 2 秒，绝境 6 秒。
       const wrongIdx = vm.schulte.order.indexOf(n);
       ctx.c.tap(wrongIdx);
       assert.strictEqual(vm.scoreText, '用时 ' + schulteMod.PENALTIES[depth] + ' 秒',
         '第 ' + (depth + 1) + ' 档点错没有按 ' + schulteMod.PENALTIES[depth] + ' 秒罚时');
 
+      // 点过的格：前三档退成空位（cell--gone），极难起留在盘上（仍是 cell--num）。
+      // 这是「同盘面的两档」之间唯一的难度差——它必须真的落到盘面上，不能只写在说明里。
+      const firstIdx = vm.schulte.order.indexOf(1);
+      ctx.c.tap(firstIdx);
+      assert.strictEqual(vm.schulte.next, 2, '点对了「1」却没有前进');
+      const gone = vm.cells[firstIdx].cls.indexOf('cell--gone') >= 0;
+      assert.strictEqual(gone, params.fade,
+        '第 ' + (depth + 1) + ' 档点过的格' + (params.fade ? '没有退场' : '还是退场了'));
+      assert.ok(vm.cells[firstIdx].label === '1', '退场那一格的数被抹掉了：玩家回头找不到');
+
       // 按序点完：中途任何一步都不许冒出新的「下一个」标记。
-      for (let v = 1; v <= n; v += 1) {
+      for (let v = 2; v <= n; v += 1) {
         const idx = vm.schulte.order.indexOf(v);
         ctx.c.tap(idx);
         const stray = vm.cells.filter(function (x) { return /cell--next/.test(x.cls); });
@@ -2351,12 +2361,93 @@ check('顺序点格：盘上不标「下一个在哪」，难度靠格子数与�
       assert.ok(ctx.st.finished, '点完整盘没有结算');
       ctx.c.destroy();
     }
-    // 格子数随档不降，且到 6×6 封顶——再大手机上看不清数字，难度就成了猜。
+    // 格子数随档不降，且最大到 7×7：8×8 每格只剩 84rpx、字 22rpx，两位数认不快就成了猜。
     for (let i = 1; i < sizes.length; i += 1) {
       assert.ok(sizes[i] >= sizes[i - 1], '第 ' + (i + 1) + ' 档格子比上一档还少：' + sizes.join('/'));
     }
-    assert.ok(sizes[sizes.length - 1] <= 36, '盘面超过 6×6：' + sizes.join('/'));
+    assert.ok(sizes[sizes.length - 1] <= 49, '盘面超过 7×7：' + sizes.join('/'));
+    // 五档里至少四种规格：后三档同为 6×6 的那一版，档差全落在一两秒的秒表上，
+    // 而同一尺寸换个布局本来就波动 3–5 秒——那样的五档在体感上是同一局。
+    const uniq = {};
+    sizes.forEach(function (s) { uniq[s] = true; });
+    assert.ok(Object.keys(uniq).length >= 4, '只有 ' + Object.keys(uniq).length + ' 种盘面规格：' + sizes.join('/'));
   } finally { restoreClock(); }
+});
+
+check('顺序点格：罚时只吃评级，不提前收场', function () {
+  // 走火（F）＝「一局没走完」，判据只能是实际经过的时辰。
+  // 旧版把罚时也累进这个判据里，于是绝境档连错四次就能把一局打得不错的人判成 F，
+  // 与「点错只是纪录变差」「本门只奖不罚」两句话都相反。
+  installClock();
+  try {
+    const method = data.getMethod('shumu');
+    const params = data.buildParams(method, 'desperate');
+    const row = schulteMod.LEVELS[4];
+    const ctx = makeCtx(method, {}, params);
+    ctx.c.start();
+    const vm = ctx.st.vm;
+    const n = vm.cells.length;
+    const wrongIdx = vm.schulte.order.indexOf(n);
+    const times = Math.ceil(row.limit / row.penalty) + 2;
+    for (let i = 0; i < times; i += 1) ctx.c.tap(wrongIdx);
+    // 先把时钟推过十秒，逼它真的走几拍——若还按「实际 + 罚时」判，这里就该收场了。
+    advance(10000);
+    assert.strictEqual(ctx.st.finished, null, '罚时把一局判成了走火（F 只该留给「没走完」）');
+    assert.ok(vm.timeText && vm.timeText !== '00:00', '时辰被罚时吃空了：倒计时该只走实际时间');
+    for (let v = 1; v <= n; v += 1) ctx.c.tap(vm.schulte.order.indexOf(v));
+    assert.ok(ctx.st.finished, '点完整盘没有结算');
+    assert.strictEqual(ctx.st.finished.grade, 'C', '连错 ' + times + ' 次之后没有落到 C，实为 ' + ctx.st.finished.grade);
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('顺序点格：200 关都留得出 C 带，点完了但慢要有落处', function () {
+  // 这一门的时辰不是参数，是「B 线 + 8」现推的。章内按 lineScale 往紧里收时，
+  // 一旦把时辰收进 B 线里，C 档就没有落处：玩家过了 B 线却被判走火，
+  // 而「C 是走完了但糙」正是这一门唯一给得起的耐心。这个坑在别的门里踩过三次
+  // （预算 < 2×最优 → C 档不存在），所以逐关复算，而不是只看五档表头。
+  installClock();
+  try {
+    const method = data.getMethod('shumu');
+    for (let lv = 1; lv <= 200; lv += 1) {
+      const p = data.buildParamsAt(method, lv);
+      const line = schulteMod.lines(p);
+      const b = Number(String(line.items[3]).replace(/[^0-9]/g, ''));
+      const ctx = makeCtx(method, {}, p);
+      ctx.c.start();
+      const vm = ctx.st.vm;
+      const mm = Number(vm.timeText.slice(0, 2));
+      const ss = Number(vm.timeText.slice(3));
+      const limit = mm * 60 + ss;
+      assert.ok(limit - b >= schulteMod.C_WINDOW,
+        '第 ' + lv + ' 关时辰 ' + limit + ' 秒、B 线 ' + b + ' 秒：C 带只剩 ' + (limit - b) + ' 秒');
+      ctx.c.destroy();
+    }
+  } finally { restoreClock(); }
+});
+
+check('顺序点格：布局的走盘长度压在带宽内，一局一图', function () {
+  // 档与档之间只差 1–3 秒，而同一尺寸换个随机布局的成绩波动就有 3–5 秒。
+  // 不控制布局就等于让方差吃掉档差：玩家感受到的是「今天手气」，不是「这档更难」。
+  for (let depth = 0; depth < 5; depth += 1) {
+    const row = schulteMod.LEVELS[depth];
+    const ideal = schulteMod.idealStep(row.size);
+    const lo = ideal * (1 - 0.12);
+    const hi = ideal * (1 + 0.12);
+    let prev = null;
+    let same = 0;
+    for (let k = 0; k < 40; k += 1) {
+      const order = schulteMod.deal(row.size);
+      assert.strictEqual(order.length, row.size * row.size, '抽出来的盘少了几格');
+      const m = schulteMod.pathMean(row.size, order);
+      assert.ok(m >= lo - 1e-9 && m <= hi + 1e-9,
+        row.size + '×' + row.size + ' 第 ' + k + ' 局的走盘长度 ' + m.toFixed(2) + ' 秒偏离带宽 ' + lo.toFixed(2) + '–' + hi.toFixed(2));
+      if (prev && prev === order.join(',')) same += 1;
+      prev = order.join(',');
+    }
+    // 40 局里连出两次同图的概率应当极低——固定布局会被背下来，这一门就只剩手速。
+    assert.ok(same <= 1, row.size + '×' + row.size + ' 的布局重复了 ' + same + ' 次：一局一图退化了');
+  }
 });
 
 check('按最优步数评级的三门：反悔过就本盘封顶 A', function () {
