@@ -6,15 +6,23 @@
 // 这里是人走、石箱只会被推、拉不回来，每个箱子都要对上自己的阵位。
 // 与「垒石垒基」的区别：那边是按时间落石堆层，这里是静态盘上的搬运。
 //
-// 一局一图：方向键走人，走到石箱后面就能推它一格（只能推不能拉，撞墙与撞箱都推不动）。
-// 每个阵位都压上一块石箱即入位。推数预算按本图最优推数给，推满还没入位就是走火 F。
+// 一局一图，且**每局都是新图**：方向键走人，走到石箱后面就能推它一格
+// （只能推不能拉，撞墙与撞箱都推不动）。每个阵位都压上一块石箱即入位。
+// 推数预算按本图最优推数给，推满还没入位就是走火 F。
 // 评级看「已推次数 / 本图最优推数」——用推数而不是步数，是因为走多少步不值钱，
 // 把箱子推错方向才是真的费事。
+//
+// 图为什么不再写死：原来是五张固定图按档分配（简单永远第一张）。图一固定，
+// 第三遍开始玩家记的就是答案而不是走法——「先给谁让路」这一门的心智活动直接消失，
+// 只剩下把记熟的顺序按一遍。十二原则第一条（一门功法一套玩法）说的就是这件事：
+// 玩法内核是「推演」，不是「回忆」。所以档位只管规格（盘多大、几个箱、几道内墙、
+// 最优推数落在哪个区间），图由生成器按规格现抽，每局不同。
 
 const C = require('./common.js');
 
-// 六张六格的图：# 墙 / . 地 / b 石箱 / o 阵位 / p 人 / * 箱在阵位上 / + 人在阵位上。
-// 每张都验过能解；难度靠图与最优推数递进，不靠加大盘面。
+// 兜底五张：只在生成器连续抽不中时用一个（正常一局都见不到它们）。
+// # 墙 / . 地 / b 石箱 / o 阵位 / p 人 / * 箱在阵位上 / + 人在阵位上。
+// 每张都验过能解；它们现在的作用是「生成器彻底失灵时这一局也能开」。
 const LEVELS = [
   // 两张两推：先教「绕到箱子背后才推得动」。
   [
@@ -111,9 +119,12 @@ function reachable(walls, boxes, cols, rows, from) {
 
 // 最少推数：按「推一次算一步」做 BFS，人在盘上怎么绕是无所谓的。
 // 同一张图上重复算一次只要几毫秒，比在数据里手写最优推数可靠。
-function solve(level) {
+// cap 是「找够这么多推就放弃」的上限：生成器只要知道这张图有没有超出本档上界，
+// 不关心它到底要二十推还是三十推——按 80 层跑满纯属浪费。
+function solve(level, cap) {
   const g = parse(level);
   const { cols, rows, walls } = g;
+  const limit = cap || 80;
   const boxes = g.boxes.slice().sort(function (a, b) { return a - b; });
   const start = { player: g.player, boxes: boxes };
   const goalKey = g.goals.slice().sort(function (a, b) { return a - b; }).join(',');
@@ -126,7 +137,7 @@ function solve(level) {
   const seen = {};
   seen[keyOf(start)] = true;
   let frontier = [start];
-  for (let depth = 1; depth <= 80; depth += 1) {
+  for (let depth = 1; depth <= limit; depth += 1) {
     const next = [];
     for (let f = 0; f < frontier.length; f += 1) {
       const st = frontier[f];
@@ -161,6 +172,162 @@ function solve(level) {
     frontier = next;
   }
   return -1;
+}
+
+// ---------------------------------------------------------------- 每局现生成
+
+// 档位规格：盘面从六格长到七格，难度落在「几处阵位、几道内墙、最优推数区间」三处。
+// 三处都随档递增，相邻档只差一档（原则三：递增曲线平缓，不做断崖）。
+// 区间下界是**承诺**（本档不会抽到一步就推完的图），上界是护栏
+//（极端图会让推数预算失去意义，也可能把阵位堵成死格）。
+// pulls 不是难度参数，是生成强度：从解往回拉几步。4×4 内盘只有十六格，
+// 拉过头会被墙反复弹回，所以五档各留一个实测过的值。
+const GEN = [
+  { inner: 4, boxes: 1, walls: 0, pulls: 5, minOpt: 2, maxOpt: 3 },
+  { inner: 4, boxes: 1, walls: 1, pulls: 6, minOpt: 2, maxOpt: 4 },
+  { inner: 4, boxes: 2, walls: 1, pulls: 9, minOpt: 3, maxOpt: 5 },
+  { inner: 5, boxes: 2, walls: 2, pulls: 11, minOpt: 4, maxOpt: 6 },
+  { inner: 5, boxes: 3, walls: 2, pulls: 15, minOpt: 5, maxOpt: 8 },
+];
+
+// 玩法层只认「这一档的规格」：params 里带了的数就用它（准备页与局内同源），
+// 缺的按 depth 从兜底表取。测试直接 create 时走的就是兜底表这条路。
+function specOf(p) {
+  const src = p || {};
+  const depth = Math.max(0, Math.min(GEN.length - 1, typeof src.depth === 'number' ? src.depth : 0));
+  const base = GEN[depth];
+  const pick = function (k) { return typeof src[k] === 'number' ? src[k] : base[k]; };
+  return {
+    inner: Math.max(3, pick('inner')),
+    boxes: Math.max(1, pick('boxes')),
+    walls: Math.max(0, pick('walls')),
+    pulls: Math.max(2, pick('pulls')),
+    minOpt: Math.max(1, pick('minOpt')),
+    maxOpt: Math.max(pick('minOpt'), pick('maxOpt')),
+  };
+}
+
+const DIRS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+function insideCell(inner, p) {
+  return p[0] >= 1 && p[1] >= 1 && p[0] <= inner && p[1] <= inner;
+}
+
+// 反向生成：先把每块石箱摆在它自己的阵位上（这一局等于已经「入位」），
+// 再从解往回把箱子一格一格「拉」开。每一步都要求人能站到正推时该站的位置，
+// 所以最后得到的盘面**一定可解**——正向照反序推回去就是答案。
+// 反过来做（随机撒箱子、再 BFS 判有没有解）试过：4×4 里六成以上的随机位置
+// 箱子已经顶死在墙角，既推不动也解不开，一局要抽几十次才有一张能用。
+function buildOnce(spec) {
+  const inner = spec.inner;
+  const side = inner + 2;
+  const cells = [];
+  for (let r = 0; r < side; r += 1) {
+    const line = [];
+    for (let c = 0; c < side; c += 1) {
+      line.push((r === 0 || c === 0 || r === side - 1 || c === side - 1) ? '#' : '.');
+    }
+    cells.push(line);
+  }
+  const spots = [];
+  for (let r = 1; r <= inner; r += 1) for (let c = 1; c <= inner; c += 1) spots.push([r, c]);
+  C.shuffle(spots);
+  let at = 0;
+  const walls = [];
+  for (let i = 0; i < spec.walls; i += 1) {
+    const s = spots[at];
+    at += 1;
+    if (!s) return null;
+    walls.push(s);
+    cells[s[0]][s[1]] = '#';
+  }
+  // 阵位不放四角：四角的阵位要从角上拉出去，两个方向总有一头是墙，
+  // 反向这一步做不出来（正向当然可解，是生成器表达不了），抽到就换一格。
+  const goals = [];
+  while (goals.length < spec.boxes) {
+    const s = spots[at];
+    at += 1;
+    if (!s) return null;
+    if ((s[0] === 1 || s[0] === inner) && (s[1] === 1 || s[1] === inner)) continue;
+    goals.push(s);
+    cells[s[0]][s[1]] = 'o';
+  }
+  const boxes = goals.map(function (g) { return [g[0], g[1]]; });
+  let player = spots[at];
+  if (!player) return null;
+
+  const wallIdx = walls.map(function (w) { return w[0] * side + w[1]; });
+  const goalAt = {};
+  goals.forEach(function (g) { goalAt[g[0] + ',' + g[1]] = true; });
+
+  let pulled = 0;
+  let last = -1;
+  // 拉几步不写死：同一个参数每次都在上下一格之间浮动，这一档的图才会有「这次绕一点、
+  // 下次直一点」的差别，而不是每张都刚好是 pulls ÷ 2 那么长。
+  const want = Math.max(2, spec.pulls + C.randInt(2) - 1);
+  for (let t = 0; t < want * 24 && pulled < want; t += 1) {
+    const bi = C.randInt(boxes.length);
+    const di = C.randInt(4);
+    // 同一块箱子，上一步往哪拉，这一步不许往反方向拉：那是把上一步原样推回去，
+    // 净位移为零却吃掉一次机会，最后抽出一张「看着乱、其实两步就完」的图。
+    if (last >= 0 && bi === (last >> 2) && di === ((last & 3) ^ 1)) continue;
+    const d = DIRS4[di];
+    const b = boxes[bi];
+    const dest = [b[0] - d[0], b[1] - d[1]];
+    const stand = [b[0] - 2 * d[0], b[1] - 2 * d[1]];
+    if (!insideCell(inner, dest) || !insideCell(inner, stand)) continue;
+    if (cells[dest[0]][dest[1]] === '#' || cells[stand[0]][stand[1]] === '#') continue;
+    // 箱子不许停在阵位上：那等于这一箱开局就已经入位，白送一处。
+    if (goalAt[dest[0] + ',' + dest[1]]) continue;
+    let clash = false;
+    for (let j = 0; j < boxes.length; j += 1) {
+      if (j === bi) continue;
+      if (boxes[j][0] === dest[0] && boxes[j][1] === dest[1]) clash = true;
+      if (boxes[j][0] === stand[0] && boxes[j][1] === stand[1]) clash = true;
+    }
+    if (clash) continue;
+    const boxIdx = boxes.map(function (q) { return q[0] * side + q[1]; });
+    const canWalk = reachable(wallIdx, boxIdx, side, side, player[0] * side + player[1]);
+    if (canWalk.indexOf(stand[0] * side + stand[1]) < 0) continue;
+    boxes[bi] = dest;
+    player = stand;
+    pulled += 1;
+    last = (bi << 2) | di;
+  }
+  // 一步都没拉开：箱子全在阵位上，这一局等于白送。重抽。
+  if (pulled < 2) return null;
+
+  for (let i = 0; i < boxes.length; i += 1) {
+    const b = boxes[i];
+    if (goalAt[b[0] + ',' + b[1]]) continue;
+    cells[b[0]][b[1]] = 'b';
+  }
+  // 人站在阵位上是 '+'：直接写 'p' 会把阵位抹掉，parse 之后少一处阵位，
+  // 这一局就永远解不开——反向生成的第一版正是栽在这里。
+  cells[player[0]][player[1]] = goalAt[player[0] + ',' + player[1]] ? '+' : 'p';
+  return cells.map(function (l) { return l.join(''); });
+}
+
+// 抽一张落在本档区间里的图。抽不中就把「离区间最近」的那张交出去：
+// 略难或略易都只是偏差，开不出局才是事故。最多试 24 次，
+// 生成一次 BFS 的代价是毫秒级，24 次的上限保证开局不卡。
+function generateBoard(spec) {
+  const s = spec || specOf({});
+  let best = null;
+  let bestGap = Infinity;
+  for (let t = 0; t < 24; t += 1) {
+    const rows = buildOnce(s);
+    if (!rows) continue;
+    const opt = solve(rows, s.maxOpt + 2);
+    if (opt < 0) continue;
+    if (opt >= s.minOpt && opt <= s.maxOpt) return { rows: rows, optimal: opt };
+    const gap = opt < s.minOpt ? s.minOpt - opt : opt - s.maxOpt;
+    if (gap < bestGap) {
+      bestGap = gap;
+      best = { rows: rows, optimal: opt };
+    }
+  }
+  return best;
 }
 
 // 一张图上「人的最短走法」：只在空地上走，箱子当墙。
@@ -280,14 +447,16 @@ function solutionMoves(level) {
 function create(ctx) {
   const p = ctx.params || {};
   const theme = ctx.theme || {};
-  const depth = Math.max(0, Math.min(4, typeof p.depth === 'number' ? p.depth : 0));
-  const levelIdx = Math.max(0, Math.min(LEVELS.length - 1, typeof p.level === 'number' ? p.level : depth));
-  const level = LEVELS[levelIdx];
+  const spec = specOf(p);
+  // 一局一图：每局都在本档规格里现抽一张。只有参数被改成不可能的组合
+  //（例如 4×4 内盘要塞六个箱子）才会退回兜底图——正常一局见不到那张。
+  const board = generateBoard(spec) || { rows: LEVELS[0], optimal: Math.max(1, solve(LEVELS[0])) };
+  const level = board.rows;
   const g = parse(level);
   const cols = g.cols;
   const rows = g.rows;
   const n = cols * rows;
-  const optimal = Math.max(1, solve(level));
+  const optimal = Math.max(1, board.optimal);
   const capPushes = Math.max(optimal + 4, Math.ceil(optimal * (p.capFactor || 1.9)));
   const costText = ctx.tip || '推错可退一步，推数照算；复位后本盘最高 A';
 
@@ -358,6 +527,8 @@ function create(ctx) {
     }
     vm.pushbox = {
       cols: cols, rows: rows, boxes: boxes.slice(), goals: g.goals.slice(), player: player,
+      // 当局的石图：测试靠它把这一盘真的走完（图每局都变，不能再从 LEVELS 取）。
+      layout: level.slice(),
     };
   }
 
@@ -527,27 +698,14 @@ function create(ctx) {
   });
 }
 
-// 每张图的最优推数只算一次：说明页、准备页、局内要的是同一条数，
-// 每次重算一遍 BFS 没必要，算出来的结果也不会变。
-const OPT_CACHE = {};
-
-function levelIndexOf(p) {
-  const depth = Math.max(0, Math.min(4, (p && p.depth) || 0));
-  return Math.max(0, Math.min(LEVELS.length - 1, p && typeof p.level === 'number' ? p.level : depth));
-}
-
-function optimalOf(levelIdx) {
-  if (OPT_CACHE[levelIdx] === undefined) OPT_CACHE[levelIdx] = Math.max(1, solve(LEVELS[levelIdx]));
-  return OPT_CACHE[levelIdx];
-}
-
+// 说明页与准备页要的是「本档的图大概多难」。图每局现抽，所以这里给区间不给具体数——
+// 局内 HUD 报的是这一张图自己的最优（生成时就解出来了），两个数不冲突也不重复。
 function lines(p) {
-  const li = levelIndexOf(p);
-  const opt = optimalOf(li);
+  const spec = specOf(p);
   return {
     rule: '按已推次数与本图最优推数比（走多少步不算）',
     items: [
-      'S：正好 ' + opt + ' 推（第 ' + (li + 1) + ' 张石图的最优）',
+      'S：正好本图最优（本档 ' + spec.minOpt + '～' + spec.maxOpt + ' 推 · ' + spec.boxes + ' 处阵位）',
       'A：多 2 次以内',
       'B：不超过最优的两倍',
       'C：超过两倍才全部入位',
@@ -564,5 +722,8 @@ module.exports = {
   lines: lines,
   solve: solve,
   solutionMoves: solutionMoves,
+  specOf: specOf,
+  generateBoard: generateBoard,
   LEVELS: LEVELS,
+  GEN: GEN,
 };

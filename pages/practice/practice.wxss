@@ -673,9 +673,13 @@
 .grid--c3 .cell { width: 33.3333%; height: 156rpx; }
 .grid--c4 .cell { width: 25%; height: 128rpx; font-size: 26rpx; }
 .grid--c6 .cell { width: 16.6666%; height: 104rpx; font-size: 26rpx; border-radius: 12rpx; }
+/* 七列只给推石入位的高档（内盘 5×5）。牌面、台面、内缩与六列同一套，
+   只把每格收窄一格：14.28% × 七百多 rpx ≈ 100rpx，石箱图案仍然认得出。 */
+.grid--c7 .cell { width: 14.2857%; height: 96rpx; font-size: 24rpx; border-radius: 12rpx; }
 
 /* 密盘（6 列以上）撤掉角花：格宽只剩百来 rpx，四角金线会跟数字抢注意力。 */
 .grid--c6 .cell::before,
+.grid--c7 .cell::before,
 .grid--c9 .cell::before,
 .grid--compact .cell::before,
 .grid--lane .cell::before { display: none; }

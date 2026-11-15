@@ -308,7 +308,8 @@ function actionFor(game) {
   if (game === 'pushbox') {
     return function (vm, c, st) {
       if (!vm.pushbox) return;
-      if (!st.plan) st.plan = pushboxMod.solutionMoves(pushboxMod.LEVELS[0]) || [];
+      // 图每局现抽，解法要从这一局的盘面现算（vm.pushbox.layout 就是当局石图）。
+      if (!st.plan) st.plan = pushboxMod.solutionMoves(vm.pushbox.layout) || [];
       if (st.at >= st.plan.length) return;
       c.move(st.plan[st.at]);
       st.at += 1;
@@ -2128,7 +2129,7 @@ check('推石入位：撤销只退位置，不退推数', function () {
     const m = data.getMethod('tuisuo');
     const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
     ctx.c.start();
-    const plan = pushboxMod.solutionMoves(pushboxMod.LEVELS[0]) || [];
+    const plan = pushboxMod.solutionMoves(ctx.st.vm.pushbox.layout) || [];
     assert.ok(plan.length >= 2, '这张图的最优解不到 2 步，断言前提不成立');
     // 解里的前几步可能只是「走人」，先走到第一下真正推箱子为止。
     let pushDir = null;
@@ -2150,6 +2151,47 @@ check('推石入位：撤销只退位置，不退推数', function () {
   } finally { restoreClock(); }
 });
 
+check('推石入位：图每局现抽，可解、落在本档区间、同档不是同一张', function () {
+  // 起因：这一门原来是五张固定图按档分配，简单永远第一张。图一固定，
+  // 第三遍开始玩家记的是答案而不是走法，「先给谁让路」的推演就退化成回忆。
+  // 现在档位只给规格（内盘多大、几处阵位、几道内墙、最优推数的区间），图现抽。
+  const m = data.getMethod('tuisuo');
+  const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const seen = new Set();
+  let prevMin = 0;
+  let prevBoxes = 0;
+  for (let i = 0; i < keys.length; i += 1) {
+    const p = data.buildParams(m, keys[i]);
+    // 档位表要单调：下界与阵位数都不许往回退，否则「越练越难」只是说法。
+    assert.ok(p.minOpt >= prevMin, keys[i] + ' 的最优推数下界比上一档还低');
+    assert.ok(p.boxes >= prevBoxes, keys[i] + ' 的阵位数比上一档还少');
+    prevMin = p.minOpt;
+    prevBoxes = p.boxes;
+    for (let j = 0; j < 5; j += 1) {
+      const board = pushboxMod.generateBoard(pushboxMod.specOf(p));
+      assert.ok(board, keys[i] + ' 抽不出图');
+      assert.ok(board.optimal >= p.minOpt && board.optimal <= p.maxOpt,
+        keys[i] + ' 抽到的图最优 ' + board.optimal + ' 推，超出本档 ' + p.minOpt + '～' + p.maxOpt);
+      // 真能走完：解不出来就是把一张死局丢给玩家，而这一门有走火 F，玩家得付灵石的账。
+      assert.ok(pushboxMod.solutionMoves(board.rows), keys[i] + ' 抽到的图走不通');
+      // 石箱与阵位必须一一对应：少一处阵位，这一局不用推就完成了。
+      const flat = board.rows.join('');
+      let boxCount = 0;
+      let goalCount = 0;
+      for (let k = 0; k < flat.length; k += 1) {
+        const ch = flat[k];
+        if (ch === 'b' || ch === '*') boxCount += 1;
+        if (ch === 'o' || ch === '*' || ch === '+') goalCount += 1;
+      }
+      assert.strictEqual(boxCount, p.boxes, keys[i] + ' 石箱数与规格不符');
+      assert.strictEqual(goalCount, p.boxes, keys[i] + ' 阵位数与规格不符');
+      seen.add(flat);
+    }
+  }
+  // 二十五局里至少二十张互不相同：生成器一旦退回「固定几张图」，这条立刻红。
+  assert.ok(seen.size >= 20, '25 局只抽出 ' + seen.size + ' 张不同的图，图又固化了');
+});
+
 check('两门的评级说明都写清「反悔封顶」，玩家查得到', function () {
   // 说明页照抄 lines().items，局内只在复位时 flash 一句；少这一条，
   // 玩家复位后会以为还能拿 S，结算给 A 就成了「凭什么」。
@@ -2163,7 +2205,7 @@ check('两门的评级说明都写清「反悔封顶」，玩家查得到', func
 
 check('五档各生成一局：19 门 × 5 档都能开局，盘面不出空值', function () {
   // 上面那条整局驱动只跑「本门基础参数」一档。难度是五档，参数差最大的一档
-  // （绝境：九宫 46 洞、逐数 6×6、入位第 5 张图、合数目标 1024）恰恰最少被走到，
+  // （绝境：九宫 46 洞、逐数 6×6、入位 3 处阵位、合数目标 1024）恰恰最少被走到，
   // 而「参数拼出一个不存在的盘面」这类错在低档看不出来。这里只建局、不跑完。
   installClock();
   try {

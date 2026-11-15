@@ -560,7 +560,19 @@ const SCHULTE_SIZES = [4, 5, 6, 6, 6];
 // 与 minigames/schulte.js 的 PENALTIES 同值：这里只给准备页写「这一档罚几秒」，
 // 局内判定仍以模块为准，两边由 verify 比对锁死（与 MERGE_TARGETS 同一套做法）。
 const SCHULTE_PENALTIES = [2, 2, 3, 4, 5];
-const PUSHBOX_LEVELS = [0, 1, 2, 3, 4];
+// 推石入位的档位表：原来是「第几张石图」——五张图固定，第三遍开始玩家记的是答案，
+// 「先给谁让路」的推演就退化成回忆。现在这一列写的是**这一档的规格**：
+// 盘面恒六格（4×4 内盘），变的是几处阵位、几道内墙、最优推数落在哪个区间。
+// 玩法层按这三个数现抽一张图（每局不同），所以它们不是给人看的装饰，是生成参数。
+// 与 minigames/pushbox.js 的 GEN 必须逐档同值：两处分叉时准备页写「3 处阵位」、
+// 局内却抽到 2 箱，只有连打两局才看得出来，verify 会逐档比对。
+const PUSHBOX_LEVELS = [
+  { inner: 4, boxes: 1, walls: 0, minOpt: 2, maxOpt: 3 },
+  { inner: 4, boxes: 1, walls: 1, minOpt: 2, maxOpt: 4 },
+  { inner: 4, boxes: 2, walls: 1, minOpt: 3, maxOpt: 5 },
+  { inner: 5, boxes: 2, walls: 2, minOpt: 4, maxOpt: 6 },
+  { inner: 5, boxes: 3, walls: 2, minOpt: 5, maxOpt: 8 },
+];
 const BIGGEST_LEVELS = [
   { count: 9, rounds: 8 },
   { count: 11, rounds: 10 },
@@ -691,7 +703,16 @@ function buildParams(method, diffKey) {
   // 档位表住在模块里的四门：只注入本档最关键的那个数，给准备页的难度说明用。
   if (method && method.game === 'merge') out.target = MERGE_TARGETS[d.depth];
   if (method && method.game === 'schulte') out.size = SCHULTE_SIZES[d.depth];
-  if (method && method.game === 'pushbox') out.level = PUSHBOX_LEVELS[d.depth];
+  // 推石入位：档位不再指定「第几张图」，而是给生成器三样规格——几处阵位、几道内墙、
+  // 最优推数区间。图每局现抽，玩家打第二局时盘面就是新的。
+  if (method && method.game === 'pushbox') {
+    const lv = PUSHBOX_LEVELS[d.depth];
+    out.inner = lv.inner;
+    out.boxes = lv.boxes;
+    out.walls = lv.walls;
+    out.minOpt = lv.minOpt;
+    out.maxOpt = lv.maxOpt;
+  }
   if (method && method.game === 'biggest') {
     out.count = BIGGEST_LEVELS[d.depth].count;
     out.rounds = BIGGEST_LEVELS[d.depth].rounds;
@@ -787,7 +808,12 @@ function diffDetail(method, diffKey) {
   } else if (method && method.game === 'schulte') {
     brief = now.size + '×' + now.size + ' 盘 · ' + now.size * now.size + ' 个数 · 误点罚 ' + SCHULTE_PENALTIES[d.depth] + ' 秒';
   } else if (method && method.game === 'pushbox') {
-    brief = '第 ' + (now.level + 1) + ' 张石图 · 推数预算 ×' + now.capFactor.toFixed(2) + ' · 越少越好';
+    // 每局现抽图，所以写「本档规格」而不是「第几张」：玩家要知道的是这一档会给他几处阵位、
+    // 最难难到哪里，而不是一张他这辈子只会见到一次的图的编号。
+    const side = now.inner + 2;
+    brief = side + '×' + side + ' 盘 · ' + now.boxes + ' 处阵位'
+      + (now.walls ? ' · ' + now.walls + ' 道内墙' : '')
+      + ' · 每局重排 · 最优 ' + now.minOpt + '～' + now.maxOpt + ' 推';
   } else if (method && method.game === 'biggest') {
     brief = '本档 ' + now.rounds + ' 轮 · 每轮盘上 ' + now.count + ' 个数';
   } else if (method && method.game === 'click') {

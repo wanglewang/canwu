@@ -482,6 +482,27 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   } else checked += 1;
 });
 
+// 8b-5b. 推石入位：档位表是「生成参数」而不是「第几张图」，两处一旦分叉，
+// 准备页会写「7×7 盘 · 3 处阵位」，局内却按 4×4 抽一箱图——只有连打两局才看得出来。
+// pulls 是模块自己的生成强度（不注入 params），不参与比对。
+{
+  const mod = gameMod.MODULES.pushbox;
+  if (!mod || !Array.isArray(mod.GEN) || mod.GEN.length !== 5) {
+    errors.push('pushbox.GEN 不是五档');
+  } else {
+    checked += 1;
+    const keys = ['inner', 'boxes', 'walls', 'minOpt', 'maxOpt'];
+    practiceMod.PUSHBOX_LEVELS.forEach(function (lv, i) {
+      for (const k of keys) {
+        if (mod.GEN[i][k] !== lv[k]) {
+          errors.push('pushbox 第 ' + i + ' 档的 ' + k + ' 与 practice.PUSHBOX_LEVELS 分叉：'
+            + mod.GEN[i][k] + ' vs ' + lv[k]);
+        } else checked += 1;
+      }
+    });
+  }
+}
+
 // 8b-6. 顺序点格不许替玩家标出「下一个在哪」。目标格一旦被描边，这一门就退化成
 // 「点发亮的格子」——舒尔特方格练的是目光按序扫过整盘，替它找位置等于把功课做完。
 for (const f of ['minigames/schulte.js', 'pages/practice/practice.wxss']) {
@@ -528,7 +549,7 @@ for (let i = 1; i < practiceMod.DIFFICULTIES.length; i += 1) {
 // lights / sudoku / klotski 各自那张表）里，玩法层真的读它，玩家在准备页也看得到
 // 「本档几乘几」。不允许的是另一件事：让 pace / goal 那套通用缩放顺手把 grid / cols /
 // rows 改掉——那是「调难度不小心改了盘面」，玩家会以为换了一门玩法。
-const BOARD_TABLE_GAMES = ['click', 'mines', 'lights', 'sudoku', 'klotski'];
+const BOARD_TABLE_GAMES = ['click', 'mines', 'lights', 'sudoku', 'klotski', 'pushbox'];
 let boardSafe = true;
 let boardStray = '';
 for (const m of practiceMod.PRACTICE_METHODS) {
