@@ -49,6 +49,14 @@ function create(ctx) {
   let best = 0;
   let done = false;
   let started = false;
+  // 合并弹与新块弹要各自重播：同一个类名连挂两帧不播动画，
+  // 所以类名带一个 0/1 交替的序号，相邻两手一定换一个。
+  let popSeq = 0;
+  let mergedAt = [];
+  let freshAt = -1;
+  // 这一手合出来的分：浮字要报「这一手得了多少」，不是总分。
+  // 总分是 HUD 那一栏的事，浮字报总分等于每次都弹同一个数。
+  let roundGain = 0;
 
   function render() { ctx.render(vm); }
 
@@ -60,6 +68,8 @@ function create(ctx) {
   }
 
   function paint() {
+    const top = maxTile();
+    const pop = ' cell--pop' + (popSeq % 2);
     for (let i = 0; i < n; i += 1) {
       const cell = vm.cells[i];
       const v = grid[i];
@@ -67,9 +77,23 @@ function create(ctx) {
       cell.end = false;
       cell.label = v ? String(v) : '';
       cell.tone = v ? tileTone(v) : 0;
-      cell.cls = v ? 'cell cell--num' : 'cell cell--void';
+      if (!v) {
+        // 空格是凹槽，不是「没有」：2048 的盘面必须让人看出还剩几个位、
+        // 以及滑到底之后一条线会停在哪儿。透出台色的话，整块盘读起来是一片空地。
+        cell.cls = 'cell cell--slot';
+        continue;
+      }
+      // 牌面按数值换底色（白底黑字在深玉台上是一块块补丁），位数多的字收一号，
+      // 免得 1024 从格子里挤出来。最大那一块加一圈金边，玩家一眼知道自己练到哪了。
+      let cls = 'cell cell--tile cell--t' + cell.tone;
+      if (v >= 1000) cls += ' cell--tile-4';
+      else if (v >= 100) cls += ' cell--tile-3';
+      if (mergedAt.indexOf(i) >= 0) cls += pop;
+      else if (i === freshAt) cls += ' cell--fresh' + (popSeq % 2);
+      if (v === top && v >= 8) cls += ' cell--best';
+      cell.cls = cls;
     }
-    vm.merge = { board: grid.slice(), cols: cols, rows: rows, target: target };
+    vm.merge = { board: grid.slice(), cols: cols, rows: rows, target: target, best: top };
   }
 
   function maxTile() {
@@ -99,11 +123,12 @@ function create(ctx) {
 
   function spawn() {
     const free = emptyCells();
-    if (!free.length) return;
+    if (!free.length) return -1;
     const i = free[C.randInt(free.length)];
     // 四成给 4、六成给 2：全是 2 的盘推起来太慢，全是 4 又太送。
     // 这个比例按关卡往下收（最低约五分之一），凑同数就得多推几步。
     grid[i] = Math.random() < fourRate ? 4 : 2;
+    return i;
   }
 
   // 一条线上的挤压：先去掉空格，再让相邻同数两两相合，最后补空格。
@@ -113,11 +138,14 @@ function create(ctx) {
       if (grid[indices[i]]) vals.push(grid[indices[i]]);
     }
     const out = [];
+    const hits = [];
     for (let i = 0; i < vals.length; i += 1) {
       if (i + 1 < vals.length && vals[i] === vals[i + 1]) {
         const merged = vals[i] * 2;
         out.push(merged);
+        hits.push([out.length - 1, merged]);
         score += merged;
+        roundGain += merged;
         i += 1;
       } else {
         out.push(vals[i]);
@@ -129,6 +157,8 @@ function create(ctx) {
       if (grid[indices[i]] !== v) changed = true;
       grid[indices[i]] = v;
     }
+    // 合并落在这一行的第几个位置，换来主盘的下标：页面靠它算迸溅坐标。
+    for (let i = 0; i < hits.length; i += 1) mergedAt.push(indices[hits[i][0]]);
     return changed;
   }
 
@@ -191,11 +221,16 @@ function create(ctx) {
     // 目标块是这一手刚合出来的才算「合出」：先记下推之前的最大块。
     const before = maxTile();
     let changed = false;
+    mergedAt = [];
+    roundGain = 0;
+    popSeq += 1;
     const lines = dir === 'left' || dir === 'right' ? rows : cols;
     for (let k = 0; k < lines; k += 1) {
       if (squeeze(lineOf(dir, k))) changed = true;
     }
     if (!changed) {
+      // 推不动的反馈只值一声闷响：这里不弹浮字，浮字留给「合成了」。
+      // 每一手都弹一个字，玩家半分钟后就学会无视它了。
       vm.status = '这个方向推不动';
       C.flash(vm, '推不动 · 换个方向', 'bad');
       render();
@@ -203,9 +238,15 @@ function create(ctx) {
     }
     moves += 1;
     const promoted = maxTile() >= target && before < target;
-    spawn();
+    freshAt = spawn();
     paint();
     syncHud();
+    if (mergedAt.length) {
+      // 合并处迸一小把：这一手最值得被看见的是「刚才在这里合成了一块」，
+      // 而不是 HUD 上那个总数又涨了多少。粒子复用主盘那条通道（markCleared）。
+      C.markCleared(vm, mergedAt);
+      C.flash(vm, '合 +' + roundGain, 'good');
+    }
     if (promoted) {
       C.flash(vm, '合出 ' + target + ' · 收功', 'gold');
       finishOnce(gradeOf(), '合出 ' + best + ' 一块 · ' + moves + ' 手');
@@ -217,8 +258,17 @@ function create(ctx) {
       finishOnce('F', '盘满且无同数，推不动');
       return;
     }
-    C.flash(vm, '合到 ' + best, 'good');
     render();
+  }
+
+  // 开局那几块同时落地，不逐个弹：弹四下等于没弹。整盘一起亮一下。
+  function poppedFresh() {
+    popSeq += 1;
+    freshAt = -1;
+    for (let i = 0; i < n; i += 1) {
+      if (!grid[i]) continue;
+      if (vm.cells[i]) vm.cells[i].cls = vm.cells[i].cls + ' cell--fresh' + (popSeq % 2);
+    }
   }
 
   function start() {
@@ -230,8 +280,12 @@ function create(ctx) {
     grid = new Array(n).fill(0);
     score = 0;
     moves = 0;
+    mergedAt = [];
+    roundGain = 0;
     for (let k = 0; k < startTiles; k += 1) spawn();
     paint();
+    // 开局那几块一起弹：逐个弹等于没弹，整盘亮一下才像「这一切开始了」。
+    poppedFresh();
     syncHud();
     render();
   }

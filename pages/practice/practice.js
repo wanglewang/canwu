@@ -28,6 +28,51 @@ function heartsToFlags(h) {
   return out;
 }
 
+// 连线：转折点换成「横段 / 竖段」。相邻两点必定同行或同列（minigames/link 里压过共线点），
+// 所以只算宽高，不用算角度。坐标是外扩网格，盘外那一圈刚好落在负百分比上。
+function linkSegs(linkPath, cols, rows) {
+  const out = [];
+  if (!linkPath || !linkPath.points || !cols || !rows) return out;
+  const pts = linkPath.points.map(function (p) {
+    return { x: (p.c - 0.5) / cols * 100, y: (p.r - 0.5) / rows * 100 };
+  });
+  for (let i = 1; i < pts.length; i += 1) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    if (Math.abs(a.y - b.y) < 0.01) {
+      out.push({ id: i, dir: 'h', left: Math.min(a.x, b.x), top: a.y, len: Math.abs(b.x - a.x) });
+    } else {
+      out.push({ id: i, dir: 'v', left: a.x, top: Math.min(a.y, b.y), len: Math.abs(b.y - a.y) });
+    }
+  }
+  return out;
+}
+
+// 下一块放不进主盘：它是一块 4×4 以内的小形状，摆成固定的四乘四预告格，
+// 玩家一眼看出「来的是长条还是方块」。居中对齐，不给旋转、不给颜色之外的信息。
+function previewCells(piece) {
+  const out = [];
+  for (let i = 0; i < 16; i += 1) out.push({ key: i, on: false, tone: 0 });
+  if (!piece || !piece.cells || !piece.cells.length) return out;
+  let maxR = 0;
+  let maxC = 0;
+  for (let i = 0; i < piece.cells.length; i += 1) {
+    maxR = Math.max(maxR, piece.cells[i][0]);
+    maxC = Math.max(maxC, piece.cells[i][1]);
+  }
+  const offR = Math.floor((4 - (maxR + 1)) / 2);
+  const offC = Math.floor((4 - (maxC + 1)) / 2);
+  for (let i = 0; i < piece.cells.length; i += 1) {
+    const r = piece.cells[i][0] + offR;
+    const c = piece.cells[i][1] + offC;
+    if (r < 0 || r > 3 || c < 0 || c > 3) continue;
+    const k = r * 4 + c;
+    out[k].on = true;
+    out[k].tone = piece.tone;
+  }
+  return out;
+}
+
 Page({
   data: {
     mode: 'practice',
@@ -129,6 +174,10 @@ Page({
     scoreNum: 0,
     burstList: [],
     sparkList: [],
+    // 落石垒基专用：下一块预告 + 刚化的行。其余玩法恒为空数组，页面不为它们多画东西。
+    nextCells: [],
+    lineFlashList: [],
+    linkPathList: [],
     settlePhase: 0,
     settleFull: false,
     settleGain: '+0',
@@ -151,6 +200,12 @@ Page({
     this.lastTones = [];
     this.lastClearKey = 0;
     this.sparkTimer = null;
+    // 落石垒基：上次演过的「化行」序号与行闪的撤场定时器。
+    this.lastLineKey = 0;
+    this.lineFlashTimer = null;
+    // 连连看：上次演过的连线序号与撤场定时器。
+    this.lastLinkKey = 0;
+    this.linkTimer = null;
     this.cellRects = [];
     this.swipePath = null;
     // 最后一次「进入新格」的时间：抬手时用它算在靶心停住多久，供收势判定。
@@ -549,6 +604,43 @@ Page({
         // 迸溅要在 setData 之前算：它读的是上一帧的纹样快照。
         const sparks = self.sparksFrom(vm);
 
+        // 落石垒基：下一块预告与刚化的行。这两样只在这一门出现，
+        // 别的玩法 vm.blocks 为 null，算出来是空数组，页面不会多摆一行。
+        let nextCells = [];
+        if (vm.blocks && vm.blocks.next) nextCells = previewCells(vm.blocks.next);
+        // 连连看的连线：只在收走一对的那一帧出现，320ms 后撤。
+        let linkPathList = self.data.linkPathList;
+        if (vm.linkPath && vm.linkPath.key !== self.lastLinkKey) {
+          self.lastLinkKey = vm.linkPath.key;
+          const lk = vm.link;
+          linkPathList = linkSegs(vm.linkPath, (lk && lk.cols) || vm.cols, (lk && lk.rows) || 4);
+          if (self.linkTimer) clearTimeout(self.linkTimer);
+          self.linkTimer = setTimeout(function () {
+            self.linkTimer = null;
+            if (!self.pageAlive) return;
+            self.setData({ linkPathList: [] });
+          }, 340);
+        }
+        let lineFlashList = self.data.lineFlashList;
+        if (vm.linesClear && vm.linesClear.key !== self.lastLineKey) {
+          self.lastLineKey = vm.linesClear.key;
+          const rowsN = vm.blocks && vm.blocks.rows ? vm.blocks.rows : 8;
+          const key = vm.linesClear.key;
+          lineFlashList = vm.linesClear.rows.map(function (r) {
+            return {
+              id: key + '-' + r,
+              top: (r / rowsN * 100).toFixed(2),
+              height: (100 / rowsN).toFixed(2),
+            };
+          });
+          if (self.lineFlashTimer) clearTimeout(self.lineFlashTimer);
+          self.lineFlashTimer = setTimeout(function () {
+            self.lineFlashTimer = null;
+            if (!self.pageAlive) return;
+            self.setData({ lineFlashList: [] });
+          }, 460);
+        }
+
         self.setData({
           vm: vm,
           chargeWidth: vm.charge ? Math.max(0, vm.charge.end - vm.charge.start) : 0,
@@ -562,6 +654,9 @@ Page({
           scoreNum: Number(String(vm.scoreText || '').replace(/\D/g, '')) || 0,
           burstList: burstList,
           sparkList: sparks || self.data.sparkList,
+          nextCells: nextCells,
+          lineFlashList: lineFlashList,
+          linkPathList: linkPathList,
         });
         // 留一份「这一帧每格是第几号纹」给下一帧取色。vm.cells 是同一个对象，
         // 下一帧玩法会把它改写成收走后的样子，到那时就读不到被收走那张牌的颜色了。

@@ -2192,6 +2192,142 @@ check('推石入位：图每局现抽，可解、落在本档区间、同档不�
   assert.ok(seen.size >= 20, '25 局只抽出 ' + seen.size + ' 张不同的图，图又固化了');
 });
 
+check('落石垒基：先给下一块、盘上有落点虚影、化层能说出是哪几行', function () {
+  // 这三样是这一门「能想两步」的全部依据：
+  // 没有下一块 = 只能对当前这块做反应；没有虚影 = 每次右移都要自己数格子；
+  // 说不出哪几行化 = 玩家只看得到分数涨了，看不到自己刚一次化了几层。
+  const mod = require('../minigames/blocks.js');
+  const params = data.buildParamsAt(data.getMethod('stonewall'), 1);
+  let vm = null;
+  const ctrl = mod.create({
+    params: params, difficulty: 1, perks: { tier: 0 }, tip: 't', theme: {},
+    render: function (v) { vm = v; }, finish: function () {},
+  });
+  ctrl.start();
+  assert.ok(vm.blocks && vm.blocks.next, '开局没有给出下一块');
+  let cells = 0;
+  for (const c of vm.blocks.next.cells) {
+    assert.ok(c[0] >= 0 && c[0] <= 3 && c[1] >= 0 && c[1] <= 3, '下一块放不进 4×4 预告格');
+    cells += 1;
+  }
+  assert.strictEqual(cells, 4, '下一块不是四格');
+  // 当前块与下一块必须是两个不同的形状对象：同一块既落又在预告里，等于没给信息。
+  assert.ok(vm.blocks.piece, '当前块没有交出来');
+  const ghosts = vm.cells.filter(function (c) { return String(c.cls).indexOf('cell--ghost') >= 0; });
+  assert.strictEqual(ghosts.length, 4, '落点虚影不是四格（' + ghosts.length + '）');
+  // 虚影只落在空格上：压在已有的石上就是假落点。
+  for (const g of ghosts) assert.ok(!g.label, '虚影格不该带内容');
+
+  // 满行判定：整行垒满必须报出来，而且要报对行号。
+  const cols = 8;
+  const rows = 4;
+  const board = new Array(cols * rows).fill(0);
+  for (let c = 0; c < cols; c += 1) board[3 * cols + c] = 1;
+  for (let c = 0; c < cols; c += 1) board[2 * cols + c] = 2;
+  board[cols] = 1;
+  assert.deepStrictEqual(mod.fullRows(board, cols, rows), [2, 3], '满行报错');
+  assert.strictEqual(mod.clearLines(board, cols, rows).lines, 2, '化的行数与满行不符');
+  ctrl.destroy();
+});
+
+check('同数相合：合并处迸溅、合并格弹、新块由小长出来', function () {
+  // 2048 的反馈只该给「合成了」：每一手都弹字，玩家半分钟就学会无视。
+  // 这里真的推几手，验「合过的地方有粒子 + 合并格带 pop 类 + 新块带 fresh 类」。
+  const mod = require('../minigames/merge.js');
+  const params = data.buildParamsAt(data.getMethod('heyuan'), 1);
+  let vm = null;
+  const ctrl = mod.create({
+    params: params, difficulty: 1, perks: { tier: 0 }, tip: 't', theme: {},
+    render: function (v) { vm = v; }, finish: function () {},
+  });
+  ctrl.start();
+  let sawMerge = false;
+  let sawFresh = false;
+  const dirs = ['left', 'up', 'right', 'down'];
+  for (let i = 0; i < 40 && !sawMerge; i += 1) {
+    const before = vm.cleared ? vm.cleared.key : 0;
+    ctrl.move(dirs[i % 4]);
+    const pops = vm.cells.filter(function (c) { return /cell--pop\d/.test(c.cls); });
+    if (pops.length) {
+      sawMerge = true;
+      // 合并的格一定同时是「这一手收走/生成的位置」，页面靠它算粒子坐标。
+      assert.ok(vm.cleared && vm.cleared.key > before, '合并了却没交出位置，粒子无处可落');
+      assert.ok(pops.length <= vm.cleared.cells.length, '弹的格比合并的格还多');
+    }
+    if (vm.cells.some(function (c) { return /cell--fresh\d/.test(c.cls); })) sawFresh = true;
+  }
+  assert.ok(sawMerge, '推了 40 手一次合并都没被标出来');
+  assert.ok(sawFresh, '新块从来没有出场标记');
+  ctrl.destroy();
+});
+
+check('牵灵引线：连上的那一对真的画得出一条折线', function () {
+  // 连连看考的是「能不能连上」。牌直接消失时，玩家只看得到结果，
+  // 看不到它是从上边绕过去的 —— 于是这一门最该被学会的那条判法永远学不会。
+  const mod = require('../minigames/link.js');
+  const cols = 6;
+  const rows = 4;
+  const n = cols * rows;
+  function mk(list) {
+    const b = new Array(n).fill(0);
+    for (const x of list) b[x[0]] = x[1];
+    return b;
+  }
+  // 贴着的两枚：路径两点，一段。
+  const near = mk([[0, 1], [1, 1]]);
+  const p1 = mod.findPath(near, cols, rows, 0, 1);
+  assert.ok(p1 && p1.length === 2, '相邻同纹找不到两点路径');
+  // 中间挡着别的纹、上下被围：只能从盘外绕，四个转折点。
+  const around = mk([[0, 1], [1, 2], [2, 2], [3, 1],
+    [6, 3], [7, 3], [8, 3], [9, 3], [12, 3], [13, 3], [14, 3], [15, 3]]);
+  const p2 = mod.findPath(around, cols, rows, 0, 3);
+  assert.ok(p2 && p2.length >= 3, '绕行的连线找不到');
+  // 相邻两点必定同行或同列：页面因此只画横线竖线，不用算角度。
+  for (let i = 1; i < p2.length; i += 1) {
+    const a = p2[i - 1];
+    const b = p2[i];
+    assert.ok(a.r === b.r || a.c === b.c, '路径里出现了斜线');
+  }
+  assert.ok(p2.some(function (p) { return p.r === 0 || p.c === 0; }), '这次绕行没有出盘面');
+  // 判定与路径必须是同一个函数：两套实现迟早会分叉。
+  assert.strictEqual(mod.canLink(around, cols, rows, 0, 3), true);
+  assert.strictEqual(mod.findPath(near, cols, rows, 0, 2), null, '不同纹也给了路径');
+});
+
+check('三秀同收：无效互换会抖，收走之后新苗会落下', function () {
+  // 这两条是玩家判断「刚才发生了什么」的唯一线索：
+  // 光少 2 息、不抖，他会以为没点上；收了牌却看不出新苗落下，连锁就像凭空发生。
+  const mod = require('../minigames/match.js');
+  const params = data.buildParamsAt(data.getMethod('sanxiu'), 1);
+  let vm = null;
+  const ctrl = mod.create({
+    params: params, difficulty: 1, perks: { tier: 0 }, tip: 't', theme: {},
+    render: function (v) { vm = v; }, finish: function () {},
+  });
+  ctrl.start();
+  ctrl.tap(0);
+  ctrl.tap(1);
+  const shook = vm.cells.filter(function (c) { return /cell--shake\d/.test(c.cls); }).length;
+  const dropped = vm.cells.filter(function (c) { return /cell--drop\d/.test(c.cls); }).length;
+  assert.ok(shook === 2 || dropped > 0,
+    '这一步既没抖也没落（抖 ' + shook + ' 格 / 落 ' + dropped + ' 格），玩家看不出发生了什么');
+
+  // 补苗的格数必须等于消掉后空出来的格数：少补一格，盘面会永久缺一块。
+  const cols = 5;
+  const rows = 5;
+  const board = new Array(cols * rows).fill(0);
+  for (let i = 0; i < board.length; i += 1) board[i] = (i % 3) + 1;
+  // 清掉最下面一行三格，看 collapse 补回几格。
+  board[20] = 0;
+  board[21] = 0;
+  board[22] = 0;
+  const fills = [];
+  const out = mod.collapse(board, cols, rows, 5, fills);
+  assert.strictEqual(fills.length, 3, '补苗格数与空格数不符');
+  assert.ok(out.every(function (v) { return v > 0; }), '补完之后盘上还有空格');
+  ctrl.destroy();
+});
+
 check('两门的评级说明都写清「反悔封顶」，玩家查得到', function () {
   // 说明页照抄 lines().items，局内只在复位时 flash 一句；少这一条，
   // 玩家复位后会以为还能拿 S，结算给 A 就成了「凭什么」。

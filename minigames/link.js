@@ -18,10 +18,16 @@ const DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
 // 最多两次转折的连线判定。把盘面外扩一圈空位，边上的灵纹也能从盘外绕过去。
 // 纯函数：玩法层和测试用同一套规则，改判定不会偷偷改掉测试期望。
-function canLink(board, cols, rows, a, b) {
-  if (a === b || a < 0 || b < 0 || a >= board.length || b >= board.length) return false;
+//
+// 返回的是**一条真的线**，不是「能连 / 不能连」：
+// 玩家点两枚同纹，最想看见的是那根折线从哪儿绕过去了 —— 尤其「从上边绕」「从左边绕」
+// 这类判法，光看两枚牌消失，学不会这一门的规则。点失败时也要有地方说「卡在哪」，
+// 所以路径由这里交出来，页面只负责画。
+// 坐标是外扩后的网格坐标（0 与 cols+1 都算盘外），页面按「减半格」换算成百分比。
+function findPath(board, cols, rows, a, b) {
+  if (a === b || a < 0 || b < 0 || a >= board.length || b >= board.length) return null;
   const va = board[a];
-  if (!va || va !== board[b]) return false;
+  if (!va || va !== board[b]) return null;
   const W = cols + 2;
   const H = rows + 2;
   const ext = new Array(W * H).fill(0);
@@ -36,7 +42,9 @@ function canLink(board, cols, rows, a, b) {
   const bc = b % cols + 1;
   // 状态是 (r, c, dir, turns)：dir=-1 是还没定向的起手，换一次方向记一次转折。
   const best = {};
-  const queue = [{ r: ar, c: ac, dir: -1, turns: 0 }];
+  const parent = {};
+  const pos = {};
+  const queue = [{ r: ar, c: ac, dir: -1, turns: 0, key: 's' }];
   let head = 0;
   while (head < queue.length) {
     const cur = queue[head];
@@ -47,15 +55,48 @@ function canLink(board, cols, rows, a, b) {
       const nr = cur.r + DIRS[d][0];
       const nc = cur.c + DIRS[d][1];
       if (nr < 0 || nr >= H || nc < 0 || nc >= W) continue;
-      if (nr === br && nc === bc) return true;
+      if (nr === br && nc === bc) {
+        // 走到终点就顺着 parent 一路回溯，逐格路径压成转折点再交出去。
+        const pts = [{ r: br, c: bc }];
+        let k = cur.key;
+        while (k !== 's') {
+          pts.push(pos[k]);
+          k = parent[k];
+        }
+        pts.push({ r: ar, c: ac });
+        pts.reverse();
+        return compressPath(pts);
+      }
       if (ext[nr * W + nc]) continue;             // 中间格必须为空，终点已在上面判过
       const key = (nr * W + nc) * 4 + d;
       if (best[key] !== undefined && best[key] <= turns) continue;
       best[key] = turns;
-      queue.push({ r: nr, c: nc, dir: d, turns: turns });
+      parent[key] = cur.key;
+      pos[key] = { r: nr, c: nc };
+      queue.push({ r: nr, c: nc, dir: d, turns: turns, key: key });
     }
   }
-  return false;
+  return null;
+}
+
+// 去掉中间共线的点：一格一格的路径画出来跟锯齿一样，也没必要。
+// 只剩转折点之后，相邻两点必定同行或同列 —— 页面因此只需要画横线与竖线，不用算角度。
+function compressPath(pts) {
+  if (pts.length <= 2) return pts;
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length - 1; i += 1) {
+    const a = out[out.length - 1];
+    const b = pts[i];
+    const c = pts[i + 1];
+    if ((a.r === b.r && b.r === c.r) || (a.c === b.c && b.c === c.c)) continue;
+    out.push(b);
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+
+function canLink(board, cols, rows, a, b) {
+  return !!findPath(board, cols, rows, a, b);
 }
 
 function findPair(board, cols, rows) {
@@ -133,6 +174,8 @@ function create(ctx) {
   let done = false;
   let started = false;
   let hintTimer = null;
+  // 连线的自增序号：相邻两次收的路径完全可能一模一样，页面靠 key 变化才知道要重播。
+  let pathSeq = 0;
 
   function render() { ctx.render(vm); }
 
@@ -248,13 +291,16 @@ function create(ctx) {
       combo = 0;
       left = Math.max(0, left - 2);
       C.flash(vm, '纹不合 · 少 2 息', 'bad');
-    } else if (!canLink(board, cols, rows, a, b)) {
+    } else if (!findPath(board, cols, rows, a, b)) {
       selected = -1;
       mistakes += 1;
       combo = 0;
       left = Math.max(0, left - 2);
       C.flash(vm, '隔着纹，连不上 · 少 2 息', 'bad');
     } else {
+      // 路径要在清牌之前算：清完那两格就变成 0，起点与终点都不再是「同纹」，
+      // 再怎么找也找不到这条线了。
+      const path = findPath(board, cols, rows, a, b);
       board[a] = 0;
       board[b] = 0;
       selected = -1;
@@ -263,6 +309,10 @@ function create(ctx) {
       const gain = addScore(100);
       C.flash(vm, '灵契相合 +' + gain, 'good');
       C.markCleared(vm, [a, b]);
+      if (path) {
+        pathSeq += 1;
+        vm.linkPath = { key: pathSeq, points: path };
+      }
       if (pairsDone >= pairs) {
         score += Math.max(0, left) * 4;
         paint();
@@ -351,6 +401,7 @@ function lines(p) {
 }
 
 module.exports = {
-  id: 'link', name: '灵纹连线', create: create, lines: lines,
+  id: 'link',
+  findPath: findPath, name: '灵纹连线', create: create, lines: lines,
   canLink: canLink, findPair: findPair, GLYPHS: GLYPHS,
 };

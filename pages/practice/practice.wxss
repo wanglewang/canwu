@@ -544,7 +544,10 @@
     margin-top: 22rpx;
     padding: 4rpx;
     border-radius: 22rpx;
-    overflow: hidden;
+    /* 不裁切：连连看的连线要从盘外绕过去，边上的灵纹「从上边绕过」的那一段
+       正好落在盘面外半格。裁掉的话，玩家只看到两条断在盘边的竖线。
+       圆角靠 .grid::after 自己的 border-radius 撑住，不依赖这一层裁切。 */
+    overflow: visible;
     /* 台面：墨玉底 + 上缘暖光 + 下缘暗角。全部写在 .grid 自己的背景上，
        不另起一层伪元素——伪元素盖在格子上，整盘会被压成一片灰。 */
     background-color: var(--well, #0b2331);
@@ -1712,6 +1715,122 @@
   margin-top: var(--sp-4);
 }
 
+/* ---------- 落石垒基：下一块预告 ----------
+   四乘四的小格，摆在方向键同一行左侧。它是「规划」的唯一依据，
+   所以给足对比度：亮块用与主盘同一套五行色，空格只留一个几乎看不见的底点。 */
+.next-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+
+.next-row__label { color: var(--c-imm-text-3); }
+
+.next-piece {
+  display: flex;
+  flex-wrap: wrap;
+  /* 四格 × 19rpx + 左右内边 8rpx = 84rpx。写 76 会让第四格换到下一行，
+     看起来像「下一块是三格的一条」。 */
+  width: 84rpx;
+  padding: 4rpx;
+  border-radius: 8rpx;
+  background-color: var(--well, #0b2331);
+  box-shadow: inset 0 0 0 1rpx rgba(207, 174, 109, 0.32);
+}
+
+.next-piece__cell {
+  width: 19rpx;
+  height: 19rpx;
+  border-radius: 3rpx;
+}
+
+.next-piece__cell--on {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.55), 0 1rpx 2rpx rgba(0, 0, 0, 0.4);
+}
+
+.next-piece__cell--t1 { background-color: #4f8f5a; }
+.next-piece__cell--t2 { background-color: #c25b3f; }
+.next-piece__cell--t3 { background-color: #b8893b; }
+.next-piece__cell--t4 { background-color: #7d8398; }
+.next-piece__cell--t5 { background-color: #3b7a8c; }
+
+/* 落点虚影：这一块直线掉下去会停在哪。只描一圈淡边、不填色——
+   填了就和真的落定块分不开，玩家会以为自己已经放好了。 */
+.cell--ghost {
+  background: rgba(207, 174, 109, 0.16);
+  background-image: none;
+  box-shadow: inset 0 0 0 3rpx rgba(207, 174, 109, 0.55);
+  opacity: 0.85;
+}
+
+.cell--ghost.cell--t1 { box-shadow: inset 0 0 0 3rpx rgba(119, 179, 132, 0.62); }
+.cell--ghost.cell--t2 { box-shadow: inset 0 0 0 3rpx rgba(214, 124, 98, 0.62); }
+.cell--ghost.cell--t3 { box-shadow: inset 0 0 0 3rpx rgba(206, 166, 94, 0.62); }
+.cell--ghost.cell--t4 { box-shadow: inset 0 0 0 3rpx rgba(158, 164, 184, 0.62); }
+.cell--ghost.cell--t5 { box-shadow: inset 0 0 0 3rpx rgba(104, 168, 186, 0.62); }
+
+/* ---------- 牵灵引线：连上的那一对之间的折线 ----------
+   只画横段与竖段（玩法层已经把共线点压掉了），所以宽高各写一条就够。
+   线出盘是允许的：边上的灵纹本来就要从盘外绕，格子外面那半格也属于这条线。 */
+.grid__link {
+    position: absolute;
+    z-index: 4;
+    pointer-events: none;
+    background: var(--c-imm-gold, #cfae6d);
+    box-shadow: 0 0 14rpx rgba(207, 174, 109, 0.72);
+    border-radius: 3rpx;
+}
+
+.grid__link--h {
+    height: 5rpx;
+    margin-top: -2.5rpx;
+    transform-origin: left center;
+    animation: linkGrowX 190ms ease-out both;
+}
+
+.grid__link--v {
+    width: 5rpx;
+    margin-left: -2.5rpx;
+    transform-origin: center top;
+    animation: linkGrowY 190ms ease-out both;
+}
+
+@keyframes linkGrowX {
+    from { transform: scaleX(0.02); }
+    to { transform: scaleX(1); }
+}
+
+@keyframes linkGrowY {
+    from { transform: scaleY(0.02); }
+    to { transform: scaleY(1); }
+}
+
+/* 化行：整行一道暖光扫过。这是浮层，不是格子状态——
+   盘面在化层那一刻已经变空，格子自己没有「我刚被消掉」的痕迹可演。 */.grid__line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 3;
+  border-radius: 6rpx;
+  background: linear-gradient(90deg,
+    rgba(255, 240, 200, 0) 0%,
+    rgba(255, 248, 220, 0.94) 16%,
+    rgba(255, 252, 236, 0.98) 50%,
+    rgba(255, 248, 220, 0.94) 84%,
+    rgba(255, 240, 200, 0) 100%);
+  animation: lineSweep 440ms ease-out forwards;
+}
+
+@keyframes lineSweep {
+    0% { transform: scaleY(0.55); opacity: 0; }
+    22% { opacity: 0.96; }
+    62% { transform: scaleY(1.06); opacity: 0.7; }
+    100% { transform: scaleY(1.2); opacity: 0; }
+}
+
 .pad__key {
   flex: 1;
   min-height: var(--touch);
@@ -1729,6 +1848,75 @@
   /* 一颗能按下去的玉键：底边留 5rpx 厚度，按下去缩回 3rpx，手感靠这两行。 */
   box-shadow: 0 5rpx 0 rgba(0, 0, 0, 0.34), inset 0 2rpx 0 rgba(255, 255, 255, 0.9);
   transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+/* 方向键图形：全部用边框画三角形，不用字体里的箭头字符。
+   ← ⟳ ⇓ 这类符号在部分安卓 / 桌面浏览器会被系统换成彩色立体 emoji，
+   四个白键上出现三种材质，一眼就是「网页里贴了个符号」。 */
+.pad__icon {
+    position: relative;
+    width: 0;
+    height: 0;
+    border-style: solid;
+}
+
+.pad__icon--left {
+    border-width: 11rpx 18rpx 11rpx 0;
+    border-color: transparent var(--jade-ink, #3c382a) transparent transparent;
+}
+
+.pad__icon--right {
+    border-width: 11rpx 0 11rpx 18rpx;
+    border-color: transparent transparent transparent var(--jade-ink, #3c382a);
+}
+
+.pad__icon--up {
+    border-width: 0 11rpx 16rpx 11rpx;
+    border-color: transparent transparent var(--jade-ink, #3c382a) transparent;
+}
+
+.pad__icon--down {
+    border-width: 16rpx 11rpx 0 11rpx;
+    border-color: var(--jade-ink, #3c382a) transparent transparent transparent;
+}
+
+/* 转石：一个缺口的圆环 + 一枚小尖。缺的那一口就是「转向」的意思。 */
+.pad__icon--rotate {
+    width: 26rpx;
+    height: 26rpx;
+    border: 4rpx solid var(--jade-ink, #3c382a);
+    border-right-color: transparent;
+    border-radius: 50%;
+}
+
+.pad__icon--rotate::after {
+    content: "";
+    position: absolute;
+    right: -6rpx;
+    top: -1rpx;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 6rpx 0 6rpx 9rpx;
+    border-color: transparent transparent transparent var(--jade-ink, #3c382a);
+}
+
+/* 速降：一横压在向下的三角上，与「下」区分开——下是一格，降是到底。 */
+.pad__icon--drop {
+    border-width: 16rpx 11rpx 0 11rpx;
+    border-color: var(--jade-ink, #3c382a) transparent transparent transparent;
+    margin-top: 10rpx;
+}
+
+.pad__icon--drop::before {
+    content: "";
+    position: absolute;
+    top: -12rpx;
+    left: -11rpx;
+    width: 22rpx;
+    height: 4rpx;
+    border-radius: 2rpx;
+    background: var(--jade-ink, #3c382a);
 }
 
 .pad__key--press {
@@ -1836,13 +2024,87 @@
     font-weight: 700;
 }
 
-.cell--num.cell--t2 { color: #2f6b5b; }
-.cell--num.cell--t3 { color: #a8791f; }
+.cell--num.cell--t2 { color: #2f6b5b; }.cell--num.cell--t3 { color: #a8791f; }
 .cell--num.cell--t4 { color: #b4453c; }
 .cell--num.cell--t5 { color: #6f5b9e; }
 .cell--num.cell--t6 { color: #3d7f8c; }
 .cell--num.cell--t7 { color: #8a4560; }
 .cell--num.cell--t8 { color: #4f6b45; }
+
+/* ---------- 同数相合：数值牌 ----------
+   2048 的读法只有一条：数字多大。底色是这条信息的第二层编码——
+   从小到大的米黄排到赭红，扫一眼盘面就知道「大的都在左下角」。
+   旧版白底黑字 + 只换字色，深玉台上一格一格都是白补丁，看不出梯度。 */
+.cell--tile {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0));
+    color: #3a3226;
+    font-size: 30rpx;
+    font-weight: 700;
+    letter-spacing: -1rpx;
+}
+
+/* 色阶要「跳」得出来：相邻两档只差一点点的话，玩家还是得逐格读数字。
+   从米白一路走到赭红，每一档都比上一档暗一截、红一截。 */
+.cell--tile.cell--t1 { background-color: #ece2cb; }
+.cell--tile.cell--t2 { background-color: #e0c793; }
+.cell--tile.cell--t3 { background-color: #d4ac6c; }
+.cell--tile.cell--t4 { background-color: #c68d4c; color: #fff6e6; }
+.cell--tile.cell--t5 { background-color: #b9713c; color: #fff6e6; }
+.cell--tile.cell--t6 { background-color: #a85733; color: #fff4e0; }
+.cell--tile.cell--t7 { background-color: #96402f; color: #fff4e0; }
+.cell--tile.cell--t8 { background-color: #7f3340; color: #fff4e0; }
+
+/* 空格：凹进去的一格。压深 + 上缘内影，和凸起的数值牌正好一凹一凸。 */
+.cell--slot {
+    background: rgba(0, 0, 0, 0.26);
+    background-image: none;
+    box-shadow: inset 0 3rpx 8rpx rgba(0, 0, 0, 0.55), inset 0 -1rpx 0 rgba(255, 246, 220, 0.05);
+}
+
+/* 三位数比两位数多半格宽、四位数再窄一号：1024 用 30rpx 会顶出格子。 */
+.cell--tile-3 { font-size: 24rpx; }
+.cell--tile-4 { font-size: 20rpx; letter-spacing: -2rpx; }
+
+/* 当前最大的一块压一圈金边：它是这一局的进度条，也是玩家判断「还差几步」的锚点。 */
+.cell--best {
+    box-shadow: inset 0 0 0 3rpx rgba(207, 174, 109, 0.85), 0 0 18rpx rgba(207, 174, 109, 0.32);
+}
+
+/* ---------- 三秀同收：不成立与刚落下 ----------
+   两条都只动 transform：动效被系统关掉时，牌还在原位，只是不抖也不落。 */
+.cell--shake0, .cell--shake1 { animation: cellShake 280ms ease-in-out; }
+.cell--drop0, .cell--drop1 { animation: cellDrop 220ms ease-out; }
+
+@keyframes cellShake {
+    0%, 100% { transform: translateX(0); }
+    26% { transform: translateX(-7rpx); }
+    58% { transform: translateX(7rpx); }
+    82% { transform: translateX(-3rpx); }
+}
+
+/* 新苗从上方压进来：起点在格子外面一点，落定时回正。
+   不做透明度渐变——半透明的灵纹牌叠在别的牌上会看成「多了一张」。 */
+@keyframes cellDrop {
+    from { transform: translateY(-46%) scaleY(0.84); }
+    to { transform: translateY(0) scaleY(1); }
+}
+
+/* 合并弹 / 新块弹：两个不同的手感，不共用一条动画。
+   合并是「撞上了」——缩一下再弹开；新块是「凭空出现」——从半大长到整格。
+   两条都只动 transform，不动 opacity：动效被系统关掉时格子还在，只是不弹。 */
+.cell--pop0, .cell--pop1 { animation: tileMerge 200ms ease-out; }
+.cell--fresh0, .cell--fresh1 { animation: tileFresh 190ms ease-out; }
+
+@keyframes tileMerge {
+    0% { transform: scale(0.84); }
+    58% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+@keyframes tileFresh {
+    0% { transform: scale(0.46); }
+    100% { transform: scale(1); }
+}
 
 /* 题面格与自填格必须一眼分得开：题面压深一档、自填用亮纸。 */
 .cell--given {

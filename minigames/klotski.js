@@ -191,10 +191,10 @@ function create(ctx) {
   vm.extras.showReset = true;
   vm.pad = {
     keys: [
-      { id: 'up', dir: 'up', glyph: '▲' },
-      { id: 'left', dir: 'left', glyph: '◀' },
-      { id: 'down', dir: 'down', glyph: '▼' },
-      { id: 'right', dir: 'right', glyph: '▶' },
+      { id: 'up', dir: 'up', icon: 'up', glyph: '上' },
+      { id: 'left', dir: 'left', icon: 'left', glyph: '左' },
+      { id: 'down', dir: 'down', icon: 'down', glyph: '下' },
+      { id: 'right', dir: 'right', icon: 'right', glyph: '右' },
     ],
   };
 

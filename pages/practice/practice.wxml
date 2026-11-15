@@ -318,6 +318,14 @@
           <view wx:elif="{{item.emblem}}" class="cell__emblem emblem--{{item.emblem}}"></view>
           <text wx:else>{{item.label}}</text>
         </view>
+        <!-- 连上的那一对之间画一条折线：连连看考的是「能不能连上」，
+             牌直接消失的话，玩家只看得到结果，看不到它是从上边绕过去的。 -->
+        <view wx:for="{{linkPathList}}" wx:key="id"
+          class="grid__link grid__link--{{item.dir}}"
+          style="left:{{item.left}}%;top:{{item.top}}%;{{item.dir === 'h' ? 'width:' + item.len + '%' : 'height:' + item.len + '%'}}"></view>
+        <!-- 化的那几行整行亮一下：盘面已经清空，光看格子分不出是哪几行消的，
+             而「我一次化了两层」正是这一门最值得被看见的一刻。 -->
+        <view wx:for="{{lineFlashList}}" wx:key="id" class="grid__line" style="top:{{item.top}}%;height:{{item.height}}%"></view>
         <!-- 收牌迸溅：收走的那一格在原位炸开一小把，颜色跟着那张牌的纹样走。
              做成盘面上的独立浮层而不是格子自己的伪元素：消消乐收完立刻掉落重排，
              格子当场换了内容，没法自己演「我被收走了」。 -->
@@ -346,9 +354,22 @@
         </view>
       </view>
 
+      <!-- 下一块预告：与方向键同一行。俄罗斯方块的「想两步」全靠看见它，
+           摆在盘面右侧够不着的地方等于没给。 -->
+      <view wx:if="{{nextCells.length && started && !boardHeld}}" class="next-row">
+        <text class="tiny next-row__label">下一块</text>
+        <view class="next-piece">
+          <view wx:for="{{nextCells}}" wx:key="key" class="next-piece__cell {{item.on ? 'next-piece__cell--on next-piece__cell--t' + item.tone : ''}}"></view>
+        </view>
+      </view>
+
       <!-- 只有持续下落的玩法才挂方向键：挪石 / 转石 / 速降，其余玩法盘面下不留这一排。 -->
       <view wx:if="{{vm.extras.showPad && vm.pad && started && !boardHeld}}" class="pad {{vm.pad.digits ? 'pad--numbers' : ''}}">
-        <view wx:for="{{vm.pad.keys}}" wx:key="id" class="pad__key" data-dir="{{item.dir}}" bindtap="onPad" hover-class="pad__key--press" hover-stay-time="60"><text>{{item.glyph}}</text></view>
+        <view wx:for="{{vm.pad.keys}}" wx:key="id" class="pad__key" data-dir="{{item.dir}}" bindtap="onPad" hover-class="pad__key--press" hover-stay-time="60">
+          <!-- 方向键画 CSS 箭头，不上字体符号：← ⟳ ⇓ 在部分机型会变成彩色 emoji。 -->
+          <view wx:if="{{item.icon}}" class="pad__icon pad__icon--{{item.icon}}"></view>
+          <text wx:else>{{item.glyph}}</text>
+        </view>
       </view>
 
       <view wx:if="{{vm.stage === 'orbit' && vm.orbit}}" class="orbit">

@@ -78,7 +78,7 @@ function findMove(board, cols, rows) {
 }
 
 // 收走三连后，同列上面的落下来，顶上补新苗。新苗可能再凑出一条线 —— 那就是连锁。
-function collapse(board, cols, rows, kinds) {
+function collapse(board, cols, rows, kinds, outFills) {
   const out = board.slice();
   for (let c = 0; c < cols; c += 1) {
     const kept = [];
@@ -88,7 +88,13 @@ function collapse(board, cols, rows, kinds) {
     }
     for (let r = rows - 1; r >= 0; r -= 1) {
       const k = rows - 1 - r;
-      out[r * cols + c] = k < kept.length ? kept[k] : 1 + C.randInt(kinds);
+      if (k < kept.length) {
+        out[r * cols + c] = kept[k];
+      } else {
+        out[r * cols + c] = 1 + C.randInt(kinds);
+        // 新补的那几株要报给页面：它们从上方落进来，跟「本来就在这儿的牌」得分开画。
+        if (outFills) outFills.push(r * cols + c);
+      }
     }
   }
   return out;
@@ -165,6 +171,11 @@ function create(ctx) {
   let mistakes = 0;
   let shuffles = 0;
   let maxChain = 0;
+  // 这一手的动效状态：无效互换抖哪两格、掉落后新补了哪几格。
+  // 用 0/1 交替的类名，相邻两手才会各自重播一次（同名类连挂两帧不播动画）。
+  let fxSeq = 0;
+  let shakeAt = [];
+  let dropAt = [];
   let left = duration;
   let done = false;
   let started = false;
@@ -172,13 +183,16 @@ function create(ctx) {
   function render() { ctx.render(vm); }
 
   function paint() {
+    const alt = fxSeq % 2;
     for (let i = 0; i < n; i += 1) {
       const cell = vm.cells[i];
       cell.arrow = -1;
       cell.end = false;
       cell.cls = 'cell cell--lit cell--chip'
         + (i === selected ? ' cell--sel' : '')
-        + (hintPair && (hintPair[0] === i || hintPair[1] === i) ? ' cell--hintpair' : '');
+        + (hintPair && (hintPair[0] === i || hintPair[1] === i) ? ' cell--hintpair' : '')
+        + (shakeAt.indexOf(i) >= 0 ? ' cell--shake' + alt : '')
+        + (dropAt.indexOf(i) >= 0 ? ' cell--drop' + alt : '');
       cell.label = GLYPHS[board[i] - 1] || GLYPHS[0];
       // 同连连看：盘面画的是纹样，label 只留数据语义。
       cell.crest = board[i];
@@ -251,7 +265,13 @@ function create(ctx) {
       for (let i = 0; i < hits.length; i += 1) board[hits[i]] = 0;
       // 抹零之前先把「收在哪几格」交出去：抹完再 collapse，盘面上就找不到这些位置了。
       C.markCleared(vm, hits);
-      board = collapse(board, cols, rows, kinds);
+      const fills = [];
+      board = collapse(board, cols, rows, kinds, fills);
+      fxSeq += 1;
+      shakeAt = [];
+      // 一次补进来的新苗最多也有一二十格，全挂动画等于整盘乱抖：
+      // 只画最上面那几格（玩家视线本来就在落点附近）。
+      dropAt = fills.slice(0, 8);
       // 递进反馈只分三档：普通三连淡光、一次收四株以上提亮、连锁逐层再提亮。
       // 不新增常驻循环动画，也不往盘面里塞汉字——浮字只落在 HUD 那一层。
       const bright = chain > 1 || hits.length >= 4;
@@ -266,8 +286,8 @@ function create(ctx) {
   function tap(index) {
     if (done || vm.phase !== 'playing' || index < 0 || index >= n) return;
     clearHint();
-    if (selected < 0) { selected = index; paint(); render(); return; }
-    if (selected === index) { selected = -1; paint(); render(); return; }
+    if (selected < 0) { selected = index; shakeAt = []; dropAt = []; paint(); render(); return; }
+    if (selected === index) { selected = -1; shakeAt = []; dropAt = []; paint(); render(); return; }
     const a = selected;
     if (!adjacent(a, index, cols)) { selected = index; paint(); render(); return; }
     selected = -1;
@@ -280,6 +300,11 @@ function create(ctx) {
       board[index] = vb;
       mistakes += 1;
       left = Math.max(0, left - missCost);
+      // 换出去又弹回来，光靠浮字说「不行」是看不见的：
+      // 两格自己抖一下，玩家才知道是「这一步不成立」而不是「没点上」。
+      fxSeq += 1;
+      shakeAt = [a, index];
+      dropAt = [];
       C.flash(vm, '换不出三连 · 少 ' + missCost + ' 息', 'bad');
     } else {
       resolve();
