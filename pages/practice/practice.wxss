@@ -371,6 +371,11 @@
 .hearts .tiny {
     margin-left: 8rpx;
 }
+.hearts__flag {
+    margin-left: auto;
+    font-size: 22rpx;
+}
+
 
 .meter__track {
     overflow: hidden;

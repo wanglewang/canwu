@@ -223,6 +223,7 @@
       <view wx:if="{{vm.extras.showHearts}}" class="hearts mt8">
         <text wx:for="{{heartList}}" wx:key="id" class="heart {{item.on ? 'heart--on' : ''}}">◆</text>
         <text class="tiny">心神 {{vm.hearts.value}} / {{vm.hearts.max}}</text>
+        <text wx:if="{{vm.extras.showFlags}}" class="tag tag--jade hearts__flag">{{vm.flagText}}</text>
       </view>
       <view wx:if="{{vm.extras.showMeter && vm.meter}}" class="meter mt8">
         <text class="tiny">{{vm.meter.label}} {{vm.meter.value}} / {{vm.meter.max}}</text>

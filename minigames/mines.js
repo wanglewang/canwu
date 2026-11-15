@@ -29,9 +29,15 @@ const FLAG_GLYPH = '⚑';   // 阵钉：长按钉下的记号，仍是个通用�
 // 时间线跟着盘面走，方向是「盘大了给足」不是「盘大了还压」：
 // 6×6 沿用 25/45/75，9×9 是 56/101/169。复杂度已经交给盘面与禁制数承担，
 // 秒表只负责让一局别拖太久——把 9×9 也卡在 25 秒，那不叫难，那叫不可能。
-function gradeLine(n) {
+//
+// lineScale 是章内的唯一旋钮：data/levels.js 按段把三条线压到 70%（第 40 段）。
+// 盘面与禁制数只在换章时变，章内 200 关靠这一条收紧——所以它必须真被读走。
+// 一度它只是被 buildParamsAt 生成、没有任何人消费，界面照样报「S 线 −3%」，
+// 而盘面一关都没变：那是屏幕上的一句谎话。
+function gradeLine(n, scale) {
   const base = 25 * (n / 36);
-  return [Math.round(base), Math.round(base * 1.8), Math.round(base * 3)];
+  const k = typeof scale === 'number' ? Math.max(0.5, Math.min(1, scale)) : 1;
+  return [Math.round(base * k), Math.round(base * 1.8 * k), Math.round(base * 3 * k)];
 }
 
 function create(ctx) {
@@ -41,8 +47,9 @@ function create(ctx) {
   const cols = p.cols || 6;
   const rows = p.rows || 6;
   const n = cols * rows;
-  // 本盘的三条时间线：跟着格数走（6×6 是 25/45/75，9×9 是 56/101/169）。
-  const line = gradeLine(n);
+  // 本盘的三条时间线：跟着格数走（6×6 是 25/45/75，9×9 是 56/101/169），
+  // 再乘章内那一段的 lineScale（第 40 段 70%）。
+  const line = gradeLine(n, p.lineScale);
   const depth = Math.max(0, Math.min(4, typeof p.depth === 'number' ? p.depth : 0));
   // 禁制数已由 buildParams 按 goal 缩放过（简单 5 → 绝境 8）。
   // 旧写法在这里又叠一次 hard ? +3，与缩放重复，且 ctx.difficulty 只有 normal / hard
@@ -62,6 +69,10 @@ function create(ctx) {
   vm.extras.showHearts = true;
   vm.extras.showGradeNow = false;
   vm.extras.noGuess = false;
+  // 阵钉读数是这一门的「第三条线」：盘面数字、盘上阵钉、剩余禁制数三者要对得上，
+  // 玩家才知道自己钉多了还是钉少了。只钉不看数，等于少了一半信息。
+  vm.extras.showFlags = true;
+  vm.flagText = '阵钉 0 / ' + mineCount;
   vm.hearts = { value: maxHearts, max: maxHearts };
 
   const bag = C.TimerBag();
@@ -254,13 +265,22 @@ function create(ctx) {
     return Math.max(0, Math.round((n - mineCount) * 10 - elapsed * 2 - (maxHearts - hearts) * 60));
   }
 
+  function flagCount() {
+    let k = 0;
+    for (let i = 0; i < n; i += 1) if (flags[i]) k += 1;
+    return k;
+  }
+
   function syncHud() {
     const opened = openedCount();
     const safeTotal = n - mineCount;
+    const flagged = flagCount();
     vm.timeText = C.mmss(elapsed);
     vm.progress = C.pct(opened, safeTotal);
     vm.progressText = opened + ' / ' + safeTotal + ' 格';
     vm.scoreText = '已探 ' + opened + ' / ' + safeTotal;
+    // 钉超了也照实报（7 / 6），不替玩家修正——「钉多了」本身就是一条线索。
+    vm.flagText = '阵钉 ' + flagged + ' / ' + mineCount;
     vm.hearts = { value: hearts, max: maxHearts };
     vm.goal = C.paceGoal(elapsed, line);
   }
@@ -421,10 +441,14 @@ function create(ctx) {
       render();
       return;
     }
+    const before = openedCount();
     revealFrom(index);
+    const got = openedCount() - before;
     paint();
     syncHud();
-    C.flash(vm, theme.hit || '石格无事', 'good');
+    // 开出一片与只开一格，是两种手感：前者该有「石面裂开」的分量，后者才是「无事」。
+    // 以前两处都报「石格无事」，推对了一整片也看不出推对了。
+    C.flash(vm, got > 1 ? '石开 ' + got + ' 格' : (theme.hit || '石格无事'), 'good');
     if (checkWin()) return;
     render();
   }
@@ -433,6 +457,7 @@ function create(ctx) {
     if (done || vm.phase !== 'playing' || revealed[index] || exposed[index] || sensedSet[index]) return;
     flags[index] = !flags[index];
     paint();
+    syncHud();
     render();
   }
 
@@ -452,7 +477,7 @@ function lines(p) {
   const hearts = (p && typeof p.hearts === 'number') ? p.hearts : HEARTS_BY_DEPTH[depth];
   const cols = (p && p.cols) || 6;
   const rows = (p && p.rows) || 6;
-  const line = gradeLine(cols * rows);
+  const line = gradeLine(cols * rows, p && p.lineScale);
   return {
     rule: '按探完全盘的用时（本档 ' + hearts + ' 盏心神，折了只扣结算分，不影响档位）',
     items: ['本档 ' + cols + '×' + rows + ' 盘 · ' + ((p && p.mines) || 6) + ' 处禁制 · ' + hearts + ' 盏心神',

@@ -1284,6 +1284,68 @@ check('循数勘禁诀：五档禁制数与心神数真的分开，不再叠一�
   } finally { restoreClock(); }
 });
 
+check('循数勘禁诀：章内 lineScale 真被读走，S 线随段收紧而不是只写在界面上', function () {
+  installClock();
+  try {
+    const m = data.getMethod('tanlei');
+    const first = data.buildParamsAt(m, 1);
+    const last = data.buildParamsAt(m, 200);
+    assert.ok(typeof first.lineScale === 'number' && typeof last.lineScale === 'number', 'buildParamsAt 没给 lineScale');
+    assert.ok(last.lineScale < first.lineScale, '章内 lineScale 没有随段收紧');
+    // 只生成不消费是最容易漏的一种：界面报「S 线 −3%」，盘面一关都没变。
+    const sOf = function (params) {
+      const L = index.gradeLines('mines', params);
+      return Number(String(L.items[1]).replace(/[^0-9]/g, ''));
+    };
+    const s1 = sOf(first);
+    const s2 = sOf(last);
+    assert.ok(s2 < s1, '末段的 S 线没比段首短（' + s1 + ' → ' + s2 + '），lineScale 没被 lines() 读走');
+    assert.ok(Math.abs(s2 / s1 - last.lineScale) < 0.06, 'S 线收紧幅度与 lineScale 对不上（' + s1 + ' → ' + s2 + '）');
+    // 局内的三条线也得是同一份：create 用的 line 与 lines() 报的必须一致。
+    const ctx = makeCtx(m, {}, last);
+    ctx.c.start();
+    const goal = ctx.st.vm.goal || '';
+    assert.ok(goal.indexOf(String(s2)) >= 0, '局内目标句没报出本段的 S 线（' + goal + '，应为 ' + s2 + '）');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('循数勘禁诀：阵钉读数常驻，钉超了照实报 7 / 6', function () {
+  installClock();
+  try {
+    const m = data.getMethod('tanlei');
+    const params = data.buildParams(m, 'easy');
+    const ctx = makeCtx(m, {}, params);
+    ctx.c.start();
+    ctx.c.tap(14);
+    const total = params.mines;
+    assert.strictEqual(ctx.st.vm.flagText, '阵钉 0 / ' + total, '开局阵钉读数不对：' + ctx.st.vm.flagText);
+    let marked = 0;
+    for (let i = 0; i < ctx.st.vm.cells.length && marked < total + 1; i += 1) {
+      if (ctx.st.vm.cells[i].cls.indexOf('cell--hidden') < 0) continue;
+      ctx.c.longpress(i);
+      marked += 1;
+    }
+    assert.strictEqual(ctx.st.vm.flagText, '阵钉 ' + marked + ' / ' + total, '长按钉阵钉后读数没跟着走');
+    assert.ok(marked > total, '没钉到超出的格数，这条断言没测到 7 / 6 的情况');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('循数勘禁诀：开出一片要报格数，不能一律「石格无事」', function () {
+  installClock();
+  try {
+    const m = data.getMethod('tanlei');
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
+    ctx.c.start();
+    // 首点必展开一片（mines.js 保证首点九邻无禁制），所以第一下就该报格数。
+    ctx.c.tap(14);
+    const flash = (ctx.st.vm.fx && ctx.st.vm.fx.text) || '';
+    assert.ok(/^石开 [0-9]+ 格$/.test(flash), '首点开了一片却没报格数：' + flash);
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
 check('循数勘禁诀：大成勘出 3 处、大圆满 5 处，已勘出的禁制点了不再扣心神', function () {
   installClock();
   try {

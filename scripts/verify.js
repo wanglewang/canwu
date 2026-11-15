@@ -553,6 +553,28 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   if (blocksMod.SHAPES.length !== 7) errors.push('落石垒基不是七种块（7-bag 要求七种各一个）');
   else checked += 1;
 }
+// 8b-5d. 章内旋钮必须真被玩法层读走。只生成不消费是最隐蔽的一种失效：界面上写着
+// 「S 线 94%」，盘面却一关都没变，200 关打下来是同一局——而且静态校验全绿，因为值
+// 确实生成了。勘位辨禁的 lineScale 就这样静默失效过（buildParamsAt 生成、没人读）。
+{
+  const KNOB_READ = {
+    merge: ['fourRate'],
+    mines: ['lineScale'],
+    klotski: ['capFactor'],
+    blocks: ['startLevel', 'linesPerLevel'],
+    biggest: ['timeLimit'],
+  };
+  for (const knobGame of Object.keys(KNOB_READ)) {
+    const knobSrc = fs.readFileSync(path.join(ROOT, 'minigames/' + knobGame + '.js'), 'utf8');
+    for (const knobKey of KNOB_READ[knobGame]) {
+      // 不用反斜杠转义（这个仓库的文件混着 CRLF / LF，手写 \\s 极易在转手中变成字面 s）：
+      // 空格用字符类，点号用 [.]，词尾用否定前瞻。
+      if (!new RegExp('(p|params)[ ]*[.][ ]*' + knobKey + '(?![a-zA-Z])').test(knobSrc)) {
+        errors.push('minigames/' + knobGame + '.js 没读 ' + knobKey + '：章内旋钮只生成不消费，界面报的「本段变化」就是假话');
+      } else checked += 1;
+    }
+  }
+}
 // 8b-6. 顺序点格不许替玩家标出「下一个在哪」。目标格一旦被描边，这一门就退化成
 // 「点发亮的格子」——舒尔特方格练的是目光按序扫过整盘，替它找位置等于把功课做完。
 for (const f of ['minigames/schulte.js', 'pages/practice/practice.wxss']) {
