@@ -213,6 +213,52 @@ function insideCell(inner, p) {
   return p[0] >= 1 && p[1] >= 1 && p[0] <= inner && p[1] <= inner;
 }
 
+// 死位：一块石箱站在这格，被推来推去还推不推得到任何一处阵位。
+// 判定刻意比真实局面**宽松**——只认石壁，把别的石箱、人要怎么绕都当成不存在。
+// 宽松都推不到，真实局面就更推不到，所以标出来的每一格都是真的死：
+// 宁可漏标，绝不冤标。冤标的代价比漏标大得多——玩家会照着暗纹绕开一条本来能走的路。
+// 推进死位的箱子再也推不出来，这一局只能复位（复位过最高 A）。
+function deadCellsOf(level) {
+  const g = parse(level);
+  const cols = g.cols;
+  const rows = g.rows;
+  const wallAt = {};
+  for (let i = 0; i < g.walls.length; i += 1) wallAt[g.walls[i]] = true;
+  const goalAt = {};
+  for (let i = 0; i < g.goals.length; i += 1) goalAt[g.goals[i]] = true;
+  const out = [];
+  for (let start = 0; start < cols * rows; start += 1) {
+    if (wallAt[start] || goalAt[start]) continue;
+    const seen = {};
+    seen[start] = true;
+    const queue = [start];
+    let can = false;
+    while (queue.length && !can) {
+      const b = queue.shift();
+      const r = Math.floor(b / cols);
+      const c = b % cols;
+      for (let k = 0; k < DIRS4.length; k += 1) {
+        const nr = r + DIRS4[k][0];
+        const nc = c + DIRS4[k][1];
+        const sr = r - DIRS4[k][0];
+        const sc = c - DIRS4[k][1];
+        if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+        if (sr < 0 || sr >= rows || sc < 0 || sc >= cols) continue;
+        const to = nr * cols + nc;
+        const stand = sr * cols + sc;
+        // 人要站的那一格是石壁就推不出去；推到的格子是石壁也推不动。
+        if (wallAt[stand] || wallAt[to]) continue;
+        if (goalAt[to]) { can = true; break; }
+        if (seen[to]) continue;
+        seen[to] = true;
+        queue.push(to);
+      }
+    }
+    if (!can) out.push(start);
+  }
+  return out;
+}
+
 // 反向生成：先把每块石箱摆在它自己的阵位上（这一局等于已经「入位」），
 // 再从解往回把箱子一格一格「拉」开。每一步都要求人能站到正推时该站的位置，
 // 所以最后得到的盘面**一定可解**——正向照反序推回去就是答案。
@@ -447,6 +493,9 @@ function solutionMoves(level) {
 function create(ctx) {
   const p = ctx.params || {};
   const theme = ctx.theme || {};
+  // 阶段新法（真源在 data/practice.js 的 STAGE_RULES）：大成标死位、大圆满再标「一推就进去」。
+  // 两条都不动判定：能推的照样推得动，推错照样费推数。
+  const stage = typeof (ctx.perks && ctx.perks.tier) === 'number' ? ctx.perks.tier : 0;
   const spec = specOf(p);
   // 一局一图：每局都在本档规格里现抽一张。只有参数被改成不可能的组合
   //（例如 4×4 内盘要塞六个箱子）才会退回兜底图——正常一局见不到那张。
@@ -458,6 +507,12 @@ function create(ctx) {
   const n = cols * rows;
   const optimal = Math.max(1, board.optimal);
   const capPushes = Math.max(optimal + 4, Math.ceil(optimal * (p.capFactor || 1.9)));
+  // 死位只跟石壁与阵位有关，整局算一次；paint 只负责按段位挂类名。
+  const dead = deadCellsOf(level);
+  const deadAt = {};
+  if (stage >= 3) {
+    for (let i = 0; i < dead.length; i += 1) deadAt[dead[i]] = true;
+  }
   const costText = ctx.tip || '推错可退一步，推数照算；复位后本盘最高 A';
 
   const vm = C.makeVm(cols, n, '把每块石箱推到阵位上', costText);
@@ -497,6 +552,30 @@ function create(ctx) {
   }
 
   function paint() {
+    // 大圆满「临渊」：这一推会把石箱送进死位，那个格子先描红——警告说的是「再推一格就完了」，
+    // 静的暗纹说的只是「这格不能进」，两者在不同时刻有用。
+    const near = {};
+    if (stage >= 5) {
+      for (let b = 0; b < boxes.length; b += 1) {
+        if (onGoal(boxes[b])) continue;
+        const br = Math.floor(boxes[b] / cols);
+        const bc = boxes[b] % cols;
+        for (let k = 0; k < DIRS4.length; k += 1) {
+          const nr = br + DIRS4[k][0];
+          const nc = bc + DIRS4[k][1];
+          const sr = br - DIRS4[k][0];
+          const sc = bc - DIRS4[k][1];
+          if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+          if (sr < 0 || sr >= rows || sc < 0 || sc >= cols) continue;
+          const to = nr * cols + nc;
+          if (!deadAt[to]) continue;
+          if (isWall(g.walls, cols, sr * cols + sc)) continue;
+          // 那一格被另一块石箱或人自己占着，这一推根本不成立。
+          if (boxes.indexOf(to) >= 0 || to === player) continue;
+          near[to] = true;
+        }
+      }
+    }
     for (let i = 0; i < n; i += 1) {
       const cell = vm.cells[i];
       cell.arrow = -1;
@@ -509,10 +588,13 @@ function create(ctx) {
       } else if (boxes.indexOf(i) >= 0) {
         const ok = onGoal(i);
         cell.cls = ok ? 'cell cell--boxed cell--on-goal' : 'cell cell--boxed';
+        // 已经推进死位的箱子：不必等玩家复位再猜，这一格当场描红。
+        if (deadAt[i]) cell.cls += ' cell--doom-hit';
         cell.label = ok ? '▩' : '▣';
         cell.emblem = 13;
       } else if (i === player) {
         cell.cls = onGoal(i) ? 'cell cell--man cell--on-goal' : 'cell cell--man';
+        if (deadAt[i]) cell.cls += ' cell--doom';
         cell.label = '☉';
         cell.emblem = 15;
       } else if (onGoal(i)) {
@@ -521,12 +603,17 @@ function create(ctx) {
         cell.emblem = 14;
       } else {
         cell.cls = 'cell cell--floor';
+        if (deadAt[i]) cell.cls += ' cell--doom';
+        if (near[i]) cell.cls += ' cell--doom-hit';
         cell.label = '';
         cell.emblem = 0;
       }
     }
     vm.pushbox = {
       cols: cols, rows: rows, boxes: boxes.slice(), goals: g.goals.slice(), player: player,
+      // 这张图的死位（与段位无关，始终是同一份；标不标由段位决定）：
+      // 测试拿它跟自己重算的结果对，两边都要一样。
+      dead: dead.slice(),
       // 当局的石图：测试靠它把这一盘真的走完（图每局都变，不能再从 LEVELS 取）。
       layout: level.slice(),
     };
@@ -721,6 +808,7 @@ module.exports = {
   create: create,
   lines: lines,
   solve: solve,
+  deadCellsOf: deadCellsOf,
   solutionMoves: solutionMoves,
   specOf: specOf,
   generateBoard: generateBoard,

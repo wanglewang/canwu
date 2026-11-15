@@ -2209,6 +2209,16 @@
 .cell--boxed { background: #c9b083; color: #4a3a1f; font-size: 32rpx; }
 .cell--boxed.cell--on-goal { background: #b8893b; color: #fffdf7; }
 
+/* 推箱 · 大成「死位」：推进去就再也推不出来的格子压一道斜纹。
+   暗纹是「这格不能进」，不替玩家找该进哪格——阵位在哪本来就看得见。 */
+.cell--doom {
+  background: #e2d8c6;
+  background-image: repeating-linear-gradient(135deg, transparent 0 7rpx, rgba(120, 74, 62, 0.18) 7rpx 13rpx);
+}
+
+/* 推箱 · 大圆满「临渊」/ 已经推进死位的箱子：描一道暗红。前者是警告，后者是既成事实。 */
+.cell--doom-hit { box-shadow: inset 0 0 0 3rpx rgba(140, 52, 40, 0.72); }
+
 /* 数字键：1–9 加一个清除，五行两排；比方向键小一点，但仍是可点尺寸。 */
 .pad--numbers {
     flex-wrap: wrap;

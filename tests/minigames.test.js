@@ -2709,6 +2709,230 @@ check('推填九宫：大圆满「唯余」只描唯一候选的键，没到大�
   } finally { restoreClock(); }
 });
 
+
+// ---------------------------------------------------------------- 推石入位：阶段新法
+// data/practice.js 的 STAGE_RULES 写着两条：大成「死位」压暗纹、大圆满「临渊」描红。
+// 守三件事：没到那一段一处都不许标；标出来的每一格都真的是死位；真的是死位的每一格都得标。
+check('推石入位：大成「死位」只标真死位，没到大成一处都不标', function () {
+  installClock();
+  try {
+    const m = data.getMethod('tuisuo');
+    const params = data.buildParams(m, 'normal');
+    const boot = function (tier) {
+      const ctx = makeCtx(m, { tier: tier }, params);
+      ctx.c.start();
+      return ctx;
+    };
+    // 测试自己重算一遍：一块石箱站在某格，只认石壁（把别的箱子下人怎么绕都当成不存在），
+    // 还推不推得到任何一处阵位。推不到就是死位。
+    const deadOf = function (layout) {
+      const rows = layout.length;
+      const cols = layout[0].length;
+      const wallAt = {};
+      const goalAt = {};
+      for (let r = 0; r < rows; r += 1) {
+        for (let c = 0; c < cols; c += 1) {
+          const ch = layout[r][c];
+          const i = r * cols + c;
+          if (ch === '#') wallAt[i] = true;
+          if (ch === 'o' || ch === '*' || ch === '+') goalAt[i] = true;
+        }
+      }
+      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      const out = {};
+      for (let start = 0; start < cols * rows; start += 1) {
+        if (wallAt[start] || goalAt[start]) continue;
+        const seen = {};
+        seen[start] = true;
+        const queue = [start];
+        let can = false;
+        while (queue.length && !can) {
+          const b = queue.shift();
+          const r = Math.floor(b / cols);
+          const c = b % cols;
+          for (let k = 0; k < dirs.length; k += 1) {
+            const nr = r + dirs[k][0];
+            const nc = c + dirs[k][1];
+            const sr = r - dirs[k][0];
+            const sc = c - dirs[k][1];
+            if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+            if (sr < 0 || sr >= rows || sc < 0 || sc >= cols) continue;
+            const to = nr * cols + nc;
+            if (wallAt[to] || wallAt[sr * cols + sc]) continue;
+            if (goalAt[to]) { can = true; break; }
+            if (seen[to]) continue;
+            seen[to] = true;
+            queue.push(to);
+          }
+        }
+        if (!can) out[start] = true;
+      }
+      return out;
+    };
+    const hasCls = function (cell, name) { return cell.cls.split(' ').indexOf(name) >= 0; };
+    const marksOf = function (ctx) {
+      const out = [];
+      const cells = ctx.st.vm.cells;
+      for (let i = 0; i < cells.length; i += 1) {
+        if (hasCls(cells[i], 'cell--doom')) out.push(i);
+      }
+      return out;
+    };
+
+    for (let round = 0; round < 3; round += 1) {
+      const ctx = boot(2);
+      assert.strictEqual(marksOf(ctx).length, 0, '未到大成就压了死位暗纹');
+      for (const cell of ctx.st.vm.cells) {
+        assert.ok(!hasCls(cell, 'cell--doom-hit'), '未到大成就描了红线');
+      }
+      ctx.c.destroy();
+    }
+
+    let boxesOnDead = 0;
+    for (let round = 0; round < 5; round += 1) {
+      const ctx = boot(3);
+      const box = ctx.st.vm.pushbox;
+      const dead = deadOf(box.layout);
+      const marks = marksOf(ctx);
+      for (const i of marks) {
+        assert.ok(dead[i], '第 ' + i + ' 格压了暗纹，但石箱站在那儿推得到阵位');
+      }
+      for (const k in dead) {
+        assert.ok(marks.indexOf(parseInt(k, 10)) >= 0, '第 ' + k + ' 格是死位，却没压暗纹');
+      }
+      // 语义锚点：四角（不是石壁、也不是阵位时）一定推不动，也就一定是死位。
+      const cols = box.cols;
+      const rows = box.rows;
+      const corners = [cols + 1, cols * 2 - 2, (rows - 2) * cols + 1, (rows - 1) * cols - 2];
+      for (const i of corners) {
+        if (box.layout[Math.floor(i / cols)][i % cols] === '#') continue;
+        assert.ok(dead[i], '第 ' + i + ' 格是四角，却算成了活位');
+      }
+      // 箱子上的红线只许挂在死位上，活格绝不许描红。
+      for (let i = 0; i < ctx.st.vm.cells.length; i += 1) {
+        if (!hasCls(ctx.st.vm.cells[i], 'cell--doom-hit')) continue;
+        assert.ok(dead[i], '第 ' + i + ' 格描了红，但它是活位');
+        if (box.boxes.indexOf(i) >= 0) boxesOnDead += 1;
+      }
+      ctx.c.destroy();
+    }
+    // 生成器保证开局可解，箱子不该一开局就在死位上——这条是「没冤标」的旁证。
+    assert.strictEqual(boxesOnDead, 0, '开局就有石箱站在死位上，生成器该重抽');
+  } finally { restoreClock(); }
+});
+
+check('推石入位：大圆满「临渊」只描「一推就进死位」的那一格，没到大圆满不描', function () {
+  installClock();
+  try {
+    const m = data.getMethod('tuisuo');
+    const params = data.buildParams(m, 'normal');
+    const boot = function (tier) {
+      const ctx = makeCtx(m, { tier: tier }, params);
+      ctx.c.start();
+      return ctx;
+    };
+    const hasCls = function (cell, name) { return cell.cls.split(' ').indexOf(name) >= 0; };
+    // 只看空地：箱子自己身上的红是「已经推进去了」，人站的那格也不该被当成警告。
+    const redOnFloor = function (ctx) {
+      const out = [];
+      const cells = ctx.st.vm.cells;
+      for (let i = 0; i < cells.length; i += 1) {
+        if (!hasCls(cells[i], 'cell--doom-hit')) continue;
+        if (hasCls(cells[i], 'cell--boxed') || hasCls(cells[i], 'cell--man')) continue;
+        out.push(i);
+      }
+      return out;
+    };
+
+    const flat = boot(3);
+    const box0 = flat.st.vm.pushbox;
+    for (let i = 0; i < 8; i += 1) {
+      if (box0.boxes.indexOf(i) < 0) {
+        assert.ok(!hasCls(flat.st.vm.cells[i], 'cell--doom-hit'), '未到大圆满就给死位描了红');
+      }
+    }
+    flat.c.destroy();
+
+    let seen = 0;
+    for (let round = 0; round < 10 && seen < 3; round += 1) {
+      const ctx = boot(5);
+      const box = ctx.st.vm.pushbox;
+      const layout = box.layout;
+      const cols = box.cols;
+      const rows = box.rows;
+      const wallAt = {};
+      const goalAt = {};
+      for (let r = 0; r < rows; r += 1) {
+        for (let c = 0; c < cols; c += 1) {
+          const ch = layout[r][c];
+          const i = r * cols + c;
+          if (ch === '#') wallAt[i] = true;
+          if (ch === 'o' || ch === '*' || ch === '+') goalAt[i] = true;
+        }
+      }
+      // 死位：与上一条同法，但这里只关心「哪些死格跟某块箱子只差一推」。
+      const dead = {};
+      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      for (let start = 0; start < cols * rows; start += 1) {
+        if (wallAt[start] || goalAt[start]) continue;
+        const seenAt = {};
+        seenAt[start] = true;
+        const queue = [start];
+        let can = false;
+        while (queue.length && !can) {
+          const b = queue.shift();
+          const r = Math.floor(b / cols);
+          const c = b % cols;
+          for (let k = 0; k < dirs.length; k += 1) {
+            const nr = r + dirs[k][0];
+            const nc = c + dirs[k][1];
+            const sr = r - dirs[k][0];
+            const sc = c - dirs[k][1];
+            if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+            if (sr < 0 || sr >= rows || sc < 0 || sc >= cols) continue;
+            const to = nr * cols + nc;
+            if (wallAt[to] || wallAt[sr * cols + sc]) continue;
+            if (goalAt[to]) { can = true; break; }
+            if (seenAt[to]) continue;
+            seenAt[to] = true;
+            queue.push(to);
+          }
+        }
+        if (!can) dead[start] = true;
+      }
+      const want = {};
+      for (const b of box.boxes) {
+        if (goalAt[b]) continue;
+        const r = Math.floor(b / cols);
+        const c = b % cols;
+        for (let k = 0; k < dirs.length; k += 1) {
+          const nr = r + dirs[k][0];
+          const nc = c + dirs[k][1];
+          const sr = r - dirs[k][0];
+          const sc = c - dirs[k][1];
+          if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+          if (sr < 0 || sr >= rows || sc < 0 || sc >= cols) continue;
+          const to = nr * cols + nc;
+          if (!dead[to]) continue;
+          if (wallAt[sr * cols + sc]) continue;
+          if (box.boxes.indexOf(to) >= 0 || to === box.player) continue;
+          want[to] = true;
+        }
+      }
+      const got = redOnFloor(ctx);
+      for (const i of got) {
+        assert.ok(want[i], '第 ' + i + ' 格描了红，但没有哪块石箱一推就进去');
+      }
+      for (const k in want) {
+        assert.ok(got.indexOf(parseInt(k, 10)) >= 0, '第 ' + k + ' 格一推就进死位，却没描红');
+      }
+      if (got.length) seen += 1;
+      ctx.c.destroy();
+    }
+    assert.ok(seen > 0, '连开十局都没遇到「一推就进死位」，这条断言等于没跑');
+  } finally { restoreClock(); }
+});
+
 check('推填九宫：点题面格 / 没选格就落子，要给浮字而不是写进没人看的 vm.status', function () {
   installClock();
   try {
