@@ -377,7 +377,7 @@
 
       <!-- 只有持续下落的玩法才挂方向键：挪石 / 转石 / 速降，其余玩法盘面下不留这一排。 -->
       <view wx:if="{{vm.extras.showPad && vm.pad && started && !boardHeld}}" class="pad {{vm.pad.digits ? 'pad--numbers' : ''}}">
-        <view wx:for="{{vm.pad.keys}}" wx:key="id" class="pad__key" data-dir="{{item.dir}}" bindtap="onPad" hover-class="pad__key--press" hover-stay-time="60">
+        <view wx:for="{{vm.pad.keys}}" wx:key="id" class="pad__key {{item.seen ? 'pad__key--seen' : ''}}" data-dir="{{item.dir}}" bindtap="onPad" hover-class="pad__key--press" hover-stay-time="60">
           <!-- 方向键画 CSS 箭头，不上字体符号：← ⟳ ⇓ 在部分机型会变成彩色 emoji。 -->
           <view wx:if="{{item.icon}}" class="pad__icon pad__icon--{{item.icon}}"></view>
           <text wx:else>{{item.glyph}}</text>

@@ -1973,6 +1973,17 @@
     background: var(--jade-ink, #3c382a);
 }
 
+
+/* 九宫填数：选中空格时，同行 / 同列 / 同宫里已经出现的数字在键上压暗。
+   这不是禁用——点下去照样落子、填错照样罚 10 秒，规则一个字没改；压暗的只是
+   「扫一遍同行列宫」这件眼力活。候选里只剩一个亮着时等于把唯余法摆出来，
+   这是这一门（黄阶入门）有意接受的代价，写在 14-shudu-sudoku.md。 */
+.pad__key--seen {
+  background-color: var(--jade-dim, #b3ab96);
+  background-image: none;
+  color: rgba(60, 56, 42, 0.52);
+  box-shadow: inset 0 2rpx 6rpx rgba(60, 50, 30, 0.26);
+}
 .pad__key--press {
   transform: translateY(3rpx);
   box-shadow: 0 2rpx 0 rgba(120, 100, 60, 0.26), inset 0 2rpx 0 rgba(255, 255, 255, 0.5);

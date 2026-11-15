@@ -141,8 +141,8 @@ function create(ctx) {
   vm.extras.showReset = false;
   // 填数要 1–9 的数字键：与落石的方向键共用同一排按钮，只是换成数字。
   const keys = [];
-  for (let v = 1; v <= size; v += 1) keys.push({ id: 'k' + v, dir: String(v), glyph: String(v) });
-  keys.push({ id: 'kx', dir: '0', glyph: '✕' });
+  for (let v = 1; v <= size; v += 1) keys.push({ id: 'k' + v, dir: String(v), glyph: String(v), seen: false });
+  keys.push({ id: 'kx', dir: '0', glyph: '✕', seen: false });
   vm.pad = { keys: keys, digits: true };
   vm.extras.showPad = true;
 
@@ -170,6 +170,33 @@ function create(ctx) {
     };
   }
 
+  // 选中空格时，同行 / 同列 / 同宫里已经出现过的数字。
+  //
+  // 这一门要做的决策只有一句：「这一格能不能填 5？」而依据全在同行列宫的格子里。
+  // 不标出来，玩家每填一格都要用眼睛把二十几格扫一遍——那不是难度，那是眼力。
+  // 所以键上压暗，**但不禁止点按**：填下去照样罚 10 秒，规则一个字没改。
+  //
+  // 代价说清楚：候选里只剩一个亮着时，等于把「唯余法」直接摆出来。这是有意接受的
+  // ——这一门是黄阶入门功课，教的是数独规则，不是竞赛推理；真要靠唯余法才推得下去，
+  // 那一步本来也该会。
+  function seenDigits() {
+    const out = {};
+    if (selected < 0 || selected >= n) return out;
+    const r = Math.floor(selected / size);
+    const c = selected % size;
+    const r0 = Math.floor(r / d.br) * d.br;
+    const c0 = Math.floor(c / d.bc) * d.bc;
+    for (let i = 0; i < n; i += 1) {
+      const v = grid[i];
+      if (!v) continue;
+      const ir = Math.floor(i / size);
+      const ic = i % size;
+      const inBox = ir >= r0 && ir < r0 + d.br && ic >= c0 && ic < c0 + d.bc;
+      if (ir === r || ic === c || inBox) out[v] = true;
+    }
+    return out;
+  }
+
   function paint() {
     const same = selected >= 0 ? peers(selected) : null;
     for (let i = 0; i < n; i += 1) {
@@ -187,7 +214,13 @@ function create(ctx) {
       else if (same && !fixed && v === 0 && same(i)) cls += ' cell--peer';
       cell.cls = cls;
     }
-    vm.sudoku = { size: size, box: d, given: puzzle.slice(), grid: grid.slice() };
+    const seen = seenDigits();
+    for (let k = 0; k < vm.pad.keys.length; k += 1) {
+      const key = vm.pad.keys[k];
+      const v = parseInt(key.dir, 10);
+      key.seen = !!(v >= 1 && seen[v]);
+    }
+    vm.sudoku = { size: size, box: d, given: puzzle.slice(), grid: grid.slice(), seen: seen };
   }
 
   function filledCount() {
@@ -262,7 +295,9 @@ function create(ctx) {
   function place(v) {
     if (done || vm.phase !== 'playing') return;
     if (selected < 0 || puzzle[selected] !== 0) {
-      vm.status = '先点一个空格，再点下面的数字';
+      // 写进 vm.status 是没用的：HUD 那行取的是 goal || status，而 goal 一直有值。
+      // 点了没反应必须有话说，只能走浮字。
+      C.flash(vm, '先点一格空格，再点下面的数字', 'bad');
       render();
       return;
     }
@@ -288,7 +323,6 @@ function create(ctx) {
     started = true;
     vm.phase = 'playing';
     vm.banner = theme.banner || '';
-    vm.status = '点空格选中，再点下面的数字填进去';
     paint();
     syncHud();
     render();
@@ -317,9 +351,13 @@ function create(ctx) {
     tap: function (index) {
       if (done || vm.phase !== 'playing') return;
       if (index < 0 || index >= n) return;
-      if (puzzle[index] !== 0) { vm.status = '这一格是题面，改不得'; render(); return; }
+      if (puzzle[index] !== 0) {
+        // 同上：题面格点不动，得说一句，否则玩家以为是自己没点准。
+        C.flash(vm, '这一格是题面，改不得', 'bad');
+        render();
+        return;
+      }
       selected = index;
-      vm.status = '已选一格 · 点下面的数字填进去';
       paint();
       render();
     },

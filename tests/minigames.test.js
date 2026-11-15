@@ -2534,4 +2534,69 @@ check('五档各生成一局：19 门 × 5 档都能开局，盘面不出空值'
   } finally { restoreClock(); }
 });
 
+// ---------------------------------------------------------------- 推填九宫：可读性
+check('推填九宫：选中空格时，同行列宫已有的数字在数字键上压暗，但照样能点', function () {
+  installClock();
+  try {
+    const m = data.getMethod('shudu');
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'hard'));
+    ctx.c.start();
+    const g = ctx.st.vm.sudoku;
+    assert.ok(g && g.size === 9, '困难档不是 9×9');
+    // 找一个空格，把它同行 / 同列 / 同宫出现过的数自己算一遍，和键上的 seen 对。
+    let blank = -1;
+    for (let i = 0; i < g.given.length; i += 1) if (g.given[i] === 0) { blank = i; break; }
+    assert.ok(blank >= 0, '盘上没有空格');
+    ctx.c.tap(blank);
+    const vm = ctx.st.vm;
+    const r = Math.floor(blank / 9);
+    const c = blank % 9;
+    const r0 = Math.floor(r / 3) * 3;
+    const c0 = Math.floor(c / 3) * 3;
+    const want = {};
+    for (let i = 0; i < 81; i += 1) {
+      const v = g.given[i];
+      if (!v) continue;
+      const ir = Math.floor(i / 9);
+      const ic = i % 9;
+      const inBox = ir >= r0 && ir < r0 + 3 && ic >= c0 && ic < c0 + 3;
+      if (ir === r || ic === c || inBox) want[v] = true;
+    }
+    let marked = 0;
+    for (let k = 0; k < vm.pad.keys.length; k += 1) {
+      const key = vm.pad.keys[k];
+      const v = parseInt(key.dir, 10);
+      if (v < 1) { assert.strictEqual(key.seen, false, '✕ 键不该被压暗'); continue; }
+      assert.strictEqual(key.seen, !!want[v], '数字 ' + v + ' 的压暗状态与同行列宫对不上');
+      if (key.seen) marked += 1;
+    }
+    assert.ok(marked > 0, '9×9 的题面格不可能一个数都没用过');
+    // 压暗是提示不是禁令：点下去照样落子。
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../pages/practice/practice.wxml'), 'utf8');
+    assert.ok(src.indexOf('pad__key--seen') >= 0, '样式类没挂到按钮上');
+    assert.ok(!/wx:if="{{!item.seen}}"/.test(src), '压暗的键被禁用了——压暗是提示不是禁令');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('推填九宫：点题面格 / 没选格就落子，要给浮字而不是写进没人看的 vm.status', function () {
+  installClock();
+  try {
+    const m = data.getMethod('shudu');
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
+    ctx.c.start();
+    const g = ctx.st.vm.sudoku;
+    let given = -1;
+    for (let i = 0; i < g.given.length; i += 1) if (g.given[i] !== 0) { given = i; break; }
+    ctx.c.tap(given);
+    assert.ok(ctx.st.vm.fx && /题面/.test(ctx.st.vm.fx.text), '点题面格没有浮字：' + JSON.stringify(ctx.st.vm.fx));
+    // 清掉浮字再验第二条，免得读到上一条。
+    ctx.st.vm.fx = null;
+    ctx.c.tap(-1);
+    ctx.c.move('1');
+    assert.ok(ctx.st.vm.fx && /先点一格空格/.test(ctx.st.vm.fx.text), '没选格落子没有浮字：' + JSON.stringify(ctx.st.vm.fx));
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
 console.log('\n小游戏层断言全部通过（' + passed + ' 项）');
