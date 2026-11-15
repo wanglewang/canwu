@@ -22,6 +22,9 @@ function create(ctx) {
   const flipMs = Math.max(450, (p.flipMs || 850) - (hard ? 150 : 0) + (perks.easy ? 200 : 0));
   const timeLimit = p.timeLimit || 70;
   const hintsLeft = 2 + (perks.easy ? 1 : 0);
+  // 阶段新法（真源在 data/practice.js 的 STAGE_RULES）：大成「留影」、大圆满「记印」。
+  // 两条都只改「翻过的卦象留在盘上多久」，不改配对判定，也不增减照见次数。
+  const stage = typeof perks.tier === 'number' ? perks.tier : 0;
   const vm = C.makeVm(cols, n, '翻开两处气窍，卦象相同才通一对', ctx.tip || '记住翻过的卦象，把成对的都解出来');
   vm.timeText = '00:00';
   vm.scoreText = '气窍 0 / ' + pairs;
@@ -43,6 +46,11 @@ function create(ctx) {
   let flips = 0;
   let elapsed = 0;
   let hints = hintsLeft;
+  // 大成「留影」：照见的那一对不再到时就散，留到玩家点下一张。
+  let peek = [];
+  // 大圆满「记印」：翻错过的牌阖上之后牌背留一道残影。记的是玩家**自己刚看过**的那一象，
+  // 不是替他记一张没翻过的牌——这一门考的仍是记性。
+  let ghost = {};
   let done = false;
   let started = false;
 
@@ -85,10 +93,11 @@ function create(ctx) {
         vm.cells[i].tone = 1 + (SIGNS.indexOf(deck[i]) % 5);
         vm.cells[i].emblem = SIGNS.indexOf(deck[i]) + 1;
       } else {
-        vm.cells[i].cls = 'cell cell--card';
+        const mark = stage >= 5 && ghost[i] ? ghost[i] : '';
+        vm.cells[i].cls = mark ? 'cell cell--card cell--ghost' : 'cell cell--card';
         vm.cells[i].label = theme.motif || '观';
         vm.cells[i].tone = 0;
-        vm.cells[i].emblem = 20;
+        vm.cells[i].emblem = mark ? SIGNS.indexOf(mark) + 1 : 20;
       }
     }
   }
@@ -128,6 +137,7 @@ function create(ctx) {
   function tap(index) {
     if (done || vm.phase !== 'playing' || locked) return;
     if (index < 0 || index >= n || matched[index] || faceUp[index]) return;
+    clearPeek();
     faceUp[index] = true;
     flips += 1;
     paint();
@@ -162,6 +172,11 @@ function create(ctx) {
     render();
     bag.after(function () {
       if (done || vm.phase !== 'playing') return;
+      // 记印要在阖上的这一刻落下：再晚一步，paint 已经把两张牌画成牌背了。
+      if (stage >= 5) {
+        ghost[a] = deck[a];
+        ghost[index] = deck[index];
+      }
       faceUp[a] = false;
       faceUp[index] = false;
       locked = false;
@@ -169,6 +184,20 @@ function create(ctx) {
       syncHud();
       render();
     }, flipMs);
+  }
+
+  // 照见的那一对在点下一张牌时收回去。已经被翻开 / 已通的不动：它们有自己的类名。
+  function clearPeek() {
+    if (!peek.length) return;
+    for (let k = 0; k < peek.length; k += 1) {
+      const i = peek[k];
+      if (faceUp[i] || matched[i]) continue;
+      const mark = stage >= 5 && ghost[i] ? ghost[i] : '';
+      vm.cells[i].cls = mark ? 'cell cell--card cell--ghost' : 'cell cell--card';
+      vm.cells[i].label = theme.motif || '观';
+      vm.cells[i].emblem = mark ? SIGNS.indexOf(mark) + 1 : 20;
+    }
+    peek = [];
   }
 
   function hint() {
@@ -186,6 +215,8 @@ function create(ctx) {
       }
     }
     if (pick.length < 2) return;
+    // 上一对照见还亮着就先收回去，免得两次照见叠在同一屏上分不清是哪一对。
+    clearPeek();
     hints -= 1;
     const prev = pick.map(function (i) { return { cls: vm.cells[i].cls, label: vm.cells[i].label, emblem: vm.cells[i].emblem }; });
     for (let k = 0; k < pick.length; k += 1) {
@@ -193,10 +224,18 @@ function create(ctx) {
       vm.cells[pick[k]].label = deck[pick[k]];
       vm.cells[pick[k]].emblem = SIGNS.indexOf(deck[pick[k]]) + 1;
     }
-    vm.status = '入定照见一对（剩 ' + hints + ' 次）';
+    vm.status = stage >= 3
+      ? '入定照见一对（剩 ' + hints + ' 次 · 点下一处才散）'
+      : '入定照见一对（剩 ' + hints + ' 次）';
     C.flash(vm, '卦象显形', 'gold');
     syncHud();
     render();
+    // 大成起不再到时就散：照见的这一对留到玩家点下一处。
+    // 它没有因此变成「白通一对」——牌仍要一张一张点开，翻牌数照记。
+    if (stage >= 3) {
+      peek = pick.slice();
+      return;
+    }
     bag.after(function () {
       if (done || vm.phase !== 'playing') return;
       for (let k = 0; k < pick.length; k += 1) {

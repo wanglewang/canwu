@@ -1087,6 +1087,12 @@
 .cell--flipped.cell--t4 { color: #6f5b9e; }
 .cell--flipped.cell--t5 { color: #3b7a8c; }
 
+/* 成对翻牌 · 大圆满「记印」：翻错过的牌阖上之后，牌背留一道极淡的卦象。
+   只把「已经看过的那一象」搬到盘上，不替玩家记没翻过的牌；靠压暗 emblem 而不是加透明度到 0，
+   动效被关掉、截首帧时这道残影都还在。 */
+.cell--card.cell--ghost .cell__emblem { opacity: 0.3; }
+.cell--card.cell--ghost { box-shadow: inset 0 0 0 2rpx rgba(207, 174, 109, 0.26), 0 4rpx 0 rgba(0, 0, 0, 0.34); }
+
 .cell--matched {
     background-color: #d9cbaa;
     background-image: none;

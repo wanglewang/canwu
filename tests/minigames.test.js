@@ -669,6 +669,124 @@ check('成对翻牌：十二处气窍阖着，入定能照见一对', function (
   } finally { restoreClock(); }
 });
 
+
+// ---------------------------------------------------------------- 成对翻牌：阶段新法
+// data/practice.js 的 STAGE_RULES 写着两条：大成「留影」（照见到点下一处才散）、
+// 大圆满「记印」（翻错过的牌背留残影）。两条都只改「翻过的卦象留在盘上多久」，不改判定。
+check('成对翻牌：大成「留影」照见不再到时就散，没到大成照样散', function () {
+  installClock();
+  try {
+    const m = data.getMethod('seal');
+    const params = data.buildParams(m, 'normal');
+    const boot = function (tier) {
+      const ctx = makeCtx(m, { tier: tier }, params);
+      ctx.c.start();
+      return ctx;
+    };
+    const peeksOf = function (ctx) {
+      return ctx.st.vm.cells.filter(function (x) { return x.cls.indexOf('cell--hint') >= 0; });
+    };
+
+    // 没到大成：照见到时（1600ms）自己收回去。
+    const low = boot(2);
+    low.c.hint();
+    assert.strictEqual(peeksOf(low).length, 2, '照见没亮出两处');
+    advance(1700);
+    assert.strictEqual(peeksOf(low).length, 0, '没到大成，照见却留着不散');
+    low.c.destroy();
+
+    // 大成：一直留着，直到玩家点下一处。
+    const high = boot(3);
+    high.c.hint();
+    assert.strictEqual(peeksOf(high).length, 2, '大成照见没亮出两处');
+    advance(5000);
+    assert.strictEqual(peeksOf(high).length, 2, '大成照见到时又散了');
+    const held = high.st.vm.cells.indexOf(peeksOf(high)[0]);
+    high.c.tap(held);
+    // 点下一处 = 这次照见结束：整对收回。玩家仍要靠刚才看的那一眼把第二处点开。
+    assert.strictEqual(peeksOf(high).length, 0, '点下一处之后照见该整对收回');
+    assert.ok(high.st.vm.cells[held].cls.indexOf('cell--flipped') >= 0, '点下去的那一处没翻开');
+    // 照见次数照扣：留影不是白送多看一次。
+    assert.ok(high.st.vm.hint.indexOf('剩 1 次') >= 0, '照见没用掉次数');
+    high.c.destroy();
+  } finally { restoreClock(); }
+});
+
+check('成对翻牌：大圆满「记印」只给翻错过的牌留残影，没到大圆满一处都不留', function () {
+  installClock();
+  try {
+    const m = data.getMethod('seal');
+    const params = data.buildParams(m, 'normal');
+    const boot = function (tier) {
+      const ctx = makeCtx(m, { tier: tier }, params);
+      ctx.c.start();
+      return ctx;
+    };
+    const ghostsOf = function (ctx) {
+      const out = [];
+      const cells = ctx.st.vm.cells;
+      for (let i = 0; i < cells.length; i += 1) {
+        if (cells[i].cls.indexOf('cell--ghost') >= 0) out.push(i);
+      }
+      return out;
+    };
+    // 翻出一对「不合」的牌，返回这两格与各自翻开时的卦象编号。
+    const mismatch = function (ctx) {
+      const n = ctx.st.vm.cells.length;
+      for (let f = 0; f < n - 1; f += 1) {
+        if (ctx.st.vm.cells[f].cls.indexOf('cell--matched') >= 0) continue;
+        ctx.c.tap(f);
+        if (ctx.st.vm.cells[f].cls.indexOf('cell--flipped') < 0) continue;
+        const ef = ctx.st.vm.cells[f].emblem;
+        for (let k = f + 1; k < n; k += 1) {
+          if (ctx.st.vm.cells[k].cls.indexOf('cell--matched') >= 0) continue;
+          ctx.c.tap(k);
+          if (ctx.st.vm.cells[k].cls.indexOf('cell--flipped') < 0) continue;
+          const ek = ctx.st.vm.cells[k].emblem;
+          if (!ctx.st.vm.pair.locked) return null; // 翻上了，换下一个起始格
+          return { a: f, b: k, ea: ef, eb: ek };
+        }
+        // 第一张还亮着却没锁上：只可能是自己跟自己，直接收工换一局。
+        return null;
+      }
+      return null;
+    };
+
+    // 没到大圆满：一开局就没有残影，「不合」翻完之后也没有。
+    for (let round = 0; round < 3; round += 1) {
+      const low = boot(3);
+      assert.strictEqual(ghostsOf(low).length, 0, '一开局就有残影');
+      const pairLow = mismatch(low);
+      if (pairLow) {
+        advance(1200);
+        assert.strictEqual(ghostsOf(low).length, 0, '没到大圆满，翻错的牌却留了残影');
+      }
+      low.c.destroy();
+    }
+
+    let seen = 0;
+    for (let round = 0; round < 6 && seen < 2; round += 1) {
+      const high = boot(5);
+      assert.strictEqual(ghostsOf(high).length, 0, '一开局就有残影');
+      const pair = mismatch(high);
+      if (!pair) { high.c.destroy(); continue; }
+      advance(1200);
+      const ghosts = ghostsOf(high);
+      assert.strictEqual(ghosts.length, 2, '翻错的两处该各留一道残影，实际 ' + ghosts.length);
+      assert.strictEqual(ghosts.indexOf(pair.a) >= 0, true, '第一处没留残影');
+      assert.strictEqual(ghosts.indexOf(pair.b) >= 0, true, '第二处没留残影');
+      // 残影必须是「刚看过的那一象」，不是随手指一个卦象。
+      assert.strictEqual(high.st.vm.cells[pair.a].emblem, pair.ea, '残影的卦象与翻开的对不上');
+      assert.strictEqual(high.st.vm.cells[pair.b].emblem, pair.eb, '残影的卦象与翻开的对不上');
+      // 再点开其中一处：那一处显示的是卦象本身，残影的样式要撤掉。
+      high.c.tap(pair.a);
+      assert.strictEqual(high.st.vm.cells[pair.a].cls.indexOf('cell--ghost') >= 0, false, '翻开的牌上还挂着残影');
+      seen += 1;
+      high.c.destroy();
+    }
+    assert.ok(seen > 0, '连开六局都没翻出一对「不合」，这条断言等于没跑');
+  } finally { restoreClock(); }
+});
 check('记忆序列闪烁时不再把序号写在格子上', function () {
   installClock();
   try {
