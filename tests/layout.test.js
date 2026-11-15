@@ -835,14 +835,36 @@ check('可点 view 统一按压反馈，反馈样式落在全局基础层', func
   const css = read('app.wxss');
   assert.ok(/\.pressable \{/.test(css) && /\.pressable--on \{/.test(css), '按压反馈样式没定义');
   let total = 0;
+  const perPage = {};
   for (const rel of WXML) {
-    const tags = (read(rel).match(/<view[^>]*hover-class="pressable--on"[^>]*>/g) || []);
-    for (const tag of tags) {
-      assert.ok(/class="[^"]*pressable\b/.test(tag), rel + ' 的按压元素没挂常态类');
-      total += 1;
-    }
+    const text = read(rel);
+    // 按「出现次数」数，不按标签切：practice.wxml 里有 `wx:if="{{a > b}}"` 这种含 `>` 的标签，
+    // 用 `<view[^>]*>` 去切会漏掉一大半（曾经就这么少算了 11 处）。
+    const hover = (text.match(/hover-class="pressable--on"/g) || []).length;
+    const cls = (text.match(/class="[^"]*\bpressable\b[^"]*"/g) || []).length;
+    assert.ok(cls >= hover, rel + ' 的按压元素没挂常态类：' + cls + ' 处 class / ' + hover + ' 处 hover-class');
+    total += hover;
+    perPage[rel] = hover;
   }
-  assert.ok(total >= 5, '按压反馈覆盖不足：' + total + ' 处');
+  // 门槛按页面算，不是全项目一个数：原来是「总数 ≥ 5」，删掉四五十处也不会红——
+  // 它守的是「样式类存在」，不是「覆盖完整」（见 04-open-issues C1）。
+  // 每个页面至少一处；四个主交互页按现状留两成余量（现 6 / 18 / 9 / 4）。
+  const floor = {
+    'pages/index/index.wxml': 4,
+    'pages/practice/practice.wxml': 12,
+    'pages/profile/profile.wxml': 6,
+    'pages/skills/skills.wxml': 3,
+  };
+  Object.keys(floor).forEach(function (page) {
+    assert.ok((perPage[page] || 0) >= floor[page],
+      '主页面的按压反馈掉了：' + page + ' 只有 ' + (perPage[page] || 0) + ' 处，下限 ' + floor[page]);
+  });
+  Object.keys(perPage).forEach(function (page) {
+    // 纯展示组件（duel-result）本来就没有可点元素，不按页面算。
+    if (page.indexOf('components/') === 0) return;
+    assert.ok(perPage[page] >= 1, page + ' 整页没有一处按压反馈');
+  });
+  assert.ok(total >= WXML.length * 3, '按压反馈总数不足：' + total + ' 处 / ' + WXML.length + ' 页');
 });
 
 check('全局基础层与常规页样式不写裸色值，尺寸走令牌', function () {

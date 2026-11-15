@@ -80,7 +80,9 @@ App({
     },
 
     onError(error) {
-        this.recordError('error', error);
+        // 传对象进去会记成 `[参悟][error] [object Object]`——真机上这条日志等于没有。
+        // 与下面 promise 那支同口径：先取最有用的一层（栈 > message > 字面量）。
+        this.recordError('error', error && (error.stack || error.message || String(error)));
     },
 
     // Promise 里的失败默认没有任何人接：云同步、登录、音频都走这一路，

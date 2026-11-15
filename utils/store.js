@@ -149,8 +149,10 @@ async function flushCloud() {
 
 function init() {
   state = game.load();
-  const report = game.settleOffline(state);
-  if (report) offlineReport = report;
+  // 这里**不结算闭关**。init() 之后紧跟着的 hydrate() 会用云端档整个覆盖 state，
+  // 先结算等于算了一遍再扔掉——真机上的症状是：冷启动弹「闭关收获 灵力 +90」，
+  // 关掉弹窗灵力还是 0，下次进来又是 +90（因为云端那份 lastSeen 也是旧的）。
+  // 闭关统一由 app.bootstrap() 在 hydrate() 之后调 store.settle() 结算一次。
   game.save(state);
   const err = game.readStorage('canwu_sync_error_v1');
   if (typeof err === 'string') lastCloudError = err;

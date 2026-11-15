@@ -259,7 +259,11 @@ function load() {
 }
 
 function save(state) {
-  state.lastSeen = Date.now();
+  // 这里**不许**把 lastSeen 写成 now。它是「上次结算闭关的时间」，不是「上次存档的时间」：
+  // 存档每改一次都发生（领份例、换门、参悟结算…），写成 now 等于把闭关时长一次次抹掉。
+  // 真机上的表现是：明明挂了三小时，弹窗报「灵力 +90」，关掉弹窗还是 0——
+  // 因为 store.init() 存过一次档，hydrate() 又用云端那份（lastSeen 更旧但 qi 也没涨）覆盖回来。
+  // lastSeen 只在 settleOffline() 里推进（结算即归零），这是它唯一的写入点。
   writeStorage(STORAGE_KEY, state);
   return state;
 }
@@ -529,26 +533,18 @@ function checkDaily(state) {
   state.daily.battleWins = 0;
 }
 
-function pickIdleSkill(state) {
-  const last = state.lastPractice.skillId;
-  // 24000 是「圆满」门槛：挂机优先喂还没练到圆满的门，练满之后让位给别的功法。
-  if (last && state.skills[last] && state.skills[last].unlocked && state.skills[last].prof < worldData.TIERS[4].threshold) return last;
-  for (let i = 0; i < skillData.SKILLS.length; i += 1) {
-    const s = skillData.SKILLS[i];
-    const rec = state.skills[s.id];
-    if (rec && rec.unlocked && rec.prof < worldData.TIERS[4].threshold) return s.id;
-  }
-  return skillData.SKILLS[0].id;
-}
-
 // 闭关的「预演」：只算不写。页面据此显示「已坐 N 分 · 灵力 +M」，
 // 冷启动的 settleOffline 与随手点的 meditate 都走这一份算法，三处不许各算一遍。
+//
+// **闭关只产灵力，一分熟练度都不给。** 熟练度是关卡的唯一刻度（levelFromProf），
+// 挂机能涨熟练度，等于挂着不玩也在推关卡——那「参悟才是提速」这句话就是假的，
+// 而且会把「练到哪一关」变成「挂了多久」。所以 world.idle 里没有 profPerHour 这个数。
 function idlePending(state) {
   const now = Date.now();
   const w = worldData.getWorld(state.worldId);
   const last = num(state.lastSeen, now);
   const empty = {
-    minutes: 0, hours: 0, qi: 0, prof: 0, capped: false, skillId: '', skillName: '',
+    minutes: 0, hours: 0, qi: 0, capped: false,
     qiRaw: 0, qiCap: qiCap(state), qiRoom: 0, overflow: 0, full: false,
   };
   // 时钟倒退（改系统时间，或云端存档来自时间超前的设备）：一分不给。
@@ -565,7 +561,6 @@ function idlePending(state) {
   const effectiveMinutes = buffMinutes * buff.multiplier + (minutes - buffMinutes);
   const idleBonus = effectValue(state, 'offline');
   const hours = cappedMs / 3600000;
-  const skillId = pickIdleSkill(state);
   // 气海装不下的部分当场散掉：这是「上限」真正的存在感，也是唯一会让人心疼的地方。
   // 存得下多少和坐了多少分钟是两件事，pi 分成 qiRaw / qi / overflow 三个数分别报，
   // 页面才能写「坐满 8 小时，收到 174，溢出 66」而不是含糊一句「已满」。
@@ -577,10 +572,7 @@ function idlePending(state) {
     minutes: minutes,
     hours: Math.round(hours * 10) / 10,
     qi: qi,
-    prof: Math.floor(hours * w.idle.profPerHour),
     capped: elapsedMs > capMs,
-    skillId: skillId,
-    skillName: skillData.getSkill(skillId) ? skillData.getSkill(skillId).name : '功法',
     qiRaw: qiRaw,
     qiCap: cap,
     qiRoom: qiRoom,
@@ -604,17 +596,13 @@ function settleOffline(state) {
   if (r.minutes < 1) return null;
 
   state.resources.qi += r.qi;
-  if (state.skills[r.skillId]) state.skills[r.skillId].prof += r.prof;
   addLog(state, '闭关 ' + Math.floor(r.minutes / 60) + ' 时 ' + (r.minutes % 60) + ' 分，灵力 +' + r.qi
-    + (r.overflow > 0 ? '（气海已满，散去 ' + r.overflow + '）' : '')
-    + '，' + r.skillName + ' +' + r.prof, 'idle');
+    + (r.overflow > 0 ? '（气海已满，散去 ' + r.overflow + '）' : ''), 'idle');
   return {
     minutes: r.minutes,
     hours: r.hours,
     capped: r.capped,
     qi: r.qi,
-    prof: r.prof,
-    skillName: r.skillName,
     qiCap: r.qiCap,
     overflow: r.overflow,
     full: r.full,
@@ -624,24 +612,22 @@ function settleOffline(state) {
 // 打坐 = 当场收一次闭关。冷启动那次弹的是「闭关收获」，这一下叫「打坐」：
 // 同一套算法，区别只在于它随时能点——灵力是参悟的油，油烧完了不该逼玩家杀掉小程序再开一遍。
 // 不足一分钟明确回一句，不静默吞掉（点了没反应是这类按钮最容易挨骂的毛病）。
-// 气海满了同样要明说：这时候回一句「还没攒够」是错的——坐了很久，只是装不下。
+// 气海满了也要明说：这时候回一句「还没攒够」是错的——坐了很久，只是装不下。
 function meditate(state) {
   const pending = idlePending(state);
   const tooSoon = '还没攒够一点。再坐两分钟，回来就能收。';
-  // 气海满了仍然能收「熟练度」：那是另一条产出，卡住它等于把打坐按钮废掉。
-  // 只有「灵力与熟练度都收不到」才挡回去，并且要分清是哪种情况——
-  // 满池时回一句「还没攒够」，玩家会以为自己坐得不够久。
-  if (pending.minutes < 1 || (pending.qi < 1 && pending.prof < 1)) {
-    if (pending.full) {
-      return {
-        ok: false,
-        msg: '灵力已满（' + state.resources.qi + ' / ' + pending.qiCap + '）：再坐只涨熟练度，约 24 分钟得一点。',
-        full: true,
-        qiCap: pending.qiCap,
-      };
-    }
-    return { ok: false, msg: tooSoon };
+  // 满池没有第二条产出可收（闭关不涨熟练度），所以这里是「收不到」而不是「只涨熟练度」。
+  // 话要说在「满了」上，否则玩家会以为自己坐得不够久。
+  if (pending.full) {
+    return {
+      ok: false,
+      msg: '灵力已满（' + Math.floor(num(state.resources.qi, 0)) + ' / ' + pending.qiCap
+        + '）：再坐也装不下，去参一局，或破境、练真元拓气海。',
+      full: true,
+      qiCap: pending.qiCap,
+    };
   }
+  if (pending.minutes < 1 || pending.qi < 1) return { ok: false, msg: tooSoon };
   const r = settleOffline(state);
   if (!r) return { ok: false, msg: tooSoon };
   return {
@@ -649,8 +635,6 @@ function meditate(state) {
     minutes: r.minutes,
     hours: r.hours,
     qi: r.qi,
-    prof: r.prof,
-    skillName: r.skillName,
     capped: r.capped,
     qiCap: r.qiCap,
     overflow: r.overflow,

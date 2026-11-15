@@ -96,10 +96,6 @@
         <view wx:if="{{offline.overflowText}}" class="res-line">
           <text class="muted">{{offline.overflowText}}</text>
         </view>
-        <view class="res-line">
-          <text class="muted">{{offline.skillName}} 熟练度</text>
-          <text class="h3 jade">+{{offline.prof}}</text>
-        </view>
       </view>
       <view class="modal__actions">
         <button class="imm-btn imm-btn--block" bindtap="closeOffline">{{copy.actions.confirm}}</button>

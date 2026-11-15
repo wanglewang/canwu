@@ -912,7 +912,7 @@ check('时辰尺子与四门补的档位参数都只收紧不放宽，且玩法�
 
 check('十九门五档都至少两个可见参数在变，且评级线或盘面规格给出对照', function () {
   const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
-  const internal = ['depth', 'gear', 'sBase', 'sStep'];
+  const internal = practice.INTERNAL_PARAM_KEYS;   // 与 difficulty-audit.js 同一份，不许各抄
   for (const m of practice.PRACTICE_METHODS) {
     const ps = keys.map(function (k) { return practice.buildParams(m, k); });
     const all = new Set();

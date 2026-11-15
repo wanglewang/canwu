@@ -135,6 +135,35 @@ async function main() {
     assert.strictEqual(store.get().resources.qi, 150);
   });
 
+  // 真机上报过的那一条：「闭关收获」弹「灵力 +90」，关掉弹窗灵力还是 0，
+  // 下次进来又弹 +90。根因是 init() 先结算、hydrate() 再用云端旧档覆盖，
+  // 而 game.save() 还把 lastSeen 推到现在，于是这段闭关永远算不实。
+  await check('冷启动：闭关灵力在 hydrate 之后才结算，不会被云端档吃掉', async function () {
+    clearMem();
+    const local = game.createNewState();
+    local.resources.qi = 0;
+    local.lastSeen = Date.now() - 3 * 3600 * 1000;
+    game.save(local);
+    const cloudState = JSON.parse(JSON.stringify(local));
+    const a = makeAdapter({
+      save: okSave,
+      load: async function () { return { status: 'ok', state: JSON.parse(JSON.stringify(cloudState)), version: 3 }; },
+    });
+    store.setCloudAdapter(a);
+    // init 只读档：不结算，也不许把闭关起点推到当前。
+    store.init();
+    assert.strictEqual(store.get().resources.qi, 0);
+    assert.ok(Date.now() - store.get().lastSeen >= 170 * 60000, 'init 把闭关起点抹掉了');
+    await store.hydrate();
+    // 覆盖之后才结算，这一笔必须真的落账。
+    const report = store.settle();
+    assert.ok(report && report.qi > 0, 'hydrate 之后结算拿不到闭关灵力');
+    assert.strictEqual(store.get().resources.qi, report.qi, '报告了 +N，账上却没有 N');
+    const shown = store.consumeOfflineReport();
+    assert.ok(shown && shown.qi === report.qi, '页面拿不到这一份报告，弹窗会显示上一次的数');
+    assert.strictEqual(store.settle(), null, '同一段闭关被结算了两次');
+  });
+
   await check('云端无档时 hydrate 立刻建档', async function () {
     clearMem();
     const a = makeAdapter({

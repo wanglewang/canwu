@@ -16,7 +16,7 @@
 | `FIRST_CLEAR_STONE` | 8 | 首胜 / 首过另给 |
 | `FORTUNE_SCROLL_RATE` | 0.012 | 机缘出残卷概率（1.2%） |
 
-**闭关**（`data/world.js` 的 `idle`）：`qiPerMinute: 0.5`、`profPerHour: 2.5`、`capHours: 8`。
+**闭关**（`data/world.js` 的 `idle`）：`qiPerMinute: 0.5`、`capHours: 8`。**不产熟练度**（`profPerHour` 已删）。
 **份例**（`daily`）：`{ target: 3, qi: 60, stone: 0 }`——参满 3 局可领。
 
 ### 1.2 耗气算法

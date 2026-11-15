@@ -632,6 +632,25 @@ for (const f of ['minigames/schulte.js', 'pages/practice/practice.wxss']) {
   else checked += 1;
 }
 
+// 8b-8. 十九门功法与十九种玩法是两张表，靠 skill.method ↔ PRACTICE_METHODS[].id 关联。
+// 漏一个的后果：功法在图鉴里显示「未习得」但点进去拿不到参数（白屏），或者反过来——
+// 玩法在表里、却没有一门功法能玩到它（做了没人用）。这类错 check 全绿也拦不住。
+{
+  const methods = {};
+  for (const m of practiceMod.PRACTICE_METHODS) methods[m.id] = m;
+  const used = {};
+  for (const s of skillMod.SKILLS) {
+    if (!s.method) { errors.push(s.id + ' 没有 method 字段，接不到任何玩法'); continue; }
+    if (!methods[s.method]) { errors.push(s.id + ' 指向的玩法 ' + s.method + ' 不在 PRACTICE_METHODS 里'); continue; }
+    used[s.method] = true;
+    checked += 1;
+  }
+  for (const m of practiceMod.PRACTICE_METHODS) {
+    if (!used[m.id]) errors.push('玩法 ' + m.id + ' 没有任何功法能玩到它');
+    else checked += 1;
+  }
+}
+
 // 8c. 图鉴详情：未习得功法也必须能取到完整玩法与习得路径。
 const engineMod = require('../utils/game.js');
 const freshState = engineMod.createNewState();

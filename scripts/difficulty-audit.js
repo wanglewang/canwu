@@ -23,8 +23,9 @@ const practice = require('../data/practice.js');
 const index = require('../minigames/index.js');
 
 const KEYS = ['easy', 'normal', 'hard', 'expert', 'desperate'];
-// 这三个是内部档位索引 / 系数来源，不是玩家在盘上看得见的东西。
-const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
+// 唯一的内部键（档位索引）。名单住在 data/practice.js，审计与 rank.test 读同一份，
+// 不许各抄一遍——曾经这里多出 gear / sBase / sStep 三个根本不存在的键。
+const INTERNAL = new Set(practice.INTERNAL_PARAM_KEYS);
 
 // 一个参数在五档间的跨度。只认数值：布尔（要不要重排）与字符串（哪张图）算不出来，
 // 它们的变化已经由「可见参数」那一列体现。

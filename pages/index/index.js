@@ -48,24 +48,29 @@ Page({
     // 半分钟刷一次只动这一行，不重算整页。
     const self = this;
     this.tick = setInterval(function () { self.refreshIdle(); }, 30000);
+    this.maybeShowOffline();
+  },
+
+  // 闭关收获的弹窗。冷启动那次结算发生在 hydrate() 之后（网络回来才算），
+  // 早于 onShow，也早于页面第一次 refresh —— 所以不能只在 onShow 里看一眼：
+  // settle() 会 notify → refresh()，这里在 refresh 末尾也探一次，两条路都能弹出来。
+  maybeShowOffline: function () {
+    if (this.data.showOffline) return;      // 已经开着，别被后来的空报告覆盖
     const report = store.consumeOfflineReport();
-    if (report) {
-      const hours = Math.floor(report.minutes / 60);
-      const mins = report.minutes % 60;
-      this.setData({
-        showOffline: true,
-        offline: {
-          duration: hours > 0 ? hours + ' 时 ' + mins + ' 分' : mins + ' 分',
-          qi: report.qi,
-          prof: report.prof,
-          skillName: report.skillName,
-          // 气海：这一趟坐出来的灵力有没有装下、散了多少，都要在弹窗里说清。
-          qiCap: report.qiCap,
-          overflow: report.overflow || 0,
-          overflowText: report.overflow > 0 ? '气海已满，散去的 ' + report.overflow + ' 点未收' : '',
-        },
-      });
-    }
+    if (!report) return;
+    const hours = Math.floor(report.minutes / 60);
+    const mins = report.minutes % 60;
+    this.setData({
+      showOffline: true,
+      offline: {
+        duration: hours > 0 ? hours + ' 时 ' + mins + ' 分' : mins + ' 分',
+        qi: report.qi,
+        // 气海：这一趟坐出来的灵力有没有装下、散了多少，都要在弹窗里说清。
+        qiCap: report.qiCap,
+        overflow: report.overflow || 0,
+        overflowText: report.overflow > 0 ? '气海已满，散去的 ' + report.overflow + ' 点未收' : '',
+      },
+    });
   },
 
   onHide: function () { this.clearTick(); },
@@ -85,26 +90,19 @@ Page({
     if (!state) return;
     const pending = engine.idlePending(state);
     // 一分钟只有 0.5 点，取整后可能还是 0：那一行写着「灵力 +0」比不出现更糟。
-    // 满池时仍然给入口——打坐还在涨熟练度，只是灵力装不下了，那也得让人看得见。
-    const ready = pending.minutes >= 1 && (pending.qi >= 1 || pending.prof >= 1);
-    let text = '';
-    if (ready) {
-      text = pending.qi >= 1
-        ? '已坐 ' + pending.minutes + ' 分 · 灵力 +' + pending.qi + ' / 上限 ' + pending.qiCap
-        : '灵力已满 ' + pending.qiCap + ' · 只涨熟练度';
-      if (pending.prof > 0) text += ' · ' + pending.skillName + ' +' + pending.prof;
-    }
-    this.setData({ idleReady: ready, idleText: text, idleFull: !!pending.full });
+    // 闭关只有灵力这一条产出（不产熟练度），满池就没有可收的东西——不摆一个收不到的入口，
+    // 满池这件事由上面那行 hintText 去说。
+    const ready = pending.minutes >= 1 && pending.qi >= 1;
+    const text = ready
+      ? '已坐 ' + pending.minutes + ' 分 · 灵力 +' + pending.qi + ' / 上限 ' + pending.qiCap
+      : '';
+    this.setData({ idleReady: ready, idleText: text });
   },
 
   onMeditate: function () {
     const r = store.commitCritical(function (s) { return engine.meditate(s); });
     if (!r.ok) { toast(r.msg); return; }
-    let msg = r.qi > 0
-      ? '打坐 ' + r.minutes + ' 分：灵力 +' + r.qi + '（' + r.qiCap + ' 满）'
-      : '灵力已满（' + r.qiCap + '），这一坐只涨熟练度';
-    if (r.prof > 0) msg += ' · ' + r.skillName + ' +' + r.prof;
-    toast(msg);
+    toast('打坐 ' + r.minutes + ' 分：灵力 +' + r.qi + '（' + r.qiCap + ' 满）');
     this.refresh();
   },
 
@@ -182,6 +180,8 @@ Page({
       exchange: quote,
     });
     this.refreshIdle();
+    // 结算（store.settle）是先 notify 再返回的，弹窗只能在这里补一次。
+    this.maybeShowOffline();
   },
 
   closeOffline: function () {
@@ -238,10 +238,6 @@ Page({
     }
     getApp().globalData.lastSkillId = id;
     wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
-  },
-
-  onBreakthrough: function () {
-    wx.navigateTo({ url: '/pages/practice/practice?mode=breakthrough' });
   },
 
   onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('index') }); },

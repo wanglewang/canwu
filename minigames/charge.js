@@ -6,11 +6,14 @@
 const C = require('./common.js');
 
 function create(ctx) {
-  const hard = ctx.difficulty === 'hard';
   const perks = ctx.perks || {};
   const theme = ctx.theme || {};
-  const zoneWidth = (hard ? 11 : 16) + (perks.easy ? 6 : 0);
+  // 突破局只有一档：p 那边传的 difficulty 恒为 easy（difficultyOf('easy').gear === 'normal'），
+  // 所以这里不能再写 `hard ? 11 : 16`——那一支永远走不到，读代码的人会去找一个不存在的难档。
+  // 唯一的宽度变化是 perks.easy（元婴起）：区间宽 6 个点，长按更容易停进去。
+  const zoneWidth = 16 + (perks.easy ? 6 : 0);
   const targetStart = 42 + C.randInt(30);
+  // start 最大 71、width 最大 22，算出 93 < 100，Math.min(96, …) 是留给以后改长度的保险，不是活的分支。
   const targetEnd = Math.min(96, targetStart + zoneWidth);
   const center = (targetStart + targetEnd) / 2;
   const vm = C.makeVm(0, 0, '长按蓄力，松手停在朱线区间', ctx.tip || '越靠近区间正中，评级越高');

@@ -1044,9 +1044,16 @@ function stageRulesOf(methodId) {
   return STAGE_RULES[methodId] || [];
 }
 
+// 参数表里唯一的**内部键**：depth 是档位索引（0–4），玩家在盘上看不见它，
+// 也不该被当成「这一档变难了」的证据。审计脚本与 tests/rank.test.js 都读这一份，
+// 不许各抄一份名单——曾经这里写着 gear / sBase / sStep 三个键，实测一个都不在参数表里，
+// 挂在名单上只会让人以为背后有机制（见 04-open-issues B4）。
+const INTERNAL_PARAM_KEYS = ['depth'];
+
 module.exports = {
   PRACTICE_METHODS: PRACTICE_METHODS,
   METHOD_MAP: METHOD_MAP,
+  INTERNAL_PARAM_KEYS: INTERNAL_PARAM_KEYS,
   GAME_LABELS: GAME_LABELS,
   HINT_LABELS: HINT_LABELS,
   MATCH_LEVELS: MATCH_LEVELS,

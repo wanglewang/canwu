@@ -92,12 +92,30 @@ check('时钟倒退时不结算离线收益也不写入回拨值', function () {
   assert.strictEqual(s.resources.qi, 0);
 });
 
-check('正常离线 1 小时会结算灵力与熟练度', function () {
+check('存档不推进闭关起点：save() 不许动 lastSeen', function () {
+  // 这条是真机上「提示 +90 但一分没到账」的一半根因：每次存档都把 lastSeen 写成现在，
+  // 于是领份例、换门、参悟结算……任何一次保存都会把攒下的闭关时长抹掉。
   const s = game.createNewState();
+  const back = Date.now() - 3 * 3600 * 1000;
+  s.lastSeen = back;
+  game.save(s);
+  assert.strictEqual(s.lastSeen, back, 'save() 把闭关起点推到了现在');
+  assert.ok(Date.now() - s.lastSeen >= 170 * 60000);
+});
+
+check('正常离线 1 小时只结算灵力，不涨熟练度', function () {
+  const s = game.createNewState();
+  const profBefore = Object.keys(s.skills).map(function (id) { return s.skills[id].prof; });
   s.lastSeen = Date.now() - 3600000;
   const report = game.settleOffline(s);
-  assert.ok(report && report.qi > 0);
-  assert.ok(report.prof >= 0);
+  assert.ok(report && report.qi > 0, '一小时没结算出灵力');
+  // 闭关不产熟练度：挂了也能推关卡，等于「参悟才是提速」是假话（关卡由熟练度算出）。
+  assert.strictEqual(report.prof, undefined, '报告里还带着熟练度');
+  assert.deepStrictEqual(
+    Object.keys(s.skills).map(function (id) { return s.skills[id].prof; }),
+    profBefore,
+    '挂机把熟练度推出去了'
+  );
 });
 
 check('离线收益受 8 小时上限约束', function () {
