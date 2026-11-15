@@ -181,7 +181,7 @@ Page({
 
   onBreakthrough: function () {
     if (!this.data.ov || !this.data.ov.breakthrough.available) {
-      toast('条件未齐，先练功法或攒战力');
+      toast('条件未齐，先修功法或积战力');
       return;
     }
     wx.navigateTo({ url: '/pages/practice/practice?mode=breakthrough' });
@@ -454,7 +454,7 @@ Page({
     const self = this;
     wx.showModal({
       title: '重置存档',
-      content: '所有熟练度、功法、称号与资源都会清空，且无法撤销。',
+      content: '所有熟练度、功法、称号与灵气灵石都会清空，且无法撤销。',
       confirmText: '确认重置',
       confirmColor: '#b4453c',
       success: function (res) {

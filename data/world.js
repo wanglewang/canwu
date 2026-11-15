@@ -49,9 +49,9 @@ const TIERS = [
   { key: 'none', name: '未入门', threshold: 0, bonus: 0, color: '#9aa39a', desc: '只能参悟简单档，尚无加成' },
   { key: 'basic', name: '入门', threshold: 300, bonus: 1, color: '#3d8c74', desc: '解锁「普通」难度与基础属性加成' },
   { key: 'skilled', name: '小成', threshold: 1500, bonus: 1.8, color: '#2f6b5b', desc: '解锁「困难」难度' },
-  { key: 'master', name: '大成', threshold: 6000, bonus: 2.8, color: '#b8893b', desc: '解锁「极难」难度、技能特效与参悟便利' },
+  { key: 'master', name: '大成', threshold: 6000, bonus: 2.8, color: '#b8893b', desc: '解锁「极难」难度、功法特效与参悟便利' },
   { key: 'grand', name: '圆满', threshold: 24000, bonus: 4, color: '#b4453c', desc: '解锁「绝境」难度与称号' },
-  { key: 'perfect', name: '大圆满', threshold: PROF_MAX, bonus: 5, color: '#8a5cb0', desc: '熟练度至此圆满，这一门练到头了' },
+  { key: 'perfect', name: '大圆满', threshold: PROF_MAX, bonus: 5, color: '#8a5cb0', desc: '熟练度至此圆满，本门已练到头' },
 ];
 
 // 评级倍率：只决定这一局的挂机加速与评级观感，既不进熟练度，也不进资源产出。

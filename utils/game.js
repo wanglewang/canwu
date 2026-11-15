@@ -697,7 +697,7 @@ function applyPractice(state, skillId, grade, options) {
     addLog(state, skill.name + ' 参悟至「' + worldData.TIERS[afterTier].name + '」', 'tier');
   } else if (wiped) {
     // 不能说「熟练度 +0」：玩家会以为是自己眼睛看错了，而不是这一局作废。
-    addLog(state, '参悟 ' + skill.name + ' 走火，这一局没有收益', 'practice');
+    addLog(state, '参悟 ' + skill.name + ' 走火，本局无所得', 'practice');
   } else if (gain === 0 && rec.prof >= worldData.PROF_MAX) {
     // 到顶后不许写「熟练度 +0」，那读起来像 bug。
     addLog(state, '参悟 ' + skill.name + '，熟练度已圆满，本局只记战绩', 'practice');

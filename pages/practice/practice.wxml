@@ -393,7 +393,7 @@
     <view class="countdown-inner">
       <text class="countdown-seal">{{theme.motif}}</text>
       <text class="countdown-num">{{countdown}}</text>
-      <text class="tiny">凝神 · 起手（点一下跳过）</text>
+      <text class="tiny">凝神 · 起手（轻点略过）</text>
       <text class="text-link countdown__stay pressable" hover-class="pressable--on" catchtap="onCancelCountdown">{{copy.actions.cancelStart}}</text>
     </view>
   </view>

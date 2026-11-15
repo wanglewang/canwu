@@ -37,6 +37,6 @@
   </view>
 
   <view class="pg__foot">
-    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">本页说明 ›</text>
+    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">此处说明 ›</text>
   </view>
 </view>

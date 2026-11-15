@@ -20,7 +20,7 @@
       <view class="guide-demo" wx:if="{{item.demo}}">
         <text class="tiny">示范：</text>
         <term term-key="{{item.demo}}" />
-        <text class="tiny">点它就有解释</text>
+        <text class="tiny">轻点即有释义</text>
       </view>
       <view class="guide-line" wx:for="{{item.lines}}" wx:for-item="line" wx:key="*this">
         <text class="guide-dot">·</text>
@@ -33,7 +33,7 @@
   </view>
 
   <view class="pg__foot">
-    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">本页说明 ›</text>
+    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">此处说明 ›</text>
   </view>
 
   <view class="pg__foot">{{copy.footGuide}}</view>

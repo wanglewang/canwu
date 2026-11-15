@@ -77,7 +77,7 @@ Page({
     privacy.guard(function () {
       wx.setClipboardData({
         data: self.data.myCode,
-        success: function () { toast('战力码已复制，发给朋友试试'); },
+        success: function () { toast('战力码已复制，发给朋友一试'); },
         fail: function () { toast('复制失败，请长按手动复制'); },
       });
     }, function () { toast('同意隐私保护指引后即可复制'); });

@@ -286,11 +286,11 @@ function tierIndexOf(key) {
 // 留着 mult 只会让卡片上写一个算不出来的 ×1.70。
 
 const DIFFICULTIES = [
-  { key: 'easy', name: '简单', need: 0, qi: economyData.RUN_QI[0], pace: 1.18, windowPace: 1.50, goal: 0.85, gear: 'normal', depth: 0, desc: '节奏最缓、目标最宽，也最省灵气，先把这一门的手感练稳。' },
-  { key: 'normal', name: '普通', need: 300, qi: economyData.RUN_QI[1], pace: 1.00, windowPace: 1.21, goal: 1.00, gear: 'normal', depth: 1, desc: '标准节奏与目标，入门之后才开。' },
-  { key: 'hard', name: '困难', need: 1500, qi: economyData.RUN_QI[2], pace: 0.88, windowPace: 1.00, goal: 1.12, gear: 'hard', depth: 2, desc: '节奏收紧、目标抬高，失误的余地更小。' },
-  { key: 'expert', name: '极难', need: 6000, qi: economyData.RUN_QI[3], pace: 0.78, windowPace: 0.83, goal: 1.22, gear: 'hard', depth: 3, desc: '几乎没有容错，一乱就掉档。' },
-  { key: 'desperate', name: '绝境', need: 24000, qi: economyData.RUN_QI[4], pace: 0.70, windowPace: 0.64, goal: 1.32, gear: 'hard', depth: 4, desc: '给练到极处的人：最快节奏、最高目标，也最烧灵气。' },
+  { key: 'easy', name: '简单', need: 0, qi: economyData.RUN_QI[0], pace: 1.18, windowPace: 1.50, goal: 0.85, gear: 'normal', depth: 0, desc: '节奏最缓、目标最宽，也最省灵气，宜先练稳本门火候。' },
+  { key: 'normal', name: '普通', need: 300, qi: economyData.RUN_QI[1], pace: 1.00, windowPace: 1.21, goal: 1.00, gear: 'normal', depth: 1, desc: '标准节奏与目标，入门之后方开。' },
+  { key: 'hard', name: '困难', need: 1500, qi: economyData.RUN_QI[2], pace: 0.88, windowPace: 1.00, goal: 1.12, gear: 'hard', depth: 2, desc: '节奏收紧、目标抬高，失误余地更小。' },
+  { key: 'expert', name: '极难', need: 6000, qi: economyData.RUN_QI[3], pace: 0.78, windowPace: 0.83, goal: 1.22, gear: 'hard', depth: 3, desc: '几乎没有容错，一乱即落。' },
+  { key: 'desperate', name: '绝境', need: 24000, qi: economyData.RUN_QI[4], pace: 0.70, windowPace: 0.64, goal: 1.32, gear: 'hard', depth: 4, desc: '给练到极处的人：最快节奏、最高目标，也最耗灵气。' },
 ];
 
 const DIFF_MAP = {};
@@ -706,7 +706,7 @@ function diffDetail(method, diffKey) {
   } else if (method && method.game === 'merge') {
     brief = '本档要合出 ' + now.target + ' 一块 · 起手 ' + now.startTiles + ' 块';
   } else if (method && method.game === 'schulte') {
-    brief = now.size + '×' + now.size + ' 盘 · ' + now.size * now.size + ' 个数 · 点错罚 ' + SCHULTE_PENALTIES[d.depth] + ' 秒';
+    brief = now.size + '×' + now.size + ' 盘 · ' + now.size * now.size + ' 个数 · 误点罚 ' + SCHULTE_PENALTIES[d.depth] + ' 秒';
   } else if (method && method.game === 'pushbox') {
     brief = '第 ' + (now.level + 1) + ' 张石图 · 推数预算 ×' + now.capFactor.toFixed(2) + ' · 越少越好';
   } else if (method && method.game === 'biggest') {
@@ -714,7 +714,7 @@ function diffDetail(method, diffKey) {
   } else {
     brief = changes.length
       ? changes.map(function (c) { return c.text; }).join(' · ')
-      : '入门基准：节奏最缓、目标最宽，先把这一门的手感练稳。';
+      : '入门基准：节奏最缓、目标最宽，宜先练稳本门火候。';
   }
   return {
     key: d.key,

@@ -725,12 +725,12 @@ Page({
     const lack = Math.max(0, this.data.qiCost - this.data.qi);
     wx.showModal({
       title: '灵气不足',
-      content: '这一局要 ' + this.data.qiCost + ' 点灵气，你还差 ' + lack
+      content: '本局需 ' + this.data.qiCost + ' 点灵气，尚差 ' + lack
         + ' 点。回洞府闭关打坐，每分钟 ' + worldData.getWorld().idle.qiPerMinute
-        + ' 点，坐约 ' + Math.ceil(lack / worldData.getWorld().idle.qiPerMinute)
-        + ' 分钟就够这一局。',
+        + ' 点，约坐 ' + Math.ceil(lack / worldData.getWorld().idle.qiPerMinute)
+        + ' 分钟可足。',
       confirmText: '回洞府打坐',
-      cancelText: '再看看',
+      cancelText: '容再思量',
       success: function (res) {
         if (res.confirm) wx.switchTab({ url: '/pages/index/index' });
       },
@@ -928,7 +928,7 @@ Page({
     this.setData({ stageRules: stageRules });
     // 开关进的是 perks，得重建一次 controller 才带上；准备页还没开局，重建是安全的。
     this.buildGame();
-    toast(enabled ? '「' + name + '」已开' : '「' + name + '」已关 · 以后这一门不再触发');
+    toast(enabled ? '「' + name + '」已开' : '「' + name + '」已关 · 此后本门不再生发');
   },
 
   onCellTap: function (event) {
@@ -1108,7 +1108,7 @@ Page({
     const self = this;
     wx.showModal({
       title: '中途收功',
-      content: '这一局作废，不计收益；连 S 归零，起手烧掉的灵气不退。确定收功？',
+      content: '本局作废，不计所得；连 S 归零，起手耗去的灵气不退。确定收功？',
       confirmText: '收功',
       confirmColor: '#b4453c',
       success: function (res) {
@@ -1198,7 +1198,7 @@ Page({
       const lines = r.wiped
         // 走火不是「得 0 分」，是这一局不作数：一排 +0 会让人以为自己算错了。
         ? [
-          { k: '收益', v: '无 · 走火' },
+          { k: '所得', v: '无 · 走火' },
           { k: '灵气', v: '−' + r.qiCost + '（不退）' },
           { k: '局内得分', v: String(res.score || 0) },
         ]
@@ -1226,7 +1226,7 @@ Page({
       // 走火不是「成绩差」，是没走完：先把理由摆在最前，玩家才知道这一局到底栽在哪。
       // 灵气不退是这套经济的硬规则——起手就烧了，崩掉的只是熟练度与加成。
       if (grade === 'F') {
-        notes.unshift('这一局没走完，按「走火」不计收益：熟练度与挂机加成不给、连 S 归零；'
+        notes.unshift('本局未走完，按「走火」不计所得：熟练度与挂机加成不给、连 S 归零；'
           + '起手烧掉的 ' + r.qiCost + ' 点灵气不退。');
       }
       // 耗气要当场可复算：玩家看到「灵气 −17」，得知道这个 17 是怎么来的。
@@ -1277,7 +1277,7 @@ Page({
         gradeColor: color,
         // 走火时 headline 与 gradeTitle 都会写「走火」，标题行会重复两遍；
         // 这里让副标题改说「这一局没走完」，把「为什么一分不给」留在 notes 里。
-        gradeTitle: grade === 'F' ? '这一局没走完' : gradeTitle,
+        gradeTitle: grade === 'F' ? '此局未竟' : gradeTitle,
         headline: grade === 'F'
           ? '走火'
           : (r.tierUp ? '升段 · ' + r.tierName : '参悟完成'),

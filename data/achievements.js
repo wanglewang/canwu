@@ -7,9 +7,9 @@ const ACHIEVEMENTS = [
   { id: 'first_practice', name: '初入道途', desc: '完成第 1 次参悟', glyph: '一', group: '修行', key: 'practiceCount', goal: 1 },
   { id: 'practice_10', name: '日日不辍', desc: '累计参悟 10 次', glyph: '十', group: '修行', key: 'practiceCount', goal: 10 },
   { id: 'practice_50', name: '百炼成钢', desc: '累计参悟 50 次', glyph: '百', group: '修行', key: 'practiceCount', goal: 50 },
-  { id: 'grade_s', name: '一念通明', desc: '拿到 1 次神品评级', glyph: '神', group: '修行', key: 'gradeS', goal: 1 },
-  { id: 'combo', name: '触类旁通', desc: '换门功法参悟，触发 1 次灵感', glyph: '悟', group: '修行', key: 'comboCount', goal: 1 },
-  { id: 'tier_up', name: '登堂入室', desc: '功法档位提升 1 次', glyph: '进', group: '修行', key: 'tierUps', goal: 1 },
+  { id: 'grade_s', name: '一念通明', desc: '拿到 1 次绝佳评级', glyph: '神', group: '修行', key: 'gradeS', goal: 1 },
+  { id: 'combo', name: '触类旁通', desc: '另择一门参悟，生 1 次灵感', glyph: '悟', group: '修行', key: 'comboCount', goal: 1 },
+  { id: 'tier_up', name: '登堂入室', desc: '功法段位提升 1 次', glyph: '进', group: '修行', key: 'tierUps', goal: 1 },
   { id: 'daily_3', name: '晨课不缺', desc: '累计领取 3 天份例', glyph: '勤', group: '修行', key: 'dailyClaimed', goal: 3 },
 
   { id: 'first_win', name: '初战告捷', desc: '切磋取胜 1 次', glyph: '胜', group: '切磋', key: 'wins', goal: 1 },

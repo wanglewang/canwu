@@ -52,13 +52,13 @@
     <view class="code-box mt12">{{myCode}}</view>
     <button class="imm-btn imm-btn--block mt12" bindtap="onCopyCode">复制我的战力码</button>
     <view class="imm-strip mt16">
-      <text>打朋友的镜像</text>
+      <text>与朋友的镜像过招</text>
       <text class="imm-strip__value">粘贴对方发来的码</text>
     </view>
     <input class="code-input mt12" value="{{inputCode}}" bindinput="onInputCode" placeholder="CW1- 开头的战力码" placeholder-class="code-ph" />
     <view class="imm-btn-row">
-      <button class="imm-btn imm-btn--ghost imm-btn--sm" bindtap="onPasteCode">读剪贴板</button>
-      <button class="imm-btn imm-btn--sm" bindtap="onMirrorFight">打镜像</button>
+      <button class="imm-btn imm-btn--ghost imm-btn--sm" bindtap="onPasteCode">粘贴来码</button>
+      <button class="imm-btn imm-btn--sm" bindtap="onMirrorFight">与之过招</button>
     </view>
   </view>
 
@@ -66,7 +66,7 @@
 
   <!-- 两条都是"看规则"：合成一行，别在页尾排两段同类链接。 -->
   <view class="pg__foot">
-    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">本页说明</text>
+    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">此处说明</text>
     <text class="pg__foot__sep">·</text>
     <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoGuide">完整规则 ›</text>
   </view>

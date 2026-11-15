@@ -105,10 +105,10 @@ Page({
     const breakPercent = bt.maxed || bt.need <= 0 ? 100 : Math.min(100, Math.round(bt.power / bt.need * 100));
 
     // 一行提示只报「下一步」，不讲原理；原理在「说明」页。
-    let hintText = '今日之课：' + (rec.name || '去功法页挑一门');
+    let hintText = '今日之课：' + (rec.name || '去功法页择一门');
     const near = learned.filter(function (s) { return !s.maxed && s.percent >= 75; });
     near.sort(function (a, b) { return b.percent - a.percent; });
-    if (near.length > 0) hintText = '叮！' + near[0].name + ' 即将升段。';
+    if (near.length > 0) hintText = near[0].name + ' 即将升段。';
     else if (bt.available) hintText = '境界已足，可去人物页突破 · 突破后战力 +' + bt.powerGain;
     // 门槛只有战力（world.realms[].power）：到这条线就够，不必再列第二个条件。
     // 但缺口是个冷数字，得同时说清「填平之后战力跳到多少」——那是玩家攒战力的理由。

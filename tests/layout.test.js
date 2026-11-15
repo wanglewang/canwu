@@ -169,7 +169,7 @@ check('两种 F 分开处置：收功作废，走火照常结算', function () {
   assert.ok(/self\.aborting = true/.test(js), '玩家收功时没置位，结算分不出是哪种 F');
   assert.ok(/grade === 'F' && \(this\.aborting \|\| this\.mode === 'breakthrough'\)/.test(js),
     '所有 F 都被当成收功，走火拿不到结算');
-  assert.ok(/没走完，按「走火」不计收益/.test(js), '走火结算没写清「一分不给」');
+  assert.ok(/未走完，按「走火」不计所得/.test(js), '走火结算没写清「一分不给」');
   assert.ok(/r\.wiped/.test(js), '结算卡没把走火与正常局分开，会显示一排 +0');
   assert.ok(/engine\.breakCombo\(/.test(js), '收功没把连 S 归零，能靠中途退出保住连击');
   assert.ok(/连 S 归零/.test(js), '收功确认框没写明连 S 会断');
@@ -455,16 +455,16 @@ check('战力明细收进「说明」真源，首屏只留数值；指南保留�
   const lines = (power ? power.lines : []).join('');
   assert.ok(lines.length > 0, '说明页缺战力专节');
   assert.ok(/体魄 ×1\.0/.test(lines) && /境界加成/.test(lines) && /功法特效/.test(lines), '说明没讲公式三项');
-  assert.ok(/突破境界/.test(lines) && /大成/.test(lines) && /换着门练/.test(lines)
-    && /不减收益/.test(lines), '说明没讲突破、特效与「只奖不罚」');
+  assert.ok(/突破境界/.test(lines) && /大成/.test(lines) && /另择一门/.test(lines)
+    && /不减所得/.test(lines), '说明没讲突破、特效与「只奖不罚」');
   const index = read('pages/index/index.wxml');
   const indexJs = read('pages/index/index.js');
   assert.ok(!/powerOpen|powerLines|怎么提升战力/.test(index + indexJs), '主页又把长公式印回脸上');
   assert.ok(/ov\.power/.test(index), '主页连战力数值都不显示了');
   const guide = read('pages/guide/guide.js');
   assert.ok(/title: '四 · 战力从哪来'/.test(guide), '修行指南没有战力专节');
-  assert.ok(/战力 = 属性加权/.test(guide) && /同一门连练不减收益/.test(guide), '指南没讲公式与「只奖不罚」');
-  assert.ok(/title: '二 · 离线挂机收益规则'/.test(guide), '插了新专节，后面章节编号没顺延');
+  assert.ok(/战力 = 属性加权/.test(guide) && /同一门连练不减所得/.test(guide), '指南没讲公式与「只奖不罚」');
+  assert.ok(/title: '二 · 离线吐纳之规'/.test(guide), '插了新专节，后面章节编号没顺延');
 });
 
 check('勘禁诀按经典扫雷深耕：无猜、首点空白、连开、分数方向', function () {
@@ -774,7 +774,7 @@ check('连 S 叠倍率：准备页有十格点数、结算页有回执、指南�
   assert.ok(/r\.gain > 0/.test(js), '结算卡没用本局实得点数');
   assert.ok(/r\.comboActive/.test(js) && /r\.comboNextGain/.test(js), '结算页没写连 S 回执');
   assert.ok(/title: '七 · 连 S 叠倍率'/.test(guide) && /1307/.test(guide), '指南没有连 S 专节');
-  assert.ok(/title: '二 · 离线挂机收益规则'/.test(guide), '新增专节后章节编号没顺延');
+  assert.ok(/title: '二 · 离线吐纳之规'/.test(guide), '新增专节后章节编号没顺延');
   assert.ok(!/三连 S 直接晋级|promotionGain|sStreakGoal|r\.totalGain/.test(js),
     '三连晋级的旧口径还留在参悟页');
   assert.strictEqual(world.COMBO_MAX, 10);
@@ -791,7 +791,7 @@ check('页面骨架统一：三 tab + 子页用仙箓皮肤，导航只留原生
     assert.ok(!/imm-head/.test(wxml), name + ' 又在顶部留了一条只放「说明」的空行');
     // 说明页自己就是解释，不需要再嵌一个说明入口。
     if (name !== 'help') {
-      assert.ok(/class="pg__foot"[\s\S]*本页说明/.test(wxml), name + ' 页尾缺「说明」入口');
+      assert.ok(/class="pg__foot"[\s\S]*此处说明/.test(wxml), name + ' 页尾缺「说明」入口');
       assert.ok(/bindtap="onGoHelp"/.test(wxml), name + ' 缺「说明」入口');
     }
     assert.ok(!/class="pg__head"|class="muted mt8"/.test(wxml),
@@ -1034,8 +1034,8 @@ check('指南目录按新手阅读流排：先挂机保底与资源，主动玩�
   const names = [];
   for (const m of src.matchAll(/title: '[一二三四五六七八九十]+ · ([^']+)'/g)) names.push(m[1]);
   assert.deepStrictEqual(names, [
-    '怎么变强', '离线挂机收益规则', '灵气与灵石', '战力从哪来', '熟练度与境界',
-    '参悟与小游戏', '连 S 叠倍率', '切磋与战力码', '称号与道牒',
+    '怎么变强', '离线吐纳之规', '灵气与灵石', '战力从哪来', '熟练度与境界',
+    '参悟与盘面', '连 S 叠倍率', '切磋与战力码', '称号与道牒',
     '存档与换设备', '成就与榜单',
   ], '指南目录顺序又变了：新手要先搞懂挂机保底与资源，再学主动玩法');
   assert.ok(/SECTIONS\.push\(glossarySection\('十二'\)\)/.test(src), '名词速查不在最后一节');
@@ -1535,8 +1535,8 @@ check('参悟结算：金按钮再来一局、留在本页留的是刚打完那�
   const wxml = read('pages/practice/practice.wxml');
   const js = read('pages/practice/practice.js');
   const copy = require('../data/copy.js');
-  assert.strictEqual(copy.UI.actions.stay, '留在本页', '「留在本页」文案没进真源');
-  assert.strictEqual(copy.UI.actions.again, '再来一局', '「再来一局」文案没进真源');
+  assert.strictEqual(copy.UI.actions.stay, '留于此处', '「留于此处」文案没进真源');
+  assert.strictEqual(copy.UI.actions.again, '再参一局', '「再参一局」文案没进真源');
   // 位置对调：金按钮是再来一局，留在本页退成下方文字链。
   assert.ok(/primary: copy\.UI\.actions\.again/.test(js), '金按钮没换成再来一局');
   assert.ok(!/primary: copy\.UI\.actions\.stay/.test(js), '金按钮仍是留在本页');
@@ -1594,7 +1594,7 @@ check('首局手把手：盘上引导而不是全屏弹窗，跳过有入口、�
   assert.ok(teachTag.index > playAt && teachTag.index < maskAt, '引导卡跑到遮罩里去了，会盖住盘面');
   assert.ok(/catchtap="onSkipTeach"/.test(wxml), '引导没有跳过入口');
   assert.ok(/onSkipTeach: function/.test(js), '跳过入口没有对应方法');
-  assert.strictEqual(copy.UI.actions.skipTeach, '跳过引导');
+  assert.strictEqual(copy.UI.actions.skipTeach, '略过指引');
   assert.ok(wxml.indexOf('跳过引导') < 0, '引导文案被写死在 WXML 里');
 
   // 第一次开局先走教学，只对自带脚本的玩法生效；走完必须落存档，否则每次进来都弹。
