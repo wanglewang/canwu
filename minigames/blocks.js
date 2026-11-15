@@ -63,6 +63,9 @@ function create(ctx) {
   const depth = Math.max(0, Math.min(4, typeof p.depth === 'number' ? p.depth : 0));
   const stage = typeof perks.tier === 'number' ? perks.tier : 0;
   const duration = Math.max(25, p.duration || 70);
+  // 块型数量按档给：低档只出四种不带长条的块（方 / 曲 / 丁 / 折），
+  // 长石横跨半盘，开局就给它等于让新手第一分钟就学会输。高档才把长石放回袋里。
+  const shapeCount = Math.max(3, Math.min(SHAPES.length, typeof p.shapes === 'number' ? p.shapes : SHAPES.length));
   // 阶段新法：大成「稳基」放宽落石间隔，大圆满「层叠」把化层得分再抬一成。
   const dropMs = Math.max(180, Math.round((p.dropMs || 620) * (stage >= 3 ? 1.15 : 1)));
   const lineBonus = stage >= 5 ? 1.1 : 1;
@@ -173,7 +176,7 @@ function create(ctx) {
   }
 
   function spawn() {
-    const shape = SHAPES[C.randInt(SHAPES.length)];
+    const shape = SHAPES[C.randInt(shapeCount)];
     const cells = shape.cells.map(function (x) { return x.slice(); });
     let w = 0;
     for (let i = 0; i < cells.length; i += 1) w = Math.max(w, cells[i][1] + 1);

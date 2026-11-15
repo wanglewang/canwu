@@ -84,6 +84,20 @@
   <!-- 开局卡：一行规则 + 难度，一屏读完。
        规则全文、盘上符号、本门机制都不在这里——它们是说明页的事，
        首屏只回答两个问题：这一局做什么、打多难。 -->
+  <!-- 入门卡：第一次进这一门先读三句。不占第二屏、不挡开局——就在规则上面，
+       看完点「知道了」就收，写进存档不再出现。 -->
+  <view wx:if="{{introOn && !started && !showResult}}" class="card intro-card">
+    <view class="row--between">
+      <text class="tag tag--gold">入门</text>
+      <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onCloseIntro">知道了 ›</text>
+    </view>
+    <text class="body mt8">{{intro.goal}}</text>
+    <view class="intro-steps">
+      <text wx:for="{{intro.steps}}" wx:key="*this" class="tiny intro-step">{{index + 1}} · {{item}}</text>
+    </view>
+    <text wx:if="{{intro.inline}}" class="tiny intro-inline">{{intro.inline}}</text>
+  </view>
+
   <view wx:if="{{!started && !showResult}}" class="card">
     <view class="row--between">
       <text class="section__title">{{copy.sections.rule}}</text>
@@ -96,18 +110,25 @@
     <block wx:if="{{showDifficulty}}">
       <view class="divider"></view>
       <view class="row--between">
-        <text class="section__title">难度</text>
-        <!-- 难度行只报两件事：这一档叫什么、这一局烧多少气。收益倍率已随「参悟不产资源」退役。 -->
-        <text class="tiny">{{diffName}} · 耗灵力 {{qiCost}}</text>
+        <text class="section__title">关卡</text>
+        <!-- 关卡行只报三件事：第几关、在哪一章、这一局烧多少气。 -->
+        <text class="tiny">第 {{level}} / 999 关 · 耗灵力 {{qiCost}}</text>
       </view>
-      <view class="diff-row mt12">
-        <view wx:for="{{diffList}}" wx:key="key" class="diff-chip {{item.current ? 'diff-chip--on' : ''}} {{item.unlocked ? '' : 'diff-chip--lock'}}" data-d="{{item.key}}" bindtap="onDifficulty">
-          <text class="diff-chip__name">{{item.name}}</text>
-          <!-- 五个胶囊各写自己的耗气：低档便宜、高档贵，选之前就看得到代价。 -->
-          <text class="diff-chip__mult">{{item.qiText}}</text>
-          <text wx:if="{{!item.unlocked}}" class="diff-chip__need">{{item.lockedText}}</text>
+      <!-- 一关一格：章内随便挑，章末靠熟练度开下一章。999 关不是一张要一次画完的图，
+           一格一格翻就够用了；「已通 + 1」是默认落点，打完点「再来」正好接上。 -->
+      <view class="lv-row mt12">
+        <view class="lv-step {{level > 1 ? '' : 'lv-step--off'}} pressable" hover-class="pressable--on" data-d="-1" bindtap="onLevel">‹</view>
+        <view class="lv-mid">
+          <text class="lv-num">第 {{level}} 关</text>
+          <text class="lv-sub">{{levelSub}}</text>
         </view>
+        <view class="lv-step {{level < levelMax ? '' : 'lv-step--off'}} pressable" hover-class="pressable--on" data-d="1" bindtap="onLevel">›</view>
       </view>
+      <view wx:if="{{levelBest + 1 < level && levelBest + 1 <= levelMax}}" class="mt8">
+        <text class="text-link tiny pressable" hover-class="pressable--on" bindtap="onLevelResume">回到第 {{levelBest + 1}} 关</text>
+      </view>
+      <!-- 每五关一处小变化，写清楚变的是哪一项：同一段五关之内逐位相同。 -->
+      <text class="tiny diff-brief mt8">{{levelChange}}</text>
       <!-- 灵力不够时不给「开始」，先说明差多少、去哪儿补，以及气海能装多少。 -->
       <text wx:if="{{!canStart}}" class="warn-note mt8">灵力 {{qi}} / {{qiMax}}，本局要 {{qiCost}} 点。回洞府闭关片刻即可补上；气海不够用时，破境或练真元都能拓深。</text>
       <text wx:else class="tiny diff-brief">耗灵力 {{qiCost}} · 余 {{qi}} / {{qiMax}}</text>
@@ -307,6 +328,9 @@
         </view>
         <!-- 划刀玩法的透明触摸层：盖住静态格子，用手势坐标还原一条连续轨迹 -->
         <view wx:if="{{vm.extras.showSwipe && started && !boardHeld}}" class="swipe-layer" bindtouchstart="onBoardTouchStart" catchtouchmove="onBoardTouchMove" bindtouchend="onBoardTouchEnd" bindtouchcancel="onBoardTouchEnd"></view>
+        <!-- 四向推盘：整盘就是一块滑块，往哪划就往哪挤。不摆方向键——
+             拇指本来就盖在盘上，抬手去按四个角才是多一步。 -->
+        <view wx:if="{{vm.extras.swipeMove && !vm.extras.showSwipe && started && !boardHeld}}" class="swipe-layer" bindtouchstart="onMoveTouchStart" catchtouchmove="onMoveTouchMove" bindtouchend="onMoveTouchEnd" bindtouchcancel="onMoveTouchEnd"></view>
       </view>
 
       <!-- 华容道：块是整块滑的，用绝对定位按格摆；格子拼出来的块会被缝线切碎，

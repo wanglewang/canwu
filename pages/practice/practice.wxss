@@ -676,10 +676,14 @@
 /* 七列只给推石入位的高档（内盘 5×5）。牌面、台面、内缩与六列同一套，
    只把每格收窄一格：14.28% × 七百多 rpx ≈ 100rpx，石箱图案仍然认得出。 */
 .grid--c7 .cell { width: 14.2857%; height: 96rpx; font-size: 24rpx; border-radius: 12rpx; }
+/* 八列只给落石垒基：六列时一块「长石」横跨三分之二个盘子，看着就是一块巨石压在窄巷里。
+   八列把每格收到 12.5%（≈ 84rpx），块小了、横向也才有转身的地方。 */
+.grid--c8 .cell { width: 12.5%; height: 84rpx; font-size: 22rpx; border-radius: 10rpx; }
 
 /* 密盘（6 列以上）撤掉角花：格宽只剩百来 rpx，四角金线会跟数字抢注意力。 */
 .grid--c6 .cell::before,
 .grid--c7 .cell::before,
+.grid--c8 .cell::before,
 .grid--c9 .cell::before,
 .grid--compact .cell::before,
 .grid--lane .cell::before { display: none; }
@@ -1489,6 +1493,49 @@
 .diff-chip--on .diff-chip__name { color: var(--c-imm-gold); }
 .diff-chip--on .diff-chip__mult { color: var(--c-imm-text-2); }
 .diff-chip--lock { opacity: 0.55; }
+
+/* 入门卡：左侧一道旧金细线，读完就收。不铺底色——它和规则卡是同一层，
+   铺色会把它变成第二个「主卡」，一屏里就有两个重点了。 */
+.intro-card { border-left: 4rpx solid var(--c-imm-gold-dim); }
+.intro-steps { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-3); }
+.intro-step { color: var(--c-imm-text-2); line-height: 1.6; }
+.intro-inline { display: block; margin-top: var(--sp-3); color: var(--c-imm-text-3); }
+/* 关卡条：一左一右两个翻页格，中间写「第几关 + 本章第几关」。
+   不用滚轮也不用长列表——999 关铺出来只会变成一张没人看得完的图。 */
+.lv-row {
+    display: flex;
+    align-items: stretch;
+    gap: var(--sp-2);
+}
+.lv-step {
+    width: 96rpx;
+    min-height: 96rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40rpx;
+    line-height: 1;
+    color: var(--c-imm-gold);
+    border: 1rpx solid var(--c-border);
+    border-radius: var(--r-sm);
+    background: var(--c-imm-bg-2);
+}
+.lv-step--off { color: var(--c-imm-text-3); opacity: 0.45; }
+.lv-mid {
+    flex: 1;
+    min-height: 96rpx;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4rpx;
+    border: 1rpx solid var(--c-imm-gold-dim);
+    border-radius: var(--r-sm);
+    background: var(--c-imm-gold-soft);
+}
+.lv-num { font-size: var(--fs-h3); color: var(--c-imm-gold); font-weight: 600; line-height: 1.1; }
+.lv-sub { font-size: var(--fs-caption); color: var(--c-imm-text-3); }
+
 
 /* 盘面是纸、页面是墨：本页恒定深色，不再跟系统明暗翻转。
    纸面取的是注入的 --soft / --ink / --bg，因此格子里的字永远是深墨落在浅纸上；

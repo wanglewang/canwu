@@ -1,6 +1,7 @@
 'use strict';
 
 const economyData = require('./economy.js');
+const levelData = require('./levels.js');
 
 // 参悟方式 = 一门功法 + 一套专属玩法 + 该门独有的规则花样(twist) + 表现主题(theme)。
 // 19 门功法对应 19 套互不复用内核的小游戏；同是剑法、同是阵法，也不会点进去是同一个盘面。
@@ -115,7 +116,10 @@ const PRACTICE_METHODS = [
     desc: '灵石按息坠落，挪石转石把一层垒满，整层化去才算筑稳一分根基。',
     tip: '堆到顶立刻收功；垒满一层才化去',
     base: 36,
-    params: { duration: 70, cols: 6, rows: 8, dropMs: 620 },
+    // 八列八行：六列时一块长石横跨三分之二个盘子，块大、缝窄、转不动。
+    // 落石间隔从 620ms 提到 950ms（简单档再乘 1.18 ≈ 1.1 秒一口），
+    // 低档只出四种不带长条的块——先学会「摆平」，再学会「接长条」。
+    params: { duration: 70, cols: 8, rows: 8, dropMs: 950, shapes: 4 },
   },
   {
     id: 'harvest', name: '换苗引秀', game: 'match', theme: 'harvest', twist: 'harvest',
@@ -640,8 +644,21 @@ function capFor(key, src) {
   return 999;
 }
 
-function buildParams(method, diffKey) {
-  const d = difficultyOf(diffKey);
+// 一个难度档的原始参数，不做章内混合。depthIndex 允许取到 5：
+// 第 5 章后面没有第 6 张表，就在绝境档上再压 6%，好让第 999 关真的是最难一关。
+function pseudoDiff(depthIndex) {
+  const idx = Math.round(depthIndex);
+  if (idx <= 4) return DIFFICULTIES[Math.max(0, idx)];
+  const base = DIFFICULTIES[4];
+  return {
+    key: 'desperate+', name: '绝境末段', need: base.need, qi: base.qi,
+    pace: base.pace * 0.94, windowPace: base.windowPace * 0.94, goal: base.goal * 1.06,
+    gear: 'hard', depth: 4,
+  };
+}
+
+function rawParams(method, depthIndex) {
+  const d = pseudoDiff(depthIndex);
   const src = (method && method.params) || {};
   const out = {};
   const keys = Object.keys(src);
@@ -669,7 +686,7 @@ function buildParams(method, diffKey) {
   // 三秀同收的五档整表注入：玩法层只读 params，不再自己拼 620 + depth×150。
   // 这几个键不在 PACE / GOAL 缩放名单里，免得被 pace 又乘一遍（花色与罚息是整数）。
   if (method && method.game === 'match') {
-    const lv = matchLevelOf(diffKey);
+    const lv = MATCH_LEVELS[d.depth];
     out.kinds = lv.kinds;
     out.duration = lv.duration;
     out.missCost = lv.missCost;
@@ -679,14 +696,14 @@ function buildParams(method, diffKey) {
   }
   // 阵灯推演按「已走步数 / 最优步数」评级，盘面规格与步数预算由这一份表按档注入。
   if (method && method.game === 'lights') {
-    const lv = lightsLevelOf(diffKey);
+    const lv = LIGHTS_LEVELS[d.depth];
     out.size = lv.size;
     out.minSteps = lv.min;
     out.capSteps = lv.cap;
   }
   // 九宫填数：规格、挖洞数与三条时间线都按档注入，玩法层不再自己写死 4×4。
   if (method && method.game === 'sudoku') {
-    const lv = sudokuLevelOf(diffKey);
+    const lv = SUDOKU_LEVELS[d.depth];
     out.size = lv.size;
     out.holes = lv.holes;
     out.timeLimit = lv.timeLimit;
@@ -696,7 +713,7 @@ function buildParams(method, diffKey) {
   }
   // 滑块让路：只注入「本盘最优步数」的上下限，盘面固定 4×4。
   if (method && method.game === 'klotski') {
-    const lv = klotskiLevelOf(diffKey);
+    const lv = KLOTSKI_LEVELS[d.depth];
     out.minOpt = lv.minOpt;
     out.maxOpt = lv.maxOpt;
   }
@@ -743,13 +760,108 @@ function buildParams(method, diffKey) {
     out.hearts = lv.hearts;
   }
   // 四门原本只有一个可见参数在变：把第二个数按档注入，玩法层逐个读走（见上方表注释）。
+  // 落石垒基：块型从四种（无长条）加到五种，长条是五档之间唯一「形状」上的变化。
+  if (method && method.game === 'blocks') out.shapes = d.depth >= 2 ? 5 : 4;
   if (method && method.game === 'merge') out.startTiles = MERGE_START_TILES[d.depth];
   if (method && method.game === 'schulte') out.penaltySec = SCHULTE_PENALTIES[d.depth];
   if (method && method.game === 'pushbox') out.capFactor = PUSHBOX_CAP_FACTORS[d.depth];
   // steps 是「这盘最少几步」这类按档递增的量：params 里写的是简单档的值，每档 +1。
   if (typeof out.steps === 'number') out.steps += d.depth;
   if (typeof out[SPEED_KEY] === 'number') out[SPEED_KEY] = Math.round(out[SPEED_KEY] / d.pace * 10000) / 10000;
+  // 末章没有「下一档」，靠这一行继续收紧，否则第 900 关与第 999 关会一模一样。
+  if (depthIndex > 4) {
+    if (typeof out.duration === 'number') out.duration = Math.max(8, Math.round(out.duration * 0.94));
+    if (typeof out.timeLimit === 'number') out.timeLimit = Math.max(8, Math.round(out.timeLimit * 0.94));
+  }
   return out;
+}
+
+// 档位参数：老接口，按难度键取本章基准（第 1 段）。
+function buildParams(method, diffKey) {
+  return rawParams(method, difficultyOf(diffKey).depth);
+}
+
+// 章内收紧：一章 40 段，第 40 段比第 1 段紧三成。这个数只乘「越短越难」的量，
+// 不碰盘面规格——6 列混 7 列算出来还是 6 列，那是假变化。
+const LEVEL_TIGHTEN = 0.30;
+const LEVEL_TIME_KEYS = ['duration', 'timeLimit', 'interval', 'flashMs', 'gapMs', 'windowMs',
+  'shuffleMs', 'flipMs', 'dropMs', 'msPerNote', 'life', 'capFactor', 'capSteps', 'minSteps',
+  'window', 'penaltySec'];
+
+// 某一关的完整参数。同一段（5 关）里的调用结果逐位相同，这是「五关之内难度不变」
+// 的落点；段与段之间一定有一处变，界面把它报成「本段变化」。
+//
+// 章内只做一件事：把本档的时间与预算按段收紧，方向永远是「更难」。
+// 不朝下一章插值——九宫从 4×4 换 6×6 时下一章的时间反而更多（换盘要留读盘时间），
+// 朝它插值会让章内时间越打越多，那是反的。
+function buildParamsAt(method, level) {
+  const lv = levelData.clampLevel(level);
+  const ch = levelData.chapterOf(lv);
+  const f = levelData.progressOf(lv);
+  const out = rawParams(method, ch);
+  const tighten = 1 - LEVEL_TIGHTEN * f;
+  for (let i = 0; i < LEVEL_TIME_KEYS.length; i += 1) {
+    const k = LEVEL_TIME_KEYS[i];
+    if (typeof out[k] !== 'number') continue;
+    const min = k === 'capSteps' || k === 'minSteps' ? 3 : k === 'timeLimit' || k === 'duration' ? 8 : 0;
+    out[k] = Math.max(min, levelRound(k, out[k] * tighten));
+  }
+  out.depth = ch;
+  out.level = lv;
+  out.chapter = ch;
+  out.stage = levelData.stageOf(lv);
+  return levelData.tweakParams(method, out, lv);
+}
+
+// 逐键取整：小数比例（判定窗 0.09）与预算系数（×2.2）不能被四舍五入成整数，
+// 否则「每段收紧一点」在第一段就把 2.2 变成 2，之后再怎么收都是 2。
+function levelRound(key, v) {
+  if (key === 'window') return Math.round(v * 1000) / 1000;
+  if (key === 'capFactor') return Math.round(v * 100) / 100;
+  if (key === 'penaltySec') return Math.round(v * 10) / 10;
+  return Math.round(v);
+}
+
+// 这一段的「小变化」：拿上一段（5 关之前）的参数逐项比，只报玩家看得懂的。
+// 比较基准一定是同一门、本关减 5，而不是「与简单档比」——玩家看的是脚下这一步。
+function levelDelta(method, level) {
+  const lv = levelData.clampLevel(level);
+  const prevLv = lv - levelData.STAGE_SPAN;
+  if (prevLv < 1) return [];
+  const now = buildParamsAt(method, lv);
+  const prev = buildParamsAt(method, prevLv);
+  const ordered = PACE_KEYS.concat(WINDOW_KEYS, GOAL_KEYS,
+    ['duration', 'timeLimit', 'sLine', 'hearts', 'startTiles', 'penaltySec', 'capFactor',
+      'capSteps', 'minSteps', 'fourRate', 'lineScale']).filter(function (k) {
+    return k !== 'speed';
+  });
+  const out = [];
+  for (let i = 0; i < ordered.length; i += 1) {
+    const k = ordered[i];
+    if (typeof now[k] !== 'number' || typeof prev[k] !== 'number') continue;
+    if (now[k] === prev[k]) continue;
+    // 格式化之后一样就不再报：毫秒级差 1ms 写出来是「0.82 秒 → 0.82 秒」，
+    // 玩家只会以为这游戏在骗他。
+    const a = levelFmt(k, prev[k]);
+    const b = levelFmt(k, now[k]);
+    if (a === b) continue;
+    out.push({ key: k, label: LEVEL_LABELS[k] || FIELD_LABELS[k] || k, text: (LEVEL_LABELS[k] || FIELD_LABELS[k] || k) + ' ' + a + ' → ' + b });
+    if (out.length >= 2) break;
+  }
+  return out;
+}
+
+// 关卡表里独有的两个旋钮（合术起手 4 的比例、勘禁 S 线系数）没有通用标签。
+const LEVEL_LABELS = { fourRate: '起手给 4', lineScale: 'S 线' };
+
+function levelFmt(key, value) {
+  if (key === 'fourRate' || key === 'lineScale') return Math.round(value * 100) + '%';
+  if (key === 'startTiles') return Math.round(value) + ' 块';
+  // 判定窗与罚时是小数：fmtField 会四舍五入成整数，写出来就成了「0 → 0」「2 秒 → 2 秒」。
+  if (key === 'window') return (Math.round(value * 1000) / 10).toFixed(1) + '%';
+  if (key === 'penaltySec') return value.toFixed(1) + ' 秒';
+  if (key === 'capFactor') return '×' + value.toFixed(2);
+  return fmtField(key, value);
 }
 
 // 这一行是给玩家读的：毫秒一律折成秒（660.8ms 这种数字没人会去比），
@@ -931,6 +1043,9 @@ module.exports = {
   DIFF_BELOW_CAP: DIFF_BELOW_CAP,
   difficultyList: difficultyList,
   buildParams: buildParams,
+  buildParamsAt: buildParamsAt,
+  levelDelta: levelDelta,
+  pseudoDiff: pseudoDiff,
   diffDetail: diffDetail,
   sLineOf: sLineOf,
   sLineText: sLineText,

@@ -443,19 +443,103 @@ check('参悟是纯支出：一百局里灵石一分不动，灵力只按 qiCost
     'applyPractice 里还有一处直接给存档加灵力或灵石');
 });
 
-check('默认难度跟熟练度走：门槛一到就默认最高档，不记忆手选', function () {
+check('默认难度跟熟练度走：门槛一到就默认最高档', function () {
   const pairs = [[0, 'easy'], [299, 'easy'], [300, 'normal'], [1499, 'normal'],
     [1500, 'hard'], [6000, 'expert'], [24000, 'desperate']];
   for (const pair of pairs) {
     assert.strictEqual(practice.bestDifficulty(pair[0]), pair[1],
       pair[0] + ' 熟练度的默认档不是 ' + pair[1]);
   }
-  // 准备页每次重算默认档，只把「本次停留里的手选」放在内存里（diffOverride）。
-  const page = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.js'), 'utf8');
-  assert.ok(/this\.diffOverride = ''/.test(page), '准备页没把手选难度标成「本次停留有效」');
-  assert.ok(/keepOverride \? this\.diffOverride : practiceData\.DIFFICULTIES\[maxIdx\]\.key/.test(page),
-    '准备页默认档没按最高已解锁档取');
-  assert.ok(/maxIdx > this\.maxIdxSeen/.test(page), '解锁新档时没清掉手选、回到新档');
+});
+
+// ---------------------------------------------------------------- 关卡
+check('999 关：五章各 200 关（末章 199），章 = 原难度档', function () {
+  const L = require('../data/levels.js');
+  assert.strictEqual(L.LEVEL_MAX, 999);
+  assert.strictEqual(L.CHAPTERS.length, 5, '章节不是五章');
+  let total = 0;
+  for (let i = 0; i < L.CHAPTERS.length; i += 1) {
+    const c = L.CHAPTERS[i];
+    total += c.to - c.from + 1;
+    assert.strictEqual(c.key, practice.DIFFICULTIES[i].key, '第 ' + (i + 1) + ' 章的难度键与档位表分叉');
+    if (i > 0) assert.strictEqual(c.from, L.CHAPTERS[i - 1].to + 1, '章节之间有缝或重叠');
+  }
+  assert.strictEqual(total, 999, '五章加起来不是 999 关');
+  assert.strictEqual(L.chapterOf(1), 0);
+  assert.strictEqual(L.chapterOf(200), 0);
+  assert.strictEqual(L.chapterOf(201), 1);
+  assert.strictEqual(L.chapterOf(999), 4);
+});
+
+check('五关一段：段内参数逐位相同，跨段必有变化', function () {
+  // 「五关之内难度没有变化，每五关一个小变化」——这条是玩家能直接验的，
+  // 所以断言也按他的验法写：同一段里逐位比，只允许 level 这个元字段不同。
+  for (const m of practice.PRACTICE_METHODS) {
+    let changed = 0;
+    for (let lv = 1; lv + 4 <= 999; lv += 5) {
+      const a = practice.buildParamsAt(m, lv);
+      const b = practice.buildParamsAt(m, lv + 4);
+      for (const k of Object.keys(a)) {
+        if (k === 'level') continue;
+        assert.strictEqual(b[k], a[k], m.id + ' 第 ' + lv + '–' + (lv + 4) + ' 关同段却 ' + k + ' 不同');
+      }
+      if (lv > 1) {
+        const prev = practice.buildParamsAt(m, lv - 1);
+        const keys = Object.keys(a).filter(function (k) { return k !== 'level' && a[k] !== prev[k]; });
+        if (keys.length) changed += 1;
+      }
+    }
+    // 每一门在 999 关里都真的在变：一次不变的段占比过高就说明这条轴没接上。
+    assert.ok(changed >= 150, m.id + ' 只有 ' + changed + ' 段有变化，难度基本没拉开');
+  }
+});
+
+check('关卡进度只增不减，走火不算通', function () {
+  const game = require('../utils/game.js');
+  const s = game.createNewState();
+  const r1 = game.applyPractice(s, 'jian', 'B', { difficulty: 'easy', level: 7, score: 10 });
+  assert.strictEqual(r1.level, 7);
+  assert.strictEqual(r1.levelBest, 7);
+  assert.strictEqual(r1.levelUp, true);
+  assert.strictEqual(s.levelBest.jian, 7);
+  // 重打第 3 关：进度不许回退。
+  const r2 = game.applyPractice(s, 'jian', 'C', { difficulty: 'easy', level: 3, score: 5 });
+  assert.strictEqual(r2.levelBest, 7);
+  assert.strictEqual(r2.levelUp, false);
+  // 走火不算通：第 20 关崩了，进度仍停在第 7 关。
+  const r3 = game.applyPractice(s, 'jian', 'F', { difficulty: 'easy', level: 20, score: 0 });
+  assert.strictEqual(r3.levelBest, 7, '走火也把关卡推上去了');
+  // 读档兜底：没带 levelBest 的老档读出来是空表，不会变成 undefined。
+  const loaded = game.normalizeState({ skills: s.skills, worldId: s.worldId, levelBest: s.levelBest });
+  assert.ok(loaded.levelBest && typeof loaded.levelBest === 'object');
+  assert.strictEqual(loaded.levelBest.jian, 7, '读档把关卡进度丢了');
+});
+
+check('关卡越界夹回、章末取本章末关，且不越权到未解锁的章', function () {
+  const L = require('../data/levels.js');
+  assert.strictEqual(L.clampLevel(0), 1);
+  assert.strictEqual(L.clampLevel(-5), 1);
+  assert.strictEqual(L.clampLevel(5000), 999);
+  assert.strictEqual(L.maxLevelOf(0), 200);
+  assert.strictEqual(L.maxLevelOf(4), 999);
+  // 段号：每章 40 段，5 关一段
+  assert.strictEqual(L.stageOf(1), 0);
+  assert.strictEqual(L.stageOf(5), 0);
+  assert.strictEqual(L.stageOf(6), 1);
+  assert.strictEqual(L.stageOf(201), 0);
+  assert.strictEqual(L.stageOf(999), 39);
+  // 同一门、同一章里，参数必须随关号单调变难：时辰 / 预算只许收不许放。
+  for (const m of practice.PRACTICE_METHODS) {
+    let prev = null;
+    for (let lv = 1; lv <= 200; lv += 5) {
+      const p = practice.buildParamsAt(m, lv);
+      for (const k of ['duration', 'timeLimit', 'flashMs', 'gapMs', 'flipMs', 'dropMs', 'msPerNote']) {
+        if (typeof p[k] !== 'number' || !prev) continue;
+        assert.ok(p[k] <= prev[k], m.id + ' 第 ' + lv + ' 关的 ' + k + ' 反而放宽了');
+      }
+      prev = p;
+    }
+  }
 });
 
 check('越权选高档自动回落到已解锁的最高档', function () {
@@ -758,25 +842,30 @@ check('v3 存档升到 v7，熟练度与纪录原样保留，灵力补到身家�
   assert.strictEqual(typeof n.daily.battleWins, 'number');
 });
 
-check('九套经典玩法都挂黄阶，价格也按品阶阶梯走', function () {
-  const classics = ['lingqi', 'leiyue', 'sanxiu', 'shudu', 'heyuan', 'shumu', 'rongdao', 'tuisuo', 'zeda'];
-  for (const id of classics) {
-    assert.strictEqual(skills.getSkill(id).tier, 'huang', id + ' 不是黄阶');
+check('九套经典 + 勘禁诀默认已习得，藏经阁只留非经典', function () {
+  // 经典盘面（连连看 / 俄罗斯方块 / 三消 / 数独 / 2048 / 舒尔特 / 华容道 / 推箱子 / 挑最大）
+  // 加上扫雷，是「点进去就知道怎么玩」的那一批。这一批不该拿去卖：
+  // 玩家第一次打开游戏，最想玩的正是它们，摆一道灵石墙只会把人挡在门口。
+  const free = ['lingqi', 'leiyue', 'sanxiu', 'shudu', 'heyuan', 'shumu', 'rongdao', 'tuisuo', 'zeda', 'leifu'];
+  for (const id of free) {
+    const s = skills.getSkill(id);
+    assert.strictEqual(s.tier, 'huang', id + ' 不是黄阶');
+    assert.strictEqual(s.source.kind, 'start', s.name + ' 还没改成入门即得');
   }
   const shop = skills.SKILLS.filter(function (x) { return x.source.kind === 'shop'; });
-  const huang = shop.filter(function (x) { return x.tier === 'huang'; });
-  const xuan = shop.filter(function (x) { return x.tier === 'xuan'; });
-  assert.ok(huang.length >= 4 && xuan.length >= 2);
-  for (const h of huang) {
-    for (const x of xuan) {
-      assert.ok(h.source.cost.stone <= x.source.cost.stone, h.name + ' 灵石比玄阶还贵');
-    }
-  }
-  // 功法只收灵石：灵力是练功的燃料，不进价目表。
+  assert.ok(shop.length >= 2, '藏经阁空了：非经典的功课至少要留两门');
   for (const s of shop) {
     assert.strictEqual(s.source.cost.qi, undefined, s.name + ' 的价格里还有灵力');
     assert.ok(s.source.cost.stone > 0, s.name + ' 没有灵石价格');
+    // 藏经阁只剩非经典：经典那一批全在入门即得里，一件都不许再出现在价目表上。
+    assert.notStrictEqual(s.tier, 'huang', s.name + ' 是黄阶却还在卖');
   }
+  // 老存档不会被这道改动卡住：读档时入门即得的门类一律置为已习得。
+  const engine = require('../utils/game.js');
+  const st = engine.createNewState();
+  st.skills.lingqi.unlocked = false;
+  const fixed = engine.normalizeState(st);
+  assert.strictEqual(fixed.skills.lingqi.unlocked, true, '老存档里没买过的经典功法读档后仍是锁的');
 });
 
 // ---------------------------------------------------------------- 五档区分度

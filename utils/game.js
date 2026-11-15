@@ -87,6 +87,9 @@ function createNewState() {
     records: {},
     // 每门功法连续拿到 S 的层数（0..COMBO_MAX）：只在最高已解锁档累计，10 层封顶。
     sCombo: {},
+    // 每门功法已通的最高关（1..999）。关卡是主线进度，只增不减；
+    // 难度档由关号反推，所以这一份数就是「这门练到第几关了」的唯一记法。
+    levelBest: {},
     // 各门功法被玩家手动关掉的阶段新法：{ 功法 id: ['逆诵', ...] }。
     // 逆诵 / 死门这类是「改规则」，不是「给便利」——练到解锁就该能关，
     // 否则想安心练基础记忆的人没有退路。缺省为空 = 全开（老存档自动是这个行为）。
@@ -159,14 +162,24 @@ function normalizeState(input) {
   const maxRealm = worldData.getWorld(base.worldId).realms.length - 1;
   if (base.realmIndex > maxRealm) base.realmIndex = maxRealm;
 
+  // 关卡进度：老存档没有这一栏，读档补空表；只认 1..999 的整数。
+  const rawLv = raw.levelBest && typeof raw.levelBest === 'object' ? raw.levelBest : {};
+  for (let i = 0; i < skillData.SKILLS.length; i += 1) {
+    const lv = Math.floor(num(rawLv[skillData.SKILLS[i].id], 0));
+    if (lv > 0) base.levelBest[skillData.SKILLS[i].id] = Math.max(1, Math.min(999, lv));
+  }
+
   for (let i = 0; i < skillData.SKILLS.length; i += 1) {
     const s = skillData.SKILLS[i];
     const r = raw.skills[s.id];
     if (!r) continue;
     base.skills[s.id] = {
-      unlocked: !!r.unlocked,
+      // 入门即得的门类不认旧存档里的 false：这一批从藏经阁改成默认赠送之后，
+      // 老玩家存档里还写着「没买」，读档不补这一刀，他会一辈子看不到这十门。
+      unlocked: !!r.unlocked || s.source.kind === 'start',
       prof: Math.floor(num(r.prof, 0)),
       onboarded: !!r.onboarded,
+      introed: !!r.introed,
     };
   }
   if (raw.resources) {
@@ -448,6 +461,14 @@ function markOnboarded(state, skillId) {
   return !!(rec && rec.onboarded);
 }
 
+// 入门卡与教学盘是两件事：教学盘是「跟着走一遍」（只有一门有），
+// 入门卡是「进这一门先读三句」（十九门都有）。所以分开记，看过卡片不影响教学盘。
+function markIntroed(state, skillId) {
+  const rec = state && state.skills && state.skills[skillId];
+  if (rec) rec.introed = true;
+  return !!(rec && rec.introed);
+}
+
 function setTwist(state, skillId, name, enabled) {
   if (!state.twists) state.twists = {};
   const cur = twistsOff(state, skillId).filter(function (x) { return x !== name; });
@@ -684,6 +705,13 @@ function applyPractice(state, skillId, grade, options) {
   const opts = options || {};
   checkDaily(state);
   const rec = state.skills[skillId];
+  // 关卡进度：走完这一局才把「已通」推到这一关（走火不算通，但已经打过的关可以重打）。
+  // 关卡不影响熟练度公式——熟练度仍只看评级与连 S，关卡只决定这一局的参数与耗气档。
+  const playedLevel = Math.max(0, Math.round(num(opts.level, 0)));
+  if (!state.levelBest) state.levelBest = {};
+  const levelBestBefore = Math.max(0, Math.floor(num(state.levelBest[skillId], 0)));
+  if (grade !== 'F' && playedLevel > levelBestBefore) state.levelBest[skillId] = playedLevel;
+  const levelBestAfter = Math.max(levelBestBefore, state.levelBest[skillId] || 0);
   const beforeTier = tierIndex(rec.prof);
   const profBefore = rec.prof;
   // 战力是阶梯值：属性 = 功法条目 × 段位系数，段位不跳战力就不动。
@@ -867,6 +895,11 @@ function applyPractice(state, skillId, grade, options) {
   return {
     ok: true,
     grade: grade,
+    // 关卡进度：走完这一局才把「已通」推到这一关，界面据此报「第 N 关 已通」。
+    level: playedLevel,
+    levelBest: levelBestAfter,
+    levelUp: levelBestAfter > levelBestBefore,
+    levelBestBefore: levelBestBefore,
     // 走火＝作废：页面据此把收益行显示成「无」，而不是一排 +0。
     wiped: wiped,
     gradeTitle: copy.GRADE_TITLE[grade] || '粗浅',
@@ -2066,6 +2099,7 @@ module.exports = {
   setTwist: setTwist,
   hasOnboarded: hasOnboarded,
   markOnboarded: markOnboarded,
+  markIntroed: markIntroed,
   computeMetrics: computeMetrics,
   checkTitles: checkTitles,
   checkDaily: checkDaily,

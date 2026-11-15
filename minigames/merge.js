@@ -31,19 +31,16 @@ function create(ctx) {
   const target = lim[0];
   // 起手块数按档递增：少一格空地，同数就更难凑到一处，高档不是只把目标数字改大。
   const startTiles = Math.max(2, Math.min(5, p.startTiles || 2));
+  // 起手给 4 的概率：越往后越少白送 4。这是这一门在章内唯一能连续收紧的量——
+  // 目标块是一档一档翻倍的，中间没有可微调的地方，真要靠它每五关变一次做不到。
+  const fourRate = Math.max(0.1, Math.min(0.6, typeof p.fourRate === 'number' ? p.fourRate : 0.4));
   const costText = ctx.tip || '推不动就完了：盘满且相邻没有同数';
 
   const bag = C.TimerBag();
   const vm = C.makeVm(cols, n, '把同数挤到一起合上去', costText);
-  vm.pad = {
-    keys: [
-      { id: 'up', dir: 'up', glyph: '▲' },
-      { id: 'left', dir: 'left', glyph: '◀' },
-      { id: 'down', dir: 'down', glyph: '▼' },
-      { id: 'right', dir: 'right', glyph: '▶' },
-    ],
-  };
-  vm.extras.showPad = true;
+  // 不摆方向键：2048 的手感是「把盘子往那边推」，拇指已经在盘上了，
+  // 再挪到底部去按四个箭头，等于每走一步都要换个手。页面据此挂滑动层。
+  vm.extras.swipeMove = true;
   vm.extras.showCombo = true;
 
   let grid = new Array(n).fill(0);
@@ -91,7 +88,7 @@ function create(ctx) {
     vm.comboText = best ? '最大一块 ' + best : '';
     vm.goal = best >= target ? '已合出目标块' : '再合到 ' + target + ' 就收功';
     vm.gradeNow = best >= lim[0] ? 'S' : best >= lim[1] ? 'A' : best >= lim[2] ? 'B' : 'C';
-    vm.hint = costText + ' · 本档目标 ' + target + ' 一块';
+    vm.hint = '四向滑动 · ' + costText;
   }
 
   function emptyCells() {
@@ -105,7 +102,8 @@ function create(ctx) {
     if (!free.length) return;
     const i = free[C.randInt(free.length)];
     // 四成给 4、六成给 2：全是 2 的盘推起来太慢，全是 4 又太送。
-    grid[i] = Math.random() < 0.4 ? 4 : 2;
+    // 这个比例按关卡往下收（最低约五分之一），凑同数就得多推几步。
+    grid[i] = Math.random() < fourRate ? 4 : 2;
   }
 
   // 一条线上的挤压：先去掉空格，再让相邻同数两两相合，最后补空格。
@@ -228,7 +226,7 @@ function create(ctx) {
     started = true;
     vm.phase = 'playing';
     vm.banner = theme.banner || '';
-    vm.status = '按方向键把同数挤到一起';
+    vm.status = '四向滑动，把同数挤到一起';
     grid = new Array(n).fill(0);
     score = 0;
     moves = 0;

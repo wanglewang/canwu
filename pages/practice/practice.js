@@ -6,6 +6,7 @@ const minigames = require('../../minigames/index.js');
 const themes = require('../../minigames/theme.js');
 const skillData = require('../../data/skills.js');
 const practiceData = require('../../data/practice.js');
+const levelData = require('../../data/levels.js');
 const worldData = require('../../data/world.js');
 const economyData = require('../../data/economy.js');
 const guides = require('../../data/guides.js');
@@ -44,6 +45,13 @@ Page({
     diffBrief: '',
     goalText: '',
     difficulty: 'easy',
+    // 关卡：999 关，五章各 200 关（末章 199）。难度档只是章节的内部名字，
+    // 玩家看到与操作的是「第几关」，档位由关号反推，不再是一个可以随便挑的胶囊。
+    level: 1,
+    levelMax: 200,
+    levelSub: '',
+    levelChange: '',
+    levelBest: 0,
     diffList: [],
     diffName: '简单',
     rankLabel: '黄阶',
@@ -102,6 +110,8 @@ Page({
     barMode: '',
     // 局内那一行速记（guide.inline）。整篇规则在说明页，这里只留操作，不留解释。
     guide: null,
+    introOn: false,
+    intro: null,
     // 收起结算后准备页顶部还留一行「上局战绩」，随时能把结算明细叫回来重看。
     recordBrief: '',
     slashList: [],
@@ -150,9 +160,9 @@ Page({
     this.theme = themes.themeOf('forge', 'click');
     this.twist = '';
     // 难度默认值不落存档：每次进这一页都按本门熟练度重算（默认最高已解锁档）。
-    // diffOverride 只记「这一次停留里玩家手动点过哪一档」，换页即弃——
+    // levelOverride 只记「这一次停留里玩家自己翻到第几关」，换页即弃——
     // 否则半年前点过一次简单档，练到圆满也永远默认简单。
-    this.diffOverride = '';
+    this.levelOverride = 0;
     this.maxIdxSeen = -1;
     this.mode = query && query.mode === 'breakthrough' ? 'breakthrough' : 'practice';
     this.skillId = (query && query.skillId) || '';
@@ -278,11 +288,15 @@ Page({
     // 就清掉手选、回到新档——解锁新档是玩家练出来的结果，第一局就该打它。
     // 想练手可以随时点回低档，但每低一档收益再折半、本局也不叠连 S（见 belowCapText）。
     const maxIdx = practiceData.diffIndexOf(rec.prof);
-    if (maxIdx > this.maxIdxSeen) this.diffOverride = '';
+    if (maxIdx > this.maxIdxSeen) this.levelOverride = 0;
     this.maxIdxSeen = maxIdx;
-    const keepOverride = this.diffOverride
-      && practiceData.diffKeyIndex(this.diffOverride) <= maxIdx;
-    const diffKey = keepOverride ? this.diffOverride : practiceData.DIFFICULTIES[maxIdx].key;
+    // 玩家能打到已解锁最高章的末关。章内不再设关卡锁（一关一关磨 200 局不叫关卡，叫罚站），
+    // 但默认停在「已通 + 1」——打完一局点「再来」正好是下一关。
+    const levelMax = levelData.maxLevelOf(maxIdx);
+    const levelBest = Math.floor((state.levelBest && state.levelBest[skill.id]) || 0);
+    const wantLv = this.levelOverride || Math.min(levelMax, levelBest + 1);
+    const level = Math.max(1, Math.min(levelMax, Math.round(wantLv) || 1));
+    const diffKey = practiceData.DIFFICULTIES[levelData.chapterOf(level)].key;
     const diff = practiceData.diffDetail(method, diffKey);
     const diffList = practiceData.difficultyList(rec.prof, diffKey);
     const belowCapText = practiceData.belowCapText(rec.prof, diffKey);
@@ -361,6 +375,14 @@ Page({
     // 开局卡那一行：整篇规则在说明页，首屏只留「这一局做什么」。
     const guideData = guides.guideOf(method.game);
     const ruleText = guideData ? guideData.goal : method.desc;
+    // 入门卡：第一次进这一门先摆三句「怎么玩」。教学盘（只有阵法·燃灯诀有）是跟着走一遍，
+    // 入门卡是进门前读三行——十九门都得有，不然新门道只能靠试错。
+    const introOn = !rec.introed && !!guideData;
+    const intro = introOn ? {
+      goal: guideData.goal,
+      steps: (guideData.steps || []).slice(0, 3),
+      inline: guideData.inline || '',
+    } : null;
 
     // 详情页已经不在了：这一门的来历、风味与「练成之后」跟着准备页走。
     // 只取前两行：属性加成与本门特效（都已是按段位兑现的真实数字），代价与气海留给图鉴。
@@ -391,6 +413,8 @@ Page({
       // 与局内那一行同源：三秀同收的罚息按档变，这里不许留一句写死的「少 2 息」。
       tip: practiceData.tipFor(method, diffKey),
       ruleText: ruleText,
+      introOn: introOn,
+      intro: intro,
       tierName: info.name,
       tierColor: info.color,
       prof: rec.prof,
@@ -398,6 +422,17 @@ Page({
       nextText: info.maxed ? '已至大圆满' : '距 ' + info.nextName + ' 还差 ' + (info.nextThreshold - rec.prof),
       nextBenefit: nextTier ? '到「' + nextTier.name + '」：' + nextTier.desc : '',
       difficulty: diffKey,
+      level: level,
+      levelMax: levelMax,
+      levelBest: levelBest,
+      levelSub: levelData.chapterRange(levelData.chapterOf(level)).name + ' · 第 '
+        + levelData.levelInChapter(level) + ' / ' + levelData.chapterSize(levelData.chapterOf(level))
+        + ' 关 · 已通 ' + levelBest,
+      levelChange: (function () {
+        const d = practiceData.levelDelta(method, level);
+        if (!d.length) return '本段（第 ' + (level - ((level - 1) % 5)) + '～' + (level - ((level - 1) % 5) + 4) + ' 关）沿用上一段规格';
+        return '本段变化：' + d.map(function (x) { return x.text; }).join(' · ');
+      })(),
       diffList: diffList,
       diffName: diff.name,
       qi: qiNow,
@@ -450,7 +485,8 @@ Page({
       const skill = skillData.getSkill(this.skillId);
       const method = practiceData.getMethod(skill.method);
       gameId = method.game;
-      params = practiceData.buildParams(method, this.data.difficulty);
+      // 同一段五关参数逐位相同，跨段才收紧——「五关之内难度不变」就落在这个函数里。
+      params = practiceData.buildParamsAt(method, this.data.level);
       methodName = method.name;
       // 代价句里的罚息随难度档变（三秀同收），不能用写死在功法表里的那一句。
       tip = practiceData.tipFor(method, this.data.difficulty);
@@ -791,6 +827,14 @@ Page({
     this.onStart();
   },
 
+  // 读完入门卡：记进存档，这一门以后不再弹；想重看走右上「说明」。
+  onCloseIntro: function () {
+    const self = this;
+    store.commitCritical(function (s) { return engine.markIntroed(s, self.skillId); });
+    this.setData({ introOn: false });
+    sfx.play('tap');
+  },
+
   onSkipTeach: function () {
     if (!this.data.tutorial) return;
     this.finishTeach(true);
@@ -891,19 +935,33 @@ Page({
     wx.navigateTo({ url: nav.practiceHelpUrl('', 'charge') });
   },
 
-  onDifficulty: function (event) {
+  // 关卡切换：一次一格。章内自由挑，跨章要靠熟练度（章 = 原来的难度档）。
+  onLevel: function (event) {
     if (this.data.started || this.data.countdown > 0) return;
-    const key = event.currentTarget.dataset.d;
-    if (!key || key === this.data.difficulty) return;
-    const d = practiceData.difficultyOf(key);
-    const prof = store.get().skills[this.skillId] ? store.get().skills[this.skillId].prof : 0;
-    if (practiceData.diffKeyIndex(key) > practiceData.diffIndexOf(prof)) {
-      toast('熟练度到 ' + d.need + ' 才解锁「' + d.name + '」');
+    const dir = Number(event.currentTarget.dataset.d) || 0;
+    if (!dir) return;
+    const next = this.data.level + dir;
+    if (next < 1 || next > this.data.levelMax) {
+      if (next > this.data.levelMax) {
+        // 章末不让人白点：说清下一章要多少熟练度，而不是只把按钮变灰。
+        const prof = store.get().skills[this.skillId].prof;
+        const idx = practiceData.diffIndexOf(prof);
+        const nextDiff = practiceData.DIFFICULTIES[idx + 1];
+        toast(nextDiff
+          ? '本章到头：熟练度到 ' + nextDiff.need + ' 开「' + nextDiff.name + '」'
+          : '已是最后一关');
+      }
       return;
     }
-    // 手选只在这一页停留期间有效：换页回来仍按熟练度取默认（最高已解锁档）。
-    this.diffOverride = key;
-    this.setData({ difficulty: key });
+    this.levelOverride = next;
+    this.refresh();
+    this.buildGame();
+  },
+
+  // 回到「已通 + 1」：连打几局之后跳回进度线，不用一路点回去。
+  onLevelResume: function () {
+    if (this.data.started || this.data.countdown > 0) return;
+    this.levelOverride = 0;
     this.refresh();
     this.buildGame();
   },
@@ -1078,6 +1136,35 @@ Page({
     if (this.lastFxKey === before) sfx.play('tap');
   },
 
+  // 四向推盘：手指从盘上往哪个方向划，全盘就往哪个方向挤。
+  // 判据只用「起点 → 终点」的位移，不跟轨迹——推盘是一步决策，不是画线。
+  // 24px 以下当作没划（手指抖一下不该把整盘推走）；斜划取主轴，不判无效。
+  onMoveTouchStart: function (event) {
+    if (!this.controller || !this.data.started || this.data.showResult || this.data.boardHeld) return;
+    const pt = this.touchPoint(event);
+    if (!pt) return;
+    this.moveFrom = pt;
+  },
+
+  // 空实现只为吞掉 touchmove：不吞的话手指一划页面会跟着滚，盘面留不住。
+  onMoveTouchMove: function () {},
+
+  onMoveTouchEnd: function (event) {
+    const from = this.moveFrom;
+    this.moveFrom = null;
+    if (!from || !this.controller || !this.controller.move) return;
+    const pt = this.touchPoint(event);
+    if (!pt) return;
+    const dx = pt.x - from.x;
+    const dy = pt.y - from.y;
+    const ax = Math.abs(dx);
+    const ay = Math.abs(dy);
+    if (Math.max(ax, ay) < 24) return;
+    const dir = ax > ay ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+    this.controller.move(dir);
+    sfx.play('tap');
+  },
+
   // 方向键只给 vm.extras.showPad 的玩法（落石垒基）：统一走 controller.move(dir)。
   onPad: function (event) {
     if (!this.controller || !this.data.started || this.data.showResult) return;
@@ -1195,8 +1282,9 @@ Page({
         secondary: copy.UI.actions.goSkills,
       };
     } else {
+      const lv = this.data.level;
       const r = store.commitCritical(function (s) {
-        return engine.applyPractice(s, skillId, grade, { difficulty: diffKey, score: res.score || 0 });
+        return engine.applyPractice(s, skillId, grade, { difficulty: diffKey, level: lv, score: res.score || 0 });
       });
       // 参悟只换熟练度，不产资源：结算卡里灵力是「花掉的」，不是「赚到的」。
       // 这一行是玩家唯一能核对的账，所以耗气的三个修正也要在同一屏写清（见 notes）。
@@ -1210,6 +1298,9 @@ Page({
         : [
           // 三连晋级取消后，这一栏就是本局实得点数，与 profAfter - profBefore 严格对齐。
           { k: '熟练度', v: r.gain > 0 ? '+' + r.gain : '已圆满' },
+          // 关卡进度只在真的往前推了一步时报；重打旧关卡不刷这一行。
+          // 冲关局没有关卡，这一栏整条不出现。
+          ...(r.level > 0 ? [{ k: '关卡', v: r.levelUp ? '第 ' + r.level + ' 关 已通' : '第 ' + r.level + ' 关 重练' }] : []),
           { k: '灵力', v: '−' + r.qiCost + ' · 余 ' + r.qiAfter + ' / ' + r.qiMax },
           { k: '局内得分', v: String(res.score || 0) },
         ];

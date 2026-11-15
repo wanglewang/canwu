@@ -145,7 +145,7 @@ const SKILLS = [
     flavor: '禁制不响，只数数给你听。',
     bonus: { ling: 4, wu: 1 },
     effect: { type: 'qiSave', value: 0.10, text: '勘禁：参悟耗灵力 −10%' },
-    source: { kind: 'shop', cost: { stone: 32 } },
+    source: { kind: 'start' },
   },
   {
     // 五行相生偏反应、比阵灯推演轻，降到玄阶与燃灯诀排成「玄 → 地」两级。
@@ -190,7 +190,8 @@ const SKILLS = [
     source: { kind: 'battle', opponentId: 'xuanzhen' },
   },
   // 三套「看一眼就会玩」的经典玩法统一挂黄阶：品阶按功课难度定，不按新奇程度定。
-  // 各占一个新类型，谱系里也不会和既有功法同阶撞车。
+  // 从「藏经阁卖」改成「入门即得」：玩家第一次打开游戏，最想玩的正是这几套，
+  // 摆一道灵石墙只会把人挡在门口。非经典的功课（静心 / 踏云）才留在藏经阁。
   {
     // 旧名「灵契·并蒂引」：前缀「灵契」与类别「御灵」不符，统一成类别名。
     id: 'lingqi', name: '御灵·并蒂引', type: '御灵', kind: 'skill', tier: 'huang', method: 'linkpair',
@@ -198,7 +199,7 @@ const SKILLS = [
     flavor: '师父说这叫并蒂，你觉得这叫连连看。',
     bonus: { ling: 3, shen: 2 },
     effect: { type: 'qiSave', value: 0.08, text: '并蒂：参悟耗灵力 −8%' },
-    source: { kind: 'shop', cost: { stone: 18 } },
+    source: { kind: 'start' },
   },
   {
     id: 'leiyue', name: '土术·垒岳诀', type: '土术', kind: 'skill', tier: 'huang', method: 'stackstone',
@@ -206,7 +207,7 @@ const SKILLS = [
     flavor: '练之前以为要搬山，练之后发现自己只是在码石头。',
     bonus: { ti: 4, ling: 1 },
     effect: { type: 'power', value: 0.05, text: '垒岳：对战战力 +5%' },
-    source: { kind: 'shop', cost: { stone: 24 } },
+    source: { kind: 'start' },
   },
   {
     id: 'sanxiu', name: '灵植·三秀诀', type: '灵植', kind: 'skill', tier: 'huang', method: 'harvest',
@@ -214,9 +215,9 @@ const SKILLS = [
     flavor: '一畦三秀，收完又长，长得比你收得还快。',
     bonus: { wu: 3, ti: 2 },
     effect: { type: 'offline', value: 0.12, text: '三秀：灵力恢复 +12%' },
-    source: { kind: 'shop', cost: { stone: 22 } },
+    source: { kind: 'start' },
   },
-  // 六门经典盘面：与上面三套一样是「看一眼就会玩」，统一黄阶、走藏经阁。
+  // 六门经典盘面：与上面三套一样是「看一眼就会玩」，统一黄阶、入门即得。
   // 各占一门类（术数 / 合术 / 目术 / 机巧 / 挪移 / 辨术）：同类同阶只放一门，
   // 撞了谱系按阶取槽会把后一门盖掉，tests/rank.test.js 守着这条。
   {
@@ -225,7 +226,7 @@ const SKILLS = [
     flavor: '师父说这是数，不是算——算的是别人，数的是自己。',
     bonus: { wu: 4, ling: 1 },
     effect: { type: 'qiSave', value: 0.09, text: '九宫：参悟耗灵力 −9%' },
-    source: { kind: 'shop', cost: { stone: 28 } },
+    source: { kind: 'start' },
   },
   {
     id: 'heyuan', name: '合术·叠元诀', type: '合术', kind: 'skill', tier: 'huang', method: 'heyuan',
@@ -233,7 +234,7 @@ const SKILLS = [
     flavor: '一加一的道理，练到最后是 1024 加 1024。',
     bonus: { ling: 3, ti: 1 },
     effect: { type: 'power', value: 0.05, text: '叠元：对战战力 +5%' },
-    source: { kind: 'shop', cost: { stone: 24 } },
+    source: { kind: 'start' },
   },
   {
     id: 'shumu', name: '目术·逐数诀', type: '目术', kind: 'skill', tier: 'huang', method: 'shumu',
@@ -241,7 +242,7 @@ const SKILLS = [
     flavor: '眼睛快的人，打架时也先看见对方的手。',
     bonus: { shen: 4 },
     effect: { type: 'variance', value: 0.04, text: '逐数：对战波动下限提高' },
-    source: { kind: 'shop', cost: { stone: 18 } },
+    source: { kind: 'start' },
   },
   {
     id: 'rongdao', name: '机巧·让路诀', type: '机巧', kind: 'skill', tier: 'huang', method: 'rongdao',
@@ -249,7 +250,7 @@ const SKILLS = [
     flavor: '让一步不是退，是给别人腾地方。',
     bonus: { wu: 3, shen: 2 },
     effect: { type: 'qiSave', value: 0.08, text: '让路：参悟耗灵力 −8%' },
-    source: { kind: 'shop', cost: { stone: 30 } },
+    source: { kind: 'start' },
   },
   {
     id: 'tuisuo', name: '挪移·入位诀', type: '挪移', kind: 'skill', tier: 'huang', method: 'tuisuo',
@@ -257,7 +258,7 @@ const SKILLS = [
     flavor: '推错了退得回来，账退不回来——这话师父只说一遍。',
     bonus: { ti: 4 },
     effect: { type: 'power', value: 0.04, text: '入位：对战战力 +4%' },
-    source: { kind: 'shop', cost: { stone: 26 } },
+    source: { kind: 'start' },
   },
   {
     id: 'zeda', name: '辨术·摘魁诀', type: '辨术', kind: 'skill', tier: 'huang', method: 'zeda',
@@ -265,7 +266,7 @@ const SKILLS = [
     flavor: '一眼看出谁最强，剩下的就不必看了。',
     bonus: { shen: 3, wu: 1 },
     effect: { type: 'offline', value: 0.10, text: '摘魁：灵力恢复 +10%' },
-    source: { kind: 'shop', cost: { stone: 16 } },
+    source: { kind: 'start' },
   },
 ];
 
