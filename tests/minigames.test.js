@@ -2579,6 +2579,136 @@ check('推填九宫：选中空格时，同行列宫已有的数字在数字键�
   } finally { restoreClock(); }
 });
 
+// ---------------------------------------------------------------- 推填九宫：阶段新法
+// data/practice.js 的 STAGE_RULES 写着两条：大成「密勘」标唯一空位、大圆满「唯余」描唯一候选。
+// 这里守两件事：没到那一段一处都不许出现；出现了就必须是那件事，不许乱标。
+check('推填九宫：大成「密勘」只标唯一空位，没到大成一处都不标', function () {
+  installClock();
+  try {
+    const m = data.getMethod('shudu');
+    const params = data.buildParams(m, 'hard');
+    const boot = function (tier) {
+      const ctx = makeCtx(m, { tier: tier }, params);
+      ctx.c.start();
+      return ctx;
+    };
+    const marksOf = function (ctx) {
+      const out = [];
+      const cells = ctx.st.vm.cells;
+      for (let i = 0; i < cells.length; i += 1) {
+        if (cells[i].cls.indexOf('cell--sole') >= 0) out.push(i);
+      }
+      return out;
+    };
+    for (let round = 0; round < 4; round += 1) {
+      const ctx = boot(0);
+      assert.strictEqual(marksOf(ctx).length, 0, '未到大成就出现了密勘标记');
+      ctx.c.destroy();
+    }
+
+    let seen = 0;
+    for (let round = 0; round < 8 && seen < 2; round += 1) {
+      const ctx = boot(3);
+      const g = ctx.st.vm.sudoku;
+      const size = g.size;
+      const d = g.box;
+      const isSole = function (idx) {
+        const r = Math.floor(idx / size);
+        const c = idx % size;
+        let row = 0;
+        let col = 0;
+        let box = 0;
+        for (let j = 0; j < g.given.length; j += 1) {
+          if (g.given[j]) continue;
+          const jr = Math.floor(j / size);
+          const jc = j % size;
+          if (jr === r) row += 1;
+          if (jc === c) col += 1;
+          if (Math.floor(jr / d.br) === Math.floor(r / d.br)
+            && Math.floor(jc / d.bc) === Math.floor(c / d.bc)) box += 1;
+        }
+        return row === 1 || col === 1 || box === 1;
+      };
+      const marks = marksOf(ctx);
+      for (const i of marks) {
+        assert.strictEqual(g.given[i], 0, '密勘标到了题面格');
+        assert.ok(isSole(i), '第 ' + i + ' 格被标了密勘，但它所在的行列宫都不是只剩一个空位');
+      }
+      for (let i = 0; i < g.given.length; i += 1) {
+        if (g.given[i]) continue;
+        if (isSole(i)) assert.ok(marks.indexOf(i) >= 0, '第 ' + i + ' 格是唯一空位，却没标');
+      }
+      if (marks.length) seen += 1;
+      ctx.c.destroy();
+    }
+    assert.ok(seen > 0, '连开八局都没见到密勘标记，这条断言等于没跑');
+  } finally { restoreClock(); }
+});
+
+check('推填九宫：大圆满「唯余」只描唯一候选的键，没到大圆满一处都不描', function () {
+  installClock();
+  try {
+    const m = data.getMethod('shudu');
+    const params = data.buildParams(m, 'hard');
+    const boot = function (tier) {
+      const ctx = makeCtx(m, { tier: tier }, params);
+      ctx.c.start();
+      return ctx;
+    };
+    const onlyOf = function (ctx) {
+      return ctx.st.vm.pad.keys.filter(function (k) { return k.only; });
+    };
+
+    const ctx0 = boot(0);
+    const g0 = ctx0.st.vm.sudoku;
+    for (let i = 0; i < g0.given.length; i += 1) {
+      if (g0.given[i]) continue;
+      ctx0.c.tap(i);
+      assert.strictEqual(onlyOf(ctx0).length, 0, '未到大圆满就描金了');
+    }
+    ctx0.c.destroy();
+
+    let hit = 0;
+    for (let round = 0; round < 6 && hit < 3; round += 1) {
+      const ctx = boot(5);
+      const g = ctx.st.vm.sudoku;
+      const size = g.size;
+      const d = g.box;
+      for (let i = 0; i < g.given.length; i += 1) {
+        if (g.given[i]) continue;
+        ctx.c.tap(i);
+        const row = Math.floor(i / size);
+        const col = i % size;
+        const used = {};
+        for (let j = 0; j < g.given.length; j += 1) {
+          const v = ctx.st.vm.sudoku.given[j];
+          if (!v) continue;
+          const jr = Math.floor(j / size);
+          const jc = j % size;
+          const inBox = Math.floor(jr / d.br) === Math.floor(row / d.br)
+            && Math.floor(jc / d.bc) === Math.floor(col / d.bc);
+          if (jr === row || jc === col || inBox) used[v] = true;
+        }
+        let cnt = 0;
+        let last = 0;
+        for (let v = 1; v <= size; v += 1) {
+          if (!used[v]) { cnt += 1; last = v; }
+        }
+        const keys = onlyOf(ctx);
+        if (cnt === 1) {
+          assert.strictEqual(keys.length, 1, '第 ' + i + ' 格只剩唯一候选，却描了 ' + keys.length + ' 个键');
+          assert.strictEqual(parseInt(keys[0].dir, 10), last, '描金的不是那个唯一候选');
+          hit += 1;
+        } else {
+          assert.strictEqual(keys.length, 0, '第 ' + i + ' 格还有 ' + cnt + ' 个候选，却描了金');
+        }
+      }
+      ctx.c.destroy();
+    }
+    assert.ok(hit > 0, '连开六局都没遇到唯一候选格，这条断言等于没跑');
+  } finally { restoreClock(); }
+});
+
 check('推填九宫：点题面格 / 没选格就落子，要给浮字而不是写进没人看的 vm.status', function () {
   installClock();
   try {

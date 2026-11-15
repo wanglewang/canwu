@@ -121,7 +121,13 @@ function summaryOf(filled, total, elapsed) {
 
 function create(ctx) {
   const p = ctx.params || {};
+  const perks = ctx.perks || {};
   const theme = ctx.theme || {};
+  // 阶段新法（`data/practice.js` 的 STAGE_RULES）：只改「看得清不清」，一个字都不改判定。
+  //   大成 密勘：某行 / 列 / 宫只剩一个空位时，那一格描一圈——9×9 盘上省一次全盘扫视；
+  //   大圆满 唯余：选中空格时，同行列宫排除后只剩一个数，那个键描金——省一次心算。
+  // 两条都不替玩家填，也不放宽罚时：填错照样罚满。加的是眼力，不是答案。
+  const stage = typeof perks.tier === 'number' ? perks.tier : 0;
   const size = Math.max(4, Math.min(9, p.size || 4));
   const d = dimsOf(size);
   const n = size * size;
@@ -199,6 +205,48 @@ function create(ctx) {
 
   function paint() {
     const same = selected >= 0 ? peers(selected) : null;
+    // 大成「密勘」：只剩一个空位的行 / 列 / 宫，把那一格记下来（只标位置，不填数）。
+    let sole = null;
+    if (stage >= 3) {
+      sole = {};
+      const noteSole = function (indices) {
+        let cnt = 0;
+        let last = -1;
+        for (let k = 0; k < indices.length; k += 1) {
+          if (!grid[indices[k]]) { cnt += 1; last = indices[k]; }
+        }
+        if (cnt === 1) sole[last] = true;
+      };
+      const run = [];
+      for (let i = 0; i < n; i += 1) run.push(i);
+      for (let r = 0; r < size; r += 1) {
+        noteSole(run.filter(function (i) { return Math.floor(i / size) === r; }));
+      }
+      for (let c = 0; c < size; c += 1) {
+        noteSole(run.filter(function (i) { return i % size === c; }));
+      }
+      for (let br = 0; br < size; br += d.br) {
+        for (let bc = 0; bc < size; bc += d.bc) {
+          noteSole(run.filter(function (i) {
+            const ir = Math.floor(i / size);
+            const ic = i % size;
+            return ir >= br && ir < br + d.br && ic >= bc && ic < bc + d.bc;
+          }));
+        }
+      }
+    }
+    // 大圆满「唯余」：选中空格时，同行列宫排除后只剩一个数，就把那个键描金。
+    // 只标「这一格只能填它」，不替你填；填下去照样按规则判对错。
+    let onlyKey = 0;
+    if (stage >= 5 && selected >= 0 && selected < n && !grid[selected]) {
+      const seenNow = seenDigits();
+      let cnt = 0;
+      let last = 0;
+      for (let v = 1; v <= size; v += 1) {
+        if (!seenNow[v]) { cnt += 1; last = v; }
+      }
+      if (cnt === 1) onlyKey = last;
+    }
     for (let i = 0; i < n; i += 1) {
       const cell = vm.cells[i];
       const v = grid[i];
@@ -212,6 +260,7 @@ function create(ctx) {
       else cls += ' cell--off';
       if (selected >= 0 && i === selected) cls += ' cell--sel';
       else if (same && !fixed && v === 0 && same(i)) cls += ' cell--peer';
+      if (sole && sole[i] && !v) cls += ' cell--sole';
       cell.cls = cls;
     }
     const seen = seenDigits();
@@ -219,6 +268,7 @@ function create(ctx) {
       const key = vm.pad.keys[k];
       const v = parseInt(key.dir, 10);
       key.seen = !!(v >= 1 && seen[v]);
+      key.only = !!(onlyKey && v === onlyKey);
     }
     vm.sudoku = { size: size, box: d, given: puzzle.slice(), grid: grid.slice(), seen: seen };
   }

@@ -97,7 +97,7 @@
 | 灵力自给能力 | 炼气气海 174 点 ≈ 困难档 12 局；气海 5.8 小时坐满 | `game.qiCap` + `idle.qiPerMinute` |
 | 首屏字数 | 主页面首屏不出现说明句（黑名单断言） | `tests/layout.test.js` |
 | 十九门玩法不重复 | 玩法内核、盘面、交互、胜负规则四者至少三项不同 | `tests/minigames.test.js` |
-| 每条硬约束有守卫 | 1338 项静态 + 300 项 Node 断言 | `npm run check` |
+| 每条硬约束有守卫 | 1341 项静态 + 302 项 Node 断言 | `npm run check` |
 
 ## 7. 与其他文档的关系
 
