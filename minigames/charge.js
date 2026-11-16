@@ -1,6 +1,6 @@
 'use strict';
 
-// B1 突破瓶颈：长按蓄力，松手时停在朱线区间内即突破成功，比停位精度。
+// B1 突破瓶颈：长按蓄力，松手时停在两端红线之间即突破成功，比停位精度。
 // 仅用于境界突破，不在 19 门功法的参悟里出现。
 
 const C = require('./common.js');
@@ -16,13 +16,13 @@ function create(ctx) {
   // start 最大 71、width 最大 22，算出 93 < 100，Math.min(96, …) 是留给以后改长度的保险，不是活的分支。
   const targetEnd = Math.min(96, targetStart + zoneWidth);
   const center = (targetStart + targetEnd) / 2;
-  const vm = C.makeVm(0, 0, '长按蓄力，松手停在朱线区间', ctx.tip || '越靠近区间正中，评级越高');
+  const vm = C.makeVm(0, 0, '长按蓄力，松手停在红线之间', ctx.tip || '越靠近区间正中，评级越高');
   vm.stage = 'charge';
   vm.extras.showGrid = false;
   vm.extras.showCharge = true;
   vm.charge = { value: 0, start: targetStart, end: targetEnd, holding: false };
   vm.scoreText = '蓄力 0%';
-  vm.goal = '朱线区间 ' + targetStart + '% — ' + targetEnd + '%';
+  vm.goal = '红线之间 ' + targetStart + '% — ' + targetEnd + '%';
 
   const bag = C.TimerBag();
   let value = 0;
@@ -64,7 +64,7 @@ function create(ctx) {
     vm.gradeNow = gradeAt(value) === 'F' ? 'C' : gradeAt(value);
     const dist = Math.abs(value - center);
     vm.goal = gradeAt(value) === 'F'
-      ? '尚未入朱线 · 再等一等'
+      ? '还没进红线 · 再等一等'
       : '距正中 ' + Math.round(dist) + '% · ' + gradeAt(value) + ' 评';
     render();
   }

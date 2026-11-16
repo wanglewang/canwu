@@ -396,7 +396,7 @@ Page({
         costText: '布阵灵石 ' + btCost + ' · 余 ' + state.resources.stone
           + '（不成退半）',
         gameName: '蓄力停区',
-        tip: '松手停在朱线正中，评级最高',
+        tip: '松手停在红线正中，评级最高',
         tierName: info.currentName,
         tierColor: '#b8893b',
         prof: info.power,
@@ -414,7 +414,7 @@ Page({
         theme: this.theme,
         twistName: '',
         // 冲关只有一句话的规则，不存在「本门新法」与难度块。
-        ruleText: '按住蓄力，松手停在朱线区间；越贴近正中，评级越高。',
+        ruleText: '按住蓄力，松手停在两道红线之间；越贴近正中，评级越高。',
         retreatText: '',
         stageOpen: false,
         stageSummary: '',
@@ -644,7 +644,7 @@ Page({
     let gameId = 'charge';
     let params = {};
     let methodName = '突破瓶颈';
-    let tip = '长按蓄力，松手停在朱线区间';
+    let tip = '长按蓄力，松手停在红线之间';
     let tier = 0;
 
     if (this.mode === 'practice') {

@@ -1552,7 +1552,7 @@ check('节律判定：写下拍速、响出拍子、环在正中', function () {
   assert.ok(/class="hud__speed"/.test(wxml), '模板里没有小字那一行');
   assert.ok(/\.hud__time\s*\{[\s\S]{0,400}white-space:\s*nowrap/.test(wxss),
     '小节号没锁单行：右侧读数一变宽它就会折行');
-  // ② 环的尺寸只许玩法下发。wxss 自己写一个 200rpx，判定带按别的基准算，珠子扫过朱带的时刻就偏了。
+  // ② 环的尺寸只许玩法下发。wxss 自己写一个 200rpx，判定带按别的基准算，珠子扫过红圈的时刻就偏了。
   assert.ok(/vm\.ringGeom\s*=\s*\{[^}]*orb[^}]*track/.test(tempo),
     '没把环的基准尺寸下发给页面，页面只能自己猜一个数');
   assert.ok(/vm\.ringGeom\.orb/.test(wxml) && /vm\.ringGeom\.track/.test(wxml),

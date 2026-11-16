@@ -66,11 +66,11 @@ const GOOD_CAP_FRAC = 0.45;
 const COACH_DROP_AFTER = 2;   // 点中两个音符之后撤口令，引导不许长成常驻提示
 
 const COACH = [
-  { listen: '只听着 · 一响一格', rule: '环收到朱带就点 · 点中了它还会往底收，别松手等下一响' },
+  { listen: '只听着 · 一响一格', rule: '环缩到红圈就点 · 点中了它还会往底收，别松手等下一响' },
   { listen: '只听着 · 一响一格', rule: '环走到自己那一格才点 · 早一点点都不算，宁晚勿早' },
   { listen: '只听着 · 数一小节几下', rule: '提示只剩小节头那一下 · 中间几格靠耳朵数，重音就是小节线' },
   { listen: '只听着 · 左右各一条', rule: '左手一条右手一条 · 各点各的，不用对齐，谁到点谁点' },
-  { listen: '只听着 · 一小节六格', rule: '提示全撤掉了 · 只听格点，落进朱带那一下才点' },
+  { listen: '只听着 · 一小节六格', rule: '提示全撤掉了 · 只听格点，缩到红圈那一下才点' },
 ];
 
 function fmt(n) {
@@ -182,7 +182,7 @@ function create(ctx) {
   const total = s.total;
   const band = bands(total);
 
-  const vm = C.makeVm(0, 0, '气机收敛，一拍一拍来', ctx.tip || '光环落进朱带时点击');
+  const vm = C.makeVm(0, 0, '气机收敛，一拍一拍来', ctx.tip || '光环缩到红圈上时点击');
   vm.stage = 'ring';
   vm.extras.showGrid = false;
   vm.extras.showRing = true;
@@ -215,7 +215,7 @@ function create(ctx) {
   vm.rings = rings;
   // 环的尺寸只从这一处下发给页面：一格多大、珠子多大、外圈多大。
   // 页面把它写进 style，wxss 只管形状与颜色——写死一个 200rpx 在那里，
-  // 就变成「玩法按 160 算判定带、盘面按 200 画珠子」，珠子扫过朱带的时刻会整体偏一截。
+  // 就变成「玩法按 160 算判定圈、盘面按 200 画珠子」，珠子扫过红圈的时刻会整体偏一截。
   vm.ringGeom = { orb: ORB_RPX, track: TRACK_RPX };
   // 兼容：单手段的旧渲染路径与说明页仍读 vm.ring。
   vm.ring = rings[0];
@@ -247,8 +247,8 @@ function create(ctx) {
   };
   vm.extras.showCue = s.cue !== 'none';
   const baseRingTip = s.tracks.length > 1
-    ? '左右各点各的 · 光环落进朱带时点击'
-    : '点按盘面 · 光环落进朱带时点击';
+    ? '左右各点各的 · 光环缩到红圈上时点击'
+    : '点按盘面 · 光环缩到红圈上时点击';
   vm.ringTip = baseRingTip;
 
   // 段首关（1 / 11 / 51 / 201 / 501）走引导：预拍期写「先听」，第一音起写本段新规矩。
@@ -359,7 +359,7 @@ function create(ctx) {
   }
 
   // 环当前该在哪：周期是这个音符自己的间隔，所以长短拍的快慢一眼看得出来。
-  // 起手从「判定点往回推 JUDGE_FRAC 个间隔」算，所以判定的那一瞬就是环压到朱带中心。
+  // 起手从「判定点往回推 JUDGE_FRAC 个间隔」算，所以判定的那一瞬就是环压到红圈那一道。
   function scaleOf(h, ms) {
     const nt = noteOf(h);
     if (!nt) return FLOOR_SCALE;

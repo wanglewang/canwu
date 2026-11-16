@@ -309,7 +309,7 @@
           <view class="charge__zone" style="left:{{vm.charge.start}}%;width:{{chargeWidth}}%"></view>
           <view class="charge__cursor" style="left:{{vm.charge.value}}%"></view>
         </view>
-        <text class="tiny mt8">松手停在朱线内，越居中越好</text>
+        <text class="tiny mt8">松手停在红线之间，越居中越好</text>
         <button class="btn btn--gold btn--block mt16" bindtouchstart="onPress" bindtouchend="onRelease" bindtouchcancel="onRelease" bindtap="onChargeTap">按住蓄力 · 松手定住</button>
       </view>
 
@@ -318,14 +318,14 @@
              它们铺在版流里会把环顶偏——环歪半个身位，判定点就跟着歪。 -->
         <view class="ring-cells">
           <view wx:for="{{vm.rings}}" wx:key="id" class="ring-cell" style="width:{{vm.ringGeom.track}}rpx;height:{{vm.ringGeom.track}}rpx" data-index="{{index}}" bindtouchstart="onCellTap">
-            <!-- 归位圈：珠子每次从这里出发，缩到朱带即为一拍。
+            <!-- 归位圈：珠子每次从这里出发，缩到红圈即为一拍。
                  它恒定存在，所以「一手刚起、一手已经收到底」时，两格的外轮廓仍然一样大——
                  没有这一圈，收到底的那一手看起来就是「一个很小的环」，玩家读成两环一大一小。 -->
             <view class="ring-track"></view>
             <view class="ring-orb ring-orb--{{item.tone}}" style="width:{{vm.ringGeom.orb}}rpx;height:{{vm.ringGeom.orb}}rpx;transform:scale({{item.scale}});border-color:{{index === 1 ? theme.ink : theme.accent}}">
               <text style="color:{{index === 1 ? theme.accent : theme.ink}}">{{theme.glyph}}</text>
             </view>
-            <!-- 判定带画在光环之上：光环往里收的时候会整块盖住朱带，压在最上层才看得见要瞄的那条带。 -->
+            <!-- 红圈画在光环之上：光环往里收的时候会整块盖住那圈线，压在最上层才看得见要瞄的那道圈。 -->
             <view class="ring-judge ring-judge--{{item.tone}}" style="width:{{item.bandBox}}rpx;height:{{item.bandBox}}rpx;border-width:{{item.bandWidth}}rpx"></view>
           </view>
         </view>

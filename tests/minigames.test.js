@@ -3577,8 +3577,8 @@ check('节律判定：五个段首关是引导关，其余关不许出现引导'
       // 开局（tick = 0）就在预拍里：环还在最外圈，拍子还没走完一小节。
       assert.strictEqual(vm.coachListen, true, '第 ' + lv + ' 关没进引导：开局该是「先听」');
       assert.ok(/先听/.test(vm.beatText), '第 ' + lv + ' 关的小字行没写「先听」');
-      assert.ok(vm.ringTip && vm.ringTip !== '点按盘面 · 光环落进朱带时点击'
-        && vm.ringTip !== '左右各点各的 · 光环落进朱带时点击',
+      assert.ok(vm.ringTip && vm.ringTip !== '点按盘面 · 光环缩到红圈上时点击'
+        && vm.ringTip !== '左右各点各的 · 光环缩到红圈上时点击',
         '第 ' + lv + ' 关的引导没说本段的新规矩，只摆了常规提示');
       ctx.c.destroy();
     }
@@ -3648,7 +3648,7 @@ check('节律判定：引导只用预拍那一小节、点中两音就撤；小�
     }
     // 点中两个音符之后，引导让位给常规提示（引导不是常驻提示）。
     assert.ok(!/只听着/.test(ctx.st.vm.ringTip), '点中两个音符之后引导还没撤');
-    assert.ok(/光环落进朱带时点击/.test(ctx.st.vm.ringTip), '引导撤了，常规提示也没回来');
+    assert.ok(/光环缩到红圈上时点击/.test(ctx.st.vm.ringTip), '引导撤了，常规提示也没回来');
     // 小节头重音：第 0、bar、2bar 格是重音，中间那几格不是。
     // 没有强弱，一串哒声里数不出小节线，第三段起提示轨只剩小节头就等于什么都没剩。
     assert.strictEqual(accent[0], true, '第一格不是重音');
