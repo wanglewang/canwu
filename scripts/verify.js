@@ -282,7 +282,10 @@ for (const s of skillMod.SKILLS) {
   if (!practiceMod.METHOD_MAP[s.method]) errors.push('功法指向不存在的参悟方式: ' + s.id);
   else checked += 1;
 }
-if (Object.keys(tierSeen).length !== 4) errors.push('天地玄黄中存在空阶');
+// 2026-11：删掉唯一天阶功法（截锋断岳诀，另一门太虚翻卦诀降黄）后，天阶一门不剩。
+// 这条从「天地玄黄四阶都非空」放宽为「黄阶必须有」——四阶非空会让删一门天阶功法
+// 直接卡死校验；而黄阶是整套品阶刻度的基准，它空了才说明体系真的悬空。
+if (!tierSeen.huang) errors.push('黄阶一门功法都没有，品阶体系悬空');
 else checked += 1;
 
 // 8a. 灵力体系：一种「运功的本钱」，不是钱包。
@@ -1214,7 +1217,7 @@ if (!fs.existsSync(checklistPath)) {
   if (doc.indexOf('走火') < 0) errors.push('自检清单没写「走火（F）」：最差结局的语义没人守');
   else checked += 1;
   // 有失败态的玩法必须在说明页给出 fail 线，缺了就等于玩家开局前不知道崩了会怎样。
-  const failMods = ['lights', 'mines', 'memory', 'seal', 'bridge', 'link',
+  const failMods = ['lights', 'mines', 'memory', 'seal', 'link',
     'sudoku', 'merge', 'schulte', 'klotski', 'pushbox', 'biggest'];
   failMods.forEach(function (g) {
     const src = fs.readFileSync(path.join(ROOT, 'minigames', g + '.js'), 'utf8');

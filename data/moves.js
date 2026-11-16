@@ -1,10 +1,10 @@
 'use strict';
 
-// 一式一名：十九门功法在切磋与秘境里各自抽出的一式。
+// 一式一名：十五门功法在切磋与秘境里各自抽出的一式（2026-11 起）。
 //
 // 为什么要这张表：在这之前，功法对切磋的全部影响是 effectValue('power') 把
 // 所有 power 类特技加成一个百分比塞进 rollBattle —— 玩家看不见任何一门出场，
-// 赢了不知道靠哪门，输了不知道为什么。十九门于是像十九个互不相干的小游戏。
+// 赢了不知道靠哪门，输了不知道为什么。十五门于是像十五个互不相干的小游戏。
 //
 // 这张表把「被动常驻的加成」改成「主动运出去的三式」：
 //   · 每门功法炼成一式，有招式名、有出手时机、有一句门规；
@@ -42,19 +42,15 @@ const QI_RELIEF_CAP = 3;
 // 招式名两字、动词在前，取法各有出处：刀法破锋、剑法开山、身法借风、阵法护灯。
 const MOVES = {
   jian: { name: '破锋', act: 'open', line: '刀意贯在刃上，这一刀比平日沉三分。' },
-  duanyue: { name: '开山', act: 'open', line: '一剑落下，不问几重。' },
-  yunbu: { name: '借风', act: 'open', line: '脚踏云气，落点比对手早半步。' },
   leiyue: { name: '叠石', act: 'open', line: '一块一块垒上去，垒到你抬不起手。' },
   heyuan: { name: '合元', act: 'open', line: '两股并作一股，中间不留缝。' },
   tuisuo: { name: '落位', act: 'open', line: '不抢快，只占住那一格。' },
 
   zhen: { name: '护灯', act: 'guard', line: '灯不灭，出手就不会偏。' },
-  dan: { name: '凝霜', act: 'guard', line: '露水结在腕上，手反而更稳。' },
   shumu: { name: '追迹', act: 'guard', line: '看的是痕迹，不是招式。' },
 
   tuna: { name: '引息', act: 'qi', line: '开打前先把气理顺。' },
   taixu: { name: '虚受', act: 'qi', line: '空着的那一处，才装得下东西。' },
-  wuxingzhen: { name: '转轮', act: 'qi', line: '五行轮转，耗掉的那一分自己补回来。' },
   sanxiu: { name: '齐秀', act: 'qi', line: '三株同发，谁也不多占一口。' },
   zeda: { name: '摘星', act: 'qi', line: '只取最上面那一颗，其余不碰。' },
   jingxin: { name: '敛息', act: 'qi', line: '把呼吸压到听不见，气就省下来了。' },

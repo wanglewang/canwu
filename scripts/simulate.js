@@ -201,12 +201,13 @@ console.log('  一池灵力 = 圆满 ' + Math.floor(OPEN_QI_CAP / qiTable[4].cos
   + ' 局 / 困难 ' + Math.floor(OPEN_QI_CAP / qiTable[2].cost) + ' 局'
   + '；想把一池练大，靠破境（气海 150→620）与真元（每点 +2）。');
 
-console.log('\n== 天阶对照（时长系数与品阶一起抬价）==');
-const tianTable = qiByDiff('taixu');
-for (let i = 0; i < tianTable.length; i += 1) {
-  console.log('  ' + tianTable[i].name.padEnd(6) + ' 黄阶 ' + String(qiTable[i].cost).padStart(3)
-    + ' → 天阶 ' + String(tianTable[i].cost).padStart(3)
-    + '  （×' + (tianTable[i].cost / qiTable[i].cost).toFixed(2) + '）');
+// 天阶 2026-11 起没有功法，最贵的一档落到地阶（×1.3）。
+console.log('\n== 地阶对照（时长系数与品阶一起抬价）==');
+const diTable = qiByDiff('zhen');
+for (let i = 0; i < diTable.length; i += 1) {
+  console.log('  ' + diTable[i].name.padEnd(6) + ' 黄阶 ' + String(qiTable[i].cost).padStart(3)
+    + ' → 地阶 ' + String(diTable[i].cost).padStart(3)
+    + '  （×' + (diTable[i].cost / qiTable[i].cost).toFixed(2) + '）');
 }
 
 const fullC = fullCRun();
@@ -228,11 +229,14 @@ for (let t = 1; t < world.TIERS.length; t += 1) {
 console.log('  共烧灵力 ' + fullS.spent + ' 点 ≈ 闭关 ' + Math.round(fullS.spent / QI_PER_MIN / 60) + ' 小时');
 
 const BUDGET = 6000;
+// 三个 mode 的名字必须与 runBudget 认的那三个一致（first / auto / half）。
+// 曾经这里写的是 novice / auto / below，两个不认识的落进 else 分支，
+// 于是「只刷第 1 关」被算成了「逐关进」——三条曲线一模一样，护栏反而成了摆设。
 const strategies = [
-  { name: '黄阶 · 只刷第 1 关', skillId: 'jian', realmIndex: 0, mode: 'novice' },
+  { name: '黄阶 · 只刷第 1 关', skillId: 'jian', realmIndex: 0, mode: 'first' },
   { name: '黄阶 · 逐关进', skillId: 'jian', realmIndex: 0, mode: 'auto' },
-  { name: '黄阶 · 退一章', skillId: 'jian', realmIndex: 0, mode: 'below' },
-  { name: '天阶 · 逐关进', skillId: 'taixu', realmIndex: 3, mode: 'auto' },
+  { name: '黄阶 · 退一章', skillId: 'jian', realmIndex: 0, mode: 'half' },
+  { name: '地阶 · 逐关进', skillId: 'zhen', realmIndex: 3, mode: 'auto' },
   { name: '黄阶 · 金丹后', skillId: 'jian', realmIndex: 2, mode: 'auto' },
 ];
 
@@ -249,7 +253,7 @@ for (const st of strategies) {
 const easy = results[0];
 const auto = results[1];
 const belowOne = results[2];
-const tian = results[3];
+const di = results[3];
 const decayed = results[4];
 
 // 切磋：灵石按当日第几场衰减，运功另扣 5 点灵力。
@@ -280,7 +284,7 @@ for (let i = 0; i < qiTable.length; i += 1) {
   if (i > 0) expect(qiTable[i].cost > qiTable[i - 1].cost,
     qiTable[i].name + ' 比 ' + qiTable[i - 1].name + ' 贵（' + qiTable[i].cost + ' vs ' + qiTable[i - 1].cost + '）');
 }
-expect(tianTable[4].cost > qiTable[4].cost, '天阶圆满比黄阶圆满贵（' + tianTable[4].cost + ' vs ' + qiTable[4].cost + '）');
+expect(diTable[4].cost > qiTable[4].cost, '地阶圆满比黄阶圆满贵（' + diTable[4].cost + ' vs ' + qiTable[4].cost + '）');
 
 // ② 全 C：一万局到 99999，每段局数正好是门槛 ÷ 10（最后一局补 9 点）。
 expect(fullC.prof === world.PROF_MAX, '全 C 最终到 ' + fullC.prof + '，硬顶是 ' + world.PROF_MAX);
@@ -348,23 +352,23 @@ for (const d of practice.STAGES) {
     d.name + ' 段 C 仍是 ' + world.PROF_BASE.C + ' 点（实为 ' + r.gain + '）');
 }
 
-// ④b 回关：只折熟练度（按 本关 ÷ 当前关 四舍五入），耗气按这一关所在段照算。
-const curTop = 21;   // 已走通 20 关 → 当前关 21
+// ④b 回关：只折熟练度（本关 ÷ 当前关 × 段基数比，四舍五入），耗气按这一关所在段照算。
+const curTop = 21;   // 已走通 20 关 → 当前关 21（入门段 11）
 [21, 15, 10, 5, 1].forEach(function (lv) {
   const st = game.createNewState();
   st.skills.jian.unlocked = true;
   st.skills.jian.cleared = curTop - 1;
   st.resources.qi = 1e6;
   const r = game.applyPractice(st, 'jian', 'C', { level: lv, score: 0 });
-  const wantF = lv >= curTop ? 1 : lv / curTop;
+  const wantF = lv >= curTop ? 1 : practice.levelFactor(lv, curTop);
   expect(r.gain === practice.profByLevel(world.PROF_BASE.C, lv, curTop)
     && Math.abs(r.levelBelowFactor - wantF) < 1e-9,
     '回关到第 ' + lv + ' 关：熟练度 ×' + wantF.toFixed(3)
     + '、实得 ' + r.gain + ' 点，耗气按本段 ' + r.qiCost + ' 点');
 });
-// 折减是连续的：退一关只掉一点点（20/21 = 0.952），没有「退一关砍一半」的台阶。
-// 旧版拿「本段总关数 40」当分母才有一道坎；现在关号只由走通推进，
-// 想停在某一关只有每局走火（给 0 分），那颗刷分口子在结构上已经不存在了。
+// 折减是连续的：退一关只掉一点点（20/21 = 0.952），跨段的第二把尺子也是渐进的。
+// 「只按关号折」那一版漏了一件事：回关同时省了段位的气，于是停在低段末反复刷
+// 永远比推进到高段划算（见 data/practice.js 的 levelFactor 注释与 04-open-issues D12）。
 expect(practice.profByLevel(world.PROF_BASE.C, 20, curTop) === 10,
   '第 21 → 20 关只该掉 5%（C 10 → 10），实为 '
   + practice.profByLevel(world.PROF_BASE.C, 20, curTop));
@@ -383,8 +387,9 @@ expect(lowRound.comboActive === false && lowRound.comboNow === 2
 const backTop = game.applyPractice(lowCombo, 'jian', 'S', { level: 11, score: 0 });
 expect(backTop.comboNow === 3 && backTop.gain === 77, '回当前关照接第 3 连 77 点');
 
-// ⑤ 品阶只影响耗气与属性，不碰熟练度：四阶 C 都是 10 点，但价目不同。
-const tierIds = { huang: 'jian', xuan: 'jingxin', di: 'wuxingzhen', tian: 'taixu' };
+// ⑤ 品阶只影响耗气与属性，不碰熟练度：各阶 C 都是 10 点，但价目不同。
+// 天阶 2026-11 起没有功法，所以只核到地阶 —— 「四阶」那句话现在只剩三阶有实测。
+const tierIds = { huang: 'jian', xuan: 'jingxin', di: 'zhen' };
 const tierCost = {};
 for (const tier of practice.TIERS) {
   const s = game.createNewState();
@@ -398,8 +403,8 @@ for (const tier of practice.TIERS) {
   tierCost[tier.key] = r.qiCost;
   expect(r.gain === world.PROF_BASE.C, tier.label + ' C 仍是 ' + world.PROF_BASE.C + ' 点');
 }
-expect(tierCost.huang < tierCost.tian,
-  '天阶比黄阶费气（' + tierCost.tian + ' vs ' + tierCost.huang + ' 点）');
+expect(tierCost.huang < tierCost.di,
+  '地阶比黄阶费气（' + tierCost.di + ' vs ' + tierCost.huang + ' 点）');
 
 // ⑥ 境界超上限只加价，不禁练。
 const decayState = game.createNewState();
@@ -475,16 +480,33 @@ expect(wipedRun.gain === 0 && wipedRun.comboNow === 0
   && wipedState.resources.qi === 200 - wipedRun.qiCost,
   '走火：熟练度 0、连 S 归零，已扣的 ' + wipedRun.qiCost + ' 点灵力不退');
 
-// ⑬ 预算制护栏：只刷第 1 关 / 退一章都不该反超逐关进。
-expect(easy.prof <= auto.prof,
-  '同样 ' + BUDGET + ' 点灵力，只刷第 1 关不该反超逐关进（' + easy.prof + ' vs ' + auto.prof + '）');
-expect(belowOne.prof <= auto.prof,
-  '同样 ' + BUDGET + ' 点灵力，回打半程也不该反超逐关进（' + belowOne.prof + ' vs ' + auto.prof + '）');
+// ⑬ 回关护栏：问的是「回打这一关，每点灵力换到的熟练度有没有高过打当前关」。
+// **口径在 2026-11 改过一次，这里是新口径。** 旧口径是「6000 点预算下只刷第 1 关
+// 不许反超逐关进」，它在 v9 之后其实一直不成立：段位耗气抬了四倍半、熟练度基数不动，
+// 于是任何「停在低段反复刷」都比一路推进更省 —— 这是段成本曲线的性质，不是折减漏了。
+// 折减能管、也该管的是**局部**：同一个当前关下，回打更低的关永远不划算。
+for (const cur of [2, 21, 200, 800]) {
+  const st = game.createNewState();
+  st.skills.jian.unlocked = true;
+  st.skills.jian.cleared = cur - 1;
+  st.resources.qi = 1e6;
+  const at = game.applyPractice(st, 'jian', 'S', { level: cur, score: 0 });
+  const back = game.applyPractice(st, 'jian', 'S', { level: Math.max(1, cur - 1), score: 0 });
+  const atRate = at.gain / at.qiCost;
+  const backRate = back.gain / back.qiCost;
+  expect(backRate <= atRate,
+    '当前关 ' + cur + '：回打第 ' + (cur - 1) + ' 关每点灵力 ' + backRate.toFixed(2)
+    + ' 高过当前关 ' + atRate.toFixed(2) + '（回关不该更划算）');
+}
+// 预算制下「只刷低关 vs 一路推进」的差值照实打出来：它不是护栏，是给人看的账。
+console.log('  · 预算对照（随机评级、不算连 S）：只刷第 1 关 ' + easy.prof
+  + ' / 逐关进 ' + auto.prof + ' / 回打半程 ' + belowOne.prof
+  + ' —— 一路推进会走进贵段，随机评级下反而更少；靠连 S 的本事拿回来（见「全程不断 S」）。');
 expect(decayed.prof < auto.prof,
   '金丹后练黄阶（耗气 ×' + economy.REALM_OVER + '）进度明显变慢（' + decayed.prof + ' vs ' + auto.prof + '）');
-expect(tian.profGain / Math.max(1, tian.spent) > auto.profGain / Math.max(1, auto.spent) * 0.5,
-  '天阶每点灵力的熟练度不该被品阶加价吃掉太多（'
-  + (tian.profGain / tian.spent).toFixed(2) + ' vs ' + (auto.profGain / auto.spent).toFixed(2) + '）');
+expect(di.profGain / Math.max(1, di.spent) > auto.profGain / Math.max(1, auto.spent) * 0.5,
+  '地阶每点灵力的熟练度不该被品阶加价吃掉太多（'
+  + (di.profGain / di.spent).toFixed(2) + ' vs ' + (auto.profGain / auto.spent).toFixed(2) + '）');
 
 // ⑭ 切磋：先运功扣气，灵石按当日场次衰减，首胜另给 8 枚。
 const battleState = game.createNewState();

@@ -4,26 +4,26 @@ const economyData = require('./economy.js');
 const levelData = require('./levels.js');
 
 // 参悟方式 = 一门功法 + 一套专属玩法 + 该门独有的规则花样(twist) + 表现主题(theme)。
-// 19 门功法对应 19 套互不复用内核的小游戏；同是剑法、同是阵法，也不会点进去是同一个盘面。
+// 15 门功法对应 15 套互不复用内核的小游戏；同是阵法，也不会点进去是同一个盘面。
 // game 取值见 minigames/index.js：
-//   click / hunt / memory / bridge / tempo / sword / lights / wuxing / mines / seal / link / blocks / match
+//   click / memory / tempo / lights / mines / seal / link / blocks / match
 //   / sudoku / merge / schulte / klotski / pushbox / biggest。
-// forge 是刀法（weapon: 'dao'），剑法·截锋断岳诀仍标 sword，但 hunt 引擎暂不读兵器轴。
-// 兵器是功法属性，不是某个玩法的私有参数。charge 仅用于境界突破，不挂功法。
+// forge 是刀法（weapon: 'dao'）。兵器是功法属性，不是某个玩法的私有参数。
+// charge 仅用于境界突破，不挂功法。
 //
-// 命名分工：「参悟方式」写这一门功课具体在做什么（斩桩 / 采露 / 观窍），
-// 「玩法名」写盘面上的动作（顺光扫斩 / 循纹递推）。两者不可重名，也不可与功法本身相斥——
-// 刀法不练数格子，丹道不练渡河，心法不练牵线——类别与盘面上的动作必须同源。
-// 反例就发生在这一版之前：「符箓·照影符」练的是数格辨禁，可符是纸上画出来的东西，
-// 与格盘推理毫无关系；已按「以游戏为准」改为「阵法·循数勘禁诀」，归入阵法黄阶。
-// 同理，「丹道·凝露方」练的是一条竖向河道采露，与炼丹无关，已按玩法改为「水术·叠纹凝露诀」；
-// 丹道这一门暂时空缺，留给以后真正炼丹的功课。
+// 命名分工：「参悟方式」写这一门功课具体在做什么（斩桩 / 观窍 / 填数），
+// 「玩法名」写盘面上的动作（顺光扫斩 / 数格辨禁）。两者不可重名，也不可与功法本身相斥——
+// 刀法不练数格子，心法不练牵线——类别与盘面上的动作必须同源。
+// 反例：「符箓·照影符」练的是数格辨禁，可符是纸上画出来的东西，与格盘推理毫无关系；
+// 已按「以游戏为准」改为「阵法·循数勘禁诀」，归入阵法黄阶。
+// 2026-11 起剑法 / 水术 / 身法 / 丹道四族暂无功法（截锋断岳、叠纹凝露、踏云连环步已删），
+// 族定义保留在 FAMILIES，留给以后同源的功课。
 // id 是稳定键（存档、纪录都按它索引），改文案时不要动 id。
 // base 是灵力基数（/4 后即 8–14），按各玩法的通关难度分别配平；熟练度走 world.PROF_BASE / comboGain，不用 base。
 //
 // 一个维度只管一件事：
 //   类型 → 玩什么（游戏族，见 FAMILIES）
-//   兵器 → 怎么动（刀法走 click；剑 profile 预留，先不做剑法）
+//   兵器 → 怎么动（刀法走 click，其余门暂不读兵器轴）
 //   品阶 → 战力加成与灵力灵石倍率（见 TIERS，天地玄黄；不加速熟练度）
 //   关卡   → 内容与难度（1000 关五段，见 STAGES；段内逐关收紧）
 //   熟练度 → 火候（属性加成、阶段新法、特效兑现比例；不算关号、不开段）
@@ -39,26 +39,11 @@ const PRACTICE_METHODS = [
     params: { duration: 15, life: 700, grid: 9, cols: 3, weapon: 'dao' },
   },
   {
-    id: 'snatch', name: '辨锋截击', game: 'hunt', theme: 'snatch', twist: 'snatch',
-    desc: '几道剑光同时亮，只有一道是真招。认准了抢先截，慢了会被反制。',
-    // 局内两行分工：tip 讲代价（截错会怎样），guides.inline 讲操作速记。
-    tip: '截错扣分、少 1 息，连夺也断',
-    base: 36,
-    params: { duration: 16, interval: 1000, grid: 12, cols: 4, decoys: 2, weapon: 'sword' },
-  },
-  {
     id: 'recite', name: '背功法口诀', game: 'memory', theme: 'recite', twist: 'recite',
     desc: '口诀次第闪过，按原序点回。看漏了可以抢记，赌自己记住了多少。',
     tip: '点错罚 1.5 息、连断；整轮记岔折 1 盏心神',
     base: 38,
     params: { grid: 9, cols: 3, startLen: 2, maxRound: 7, flashMs: 560, gapMs: 260, msPerNote: 480 },
-  },
-  {
-    id: 'stones', name: '循纹采露', game: 'bridge', theme: 'stones', twist: 'stones',
-    desc: '灵露凝在河石上，每层只一道纹对得上方子。水流一转，石位就换。',
-    tip: '采错折 1 盏心神，人留在原层',
-    base: 36,
-    params: { rows: 5, cols: 3, shuffleMs: 3200, timeLimit: 45 },
   },
   {
     id: 'absorb', name: '吸纳灵力', game: 'tempo', theme: 'absorb', twist: 'absorb',
@@ -69,26 +54,12 @@ const PRACTICE_METHODS = [
     params: { bar: 8, unitMs: 500, bars: 4, hands: 1, cue: 'all', winMs: 320, pattern: [[0, 2, 4, 6]] },
   },
   {
-    id: 'combo', name: '照卷踏位', game: 'sword', theme: 'combo', twist: 'combo',
-    desc: '卷轴铺开一串步位，落脚之处皆有次序。一步踏错，整套就散。',
-    tip: '踏错要重走这一步，另扣 1 息',
-    base: 40,
-    params: { duration: 20, segments: 4, baseLen: 3, moves: ['进', '退', '侧', '转'] },
-  },
-  {
     id: 'arrayEye', name: '参悟阵眼', game: 'lights', theme: 'arrayEye', twist: 'arrayEye',
     desc: '点一格翻转它与上下左右四格，把整盘阵灯同时点亮。盘面规格与步数余量写在下面的段位表里。',
     tip: '触死门罚 2 步 · 这一格点不动',
     base: 42,
     // 盘面规格 / 最优步数区间 / 步数余量由 LIGHTS_LEVELS 按难度档注入，这里不再写死 3×3。
     params: {},
-  },
-  {
-    id: 'wuxing', name: '排布阵灯', game: 'wuxing', theme: 'wuxing', twist: 'wuxing',
-    desc: '五盏阵灯围成一环，相生之位次第轮转。连得越长，留给你的一息越短。',
-    tip: '相生一断少 1 息，得从木重新起链',
-    base: 48,
-    params: { duration: 20, chainGoal: 10, windowMs: 2600 },
   },
   {
     id: 'tanlei', name: '勘位辨禁', game: 'mines', theme: 'tanlei', twist: 'tanlei',
@@ -189,13 +160,9 @@ const PRACTICE_METHODS = [
 // 测试会断言两者不漂移。参悟方式名与这里不可重复（否则准备页标题和标签会撞词）。
 const GAME_LABELS = {
   click: '顺光扫斩',
-  hunt: '辨伪择真',
   memory: '记序复现',
-  bridge: '循纹递推',
   tempo: '节律判定',
-  sword: '步法连环',
   lights: '阵灯推演',
-  wuxing: '五行相生',
   mines: '数格辨禁',
   seal: '成对翻牌',
   link: '灵纹连线',
@@ -226,14 +193,14 @@ function hintLabelOf(gameId) {
 // 加一族 = 这里补一行；加一门功法 = 补数据 + 一个玩法模块 + 主题 + 说明。
 const FAMILIES = {
   刀法: { core: '顺光成路', note: '顺着箭头把刀扫到靶心，招长而折，容许多带两桩', kind: 'skill' },
-  剑法: { core: '辨光取真', note: '在数道剑光里截真招，只有一门', kind: 'skill' },
-  阵法: { core: '盘上推演', note: '同族都在方盘上推演：勘禁位、排五行、点阵灯', kind: 'skill' },
-  心法: { core: '记忆与节律', note: '三门主修各考一样：节拍、记性、配对', kind: 'main' },
-  // 丹道暂时空缺：凝露那门练的是河石采露（水术），不是炼丹。等真有一门「配药、控火、
-  // 守炉」的功课再填进来，别为了凑满一门类把别的玩法硬塞给它。
+  // 剑法 / 水术 / 身法 / 丹道 四族 2026-11 起暂无功法（截锋断岳、叠纹凝露、踏云连环步已删），
+  // 族定义先留着：加回功法或新增同族课程时直接用。谱系按 chainsOf() 分组，空族不会显示。
+  剑法: { core: '辨光取真', note: '在数道剑光里截真招（暂无功法）', kind: 'skill' },
+  阵法: { core: '盘上推演', note: '同族都在方盘上推演：勘禁位、点阵灯', kind: 'skill' },
+  心法: { core: '记忆与节律', note: '主修各考一样：节拍、记性、配对', kind: 'main' },
   丹道: { core: '待补', note: '暂空缺：留给真正炼丹的功课', kind: 'skill' },
-  水术: { core: '循纹递推', note: '看河石上的水纹递推，只有一门', kind: 'skill' },
-  身法: { core: '步法连环', note: '照卷轴踏位，只有一门', kind: 'skill' },
+  水术: { core: '循纹递推', note: '看河石上的水纹递推（暂无功法）', kind: 'skill' },
+  身法: { core: '步法连环', note: '照卷轴踏位（暂无功法）', kind: 'skill' },
   御灵: { core: '灵纹连线', note: '牵两枚同纹灵石，找一条不超过两折的通路', kind: 'skill' },
   土术: { core: '落石垒基', note: '挪石转石垒满一层，是唯一持续下落的盘面', kind: 'skill' },
   灵植: { core: '三秀同收', note: '互换相邻两株凑三连，采收后新苗落下还能连锁', kind: 'skill' },
@@ -374,23 +341,28 @@ function stageNameOfCleared(cleared) {
 // ---------------------------------------------------------------- 回关折减
 // 一门就是一条 1–1000 的长线，所以「回关」= 回打本门更早的关。
 //
-//   本关 ÷ 当前关，唯独当前关 ×1
+//   本关 ÷ 当前关 × 本关段基数 ÷ 当前关段基数，唯独当前关 ×1
 //
-//   本门当前第 800 关时：回打 800 → ×1.00，400 → ×0.50，100 → ×0.125，第 1 关 → ×0.001
-//   本门当前第 20 关时： 回打 10  → ×0.50，第 1 关 → ×0.05
+//   本门当前第 800 关（圆满段，基数 32）时：回打 800 → ×1.00，700 → ×0.875，
+//   400（大成 24）→ ×0.375，100（小成 17）→ ×0.066，第 1 关（未入门 7）→ ×0.00027
+//   本门当前第 20 关（入门段，基数 11）时：回打 10 → ×0.50，第 1 关 → ×0.032
 //
-// **分母为什么可以回到「当前关」。** 上一版（五段各 40 关）必须用「本段总关数 40」当分母，
-// 因为那时关号由熟练度算：玩家只要不往前走，`当前关` 就钉在第 1 关，第 1 关永远 ×1，
-// 「只刷第 1 关」成为稳定正收益（实测 6000 灵力刷出 11551，反超逐关进的 5252）。
-// 现在关号只由「走通」推进，而走通必推——想停在第 N 关，唯一办法是每局都走火，
-// 而走火给 0 分。于是「停在某个关反复刷」这条路在结构上就不存在了，
-// 分母可以按当前关算：连续、无断崖、玩家按「400 ÷ 800 = 0.5」就能自己复算。
+// **为什么要两把尺子。** 只有「本关 ÷ 当前关」时，玩家可以**不往前走**而停在原地刷：
+// 走通必推一关没错，但「打上一条已走通的关」也算走通，`当前关` 就钉死不动了。
+// 于是折减一直停在 ×0.95 左右，而耗气按本关所在段报（低段便宜四倍）——
+// 停在入门段末反复刷，每点灵力换到的熟练度永远高于推进到圆满段（实测 6000 灵力：
+// 只刷第 1 关 11551 vs 逐关进 6399，反超 1.8 倍）。第二把尺子把「回关同时省下的气」
+// 也折进去，回关的每点灵力收益就再也高不过打当前关：
+//   当前关 ×1 永远最优；回关越深、跨的段越早，折得越狠，且仍然连续、无断崖。
 function levelFactor(level, curLevel) {
   const cur = Math.max(1, Math.round(Number(curLevel) || 1));
   const lv = Math.max(1, Math.min(cur, Math.round(Number(level) || 1)));
   // 当前关永远 ×1：那是「往前打」，不该打折。
   if (lv >= cur) return 1;
-  return lv / cur;
+  const qiNow = economyData.RUN_QI[levelData.stageOfLevel(lv)] || 1;
+  const qiCur = economyData.RUN_QI[levelData.stageOfLevel(cur)] || 1;
+  // 同段回关时这一项恒为 1，退化回「本关 ÷ 当前关」——所以段内回关的手感不变。
+  return (lv / cur) * Math.min(1, qiNow / qiCur);
 }
 
 // 回关这一局的基础熟练度：四舍五入一次。
@@ -481,19 +453,6 @@ const CLICK_LEVELS = [
   { grid: 16, cols: 4, lenStep: 2 },
   { grid: 16, cols: 4, lenStep: 3 },
   { grid: 25, cols: 5, lenStep: 5 },
-];
-
-// 步法连环：旧表 segments 3/4/4/5/5、baseLen 3/3/3/4/4——按模块的段长算法算，
-// hard 与 normal 都是 18 步、expert 与 desperate 都是 30 步，五段实际只有三个配置。
-// 现在五段各不相同（12/18/22/30/39 步，3.25 倍），并从困难档起「键位每段重排」：
-// 玩家的位置记忆失效，必须真的读符号。时长反而从 20 调到 23（缩放后仍在 20 秒上下），
-// 因为步数涨了三倍而时间不该跟着收——这一门练的是跟招，不是手速。
-const SWORD_LEVELS = [
-  { segments: 3, baseLen: 3, shuffle: false, duration: 20 },
-  { segments: 4, baseLen: 3, shuffle: false, duration: 20 },
-  { segments: 4, baseLen: 4, shuffle: true, duration: 21 },
-  { segments: 5, baseLen: 4, shuffle: true, duration: 22 },
-  { segments: 6, baseLen: 4, shuffle: true, duration: 23 },
 ];
 
 // 数格辨禁：旧版盘面恒 6×6，五段只动禁制数（5→8）与心神（3→2），评级又只看用时——
@@ -993,14 +952,6 @@ function rawParams(method, depthIndex) {
     // 存增量而不是绝对值：见 CLICK_LEVELS 上方注释（刀剑共用 params）。
     out.lenStep = lv.lenStep;
   }
-  if (method && method.game === 'sword') {
-    const lv = SWORD_LEVELS[d.depth];
-    out.segments = lv.segments;
-    out.baseLen = lv.baseLen;
-    out.shuffle = lv.shuffle;
-    // 时长也走表：段数涨了三倍，时间不该跟着收——这一门练的是跟招，不是手速。
-    out.duration = lv.duration;
-  }
   if (method && method.game === 'mines') {
     const lv = MINES_LEVELS[d.depth];
     out.cols = lv.cols;
@@ -1373,9 +1324,6 @@ function stageDetail(method, stageIndex) {
     // 3 是刀的基准桩数（weapons.js 的 dao.baseLen）。CLICK_LEVELS 只服务刀这一套 profile，
     // 将来真有剑法挂上来时，基准要从 profile 里取，别把这个 3 抄过去。
     brief = lv.cols + '×' + lv.cols + ' 盘 · 刀路 ' + (lv.lenStep + 3) + ' 桩';
-  } else if (method && method.game === 'sword') {
-    const lv = SWORD_LEVELS[d.depth];
-    brief = lv.segments + ' 段 · 段长 ' + lv.baseLen + ' 起' + (lv.shuffle ? ' · 每段键位重排' : '');
   } else if (method && method.game === 'mines') {
     const lv = MINES_LEVELS[d.depth];
     brief = lv.cols + '×' + lv.rows + ' 盘 · ' + lv.mines + ' 处禁制 · ' + lv.hearts + ' 盏心神';
@@ -1515,7 +1463,6 @@ module.exports = {
   TIME_LEVELS: TIME_LEVELS,
   MINES_HEARTS: MINES_HEARTS,
   CLICK_LEVELS: CLICK_LEVELS,
-  SWORD_LEVELS: SWORD_LEVELS,
   MINES_LEVELS: MINES_LEVELS,
   BLOCK_LEVELS: BLOCK_LEVELS,
   MERGE_START_TILES: MERGE_START_TILES,

@@ -1,6 +1,6 @@
 'use strict';
 
-// 小游戏层常驻断言：用假时钟把每一局真的跑完，验证 19 套玩法各自独立、机制互不复用、HUD 齐全。
+// 小游戏层常驻断言：用假时钟把每一局真的跑完，验证 15 套玩法各自独立、机制互不复用、HUD 齐全。
 // 零依赖，直接 node tests/minigames.test.js 即可跑。
 const assert = require('assert');
 const index = require('../minigames/index.js');
@@ -154,13 +154,6 @@ function actionFor(game) {
       if (vm.trail && vm.trail.path) c.swipe(vm.trail.path.slice());
     };
   }
-  if (game === 'hunt') {
-    return function (vm, c) {
-      for (let i = 0; i < vm.cells.length; i += 1) {
-        if (vm.cells[i].cls.indexOf('cell--gold') >= 0) { c.tap(i); return; }
-      }
-    };
-  }
   if (game === 'memory') {
     return function (vm, c, st) {
       if (vm.phase !== 'input' || !vm.meter || vm.meter.value >= st.flash.length) return;
@@ -169,15 +162,6 @@ function actionFor(game) {
       const back = vm.timeText && vm.timeText.indexOf('逆诵') >= 0;
       const i = back ? st.flash.length - 1 - vm.meter.value : vm.meter.value;
       c.tap(st.flash[i]);
-    };
-  }
-  if (game === 'bridge') {
-    return function (vm, c) {
-      if (!vm.lane) return;
-      const from = vm.lane.activeRow * vm.lane.cols;
-      for (let i = from; i < from + vm.lane.cols; i += 1) {
-        if (vm.cells[i].tone === vm.lane.target) { c.tap(i); return; }
-      }
     };
   }
   if (game === 'lights') {
@@ -192,11 +176,6 @@ function actionFor(game) {
       for (let i = 0; i < plan.length; i += 1) {
         if (dead.indexOf(plan[i]) < 0) { c.tap(plan[i]); return; }
       }
-    };
-  }
-  if (game === 'wuxing') {
-    return function (vm, c) {
-      if (vm.orbit) c.tap((vm.orbit.current + 1) % 5);
     };
   }
   if (game === 'mines') {
@@ -223,16 +202,6 @@ function actionFor(game) {
       }
       for (let i = 0; i < cells.length; i += 1) {
         if (cells[i].cls.indexOf('cell--card') >= 0) { c.tap(i); return; }
-      }
-    };
-  }
-  if (game === 'sword') {
-    return function (vm, c) {
-      if (!vm.scroll) return;
-      const move = vm.scroll.moves[vm.scroll.cursor];
-      if (!move) return;
-      for (const k of vm.scroll.keys) {
-        if (k.glyph === move.glyph) { c.tap(k.index); return; }
       }
     };
   }
@@ -343,13 +312,9 @@ function drive(ctx, game, totalMs, stepMs) {
 
 const LIMITS = {
   click: [20000, 60],
-  hunt: [22000, 60],
   memory: [140000, 60],
-  bridge: [50000, 60],
   tempo: [80000, 40],
-  sword: [25000, 60],
   lights: [46000, 80],
-  wuxing: [26000, 60],
   mines: [20000, 80],
   seal: [75000, 60],
   link: [70000, 60],
@@ -364,24 +329,24 @@ const LIMITS = {
   charge: [20000, 55],
 };
 
-// ---------------------------------------------------------------- 断言：十九门十九套
-check('19 套常规玩法 + 突破专用玩法全部注册', function () {
+// ---------------------------------------------------------------- 断言：十五门十五套
+check('15 套常规玩法 + 突破专用玩法全部注册', function () {
   assert.deepStrictEqual(Object.keys(index.MODULES).sort(), [
-    'biggest', 'blocks', 'bridge', 'charge', 'click', 'hunt', 'klotski', 'lights', 'link',
-    'match', 'memory', 'merge', 'mines', 'pushbox', 'schulte', 'seal', 'sudoku', 'sword',
-    'tempo', 'wuxing',
+    'biggest', 'blocks', 'charge', 'click', 'klotski', 'lights', 'link',
+    'match', 'memory', 'merge', 'mines', 'pushbox', 'schulte', 'seal', 'sudoku',
+    'tempo',
   ]);
-  assert.strictEqual(index.PRACTICE_GAMES.length, 19);
+  assert.strictEqual(index.PRACTICE_GAMES.length, 15);
 });
 
-check('19 门功法对应 19 套互不重复的玩法', function () {
+check('15 门功法对应 15 套互不重复的玩法', function () {
   const games = data.PRACTICE_METHODS.map(function (m) { return m.game; });
-  assert.strictEqual(games.length, 19);
-  assert.strictEqual(new Set(games).size, 19, '仍有功法共用同一套玩法内核');
+  assert.strictEqual(games.length, 15);
+  assert.strictEqual(new Set(games).size, 15, '仍有功法共用同一套玩法内核');
   for (const g of games) assert.ok(index.MODULES[g], g + ' 未注册');
 });
 
-check('同类功法（刀法/剑法/阵法/心法）也各用各的玩法', function () {
+check('同类功法（刀法/阵法/心法）也各用各的玩法', function () {
   const byType = {};
   for (const s of skills.SKILLS) {
     const m = data.getMethod(s.method);
@@ -391,11 +356,9 @@ check('同类功法（刀法/剑法/阵法/心法）也各用各的玩法', func
   for (const type of Object.keys(byType)) {
     assert.strictEqual(new Set(byType[type]).size, byType[type].length, type + ' 里有两门功法共用玩法');
   }
-  // 这一版先只做刀法，剑法暂留天阶的剑法·截锋断岳诀一门。
-  assert.strictEqual(new Set(byType['刀法']).size, 1);
-  assert.strictEqual(new Set(byType['剑法']).size, 1);
-  // 阵法三档齐全：黄阶勘禁（数格辨禁）、玄阶五行、地阶燃灯，三套内核互不复用。
-  assert.strictEqual(new Set(byType['阵法']).size, 3);
+  assert.strictEqual(new Set(byType['刀法']).size, 1, '刀法这一门只有一套内核');
+  // 阵法两档：黄阶勘禁（数格辨禁）、地阶燃灯（阵灯推演），两套内核互不复用。
+  assert.strictEqual(new Set(byType['阵法']).size, 2);
 });
 
 check('每门玩法都给出本档 S/A/B/C 四条线，说明页与局内同源', function () {
@@ -464,28 +427,26 @@ check('参悟方式、玩法名、本门玄机三层互不撞词', function () {
   }
 });
 
-check('19 套玩法覆盖 6 种舞台形态', function () {
+check('15 套玩法覆盖 3 种舞台形态', function () {
   const stages = {};
   for (const m of data.PRACTICE_METHODS) {
     const ctx = makeCtx(m);
     stages[ctx.st.vm.stage] = (stages[ctx.st.vm.stage] || 0) + 1;
     ctx.c.destroy();
   }
-  assert.ok(Object.keys(stages).length >= 5, '舞台形态不足：' + JSON.stringify(stages));
-  assert.strictEqual(stages.board, 14);
+  // 删掉辨锋截击（lane）/ 五行相生（orbit）/ 步法连环（scroll）后，舞台只剩三种形态。
+  assert.ok(Object.keys(stages).length >= 3, '舞台形态不足：' + JSON.stringify(stages));
+  assert.strictEqual(stages.board, 13);
   assert.strictEqual(stages.klotski, 1);
-  assert.strictEqual(stages.lane, 1);
   assert.strictEqual(stages.ring, 1);
-  assert.strictEqual(stages.orbit, 1);
-  assert.strictEqual(stages.scroll, 1);
 });
 
 check('每门功法的独有机制互不重复', function () {
   const twists = new Set(data.PRACTICE_METHODS.map(function (m) { return m.twist; }));
-  assert.strictEqual(twists.size, 19);
+  assert.strictEqual(twists.size, 15);
 });
 
-check('19 门功法各有完整主题字段', function () {
+check('15 门功法各有完整主题字段', function () {
   const keys = ['accent', 'soft', 'ink', 'bg', 'frame', 'glyph', 'motif', 'hit', 'miss', 'banner', 'praise'];
   for (const m of data.PRACTICE_METHODS) {
     const t = themes.themeOf(m.id, m.game);
@@ -503,19 +464,6 @@ check('所有本门玩法都有名称与说明', function () {
 });
 
 // ---------------------------------------------------------------- 断言：各自独有机制
-check('辨伪择真：4×3 盘面同时出现真招与虚影', function () {
-  installClock();
-  try {
-    const ctx = makeCtx(data.getMethod('snatch'));
-    ctx.c.start();
-    assert.strictEqual(ctx.st.vm.cells.length, 12);
-    assert.strictEqual(ctx.st.vm.cols, 4);
-    assert.ok(ctx.st.vm.cells.some(function (x) { return x.cls.indexOf('cell--gold') >= 0; }));
-    assert.ok(ctx.st.vm.cells.filter(function (x) { return x.cls.indexOf('cell--decoy') >= 0; }).length >= 2);
-    ctx.c.destroy();
-  } finally { restoreClock(); }
-});
-
 check('顺光扫斩：刀路亮完才起寿命线，没划到就算漏', function () {
   installClock();
   try {
@@ -545,7 +493,7 @@ check('顺光扫斩：刀路亮完才起寿命线，没划到就算漏', functio
   } finally { restoreClock(); }
 });
 
-check('顺光扫斩：划偏罚一息，与剑法·截锋断岳诀同规矩', function () {
+check('顺光扫斩：划偏罚一息，断刀势', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('forge'));
@@ -583,73 +531,6 @@ check('顺光扫斩：连击 5 记起算刀势，第 5 道换成重斩长招', f
     ctx.c.swipe(gold.path.slice());
     // 第 5 记刀势 ×1.5，重斩四桩 24 分 × 重斩 ×2 × 刀势 ×1.5 = 72
     assert.strictEqual(ctx.st.vm.scoreText, '得分 152');
-    ctx.c.destroy();
-  } finally { restoreClock(); }
-});
-
-check('循纹递推：竖向河道逐层推进，只有当前层可点', function () {
-  installClock();
-  try {
-    const ctx = makeCtx(data.getMethod('stones'));
-    ctx.c.start();
-    assert.strictEqual(ctx.st.vm.stage, 'lane');
-    assert.strictEqual(ctx.st.vm.lane.rows, 5);
-    assert.ok(ctx.st.vm.cells.some(function (x) { return x.cls.indexOf('cell--fog') >= 0; }), '未到的层没有水雾');
-    const row = ctx.st.vm.lane.activeRow * ctx.st.vm.lane.cols;
-    const before = ctx.st.vm.lane.activeRow;
-    ctx.c.tap(row - 1 < 0 ? row + ctx.st.vm.lane.cols : row - 1);
-    assert.strictEqual(ctx.st.vm.lane.activeRow, before, '非当前层不该能点');
-    ctx.c.destroy();
-  } finally { restoreClock(); }
-});
-
-check('剑招连段：卷轴 + 四个招式键，打错退这一招', function () {
-  installClock();
-  try {
-    const ctx = makeCtx(data.getMethod('combo'));
-    ctx.c.start();
-    assert.strictEqual(ctx.st.vm.stage, 'scroll');
-    assert.strictEqual(ctx.st.vm.scroll.keys.length, 4);
-    assert.strictEqual(ctx.st.vm.scroll.total, 4);
-    assert.strictEqual(ctx.st.vm.scroll.moves[0].state, 'active');
-    const need = ctx.st.vm.scroll.moves[0].glyph;
-    const wrong = ctx.st.vm.scroll.keys.find(function (k) { return k.glyph !== need; });
-    const before = ctx.st.vm.scroll.cursor;
-    ctx.c.tap(wrong.index);
-    assert.strictEqual(ctx.st.vm.scroll.cursor, before, '打错不该推进招式');
-
-    // 盘面靠形状：每一步都必须能映射到某个键的方向，四个键的方向互不相同。
-    const dirs = ctx.st.vm.scroll.keys.map(function (k) { return k.dir; });
-    assert.strictEqual(new Set(dirs).size, 4, '四个步法键的方向不互异，图形就分不开');
-    // 同一方向最多连着两个：三个以上就是无脑连点，记卷轴被绕过去了（两个必须允许）。
-    for (let round = 0; round < 30; round += 1) {
-      const g = makeCtx(data.getMethod('combo'));
-      g.c.start();
-      let last = '';
-      let same = 0;
-      for (const mv of g.st.vm.scroll.moves) {
-        assert.ok(dirs.indexOf(mv.dir) >= 0, '卷轴出现了没有对应键的方向');
-        same = mv.dir === last ? same + 1 : 1;
-        last = mv.dir;
-        assert.ok(same <= 2, '同一方向连出三个，这一串会变成无脑连点');
-      }
-      g.c.destroy();
-    }
-    ctx.c.destroy();
-  } finally { restoreClock(); }
-});
-
-check('五行相生：五盏灯环 + 中央当前一行', function () {
-  installClock();
-  try {
-    const ctx = makeCtx(data.getMethod('wuxing'));
-    ctx.c.start();
-    assert.strictEqual(ctx.st.vm.stage, 'orbit');
-    assert.strictEqual(ctx.st.vm.orbit.lamps.length, 5);
-    assert.ok(['木', '火', '土', '金', '水'].indexOf(ctx.st.vm.orbit.currentText) >= 0);
-    const first = ctx.st.vm.orbit.current;
-    ctx.c.tap((first + 1) % 5);
-    assert.strictEqual(ctx.st.vm.orbit.chain, 1, '相生之位没接上');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
@@ -1616,7 +1497,7 @@ check('突破瓶颈的蓄力停区也能跑完', function () {
   } finally { restoreClock(); }
 });
 
-check('20 套玩法都有「怎么玩」说明，盘面符号讲得清', function () {
+check('15 套玩法都有「怎么玩」说明，盘面符号讲得清', function () {
   for (const id of Object.keys(index.MODULES)) {
     const g = guides.guideOf(id);
     assert.ok(g, id + ' 缺玩法说明');
@@ -2109,10 +1990,9 @@ check('兵器轴：剑与刀在轨迹、判定、节奏、称谓上都可区分'
   assert.ok(sw.stepMs < dao.stepMs, '剑光没有比刀势更快');
 });
 
-check('刀法标 dao、剑法·截锋断岳诀仍标 sword，buildParams 原样透传兵器字段', function () {
+check('刀法标 dao，buildParams 原样透传兵器字段', function () {
   const m = data.getMethod('forge');
   assert.strictEqual(m.params.weapon, 'dao', '刀法·开锋斩桩诀没标兵器');
-  assert.strictEqual(data.getMethod('snatch').params.weapon, 'sword', '剑法·截锋断岳诀没标兵器');
   for (const k of ['novice', 'entry', 'minor', 'major', 'full']) {
     assert.strictEqual(data.buildParams(m, k).weapon, 'dao', k + ' 档把兵器字段弄丢了');
   }
@@ -2193,7 +2073,7 @@ check('刀法可见文案零剑字：招式、浮字、说明、命名、主题�
   clean('forge 失手浮字', themes.THEMES.forge.miss);
 });
 
-check('预留的剑 profile 与剑法主题仍零刀字，等做剑法时可直接挂', function () {
+check('预留的剑 profile 仍零刀字，等真做剑法时可直接挂', function () {
   const bad = weapons.forbiddenOf('sword');
   function clean(label, text) {
     for (let i = 0; i < bad.length; i += 1) {
@@ -2204,8 +2084,6 @@ check('预留的剑 profile 与剑法主题仍零刀字，等做剑法时可直�
   for (const k of Object.keys(sw.names)) clean('剑招名', sw.names[k]);
   for (const k of Object.keys(sw.words)) clean('剑法浮字 ' + k, sw.words[k]);
   clean('金色长招', sw.edgeName);
-  clean('snatch 命中浮字', themes.THEMES.snatch.hit);
-  clean('snatch 失手浮字', themes.THEMES.snatch.miss);
 });
 
 check('阵灯推演：首局手把手两步走完就全亮，点错不推进', function () {
@@ -2263,13 +2141,12 @@ check('走火：有失败态的玩法判负给 F，没有失败态的玩法不�
   const root = path.join(__dirname, '..', 'minigames');
   const readMod = function (f) { return fs.readFileSync(path.join(root, f + '.js'), 'utf8'); };
 
-  // 六门有「没走完」这个结果的：判负分支必须是 F。
+  // 有「没走完」这个结果的：判负分支必须是 F。
   const mustBeF = {
     lights: /if \(failed\) return 'F'/,
     mines: /finishOnce\('F', '心神耗尽/,
     memory: /finishOnce\('口诀散在[^)]*, 'F'\)/,
     seal: /finishOnce\('F', '只通了/,
-    bridge: /finishOnce\('F', '(水流太急|心神耗尽)/,
     link: /pairsDone < pairs[\s\S]{0,160}'F'/,
     sudoku: /finishOnce\('F', '时辰到/,
     merge: /finishOnce\('F', '盘满/,
@@ -2284,7 +2161,7 @@ check('走火：有失败态的玩法判负给 F，没有失败态的玩法不�
 
   // 没有「达成/未达成」的玩法（一局有自然终点）不许出现第二种 F：
   // 唯一合法的 F 是 abandon（中途收功），那是玩家自己退的，不是打崩的。
-  ['click', 'hunt', 'tempo', 'sword', 'wuxing', 'match', 'blocks'].forEach(function (f) {
+  ['click', 'tempo', 'match', 'blocks'].forEach(function (f) {
     const hits = readMod(f).match(/finishOnce\('F'|grade: 'F'/g) || [];
     assert.ok(hits.length <= 1, f + '.js 把「时间到」也判成了走火（F 只该留给中途收功）');
   });
@@ -2962,7 +2839,7 @@ check('两门的评级说明都写清「反悔封顶」，玩家查得到', func
   }
 });
 
-check('五档各生成一局：19 门 × 5 档都能开局，盘面不出空值', function () {
+check('五档各生成一局：15 门 × 5 档都能开局，盘面不出空值', function () {
   // 上面那条整局驱动只跑「本门基础参数」一档。难度是五档，参数差最大的一档
   // （绝境：九宫 46 洞、逐数 6×6、入位 3 处阵位、合数目标 1024）恰恰最少被走到，
   // 而「参数拼出一个不存在的盘面」这类错在低档看不出来。这里只建局、不跑完。
@@ -3319,7 +3196,10 @@ check('推石入位：大圆满「临渊」只描「一推就进死位」的那�
     flat.c.destroy();
 
     let seen = 0;
-    for (let round = 0; round < 10 && seen < 3; round += 1) {
+    // 40 局而不是 10 局：死位要靠随机布局才出得来，10 局偶尔一局都没有，
+    // 这条断言就会以「等于没跑」的名义偶发失败（实测 5 次里有 1 次）。
+    // 上限抬到 40 只为把偶发率压到可忽略，判据没变：至少有一局描出了红。
+    for (let round = 0; round < 40 && seen < 3; round += 1) {
       const ctx = boot(5);
       const box = ctx.st.vm.pushbox;
       const layout = box.layout;

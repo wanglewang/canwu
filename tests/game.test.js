@@ -464,16 +464,20 @@ check('金丹期练得了黄阶：门槛管能不能开练，上限只管这一�
   // 首页推荐不能因为「黄阶都打折」就把整批滤掉、推不出任何一门。
   const rec = game.recommend(s);
   assert.ok(rec.id, '金丹期推不出该练哪门');
-  // 反过来：没到门槛才是硬门槛（炼气期拿不到天阶的开练资格）。
+  // 反过来：没到门槛才是硬门槛（炼气期拿不到最高阶功法的开练资格）。
+  // 2026-11 删减后天阶已空，这里取「当前实际存在的最高阶」（现为地阶）来测同一条硬门槛。
   const low = game.createNewState();
   low.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
-  const tian = game.getSkillList(low).filter(function (x) { return x.tierKey === 'tian'; })[0];
-  assert.ok(tian, '没有天阶功法可测');
-  assert.strictEqual(tian.realmReady, false, '炼气期不该能开天阶');
-  assert.strictEqual(tian.decayed, true, '未达门槛同样该标成不可修');
+  const lowList = game.getSkillList(low);
+  const topTier = ['tian', 'di', 'xuan', 'huang']
+    .filter(function (k) { return lowList.some(function (x) { return x.tierKey === k; }); })[0];
+  const top = lowList.filter(function (x) { return x.tierKey === topTier; })[0];
+  assert.ok(top, '没有高阶功法可测');
+  assert.strictEqual(top.realmReady, false, '炼气期不该能开最高阶功法');
+  assert.strictEqual(top.decayed, true, '未达门槛同样该标成不可修');
   // 未到门槛是硬门槛：不在「更贵」这一档，而是根本不开局。
-  const refused = game.applyPractice(low, tian.id, 'S', {});
-  assert.strictEqual(refused.ok, false, '炼气期竟然开了一局天阶');
+  const refused = game.applyPractice(low, top.id, 'S', {});
+  assert.strictEqual(refused.ok, false, '炼气期竟然开了一局最高阶功法');
 });
 
 check('首局引导标记：与技能同级存，老档读出来是「没看过」', function () {

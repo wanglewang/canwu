@@ -2,7 +2,7 @@
 
 // 参悟主题：每门功法一套配色、符号与文案。只影响表现层，不参与数值计算。
 // practice 页把 accent / soft / ink / bg / frame 写成根容器的 CSS 变量，wxss 用 var() 取用。
-// 19 门功法各自有独立的玩法内核，主题只是同一门功法的视觉外衣。
+// 15 门功法各自有独立的玩法内核，主题只是同一门功法的视觉外衣。
 
 const THEMES = {
   forge: {
@@ -13,32 +13,15 @@ const THEMES = {
     bg: '#e6edf3', frame: '#f8fbfd', glyph: '刀', motif: '刀',
     hit: '一刀斩中', miss: '劈空了', banner: '刀光乍起', praise: '刀随意走',
   },
-  snatch: {
-    key: 'snatch', name: '剑影', accent: '#39465c', soft: '#dfe4ec', ink: '#1d2632',
-    bg: '#e7eaf0', frame: '#f8f9fc', glyph: '剑', motif: '截',
-    hit: '截住真招', miss: '误截虚影', banner: '剑光乱眼', praise: '后发先至',
-  },
   recite: {
     key: 'recite', name: '静心', accent: '#3d8c74', soft: '#dff0e7', ink: '#225a4a',
     bg: '#e4efe8', frame: '#f7fcf8', glyph: '诀', motif: '诵',
     hit: '口诀无误', miss: '记岔一字', banner: '心不浮，气自沉', praise: '倒背如流',
   },
-  stones: {
-    key: 'stones', name: '露石', accent: '#3b7a8c', soft: '#dcecf1', ink: '#22505f',
-    bg: '#e2eff3', frame: '#f5fbfe', glyph: '露', motif: '采',
-    hit: '露已入瓶', miss: '踏空落水', banner: '露纹初现', praise: '一滴不洒',
-  },
   absorb: {
     key: 'absorb', name: '吐纳', accent: '#2f8c7b', soft: '#dbf0e9', ink: '#1d5a4e',
     bg: '#e2f0ea', frame: '#f5fcf8', glyph: '气', motif: '纳',
     hit: '气合周天', miss: '气机散了', banner: '一息绵长', praise: '吐纳自如',
-  },
-  combo: {
-    key: 'combo', name: '步法', accent: '#b4453c', soft: '#f7ded9', ink: '#782b25',
-    bg: '#f3e2dd', frame: '#fff4f1', glyph: '步', motif: '步',
-    hit: '步位合拍', miss: '踏错了', banner: '踏云连环', praise: '一气呵成',
-    // 连击的说法跟着题材走：刀法叫「连招」，步法叫「连踏」。
-    comboLabel: '连踏',
   },
   arrayEye: {
     key: 'arrayEye', name: '阵灯', accent: '#6f5b9e', soft: '#e9e3f5', ink: '#453771',
@@ -46,11 +29,6 @@ const THEMES = {
     // 「阵眼」只留给提示技能：开局横幅与印章不再用这个词，免得玩家把横幅当成提示。
     bg: '#ece7f6', frame: '#faf7ff', glyph: '●', motif: '灯',
     hit: '阵灯转明', miss: '推演偏了', banner: '阵灯待明', praise: '一眼破阵', solved: '破阵',
-  },
-  wuxing: {
-    key: 'wuxing', name: '五灯', accent: '#9c7427', soft: '#f4e9cf', ink: '#66501c',
-    bg: '#f1e8d4', frame: '#fffbee', glyph: '灯', motif: '行',
-    hit: '五行相生', miss: '生克失序', banner: '五灯归位', praise: '阵法通明',
   },
   tanlei: {
     key: 'tanlei', name: '禁纹', accent: '#a2553f', soft: '#f4e2da', ink: '#6d3527',
@@ -116,13 +94,9 @@ const THEMES = {
 
 const FALLBACK = {
   click: 'forge',
-  hunt: 'snatch',
   memory: 'recite',
-  bridge: 'stones',
   tempo: 'absorb',
-  sword: 'combo',
   lights: 'arrayEye',
-  wuxing: 'wuxing',
   mines: 'tanlei',
   seal: 'seal',
   link: 'linkpair',
@@ -138,39 +112,23 @@ const FALLBACK = {
 };
 
 // 每门功法「本门玄机」：这一套玩法自己的规则与花样，展示在开局准备页。
-// 19 条彼此不同，且对应 19 套互不复用的玩法内核。
+// 15 条彼此不同，且对应 15 套互不复用的玩法内核。
 const TWIST_INFO = {
   forge: {
     name: '刀势渐盛',
     desc: '连击满 5 / 10 / 20 记，倍率依次 ×1.5 / ×2 / ×3；档位越高门槛越高。漏刀与劈空都清零，重斩落空只算白过一手。',
   },
-  snatch: {
-    name: '真招虚影',
-    desc: '数道剑光只有一道真招，截错扣分。连截四记出手更快。',
-  },
   recite: {
     name: '可抢记',
     desc: '按原序点回；长按可跳过剩下的闪烁，少看一字多一分。',
-  },
-  stones: {
-    name: '逐层加纹',
-    desc: '每层采对那道纹：比上一层加一，循环接续。采错扣心神。',
   },
   absorb: {
     name: '一息绵长',
     desc: '光环落进朱带时点下判圆满，带边只算半拍、差太远算空拍。本门判定带比别门宽四成五。',
   },
-  combo: {
-    name: '一步不错',
-    desc: '照卷轴上的步位，用四个键按序踏完。踏错重来。',
-  },
   arrayEye: {
     name: '推演限步',
     desc: '一局只推一盘，余量写在左上；比最优多走几步，评级就掉几档。',
-  },
-  wuxing: {
-    name: '相生接龙',
-    desc: '按相生次序点下一盏灯。连得越长，留给你的时间越短。',
   },
   tanlei: {
     name: '三盏心神',

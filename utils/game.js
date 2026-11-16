@@ -463,7 +463,7 @@ function qiCap(state) {
 // 为什么要给身法一个独立出口：四个属性若都只进战力，玩家练哪门都一样，练功就没有方向。
 // 系数 = 1/3000 而不是 1/300：1/300 是「每 3 点 +1%」，身法 30 点就吃满 10% 封顶，
 // 之后再堆一点用都没有——身法会变成只在开局有用的属性，与 200 关的长线养成相反。
-// 1/3000 下开局 11 点只 0.37%、十九门全大圆满 151 点约 5%，封顶 10% 留到以后扩属性。
+// 1/3000 下开局 11 点只 0.37%、十五门全大圆满 151 点约 5%，封顶 10% 留到以后扩属性。
 // 这条换算在 09-attributes 4.3 与玩家指南第 55 行都写着「每 30 点 +1%」，三处必须一致。
 const SHEN_FLOOR_PER = 1 / 3000;
 const SHEN_FLOOR_MAX = 0.10;
@@ -496,7 +496,7 @@ function markOnboarded(state, skillId) {
 }
 
 // 入门卡与教学盘是两件事：教学盘是「跟着走一遍」（只有一门有），
-// 入门卡是「进这一门先读三句」（十九门都有）。所以分开记，看过卡片不影响教学盘。
+// 入门卡是「进这一门先读三句」（十五门都有）。所以分开记，看过卡片不影响教学盘。
 function markIntroed(state, skillId) {
   const rec = state && state.skills && state.skills[skillId];
   if (rec) rec.introed = true;
@@ -1147,7 +1147,7 @@ function moveCard(state, id, scale) {
   const tier = rec ? tierInfo(rec.prof) : null;
   return {
     id: id,
-    // 印章那一格取招式名首字：破 / 开 / 借 / 叠 / 护 / 引 … 十九个字互不重复。
+    // 印章那一格取招式名首字：破 / 叠 / 合 / 落 / 护 … 十五个字互不重复。
     seal: m.name.slice(0, 1),
     name: m.name,
     skillName: m.skillName,
@@ -2065,11 +2065,10 @@ function getFamilies(state) {
       });
     }
     for (let r = 0; r < tiers.length; r += 1) {
-      let found = null;
-      for (let k = 0; k < items.length; k += 1) {
-        if (items[k].tierKey === tiers[r].key) { found = items[k]; break; }
-      }
-      slots.push(found || {
+      // 同族同阶可并列多门（2026-11 心法族两门黄阶）：每槽收该阶**全部**功法，
+      // 不再「取第一门就 break」——那样后一门会在谱系里消失，玩家看不到。
+      const bucket = items.filter(function (x) { return x.tierKey === tiers[r].key; });
+      const first = bucket[0] || {
         id: 'gap-' + c.type + '-' + tiers[r].key,
         name: '（待补变体）',
         tierKey: tiers[r].key,
@@ -2080,7 +2079,12 @@ function getFamilies(state) {
         rewardText: '耗气 ×' + tiers[r].qiCost.toFixed(2),
         unlocked: false,
         empty: true,
-      });
+      };
+      slots.push(Object.assign({}, first, {
+        // 该阶全部功法：一门时是 [first]，空槽是 []。旧字段（name/id…）仍取首门，兼容旧渲染。
+        items: bucket,
+        empty: bucket.length === 0,
+      }));
     }
     out.push({
       type: c.type,

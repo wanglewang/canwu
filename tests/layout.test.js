@@ -338,7 +338,7 @@ check('视觉标准落在唯一真源，样板阶段只对刀法·开锋斩桩�
   const v = require('../data/visual.js');
   assert.strictEqual(Object.keys(v.FAMILIES).length, 4, '四类主题色板不齐（兵刃 / 心法 / 丹道 / 阵法）');
   assert.deepStrictEqual(Object.keys(v.ENABLED), ['forge'], '样板阶段不该一次改十套');
-  assert.ok(v.isOn('forge') && !v.isOn('snatch'), '沉浸舞台开关没按主题生效');
+  assert.ok(v.isOn('forge') && !v.isOn('seal'), '沉浸舞台开关没按主题生效');
   assert.ok(v.MOTION.particles <= v.MOTION.particleCap && v.MOTION.particleCap <= 12, '粒子超预算');
   assert.ok(v.MOTION.loops <= 3, '常驻循环动画超预算');
   assert.strictEqual(v.settleTimeline('S')[4], 1800, 'S 级结算不是 1.8 秒');
@@ -413,30 +413,6 @@ check('局内提示明确禁止反向，不再写「反着划也算」', functio
   assert.ok(/箭头/.test(guides) && /不能反/.test(guides), '玩法说明没讲箭头与禁反向');
 });
 
-check('步法盘面用形状指方向：卷轴与四个键都不写汉字', function () {
-  const s = read('minigames/sword.js');
-  const wxml = read('pages/practice/practice.wxml');
-  // 汉字只作内部真值（glyph 用于判定与存档），盘面画的是 dir 图形。
-  assert.ok(/STEP = \{/.test(s) && /dir: 'up'/.test(s) && /name: '前踏'/.test(s),
-    '步法动作没有「方向 + 名称」映射，盘面只能退回写汉字');
-  const at = wxml.indexOf("vm.stage === 'scroll'");
-  assert.ok(at > 0, '练习页没有步法卷轴区');
-  const scroll = wxml.slice(at, at + 1600);
-  assert.ok(!/\{\{item\.glyph\}\}/.test(scroll), '卷轴与步法键又把汉字画回盘面了');
-  assert.ok(/step--\{\{item\.dir\}\}/.test(scroll), '步法符号没按方向切换');
-  assert.ok(/step__arrow/.test(scroll) && /step__ring/.test(scroll), '缺方向箭头或旋身圆环');
-  assert.ok(/scroll__key--press/.test(scroll), '步法键按下没有反馈');
-  assert.ok(/stage === 'scroll'/.test(read('pages/practice/practice.js')), '步法键没有触感反馈');
-
-  // 「圆满」是段位名，不能拿来讲本局还剩几段；评级只按走完的段数算，与用时无关。
-  const goalLine = (s.match(/vm\.goal = [^\n]+/) || [''])[0];
-  assert.ok(goalLine && !/圆满/.test(goalLine), '又用段位名「圆满」讲本局进度了');
-  const g = require('../data/guides.js').GUIDES.sword;
-  assert.ok(!/用时评级/.test(g.scoring), '评级规则写错了：只看走完的段数，不看用时');
-  assert.ok(/就是 S/.test(g.steps.join('')), '说明里没讲清「走完段数就是 S」');
-  assert.ok(/前踏/.test(g.terms.map(function (t) { return t.name; }).join('')), '术语表还在按汉字讲步法键');
-});
-
 check('兵器语言收在 data/weapons.js，玩法模块不硬编码招式名与称谓', function () {
   const click = read('minigames/click.js');
   const w = read('data/weapons.js');
@@ -446,7 +422,8 @@ check('兵器语言收在 data/weapons.js，玩法模块不硬编码招式名与
   assert.ok(!/'平削'|'直刺'|'横劈'|'立劈'|'一剑中的'|'一刀斩中'/.test(click), '玩法模块里又硬编码了兵器称谓');
   assert.ok(/PROFILES = \{[\s\S]*sword:[\s\S]*dao:/.test(w), '兵器表没有剑 / 刀两套 profile');
   assert.ok(/weapon: 'dao'/.test(read('data/practice.js')), '刀法·开锋斩桩诀没标兵器');
-  assert.ok(/weapon: 'sword'/.test(read('data/practice.js')), '剑法·截锋断岳诀没标兵器');
+  // 剑法·截锋断岳诀 2026-11 退役，practice 里已经没有剑法门；weapons.js 的 sword 一套
+  // 留着待回填（它是兵器语言表，不是某一门的实现），所以这里只守「刀法标了兵器」。
 });
 
 check('战力明细收进「说明」真源，首屏只留数值；指南保留完整算法', function () {
@@ -492,7 +469,7 @@ check('循数勘禁诀局内只讲「在追哪一档」：不摆当前评级，H
   // 可能是 GRADE_LINE 也可能是本盘算出来的 line；两者都算「给了下一档的时限」。
   assert.ok(/C\.paceGoal\(elapsed,\s*(GRADE_LINE|line)\)/.test(m), '局内没给「下一档还差几秒」');
   // 同样的反推逻辑不止探禁一家：搭桥、翻牌也按用时评级。凡是这类玩法都不许摆当前档位。
-  for (const name of ['bridge', 'seal']) {
+  for (const name of ['seal']) {
     const src = read('minigames/' + name + '.js');
     assert.ok(/showGradeNow = false/.test(src), 'minigames/' + name + '.js 还在 HUD 上摆按用时反推的档位');
     assert.ok(/C\.paceGoal\(elapsed, GRADE_LINE/.test(src), 'minigames/' + name + '.js 没给「下一档还差几秒」');
@@ -1091,11 +1068,11 @@ check('功法命名统一：类别·四到六字正名，前缀严格等于类�
     // 三字名一律退役：它们正是「看不懂这一门干什么」的来源。
     assert.notStrictEqual(parts[1].length, 3, s.id + ' 又出现了三字正名');
   }
-  // 十九门里不许再出现「有的没前缀」或「前缀和类别对不上」。
-  assert.strictEqual(skills.SKILLS.length, 19, '功法数变了，命名断言要同步');
+  // 十五门里不许再出现「有的没前缀」或「前缀和类别对不上」。
+  assert.strictEqual(skills.SKILLS.length, 15, '功法数变了，命名断言要同步');
   const names = skills.SKILLS.map(function (s) { return s.name; });
   assert.strictEqual(new Set(names).size, names.length, '功法名重复');
-  assert.ok(names.indexOf('刀法·开锋斩桩诀') >= 0 && names.indexOf('剑法·截锋断岳诀') >= 0, '刀 / 剑两门没按规范统一');
+  assert.ok(names.indexOf('刀法·开锋斩桩诀') >= 0, '刀法·开锋斩桩诀没按规范统一');
   // 旧三字名不许回表。
   const legacy = ['阵法·燃灯诀', '灵植·三秀诀', '合术·叠元诀', '辨术·摘魁诀', '御灵·并蒂引'];
   for (const old of legacy) {
@@ -1118,10 +1095,11 @@ check('功法图鉴：未习得也能查全玩法、收益与习得路径', func
     '卡片没有明确的可点详情 / 动作入口');
   assert.ok(!/skill-card--dim|opacity/.test(wxml + wxss), '未习得卡片又被压灰成不可点的样子');
   assert.ok(/\.codex__block/.test(wxss) && /\.codex__note/.test(wxss), '图鉴分区样式没落地');
-  // 引擎层：锁定的天阶功法也必须返回完整说明与可执行的下一步。
+  // 引擎层：锁定的掉落功法也必须返回完整说明与可执行的下一步。
+  // 2026-11 起唯一一门「切磋掉落」是太虚翻卦诀（天阶已无功法，但这条路径必须还在）。
   const s = game.createNewState();
-  const d = game.getSkillDetail(s, 'duanyue');
-  assert.ok(!d.unlocked, '天阶功法初始不该是已习得');
+  const d = game.getSkillDetail(s, 'taixu');
+  assert.ok(!d.unlocked, '掉落功法初始不该是已习得');
   assert.ok(d.guide && d.guide.steps.length >= 2 && d.guide.terms.length >= 2, '锁定功法看不到玩法说明');
   assert.ok(d.gainLines.length >= 3 && d.stageRules !== undefined, '锁定功法看不到练成收益');
   assert.ok(d.unlock.kind === 'battle' && d.unlock.action === 'battle', '掉落功法没给去切磋的路径');
@@ -1355,7 +1333,7 @@ check('评级中文名只有一份真源，且避开段位词', function () {
   }
 });
 
-check('19 套玩法的代价句在局内真的看得见（运行时探针）', function () {
+check('15 套玩法的代价句在局内真的看得见（运行时探针）', function () {
   const pd = require('../data/practice.js');
   for (const m of pd.PRACTICE_METHODS) {
     const M = require('../minigames/' + m.game + '.js');
@@ -1390,12 +1368,15 @@ check('只奖不罚：连练递减全站清零，换门的「省气」有单一�
   assert.ok(/copy\.practiceNote/.test(read('pages/practice/practice.js'))
     && /repeatNote/.test(read('pages/practice/practice.wxml')),
     '准备页没把「连练不减收益」写在开局前');
-  // 只刷第 1 关反超逐关进的坑：收益按本关÷当前关折，连 S 又只在当前关叠。
-  // 现在既要它别再出现，也要有断言把它钉住。
-  assert.ok(!/WARN 只刷/.test(read('scripts/simulate.js')),
-    '反超问题已修，模拟里不该还挂着这条 WARN');
-  assert.ok(/只刷第 1 关不该反超逐关进/.test(read('scripts/simulate.js')),
-    '没有断言守着「只刷第 1 关不许反超逐关进」');
+  // 回关护栏：2026-11 起口径改成「局部」——同一个当前关下，回打更低的关不许比打当前关划算。
+  // 旧的「6000 点预算下只刷第 1 关不许反超逐关进」不是一个能成立的判据（见 04-open-issues D12），
+  // 它从 v9 起就空跑：刷法名改名之后两条曲线都落进 else 分支，等于拿逐关进比逐关进。
+  const sim = read('scripts/simulate.js');
+  assert.ok(/回关不该更划算/.test(sim), '模拟里没有断言守着「回关不许比打当前关更划算」');
+  assert.ok(/for \(const cur of \[2, 21, 200, 800\]\)/.test(sim),
+    '回关护栏没在多个当前关上复算（只测一档会漏掉跨段那一刀）');
+  assert.ok(!/mode: 'novice'|mode: 'below'/.test(sim),
+    '刷法名又写回了 runBudget 不认识的值——那两条曲线会静默变成逐关进');
 });
 
 check('功法页默认排序与主页推荐同一份口径', function () {
@@ -1455,17 +1436,17 @@ check('功法页两个分区叫「已持玉简 / 藏经阁」，不再另立一�
   assert.ok(!/可解锁|未习得/.test(wxml), '功法页 tab 还写着「可解锁 / 未习得」');
 });
 
-check('藏经阁分区装全部未习得，不是只装能换的那 12 门', function () {
+check('藏经阁分区装全部未习得，不是只装能换的那几门', function () {
   const js = read('pages/skills/skills.js');
-  // 19 门里只有 12 门挂在藏经阁卖，另 4 门（五行 / 凝露 / 断岳 / 太虚）靠切磋首胜，
-  // 3 门初始赠送。若这一区只装 canBuy 的，那 4 门在没拿到之前就没有图鉴与路径可看——
+  // 2026-11 删门之后：15 门里只剩 1 门（静心记诵诀）挂在藏经阁卖，1 门（太虚翻卦诀）靠切磋首胜，
+  // 13 门初始赠送。若这一区只装 canBuy 的，那门掉落功法在没拿到之前就没有图鉴与路径可看——
   // 合并时最容易挨的一刀，正是「反正按钮只对能换的画，那就先滤一道」。
   assert.ok(js.indexOf('if (s.unlocked) learned.push(s);') >= 0,
     '已持与未得没有分开归堆');
   assert.ok(js.indexOf('else pending.push(s);') >= 0,
     '未习得的门没有全部进藏经阁分区');
   assert.ok(!/if\s*\(\s*!s\.canBuy\s*\)\s*continue/.test(js),
-    '藏经阁分区把「不能兑换的门」滤掉了：那 4 门切磋来源的图鉴会消失');
+    '藏经阁分区把「不能兑换的门」滤掉了：切磋来源那门的图鉴会消失');
 });
 
 check('参悟页带 ?skillId 认门，「这一门」与换门都在页内', function () {
@@ -1714,7 +1695,7 @@ check('收牌迸溅与选中跳动：只动 transform / opacity，都是一次�
   assert.ok(selRule && !/transform/.test(selRule), '选中态动了格子本身的 transform，会和按压反馈打架');
 });
 
-check('19 门盘面图案化：果器纹 / 卦象器物纹 / 数字纸纹三层覆盖，盘上不留汉字', function () {
+check('15 门盘面图案化：果器纹 / 卦象器物纹 / 数字纸纹三层覆盖，盘上不留汉字', function () {
   const pd = require('../data/practice.js');
   const wxml = read('pages/practice/practice.wxml');
   // 渲染优先级只有一条链：灵纹牌画 crest → 其余盘画 emblem → 都不是才退回文字。
@@ -1766,7 +1747,7 @@ check('19 门盘面图案化：果器纹 / 卦象器物纹 / 数字纸纹三层�
   assert.ok(!/infinite/.test(etch), '金圈变成了常驻循环动画，动效预算会爆');
 });
 
-check('26 格器纹 sprite：单份 base64、三处容器、五行图案语义不错位', function () {
+check('26 格器纹 sprite：单份 base64、三处容器、PNG 尺寸与打包排除', function () {
   const css = read('styles/emblems.wxss');
   const png = fs.readFileSync(path.join(ROOT, 'assets/emblems.png'));
   assert.strictEqual(png.readUInt32BE(16), 1664, 'sprite 宽度不是 26×64');
@@ -1784,12 +1765,6 @@ check('26 格器纹 sprite：单份 base64、三处容器、五行图案语义�
   assert.ok(cfg.packOptions.ignore.some(function (x) { return x.value === 'assets/emblems.png'; }),
     'assets/emblems.png 没排除出打包');
 
-  // sprite 的五行格是 22 金 / 23 木 / 24 水 / 25 火 / 26 土，环灯次序是木火土金水。
-  // 写 22+i 会让「木」画成元宝，相生次序在图上整个反过来。
-  const w = require('../minigames/wuxing.js');
-  assert.deepStrictEqual(w.ELEMENTS, ['木', '火', '土', '金', '水']);
-  assert.deepStrictEqual(w.ELEMENT_EMBLEM, [23, 25, 26, 22, 24], '五行图案与元素语义错位');
-  assert.ok(!/emblem: 22 \+ i/.test(read('minigames/wuxing.js')), '又写回按下标顺排图案了');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

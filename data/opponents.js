@@ -32,22 +32,22 @@ const OPPONENTS = [
   {
     id: 'liuhan', kind: 'npc', name: '内门弟子·柳含烟', title: '内门问剑',
     power: 190, desc: '阵法课从没低于甲上，最烦有人说「阵法是死物」。',
-    reward: { stone: 36 }, drop: 'wuxingzhen',
-    winLine: '柳含烟收了阵盘：「这卷五灯相生诀，借你抄。」',
+    reward: { stone: 36 }, drop: null,
+    winLine: '柳含烟收了阵盘：「阵眼推演，你比我想的稳。」',
     loseLine: '柳含烟把阵盘收好：「先把灯点明白再来。」',
   },
   {
     id: 'puppet', kind: 'npc', name: '护山傀儡', title: '山门试炼',
     power: 270, desc: '不疼不累不喊停，唯一的缺点是有点慢。',
-    reward: { stone: 50 }, drop: 'dan',
-    winLine: '傀儡胸口掉出一卷熏得发黄的丹方。',
+    reward: { stone: 50 }, drop: null,
+    winLine: '傀儡胸口弹开一格，叮当落出几枚灵石。',
     loseLine: '傀儡抬手把你轻轻推下台阶，继续站着。',
   },
   {
     id: 'xueshou', kind: 'npc', name: '魔修·血手', title: '界外来客',
     power: 370, desc: '出手极快，话极多，两样都让人不太舒服。',
-    reward: { stone: 70 }, drop: 'duanyue',
-    winLine: '血手留下半截断剑：「这卷截锋断岳诀送你，别学我。」',
+    reward: { stone: 70 }, drop: null,
+    winLine: '血手留下半截断剑：「你的手比我想的快，别学我的路数。」',
     loseLine: '血手收了力：「今日不算，你还没练出手速。」',
   },
   {

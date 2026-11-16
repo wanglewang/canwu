@@ -55,16 +55,16 @@ module.exports = {
 | 反馈 | `fx`（浮字）/ `fxSeq` / `cleared`（收走哪几格）/ `clearSeq` |
 | 开关 | `extras.showUndo / showHint / showReset / showCharge / showGrid / showRing / showHearts / showMeter / showProgress / showGradeNow / showCombo / showSwipe / showPad / compact` |
 
-### 4.1 `stage` 六种形态
+### 4.1 `stage` 形态
 
 | `stage` | 形态 | 谁用 |
 | --- | --- | --- |
 | `board` | 方格 | 大多数 |
-| `lane` | 竖向河道 | 水术·叠纹凝露诀 |
 | `ring` | 圆盘光环 | 心法·吐纳周天诀 |
+| `klotski` | 滑盘 | 机巧·让主出阵诀 |
 | `charge` | 蓄力条 | 突破 |
-| `orbit` | 灯环 | 阵法·五灯相生诀 |
-| `scroll` | 横向卷轴 | 身法·踏云连环步 |
+
+`common.js` 里还留着 `lane`（竖向河道）/ `orbit`（灯环）/ `scroll`（横向卷轴）三个舞台的数据位，2026-11 删门之后已无玩法使用——渲染链保留，新门要用时直接填这三个字段。
 
 页面按 `stage` 决定渲染哪一块，模块只负责填对应数据。
 

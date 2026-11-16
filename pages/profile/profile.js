@@ -139,7 +139,7 @@ Page({
       markCls: bt.available ? 'imm-check__mark--on' : 'imm-check__mark--off',
       off: !bt.available,
     }].concat(bt.maxed || bt.available || !bt.fastest ? [] : [{
-      // 「还差 2 点」如果不说该练哪门，玩家只能把十九门挨个试一遍。
+      // 「还差 2 点」如果不说该练哪门，玩家只能把十五门挨个试一遍。
       // 这里给的是「离下一段最近的那门」，不是加成最大的那门——今天就能动的那一步。
       // 只用短名：一行里塞不下「阵法·点灯破阵诀到入门」。
       text: '还差 ' + bt.lack + ' 点 · 最近：「'

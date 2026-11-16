@@ -33,8 +33,8 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 | --- | --- | --- |
 | `economy.js` | 186 | 七条经济常量、`practiceQiCost()`、`qiCapOf()`、`breakthroughStone()` |
 | `world.js` | 155 | 四境界、四属性（含 `role`）、世界列表 |
-| `practice.js` | 834 | 19 门参悟方式、五段难度、`buildParams()`、`TIERS`、熟练度阶梯、`STAGE_RULES` |
-| `skills.js` | 327 | 19 门功法（属性加成、特效、价格、获取途径）+ `NAME_RULE` |
+| `practice.js` | 834 | 15 门参悟方式、五段难度、`buildParams()`、`TIERS`、熟练度阶梯、`STAGE_RULES` |
+| `skills.js` | 327 | 15 门功法（属性加成、特效、价格、获取途径）+ `NAME_RULE` |
 | `guides.js` | 397 | 每门的 `goal` / `steps` / `terms` / `scoring` / `tip` |
 | `help.js` | 565 | 说明页的静态主题表 + `practiceTopic()` 现拼 |
 | `copy.js` | 264 | 玩家文案、`TERMS`（术语词典）、`SHARE`、单位格式化 |
@@ -160,11 +160,11 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 | 方案 | 为什么否掉 |
 | --- | --- |
 | 拆 `game.js` 成五个文件 | 所有函数吃同一个 `state`，拆开要处理「谁先改」 |
-| 玩法模块自己算熟练度 | 数值改一处要动 20 个模块 |
+| 玩法模块自己算熟练度 | 数值改一处要动 16 个模块 |
 | 每页自己算耗气 | 一处不一致，玩家立刻发现「这页写的和气不一样」 |
 | 页面直接写存档 | 会绕过 `checkTitles` / `addLog` / 迁移 |
 | `data/` 里放页面逻辑 | 数据层要能被 Node 直接 require（测试与 sim 都依赖这点） |
-| 把盘面样式做成组件 | 20 套结构差异大，组件化只会增加隔离成本 |
+| 把盘面样式做成组件 | 16 套结构差异大，组件化只会增加隔离成本 |
 
 ## 11. 代码指路
 

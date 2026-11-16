@@ -49,12 +49,11 @@ const FAMILIES = {
 };
 
 const FAMILY_OF = {
-  forge: 'sword', snatch: 'sword',
+  forge: 'sword',
   recite: 'mind', absorb: 'mind',
-  stones: 'alchemy', combo: 'alchemy',
   // 循数勘禁诀练的是格盘推演，不是画符，色板归阵法；太虚翻卦诀是心法，归心法。
   tanlei: 'array', seal: 'mind',
-  arrayEye: 'array', wuxing: 'array',
+  arrayEye: 'array',
   // 三套经典盘面按各自主题的色相归支：契纹青蓝归兵刃，垒石土褐归赤金，灵畦青绿归心法。
   // 少一行不会报错——stageTheme 会静默落到 sword 兜底，于是场景辉光与盘面各说各话。
   linkpair: 'sword', stackstone: 'alchemy', harvest: 'mind',

@@ -133,8 +133,8 @@ check('评级倍率只剩 buff 档位用途：不进熟练度，也不进资源'
   assert.strictEqual(world.CROSS_BONUS, undefined, 'CROSS_BONUS 已换成「触类旁通耗气 ×0.92」');
 });
 
-check('数据层：十九门功法、天地玄黄四阶都有人、分类合法', function () {
-  assert.strictEqual(skills.SKILLS.length, 19);
+check('数据层：十五门功法、品阶合法（天阶 2026-11 起暂空）', function () {
+  assert.strictEqual(skills.SKILLS.length, 15);
   const tiers = {};
   for (const s of skills.SKILLS) {
     assert.ok(practice.TIERS.some(function (t) { return t.key === s.tier; }), s.name + ' 品阶非法');
@@ -142,7 +142,8 @@ check('数据层：十九门功法、天地玄黄四阶都有人、分类合法'
     assert.ok(practice.METHOD_MAP[s.method], s.name + ' 指向不存在的参悟方式');
     tiers[s.tier] = true;
   }
-  assert.strictEqual(Object.keys(tiers).length, 4);
+  // 删掉唯一天阶功法后不再要求四阶都有人；黄阶是整套刻度的基准，它空了才算体系悬空。
+  assert.ok(tiers.huang, '黄阶一门功法都没有，品阶体系悬空');
 });
 
 check('同族共用游戏族，族内变体不重样', function () {
@@ -159,27 +160,21 @@ check('同族共用游戏族，族内变体不重样', function () {
   assert.strictEqual(practice.familyOf('心法').kind, 'main');
 });
 
-check('一族一个品阶只放一门：撞阶会让谱系按阶取槽时丢门', function () {
+check('同族同阶可并列，谱系不再按阶取槽丢门', function () {
   const s = game.createNewState();
   for (const f of game.getFamilies(s)) {
-    const seen = {};
-    for (const it of f.items) {
-      assert.ok(!seen[it.tierKey], f.type + ' 族内「' + it.tierName + '」阶撞车：' + it.name + ' / ' + seen[it.tierKey]);
-      seen[it.tierKey] = it.name;
-    }
     // 谱系四个槽：有功法的一格必须有名字，缺变体的才允许是空档。
     assert.strictEqual(f.slots.length, 4, f.type + ' 谱系刻度不是四阶');
-    assert.strictEqual(f.slots.filter(function (x) { return !x.empty; }).length, f.items.length,
-      f.type + ' 谱系显示的功法数与实际不符（同阶被盖掉）');
+    // 同族同阶可并列（心法族两门黄阶）：每门功法都要能落在某个槽的 items 里。
+    const shown = f.slots.reduce(function (n, sl) { return n + sl.items.length; }, 0);
+    assert.strictEqual(shown, f.items.length, f.type + ' 谱系显示的功法数与实际不符（同阶被盖掉）');
   }
 });
 
 check('阵法难，挂地阶；扫雷轻，挂黄阶', function () {
   const zhen = skills.getSkill('zhen');
-  const wuxing = skills.getSkill('wuxingzhen');
   const leifu = skills.getSkill('leifu');
-  assert.strictEqual(zhen.tier, 'di', '阵灯推演是十九门里最费脑的一门，不该留在低阶');
-  assert.strictEqual(wuxing.tier, 'xuan', '五行相生与点灯破阵诀要排成玄 → 地，撞阶会让谱系丢门');
+  assert.strictEqual(zhen.tier, 'di', '阵灯推演是十五门里最费脑的一门，不该留在低阶');
   assert.strictEqual(leifu.tier, 'huang', '数格辨禁难度低于阵法，应挂黄阶');
   // 改名不动 id：存档、纪录、参悟进度都按 id 索引。
   assert.strictEqual(zhen.id, 'zhen');
@@ -216,12 +211,11 @@ check('段位只由「已走通几关」判定，与熟练度、品阶无关', f
 
 // ---------------------------------------------------------------- 结算公式
 
-check('熟练度基础值不吃品阶：四阶同为 15 点，品阶只抬高耗气', function () {
+check('熟练度基础值不吃品阶：各阶同为 15 点，品阶只抬高耗气', function () {
   const cases = [
     { id: 'jian', realm: 0 },
     { id: 'jingxin', realm: 1 },
-    { id: 'dan', realm: 2 },
-    { id: 'duanyue', realm: 3 },
+    { id: 'zhen', realm: 2 },
   ];
   const gains = [];
   const costs = [];
@@ -232,7 +226,7 @@ check('熟练度基础值不吃品阶：四阶同为 15 点，品阶只抬高耗
     gains.push(r.gain);
     costs.push(r.qiCost);
   }
-  assert.deepStrictEqual(gains, [15, 15, 15, 15], '品阶插手了熟练度');
+  assert.deepStrictEqual(gains, [15, 15, 15], '品阶插手了熟练度');
   // 时长系数各不相同，所以不比绝对值，只比「品阶这一层」：逐阶递增。
   for (let i = 1; i < costs.length; i += 1) {
     assert.ok(costs[i] > costs[i - 1],
@@ -260,10 +254,10 @@ check('熟练度基础值不吃关卡：每一段的当前关都是 15 点，段
   }
 });
 
-check('回打更早的段不再叠第二刀：只按「本关 ÷ 当前关」折一次', function () {
-  // 走通 799 关（站在第 800 关），回打第 1 关：34 × 1/800 → 0 点。
-  // 旧版「打低档再逐档折半」那一道刀必须消失——段位现在只是关号的另一个说法，
-  // 再折一次等于同一件事收两遍钱，玩家也算不清。
+check('回打更早的段只折两道：关号与段基数，不复用旧的「逐档折半」', function () {
+  // 走通 799 关（站在第 800 关），回打第 1 关：34 × (1/800 × 7/32) → 0 点。
+  // 旧版「打低档再逐档折半」那一道刀必须消失——它是一整段一刀，
+  // 而这里两道尺子都是连续的，玩家按两个除法就能自己复算。
   const s = setCleared(freshState('jingxin', 0, 1), 'jingxin', 799);
   const r = game.applyPractice(s, 'jingxin', 'S', { level: 1, score: 0 });
   assert.strictEqual(r.stageKey, 'novice', '第 1 关不在未入门段');
@@ -271,23 +265,26 @@ check('回打更早的段不再叠第二刀：只按「本关 ÷ 当前关」折
   assert.strictEqual(r.comboActive, false, '回打还叠连 S');
   assert.strictEqual(r.comboNow, 0, '回打 S 叠了层');
   assert.strictEqual(r.gain, practice.profByLevel(world.PROF_BASE.S, 1, 800),
-    '回打熟练度没按 本关 ÷ 当前关 折');
-  assert.strictEqual(r.gain, 0, '34 × 1/800 应四舍五入为 0');
+    '回打熟练度没按 本关 ÷ 当前关 × 段基数比 折');
+  assert.strictEqual(r.gain, 0, '34 × 1/800 × 7/32 应四舍五入为 0');
 
-  // 打到半程第 400 关：34 × 400/800 → 17，玩家照公式能自己复算。
+  // 打到半程第 400 关（大成段 24，当前关在圆满段 32）：34 × (400/800 × 24/32) → 13。
   const half = setCleared(freshState('jingxin', 0, 1), 'jingxin', 799);
   const rh = game.applyPractice(half, 'jingxin', 'S', { level: 400, score: 0 });
-  assert.strictEqual(rh.gain, 17, '回打第 400 关应是 34 × 0.5 → 17');
+  assert.strictEqual(rh.gain, 13, '回打第 400 关应是 34 × (0.5 × 24/32) → 13');
   assert.strictEqual(rh.comboNow, 0, '回打第 400 关还叠了连 S');
 });
 
-check('回关折减：按 本关 ÷ 当前关 折，当前关全额，不叠连 S，层数原样保留', function () {
-  // 已走通 20 关 → 当前关 21。回打 21 全额，回打 10 关是 ×10/21。
+check('回关折减：按 本关 ÷ 当前关 × 段基数比 折，当前关全额，不叠连 S，层数原样保留', function () {
+  // 已走通 20 关 → 当前关 21（入门段 11）。回打 21 全额；回打 10（未入门 7）是 ×10/21 × 7/11。
   const curNo = 21;
   assert.strictEqual(practice.levelFactor(21, 21), 1, '当前关不是 ×1');
-  // 分母是「当前关」：关号只由走通推进，而走通必推——想停在某一关只能每局走火，
-  // 而走火给 0 分，于是「钉在低关反复刷」在结构上不存在，分母不必再借段长。
-  assert.strictEqual(practice.levelFactor(10, 21), 10 / 21, '回关系数不是 本关 ÷ 当前关');
+  // 两把尺子缺一不可：只按关号折时，「停在原地刷上一关」把当前关钉死，折减一直 ×0.95，
+  // 而耗气按低段报 —— 每点灵力收益反而高于推进（实测反超 1.8 倍）。
+  const economy = require('../data/economy.js');
+  assert.strictEqual(practice.levelFactor(10, 21), (10 / 21) * (economy.RUN_QI[0] / economy.RUN_QI[1]),
+    '回关系数不是 本关 ÷ 当前关 × 段基数比');
+  assert.strictEqual(practice.levelFactor(20, 21), 20 / 21, '同段回关不该被第二把尺子再折一次');
   assert.strictEqual(practice.levelFactor(99, 21), 1, '回关系数不该超过 1');
 
   const top = setCleared(freshState('jingxin', 0, 1), 'jingxin', curNo - 1);
@@ -300,8 +297,8 @@ check('回关折减：按 本关 ÷ 当前关 折，当前关全额，不叠连 
   assert.strictEqual(rl.levelBelowCap, true, '回关没被标成折减');
   assert.strictEqual(rl.levelGap, 11, '没报出退了几关');
   assert.strictEqual(rl.gain, practice.profByLevel(world.PROF_BASE.S, 10, curNo),
-    '回关熟练度没按 本关 ÷ 当前关 折');
-  assert.strictEqual(rl.gain, 16, 'S 在第 10 关应是 34 × 10/21 → 16');
+    '回关熟练度没按 本关 ÷ 当前关 × 段基数比 折');
+  assert.strictEqual(rl.gain, 10, 'S 回打第 10 关应是 34 × (10/21 × 7/11) = 10.3 → 10');
   assert.strictEqual(rl.comboActive, false, '回关 S 走了连击曲线');
   assert.strictEqual(rl.comboNow, 0, '回关 S 叠了层');
   assert.strictEqual(low.sCombo.jingxin, 0, '回关 S 写进了连击存档');
@@ -321,10 +318,12 @@ check('回关折减：按 本关 ÷ 当前关 折，当前关全额，不叠连 
 });
 
 check('回关折减连续无断崖：越退越薄，走通满关后回打第 1 关归零', function () {
-  // 分母是当前关，所以最狠的一刀在「走通 1000 关之后回打第 1 关」= 1/1000。
+  // 最狠的一刀在「走通 1000 关之后回打第 1 关」= 1/1000 × 7/32。
   // 这也替代了旧版「低档再折半」那道封条：一道连续折减比两道乘法更算得清。
   const cur = L.LEVEL_MAX;
-  assert.strictEqual(practice.levelFactor(1, cur), 1 / cur, '满关回打第 1 关不是 1/1000');
+  const economy = require('../data/economy.js');
+  assert.strictEqual(practice.levelFactor(1, cur),
+    (1 / cur) * (economy.RUN_QI[0] / economy.RUN_QI[4]), '满关回打第 1 关的系数不对');
   assert.strictEqual(practice.profByLevel(world.PROF_BASE.S, 1, cur), 0,
     '满关回打第 1 关的 S 应是 34 × 1/1000 → 0 点');
 
@@ -684,24 +683,25 @@ check('越权挑关自动回落到本门当前关', function () {
   assert.strictEqual(r.level, 1);
 });
 
-check('耗气叠乘有底：天阶圆满段最贵，但也压不穿最低 1 点', function () {
+check('耗气叠乘有底：地阶圆满段最贵，但也压不穿最低 1 点', function () {
   const economy = require('../data/economy.js');
-  const s = freshState('taixu', 24000, 3);
+  // 天阶 2026-11 起没有功法，最贵的一档现在是地阶（×1.3）。
+  const s = freshState('zhen', 24000, 3);
   s.realmIndex = 3;
-  s.skills.taixu.cleared = L.LEVEL_MAX;
-  const r = game.applyPractice(s, 'taixu', 'S', { level: L.LEVEL_MAX, score: 0 });
-  assert.strictEqual(r.tierKey, 'tian');
+  s.skills.zhen.cleared = L.LEVEL_MAX;
+  const r = game.applyPractice(s, 'zhen', 'S', { level: L.LEVEL_MAX, score: 0 });
+  assert.strictEqual(r.tierKey, 'di');
   assert.ok(r.qiCost >= economy.QI_COST_MIN, '耗气低于绝对下限');
   const got = [];
   // 三段各取本段首关：段位越后越贵（与段内第几关无关）。
   for (const key of ['minor', 'major', 'full']) {
-    const st = freshState('taixu', 0, 3);
+    const st = freshState('zhen', 0, 3);
     st.realmIndex = 3;
-    st.skills.taixu.cleared = clearedThrough(practice.stageIndexOfKey(key));
-    got.push(game.applyPractice(st, 'taixu', 'S', { level: st.skills.taixu.cleared + 1 }).qiCost);
+    st.skills.zhen.cleared = clearedThrough(practice.stageIndexOfKey(key));
+    got.push(game.applyPractice(st, 'zhen', 'S', { level: st.skills.zhen.cleared + 1 }).qiCost);
   }
   assert.ok(got[1] > got[0] && got[2] > got[1],
-    '天阶各段耗气没有一段比一段贵：' + got.join(' / '));
+    '地阶各段耗气没有一段比一段贵：' + got.join(' / '));
   // 反向：悟性拉满 + 心法省气封顶，也不能把耗气压到 0 或负数。
   const cheap = game.createNewState();
   cheap.skills.jian.unlocked = true;
@@ -732,28 +732,35 @@ check('境界超上限只加价 1.5 倍，不禁练也不砍熟练度', function
 });
 
 check('没到门槛不许开练，与「超上限只加价」是两件事', function () {
-  // 天阶（门槛元婴）：炼气期连开练都不允许，返回 ok:false 而不是打折结算。
-  const early = freshState('duanyue', 0, 0);
-  const r = game.applyPractice(early, 'duanyue', 'B', {});
+  // 地阶（门槛金丹）：炼气期连开练都不允许，返回 ok:false 而不是打折结算。
+  const early = freshState('zhen', 0, 0);
+  const r = game.applyPractice(early, 'zhen', 'B', {});
   assert.strictEqual(r.ok, false, '没到门槛也让它练了');
   assert.ok(String(r.msg).indexOf('境界') >= 0 || String(r.msg).indexOf('修') >= 0,
     '拒绝理由没提境界：' + r.msg);
-  const proper = freshState('duanyue', 0, 3);
-  const rp = game.applyPractice(proper, 'duanyue', 'B', {});
+  const proper = freshState('zhen', 0, 2);
+  const rp = game.applyPractice(proper, 'zhen', 'B', {});
   assert.strictEqual(rp.ok, true);
   assert.strictEqual(rp.realmOverCost, 1);
 });
 
-check('属性加成乘品阶系数：同段位下天阶高于黄阶', function () {
+check('属性加成乘品阶系数：同段位下地阶高于黄阶', function () {
+  // 天阶 2026-11 起没有功法，能拿来对照品阶系数的只剩地 / 黄两级。
+  // 同一品阶取两门、点数不同，才分得清「加的是点数」还是「乘了品阶」。
   const base = game.createNewState();
-  const baseShen = game.computeAttributes(base).shen;
-  const a = freshState('jian', 300, 0);
-  const b = freshState('duanyue', 300, 3);
-  const addA = Math.round((game.computeAttributes(a).shen - baseShen) * 10) / 10;
-  const addB = Math.round((game.computeAttributes(b).shen - baseShen) * 10) / 10;
-  // 黄阶 shen +3 × 1.0；天阶 shen +4 × 2.2
+  const baseAttrs = game.computeAttributes(base);
+  const a = freshState('jian', 300, 0);   // 黄阶 shen +3 × 1.0
+  const b = freshState('leifu', 300, 0);  // 黄阶 ling +4 × 1.0（对照：同一品阶不出偏差）
+  const c = freshState('zhen', 300, 0);   // 地阶 ling +3 × 1.7
+  const addA = Math.round((game.computeAttributes(a).shen - baseAttrs.shen) * 10) / 10;
+  const addB = Math.round((game.computeAttributes(b).ling - baseAttrs.ling) * 10) / 10;
+  const addC = Math.round((game.computeAttributes(c).ling - baseAttrs.ling) * 10) / 10;
   assert.strictEqual(addA, 3);
-  assert.strictEqual(addB, 8.8);
+  assert.strictEqual(addB, 4);
+  assert.strictEqual(addC, 5.1);
+  // 同一点数换品阶，加成就得按品阶系数放大，不许只做加法。
+  assert.strictEqual(Math.round((addC / 3) * 10) / 10, practice.TIERS[2].attr);
+  assert.strictEqual(Math.round((addB / 4) * 10) / 10, practice.TIERS[0].attr);
 });
 
 check('藏经阁按品阶拦境界：炼气买不了玄阶', function () {
@@ -829,10 +836,11 @@ check('顺序点格：五档两两不同，同盘面的那两档必须差一条�
     '顺序点格只有 ' + Object.keys(specs).length + ' 种盘面规格，撑不起五档阶梯');
 });
 
-check('换承重轴的三门：变的是复杂度与盘面，不是时间', function () {
+check('换承重轴的两门：变的是复杂度与盘面，不是时间', function () {
   // 起因：五档时间参数走同一套 pace / TIME_LEVELS，跨度天然只有 1.7–2.3 倍，
   // 而且反应速度练不出来——把难度压在「快」上，玩家只会更焦虑。
-  // 这三门把承重交给盘面、刀路、键位与禁制，时间只负责让节奏别拖。
+  // 这两门把承重交给盘面、刀路与禁制，时间只负责让节奏别拖。
+  // （原来第三门是步法连环，2026-11 随截锋断岳诀一起退役，所以只剩两门。）
   let prevGrid = 0;
   let prevLen = -1;
   for (const d of practice.STAGES) {
@@ -878,17 +886,6 @@ check('换承重轴的三门：变的是复杂度与盘面，不是时间', func
   assert.ok((m4.cols * m4.rows) / (m0.cols * m0.rows) >= 2.2,
     '循数勘禁诀盘面跨度只有 ' + ((m4.cols * m4.rows) / (m0.cols * m0.rows)).toFixed(2) + ' 倍');
 
-  // 步法：五档必须是五个不同配置。旧表 segments 3/4/4/5/5、baseLen 3/3/3/4/4，
-  // 算下来 hard 与 normal 都是 18 步、expert 与 desperate 都是 30 步——五档只有三个配置。
-  const seen = {};
-  for (const d of practice.STAGES) {
-    const lv = practice.SWORD_LEVELS[d.depth];
-    const sig = lv.segments + '段/' + lv.baseLen + '起';
-    assert.ok(!seen[sig], d.name + ' 步法连环与前面某档配置完全一样（' + sig + '）');
-    seen[sig] = true;
-    if (d.depth >= 2) assert.strictEqual(lv.shuffle, true, d.name + ' 步法键位没有每段重排');
-    else assert.strictEqual(lv.shuffle, false, d.name + ' 步法入门档不该重排键位');
-  }
 });
 
 check('九宫填数与滑块让路的档位表逐档变难', function () {
@@ -951,7 +948,7 @@ check('节奏不越过触屏安全下限', function () {
 check('getSkillList 输出品阶、可修境界与难度档', function () {
   const s = freshState('', 0, 0);
   const list = game.getSkillList(s);
-  assert.strictEqual(list.length, 19);
+  assert.strictEqual(list.length, 15);
   for (const item of list) {
     assert.ok(item.tierName && item.tierLabel && item.tierColor);
     assert.ok(item.starsText.length === 4);
@@ -971,11 +968,18 @@ check('getFamilies 四档刻度齐全，缺变体的档位标空档', function (
   assert.ok(fams.length >= 5);
   const dao = fams.find(function (f) { return f.type === '刀法'; });
   assert.ok(dao && dao.core, '新增的刀法族没进功法谱系');
-  const sword = fams.find(function (f) { return f.type === '剑法'; });
-  assert.strictEqual(sword.slots.length, 4);
-  assert.ok(sword.core, '游戏族核心玩法缺失');
-  // 这一版先不做剑法：初始功法改刀法后，剑法族只余天阶的剑法·截锋断岳诀。
-  assert.strictEqual(sword.slots.filter(function (x) { return x.empty; }).length, 3, '剑法族应只剩一门、空三档');
+  // 剑法 / 水术 / 身法 / 丹道四族 2026-11 起暂无功法：chainsOf 不分组，谱系里就不该冒出空族。
+  for (const gone of ['剑法', '水术', '身法', '丹道']) {
+    assert.ok(!fams.some(function (f) { return f.type === gone; }),
+      gone + '族已经一门不剩，谱系里还挂着空壳');
+  }
+  // 心法族两门黄阶（吐纳周天诀 / 太虚翻卦诀）必须都看得见：同阶并列，不许盖掉后一门。
+  const heart = fams.find(function (f) { return f.type === '心法'; });
+  assert.ok(heart, '心法族没进功法谱系');
+  const heartHuang = heart.slots.find(function (x) { return x.tierKey === 'huang'; });
+  assert.strictEqual(heartHuang.items.length, 2, '心法黄阶两门只剩 ' + heartHuang.items.length + ' 门');
+  assert.deepStrictEqual(heartHuang.items.map(function (x) { return x.id; }).sort(), ['taixu', 'tuna'],
+    '心法黄阶并列的门不对');
   for (const f of fams) {
     for (const node of f.slots) {
       assert.ok(node.tierName && node.starsText);
@@ -1035,7 +1039,10 @@ check('九套经典 + 循数勘禁诀默认已习得，藏经阁只留非经典'
     assert.strictEqual(s.source.kind, 'start', s.name + ' 还没改成入门即得');
   }
   const shop = skills.SKILLS.filter(function (x) { return x.source.kind === 'shop'; });
-  assert.ok(shop.length >= 2, '藏经阁空了：非经典的功课至少要留两门');
+  // 2026-11 删掉四门（含唯一一门玄阶以上的在售功法）之后，藏经阁只剩静心记诵诀一门。
+  // 这是内容欠账不是设计，已记进 docs/04-open-issues.md；门槛先按现状写 1，
+  // 补门时把这条抬回 2 —— 否则「阁里只有一门」会被断言替玩家认下来。
+  assert.ok(shop.length >= 1, '藏经阁空了：非经典的功课至少要留一门');
   for (const s of shop) {
     assert.strictEqual(s.source.cost.qi, undefined, s.name + ' 的价格里还有灵力');
     assert.ok(s.source.cost.stone > 0, s.name + ' 没有灵石价格');
@@ -1111,12 +1118,12 @@ check('时辰尺子与四门补的档位参数都只收紧不放宽，且玩法�
   }
   // 时辰收紧对带限时的门生效，但准备页不许再写「入门基准」。
   assert.ok(get('forge', 'novice', 'duration') > get('forge', 'full', 'duration'));
-  assert.ok(get('stones', 'novice', 'timeLimit') > get('stones', 'full', 'timeLimit'));
+  assert.ok(get('seal', 'novice', 'timeLimit') > get('seal', 'full', 'timeLimit'));
   const detail = practice.stageDetail(practice.getMethod('tanlei'), 'full');
   assert.ok(detail.changes.length >= 2, '绝境档的难度说明没写出两处收紧');
 });
 
-check('十九门五档都至少两个可见参数在变，且评级线或盘面规格给出对照', function () {
+check('十五门五档都至少两个可见参数在变，且评级线或盘面规格给出对照', function () {
   const keys = ['novice', 'entry', 'minor', 'major', 'full'];
   const internal = practice.INTERNAL_PARAM_KEYS;   // 与 difficulty-audit.js 同一份，不许各抄
   for (const m of practice.PRACTICE_METHODS) {
@@ -1217,8 +1224,8 @@ check('连 S 层数上限与存档版本对齐，三连晋级已彻底退役', f
 // ---------------------------------------------------------------- 练功 → 战力 → 破境
 //
 // 这一段的由来：玩家在功法卡上看到「体魄 +0.8」，破境门槛读的是「战力 170」，
-// 中间那次换算从来没人算给他看。于是「练这门有什么用」只能猜，十九门就成了
-// 十九个互不相干的小游戏。这两个函数就是那座桥，所以它们必须与重算同源。
+// 中间那次换算从来没人算给他看。于是「练这门有什么用」只能猜，十五门就成了
+// 十五个互不相干的小游戏。这两个函数就是那座桥，所以它们必须与重算同源。
 
 check('战力增量：与把熟练度换成下一段门槛后重算的战力同源', function () {
   const s = freshState('jian', 100);
@@ -1233,7 +1240,7 @@ check('战力增量：与把熟练度换成下一段门槛后重算的战力同�
   // 已大圆满没有下一段；未习得的功法不算——否则「还没学」会显示成「练了能涨」。
   assert.strictEqual(game.skillPowerGain(freshState('jian', world.PROF_MAX), 'jian'), 0,
     '大圆满还报战力增量');
-  assert.strictEqual(game.skillPowerGain(freshState(), 'duanyue'), 0, '未习得的功法给了战力增量');
+  assert.strictEqual(game.skillPowerGain(freshState(), 'jingxin'), 0, '未习得的功法给了战力增量');
   // 只读：算完之后存档里的熟练度不能变。
   assert.strictEqual(s.skills.jian.prof, 100, 'skillPowerGain 改到了存档');
 });
@@ -1260,7 +1267,7 @@ check('破境建议：给的是离下一段最近的那门，不是加成最大�
 });
 
 
-check('本场运功：十九门各炼成一式，招式名两字且首字互不复用', function () {
+check('本场运功：十五门各炼成一式，招式名两字且首字互不复用', function () {
   const moves = require('../data/moves.js');
   const names = [];
   skills.SKILLS.forEach(function (sk) {
@@ -1337,10 +1344,10 @@ check('本场运功：三处对战共用同一份掷骰，谁也不许自己拼�
   assert.ok(/function rollWithMoves\(/.test(src), '没有 rollWithMoves');
   // 押上运功之后战力必须真的变：只改展示不改算，等于没做。
   const s = freshState();
-  s.skills.duanyue.unlocked = true;
-  s.skills.duanyue.prof = world.PROF_MAX;
+  s.skills.leiyue.unlocked = true;
+  s.skills.leiyue.prof = world.PROF_MAX;
   const bare = game.computePower(s);
-  const mv = game.battleMoves(s, ['duanyue']);
+  const mv = game.battleMoves(s, ['leiyue']);
   assert.ok(mv.powerBonus > 0);
   assert.ok(Math.round(bare * (1 + mv.powerBonus)) > bare, '运功没有抬高出战战力');
 });

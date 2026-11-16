@@ -1,6 +1,6 @@
 'use strict';
 
-// 小游戏注册表：19 门功法各有 1 套独立玩法，另有 1 套只在境界突破时用。
+// 小游戏注册表：15 门功法各有 1 套独立玩法，另有 1 套只在境界突破时用。
 // 玩法名由模块自己导出，注册表不重复维护一份名字。
 // ctx.theme / ctx.twist 决定每门功法的配色与本门玄机，但玩法内核彼此独立：
 // 两门同类功法（如两门剑法）也不会共用同一套盘面、交互或胜负规则。
@@ -9,13 +9,9 @@ const practiceData = require('../data/practice.js');
 
 const MODULES = {
   click: require('./click.js'),
-  hunt: require('./hunt.js'),
   memory: require('./memory.js'),
-  bridge: require('./bridge.js'),
   tempo: require('./tempo.js'),
-  sword: require('./sword.js'),
   lights: require('./lights.js'),
-  wuxing: require('./wuxing.js'),
   mines: require('./mines.js'),
   seal: require('./seal.js'),
   link: require('./link.js'),

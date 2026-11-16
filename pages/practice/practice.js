@@ -427,7 +427,7 @@ Page({
     const guideData = guides.guideOf(method.game);
     const ruleText = guideData ? guideData.goal : method.desc;
     // 入门卡：第一次进这一门先摆三句「怎么玩」。教学盘（只有阵法·点灯破阵诀有）是跟着走一遍，
-    // 入门卡是进门前读三行——十九门都得有，不然新门道只能靠试错。
+    // 入门卡是进门前读三行——十五门都得有，不然新门道只能靠试错。
     const introOn = !rec.introed && !!guideData;
     const intro = introOn ? {
       goal: guideData.goal,
