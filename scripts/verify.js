@@ -695,13 +695,33 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   if (!guide || /不再扣息|少 3 息|按已收对数结算|剩余息数 ×4/.test(guide)) {
     errors.push('data/guides.js 的 link 段还写着旧代价句，说明页会照抄成假话');
   } else checked += 1;
-  // 玩法文档可以拆成「总览 + 五段」的目录（同批十来门正在改），也可以仍是单篇。
-  // 判据认内容不认文件名——只钉旧路径会让目录化的那一批一提交就静态崩在加载阶段。
-  const docPath = path.join(ROOT, 'docs/20-minigames/11-linkpair/总览.md');
-  const legacyPath = path.join(ROOT, 'docs/20-minigames/11-linkpair.md');
-  const doc = fs.readFileSync(fs.existsSync(docPath) ? docPath : legacyPath, 'utf8');
+  // 玩法文档十六门一律是「中文正名目录 + 总览.md + 五段」；单篇形态已退役，不再兜底。
+  // 路径钉到中文正名，目录名被改回英文 stem 时这里会当场报错，不会静默读旧文件。
+  const docPath = path.join(ROOT, 'docs/20-minigames/11-并蒂连枝引/总览.md');
+  const doc = fs.readFileSync(docPath, 'utf8');
   if (!/收干净那一刻的剩余息/.test(doc) || !/44 关参数真变/.test(doc)) {
-    errors.push('11-linkpair 的玩法文档又是旧版：改了机制必须同批改那一篇');
+    errors.push('11-并蒂连枝引 的玩法文档又是旧版：改了机制必须同批改那一篇');
+  } else checked += 1;
+}
+// 8b-6b. 玩法文档目录名 = 编号 + 功法正名（照 05-吐纳周天诀），单门六篇齐全。
+// 目录名是 skills.js 里 name 的抄写，必须钉住：整批改回英文 stem 时不能静默过关。
+{
+  const docRoot = path.join(ROOT, 'docs/20-minigames');
+  const dirs = fs.readdirSync(docRoot).filter(function (n) {
+    return fs.statSync(path.join(docRoot, n)).isDirectory();
+  });
+  const names = dirs.map(function (n) { return n.replace(/^\d+-/, ''); });
+  const proper = skillMod.SKILLS.map(function (s) { return s.name.split('·')[1] || s.name; });
+  const missing = proper.filter(function (n) { return names.indexOf(n) < 0; });
+  const extra = names.filter(function (n) { return proper.indexOf(n) < 0 && n !== '蓄力停区'; });
+  const six = dirs.every(function (d) {
+    const base = path.join(docRoot, d);
+    return ['总览.md', '00-未入门.md', '01-入门.md', '02-小成.md', '03-大成.md', '04-圆满.md']
+      .every(function (f) { return fs.existsSync(path.join(base, f)); });
+  });
+  if (dirs.length !== proper.length + 1 || missing.length || extra.length || !six) {
+    errors.push('20-minigames 目录名或篇数不对齐功法正名：缺 ' + (missing.join('/') || '无')
+      + '，多 ' + (extra.join('/') || '无') + '，或某门不是六篇');
   } else checked += 1;
 }
 // 8b-7. 兑换只有一向。灵石买灵力是允许的，反过来永远不开——那是「挂机时长直接印钱」
