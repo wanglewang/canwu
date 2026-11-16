@@ -1450,24 +1450,29 @@ check('左上角返回与「收功」是同一件事：都先问一句', functio
     '冲关局套用了练习局的收功文案：它不扣灵力，却告诉玩家「灵力不退」');
 });
 
-check('从静室返回落在这一门的详情上，不退回整张列表', function () {
+check('中途收功的「返回」回到本门静室，不是退回列表', function () {
   const pg = read('pages/practice/practice.js');
-  const js = read('pages/skills/skills.js');
-  // 2026-11 真机反馈：从功法列表点一门进静室，点「返回」直接落回整张列表，
-  // 中间「这门功法的详情」被吃掉了——玩家判定为「多退回了一层」。
-  // tab 页收不了 query，只能用 globalData 递一句；递之前必须先认栈顶上一页是谁，
-  // 否则从主页「今日之课」进的局也会在返回时被塞一句，下次进功法页莫名弹出详情。
-  assert.ok(/pages\/skills\/skills/.test(pg) && /returnSkillId/.test(pg),
-    '返回时没告诉功法页「回哪一门」，落点只能是整张列表');
-  assert.ok(/v?prev[\s\S]{0,80}route === 'pages\/skills\/skills'/.test(pg),
-    '没先确认上一页就是功法页：从主页进的局也会塞回门标记');
-  assert.ok(/this\.mode === 'practice'[\s\S]{0,120}this\.skillId/.test(pg),
-    '冲关局没有功法，不该递「回哪一门」');
-  // 读完即清：留着它，下次正常切到功法 tab 也会莫名弹出上次那门的详情。
-  assert.ok(/returnSkillId[\s\S]{0,120}returnSkillId = ''/.test(js),
-    '功法页读完没清标记，下次进 tab 会重新弹上次的详情');
-  assert.ok(/onShow:[\s\S]{0,600}showDetailFor\(back\)/.test(js),
-    '功法页收到标记却没有停在这一门的详情上');
+  // 2026-11 真机反馈：收功结算卡上点「返回」，落回功法列表，玩家要的是
+  // 这一门功法的详情——那一屏就是本页的准备态（品阶、火候、连 S、最佳、规则）。
+  // 「多退了一层」不是 navigateBack 退多了，是这一层本来就不该退出页面。
+  assert.ok(/rv\.kind === 'abandon'\)\s*\{\s*this\.onQuitToPrep\(\)/.test(pg),
+    '收功结算的「返回」仍走 onBack：退出页面落到功法列表');
+  assert.ok(/onQuitToPrep:[\s\S]{0,700}started: false/.test(pg),
+    '没有回准备屏的收口：收功后只能退出页面');
+  // 两个标记必须一起清：aborting 留着，下一局照常结算也会被当成「收」；
+  // roundClosed 留着，下一局中途离开就不结账（记钟与断连 S 全跳过）。
+  assert.ok(/onQuitToPrep:[\s\S]{0,700}this\.aborting = false/.test(pg),
+    '回准备屏没清 aborting：下一局的正常结算仍被当成中途收功');
+  assert.ok(/onQuitToPrep:[\s\S]{0,700}this\.roundClosed = false/.test(pg),
+    '回准备屏没清 roundClosed：下一局中途离开不记钟、不断连 S');
+  // 「留在本页」是留刚打完那一屏，回准备屏是回开局前那一屏——两件事不能合成一个函数。
+  assert.ok(/onStay:[\s\S]{0,400}boardHeld: true/.test(pg),
+    '「留在本页」不再留终局那一屏');
+  // 冲关局没有「这一门」，它的次按钮仍去功法页。
+  assert.ok(/mode === 'breakthrough'\)[\s\S]{0,200}switchTab[\s\S]{0,120}skills/.test(pg),
+    '冲关局的次按钮没去功法页');
+  // 上一版试过「回功法页再自动弹这门的详情」，是个浮层，玩家不要浮层要真页面。
+  assert.ok(!/returnSkillId/.test(pg), '还留着 returnSkillId 那套跨页递话，返回仍会弹浮层');
 });
 
 check('功法卡片紧凑单行：名字不竖排、按钮不抢宽度、阶段色走令牌', function () {

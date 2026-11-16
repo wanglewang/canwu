@@ -1784,7 +1784,7 @@ Page({
     this.syncBar();
   },
 
-  // 次按钮：冲关局（成或不成）都去功法页；练习局返回功法页由 onBack 走原生返回。
+  // 次按钮：冲关局（成或不成）都去功法页；练习局的普通结算走原生返回。
   onSecondary: function () {
     this.clearSettleTimers();
     if (this.mode === 'breakthrough') {
@@ -1792,7 +1792,28 @@ Page({
       wx.switchTab({ url: '/pages/skills/skills' });
       return;
     }
+    // 中途收功这一局本来就没打完，卡上那个「返回」要回的是**这一门的静室**
+    // （品阶、火候、连 S、本门最佳、入门规则、本局法度都在那一屏），
+    // 而不是退出页面落到功法列表——玩家是从这门点进来的，退出去等于多退了一层。
+    const rv = this.data.result;
+    if (rv && rv.kind === 'abandon') { this.onQuitToPrep(); return; }
     this.onBack();
+  },
+
+  // 收起这一局，回到本页的准备屏。不 navigateBack：静室就是这一门功法的详情，
+  // 玩家想离开页面有左上角原生返回与准备屏底部的「暂且退去」，出口不必叠在结算卡上。
+  onQuitToPrep: function () {
+    if (!this.pageAlive) return;
+    this.clearSettleTimers();
+    this.disarmLeaveGuard();
+    if (this.controller) { this.controller.destroy(); this.controller = null; }
+    // 收功时置的两个标记要一起清：aborting 留着会让下一局的结算仍按「收」处置，
+    // roundClosed 留着会让下一局离开时不结账。
+    this.aborting = false;
+    this.roundClosed = false;
+    this.setData({ showResult: false, result: null, recordBrief: '', started: false, boardHeld: false });
+    this.refresh();
+    this.syncBar();
   },
 
   // 分享落回同一门静室：带上 skillId，点开就是这一门（未习得会提示并退回功法页）。
@@ -1821,18 +1842,7 @@ Page({
     // 撤掉再走，免得结算卡上点「返回功法」又挨一次弹窗。
     this.disarmLeaveGuard();
     const pages = getCurrentPages();
-    if (pages.length > 1) {
-      // 回功法页时要停在这一门的详情上：玩家是从那一层点进来的，
-      // 直接落到整张列表等于把中间那层吃掉了。tab 页收不了 query，
-      // 只能借 globalData 递一句话，读完即清。
-      const prev = pages[pages.length - 2];
-      if (prev && prev.route === 'pages/skills/skills'
-        && this.mode === 'practice' && this.skillId) {
-        getApp().globalData.returnSkillId = this.skillId;
-      }
-      wx.navigateBack();
-      return;
-    }
+    if (pages.length > 1) { wx.navigateBack(); return; }
     wx.switchTab({ url: '/pages/index/index' });
   },
 });
