@@ -1170,9 +1170,13 @@ if (!fs.existsSync(checklistPath)) {
   if (doc.indexOf('灵石可单向兑灵力') < 0 || doc.indexOf(String(economyData.QI_PER_STONE)) < 0) {
     errors.push('自检清单没写「灵石可单向兑灵力（1 枚 = ' + economyData.QI_PER_STONE + ' 点），灵力换不回灵石」的兑换口径');
   } else checked += 1;
-  // 结算主按钮是上一轮刚定的「留在本页」，文档不许写回「再来一局」当默认动作。
-  if (doc.indexOf('留在本页') < 0) errors.push('自检清单没写结算主按钮「留在本页」');
-  else checked += 1;
+  // 结算按钮文案抄自 copy.js 真源，不硬编码——文案换词时断言自动跟随，
+  // 否则会出现「改了真源反而断言报错」的倒挂（留在本页 → 留于此处那次就踩过）。
+  const againWord = copyData.UI.actions.again;
+  const stayWord = copyData.UI.actions.stay;
+  if (doc.indexOf(againWord) < 0 || doc.indexOf(stayWord) < 0) {
+    errors.push('自检清单的结算按钮文案没跟 copy.js 真源（应为「' + againWord + '」与「' + stayWord + '」）');
+  } else checked += 1;
   // 新手引导的口径：首局手把手，不是「读完再玩」的弹窗，也不许再写回「明确不做」。
   if (doc.indexOf('首局手把手') < 0) errors.push('自检清单没写首局手把手的引导口径');
   else checked += 1;

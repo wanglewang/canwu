@@ -180,7 +180,7 @@
 ├── .github/workflows/ci.yml            可移植 CI：npm ci → npm run check
 ├── .wbapp_<appid>.privacy.json         隐私接口声明清单（文件名带应用 appid；邮箱 / 剪贴板 / 昵称 / 发布内容）
 ├── README.md                           本文件
-├── docs/                               设计文档（69 篇，不进包）——从 docs/README.md 进入
+├── docs/                               设计文档（146 篇，不进包）——从 docs/README.md 进入
 │   ├── README.md                       总目录与三条阅读路径：这是什么 / 怎么加一门 / 怎么改数值
 │   ├── checklist-puzzle.md             玩法设计完备性自检清单：十二维 + 本项目口径纠正 + 设计笔记模板
 │   ├── 00-foundation/                  产品定位、十二条设计原则、术语表、文案口吻（4 篇）
