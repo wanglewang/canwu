@@ -111,13 +111,14 @@
       <view class="divider"></view>
       <view class="row--between">
         <text class="section__title">段位</text>
-        <!-- 段不是可选项：走通段界关才进下一段，所以这一排没有按钮、也没有「未开」。
-             每段写「已走通 / 这一段打了几关 / 未到」，玩家一眼看得出自己走到哪。 -->
+        <!-- 段仍只由走通推进，但已走到的段可点回去：点到那一段已至的最高关。
+             选关弹层里不再摆段位条——段在外面切，里面只列当前段。 -->
         <text class="tiny">走通第 1000 关即大圆满</text>
       </view>
       <view class="diff-row mt12">
-        <view wx:for="{{stages}}" wx:key="key"
-              class="diff-chip {{item.on ? 'diff-chip--on' : ''}} {{item.locked ? 'diff-chip--lock' : ''}}">
+        <view wx:for="{{stages}}" wx:key="key" data-idx="{{index}}"
+              class="diff-chip pressable {{item.on ? 'diff-chip--on' : ''}} {{item.locked ? 'diff-chip--lock' : ''}}"
+              hover-class="pressable--on" bindtap="onPickStage">
           <text class="diff-chip__name">{{item.name}}</text>
           <text class="diff-chip__hint">{{item.hint}}</text>
         </view>
@@ -135,7 +136,7 @@
       <view class="lv-row mt12">
         <view class="lv-step {{level > 1 ? '' : 'lv-step--off'}} pressable" hover-class="pressable--on" data-d="-1" bindtap="onLevel">‹</view>
         <view class="lv-mid pressable" hover-class="pressable--on" bindtap="onOpenLevelPicker">
-          <text class="lv-num">第 {{level}} / {{levelTotal}} 关</text>
+          <text class="lv-num">第 {{level}} / {{stageTotal}} 关</text>
           <text class="lv-sub">{{levelSub}}<text wx:if="{{levelMax > 1}}" class="lv-open"> · 选关 ›</text></text>
         </view>
         <view class="lv-step {{level < levelMax ? '' : 'lv-step--off'}} pressable" hover-class="pressable--on" data-d="1" bindtap="onLevel">›</view>
@@ -491,7 +492,7 @@
   <!-- 本局已终、盘面留在屏上：盘面不能再点，去处全在这一条。 -->
   <view wx:if="{{barMode === 'done'}}" class="sticky-bar sticky-bar--done">
     <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onOpenRecord">{{copy.actions.reviewRecord}}</text>
-    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onBack">{{copy.actions.backSkills}}</text>
+    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onBackToSkill">{{copy.actions.backSkills}}</text>
     <button class="btn btn--primary" bindtap="onAgain">{{copy.actions.again}}</button>
   </view>
 
@@ -531,20 +532,12 @@
     </view>
   </view>
 
-  <!-- 选关：只放开「已到达」的范围（1–levelMax），往上推仍只能靠走通。
-       按五段分栏，一次只铺一段，避免把一千关铺成一张没人看得完的图。 -->
+  <!-- 选关：段在外层切，这里只铺当前段。整段都铺、未至的压暗但点了有答；
+       往前推仍只能靠走通，弹层不改变解锁与回关折减。 -->
   <view class="mask" wx:if="{{pickerOpen}}" bindtap="onCloseLevelPicker">
     <view class="modal lv-picker" catchtap="noop">
       <text class="modal__title">选关</text>
-      <text class="modal__sub">已走到第 {{levelMax}} 关 · 其后的关尚不可选</text>
-      <view class="lv-segs">
-        <view wx:for="{{pickerSegs}}" wx:key="key"
-              class="lv-seg {{item.active ? 'lv-seg--on' : ''}} {{item.locked ? 'lv-seg--lock' : ''}}"
-              data-idx="{{index}}" bindtap="onPickSegment">
-          <text class="lv-seg__name">{{item.name}}</text>
-          <text class="lv-seg__sub">{{item.summary}}</text>
-        </view>
-      </view>
+      <text class="modal__sub">{{stageName}} · 已走到第 {{levelMax}} 关，其后的关尚不可选</text>
       <scroll-view scroll-y class="lv-grid" scroll-into-view="{{pickerScrollTo}}">
         <view class="lv-cells">
           <view wx:for="{{pickerLevels}}" wx:key="v" id="lv-{{item.v}}"

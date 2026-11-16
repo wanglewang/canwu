@@ -95,16 +95,19 @@ Page({
     levelTotal: 1000,
     levelMax: 1,
     cleared: 0,
-    // 段位条：{ key, name, on, done, locked, hint }。没有按钮——段不是可选项。
+    // 段位条：{ key, name, on, done, locked, hint }。点已走到的段 = 回看那一段；
+    // 段仍只由走通推进——切段只是换「看哪一段、打哪一关」，不解锁、不跳关。
     stages: [],
     stageIndex: 0,
     stageName: '未入门',
     levelSub: '',
     stageLv: 0,
     stageSize: 0,
-    // 选关面板：只列已到达的关（1–levelMax），按五段分栏，一次只铺一段。
+    // 关卡大字的分母：当前段的末关号（未入门 10 / 入门 50 / …），
+    // 不写全局 1000——段已切到外面，大字就该按这一段读。
+    stageTotal: 0,
+    // 选关面板：段在外面切，这里只铺当前段的整段关号（未至的压暗，点了有答）。
     pickerOpen: false,
-    pickerSegs: [],
     pickerLevels: [],
     pickerScrollTo: '',
     levelChange: '',
@@ -578,24 +581,27 @@ Page({
       // 小节标题右侧沿用「哪一段 + 这一段走到第几关」，与中格各报一件事。
       stageLv: levelData.levelInStage(level),
       stageSize: levelData.stageSize(stageIdx),
+      stageTotal: stageDef.to,
       levelChange: (function () {
         const d = practiceData.levelDelta(method, level);
         // 兜底那句不再重复本段第几关：同一屏里已经说过两次，第三遍只会让这一行像噪音。
         if (!d.length) return '与上一关规格相同（盘面换段才换，段内只收时辰与评级线）';
         return (d[0].chapter ? '' : '本关变化：') + d.map(function (x) { return x.text; }).join(' · ');
       })(),
-      // 段位条：五段一条，只报「哪几段走完了、现在在哪一段、这一段还有几关」。
-      // 这里没有按钮——段不是可选项，走通段界关才进下一段。
+      // 段位条：五段一条，既报进度也是切段的入口——点已走到的段落到那一段已至的最高关。
+      // 段的「锁」只问有没有走到：回打到早段时，进度所在的段仍可点回去，不能误锁。
       stages: practiceData.STAGES.map(function (d, i) {
         const done = cleared >= d.to;
+        const reached = levelMax >= d.from;
         const on = i === stageIdx;
         return {
           key: d.key,
           name: d.name,
           on: on,
           done: done,
-          locked: !done && !on,
-          hint: done ? '已走通' : (on ? cleared - d.from + 1 + ' / ' + (d.to - d.from + 1) : '未到'),
+          locked: !reached,
+          hint: done ? '已走通'
+            : (reached ? (levelMax - d.from + 1) + ' / ' + (d.to - d.from + 1) : '未到'),
         };
       }),
       stageIndex: stageIdx,
@@ -1191,15 +1197,32 @@ Page({
     this.buildGame();
   },
 
-  // 选关面板：只放开「已到达」的关（1–levelMax），按五段分栏、一次只铺一段。
-  // 往前推仍只有一条路——走通当前这一关；这里只是让回打旧关不用按几百次箭头。
+  // 段在外层切：点已走到的段就落到那一段已至的最高关，段内别处再点关号。
+  // 它只换「看哪一段、打哪一关」——不解锁、不跳关，往前仍只有走通当前关一条路。
+  onPickStage: function (event) {
+    if (this.data.started || this.data.countdown > 0) return;
+    const idx = Number(event.currentTarget.dataset.idx);
+    if (!(idx >= 0 && idx < practiceData.STAGES.length)) return;
+    const d = practiceData.STAGES[idx];
+    // 没走到的段不给切：压暗写着「未至」只是提示，手指落上去仍要答一句差在哪。
+    if (this.data.levelMax < d.from) {
+      toast('这一段还没走到，先走通第 ' + this.data.levelMax + ' 关');
+      return;
+    }
+    // 已经在看的段不跳：回打本段低关时点一下当前的段，不该被拽回进度线。
+    if (idx === this.data.stageIndex) return;
+    this.levelOverride = Math.min(d.to, this.data.levelMax);
+    this.refresh();
+    this.buildGame();
+  },
+
+  // 选关面板：段已在外面切好，这里只铺当前段。让回打旧关不用按几百次箭头。
   onOpenLevelPicker: function () {
     if (this.data.started || this.data.countdown > 0) return;
     const idx = levelData.stageOfLevel(this.data.level);
     const self = this;
     this.setData({
       pickerOpen: true,
-      pickerSegs: this.buildPickerSegs(idx),
       pickerLevels: this.buildPickerLevels(idx),
       // 先清空：同段重复打开时值若没变，scroll-into-view 不会重新定位。
       pickerScrollTo: '',
@@ -1208,22 +1231,6 @@ Page({
     setTimeout(function () {
       self.setData({ pickerScrollTo: 'lv-' + self.pickerAnchor(idx) });
     }, 60);
-  },
-
-  buildPickerSegs: function (activeIdx) {
-    const levelMax = this.data.levelMax;
-    return practiceData.STAGES.map(function (d, i) {
-      const reached = levelMax >= d.from;
-      const end = Math.min(d.to, levelMax);
-      return {
-        key: d.key,
-        name: d.name,
-        active: i === activeIdx,
-        locked: !reached,
-        summary: !reached ? '未至'
-          : (levelMax >= d.to ? '已通' : (end - d.from + 1) + '/' + (d.to - d.from + 1)),
-      };
-    });
   },
 
   buildPickerLevels: function (idx) {
@@ -1245,26 +1252,6 @@ Page({
     const d = practiceData.STAGES[idx];
     const cur = this.data.level;
     return (cur >= d.from && cur <= d.to && cur <= this.data.levelMax) ? cur : d.from;
-  },
-
-  onPickSegment: function (event) {
-    if (this.data.started || this.data.countdown > 0) return;
-    const idx = Number(event.currentTarget.dataset.idx);
-    if (!(idx >= 0 && idx < practiceData.STAGES.length)) return;
-    // 没走到的段不给切：但也不能点下去一点动静都没有——
-    // 段标签压暗写着「未至」只是提示，手指落上去仍要得到一句解释。
-    if (this.data.levelMax < practiceData.STAGES[idx].from) {
-      toast('这一段还没走到');
-      return;
-    }
-    const self = this;
-    this.setData({
-      pickerSegs: this.buildPickerSegs(idx),
-      pickerLevels: this.buildPickerLevels(idx),
-    });
-    setTimeout(function () {
-      self.setData({ pickerScrollTo: 'lv-' + self.pickerAnchor(idx) });
-    }, 30);
   },
 
   onPickLevel: function (event) {
@@ -1814,20 +1801,24 @@ Page({
     this.syncBar();
   },
 
-  // 次按钮：冲关局（成或不成）都去功法页；练习局的普通结算走原生返回。
-  onSecondary: function () {
-    this.clearSettleTimers();
+  // 结算卡次按钮与终局底栏共用的「返回功法」：回的是**这一门的静室准备屏**
+  // （品阶、火候、连 S、本门最佳、入门规则、本局法度都在那一屏），不是退出页面落到功法列表。
+  // 玩家是从这门点进来的，退出去等于多退了一层。普通结算、中途收功、留在本页之后，
+  // 三个入口都走同一条路——旧版只特判了收功，打完一局点「返回」照样掉到列表。
+  // 冲关局没有「这一门」可回，仍去功法页。
+  onBackToSkill: function () {
     if (this.mode === 'breakthrough') {
+      this.clearSettleTimers();
       this.disarmLeaveGuard();
       wx.switchTab({ url: '/pages/skills/skills' });
       return;
     }
-    // 中途收功这一局本来就没打完，卡上那个「返回」要回的是**这一门的静室**
-    // （品阶、火候、连 S、本门最佳、入门规则、本局法度都在那一屏），
-    // 而不是退出页面落到功法列表——玩家是从这门点进来的，退出去等于多退了一层。
-    const rv = this.data.result;
-    if (rv && rv.kind === 'abandon') { this.onQuitToPrep(); return; }
-    this.onBack();
+    this.onQuitToPrep();
+  },
+
+  // 次按钮：练习局的普通结算与中途收功都回本门静室；冲关局去功法页。
+  onSecondary: function () {
+    this.onBackToSkill();
   },
 
   // 收起这一局，回到本页的准备屏。不 navigateBack：静室就是这一门功法的详情，

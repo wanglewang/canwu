@@ -1450,13 +1450,21 @@ check('左上角返回与「收功」是同一件事：都先问一句', functio
     '冲关局套用了练习局的收功文案：它不扣灵力，却告诉玩家「灵力不退」');
 });
 
-check('中途收功的「返回」回到本门静室，不是退回列表', function () {
+check('结算与终局底栏的「返回功法」都回本门静室，不是退回列表', function () {
   const pg = read('pages/practice/practice.js');
-  // 2026-11 真机反馈：收功结算卡上点「返回」，落回功法列表，玩家要的是
-  // 这一门功法的详情——那一屏就是本页的准备态（品阶、火候、连 S、最佳、规则）。
-  // 「多退了一层」不是 navigateBack 退多了，是这一层本来就不该退出页面。
-  assert.ok(/rv\.kind === 'abandon'\)\s*\{\s*this\.onQuitToPrep\(\)/.test(pg),
-    '收功结算的「返回」仍走 onBack：退出页面落到功法列表');
+  const wxml = read('pages/practice/practice.wxml');
+  // 2026-11 真机反馈两次：先是中途收功点「返回」落到列表，后来打完一局点
+  // 「返回功法」又落到列表。玩家要的是这一门的静室准备屏（品阶、火候、连 S、
+  // 最佳、规则、本局法度）——不是退出页面。「多退了一层」不是 navigateBack
+  // 退多了，是这一层本来就不该退出。旧版只特判了收功，另两个入口漏了。
+  assert.ok(/onSecondary:\s*function \(\) \{\s*this\.onBackToSkill\(\);/.test(pg),
+    '结算次按钮没统一走 onBackToSkill：普通结算还会退出页面落到列表');
+  assert.ok(!/onSecondary:[\s\S]{0,300}rv\.kind === 'abandon'/.test(pg),
+    '还留着「只有收功才回静室」的特判：正常结算仍掉到功法列表');
+  assert.ok(/bindtap="onBackToSkill"[^>]*>\{\{copy\.actions\.backSkills\}\}/.test(wxml),
+    '终局底栏的「返回功法」仍绑 onBack：留在本页后点它照样退出页面');
+  assert.ok(/onBackToSkill:[\s\S]{0,400}this\.onQuitToPrep\(\)/.test(pg),
+    'onBackToSkill 没回准备屏');
   assert.ok(/onQuitToPrep:[\s\S]{0,700}started: false/.test(pg),
     '没有回准备屏的收口：收功后只能退出页面');
   // 两个标记必须一起清：aborting 留着，下一局照常结算也会被当成「收」；
@@ -1475,7 +1483,7 @@ check('中途收功的「返回」回到本门静室，不是退回列表', func
   assert.ok(!/returnSkillId/.test(pg), '还留着 returnSkillId 那套跨页递话，返回仍会弹浮层');
 });
 
-check('选关面板铺满整段：未至的关也显示，只是不可选', function () {
+check('选段在外层、选关只铺当前段：未至的关也显示，只是不可选', function () {
   const pg = read('pages/practice/practice.js');
   const wxml = read('pages/practice/practice.wxml');
   // 2026-11 真机反馈：面板只列到「已到达」，后半段关号凭空消失，
@@ -1487,9 +1495,26 @@ check('选关面板铺满整段：未至的关也显示，只是不可选', func
   // 压暗只是提示不是禁用：真点下去必须答一句差在哪，否则就是「点了没反应」。
   assert.ok(/lv > this\.data\.levelMax[\s\S]{0,200}toast\(/.test(pg),
     '点未至的关一声不响，玩家会以为面板卡住');
-  // 段标签也一样：压暗写「未至」不等于可以白点一下。
-  assert.ok(/STAGES\[idx\]\.from[\s\S]{0,160}toast\(/.test(pg),
+  // 段在外层切：胶囊要能点，弹层里不许再摆一套段位条。
+  assert.ok(/bindtap="onPickStage"/.test(wxml), '外层段位胶囊没有切段入口');
+  assert.ok(!/lv-segs|onPickSegment|pickerSegs|buildPickerSegs/.test(wxml + pg),
+    '弹层里又摆回段位分栏：外面切段、里面选关只剩一层');
+  // 段的锁只问有没有走到：回打到早段时，进度所在的段仍要能点回去。
+  assert.ok(/locked: !reached/.test(pg), '段的锁仍按「是否走完」算，回打后进度段被误锁');
+  assert.ok(/onPickStage:[\s\S]{0,600}levelMax < d\.from[\s\S]{0,120}toast\(/.test(pg),
     '点未至的段没有任何回应');
+});
+
+check('关卡大字分母取当前段末关，不写全局 1000', function () {
+  const pg = read('pages/practice/practice.js');
+  const wxml = read('pages/practice/practice.wxml');
+  // 段已切到准备页外层：大字读「第 500 / 500 关」（大成段末关），
+  // 全局进度仍由下一行「已走通 657 / 1000 关」说，段内位置由标题右侧说。
+  assert.ok(/stageTotal: stageDef\.to/.test(pg), '大字分母没取当前段末关');
+  assert.ok(/第 \{\{level\}\} \/ \{\{stageTotal\}\} 关/.test(wxml),
+    '关卡大字仍写全局总关数');
+  assert.ok(!/第 \{\{level\}\} \/ \{\{levelTotal\}\} 关/.test(wxml),
+    '全局 1000 又回到大字上：同一屏两个坐标混着读');
 });
 
 check('节律判定：写下拍速、响出拍子、环在正中', function () {
