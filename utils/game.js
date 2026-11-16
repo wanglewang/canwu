@@ -1830,7 +1830,10 @@ function getSkillList(state) {
       unlocked: rec.unlocked,
       prof: rec.prof,
       // 功法页「最近练过的在前」用它排序；0 表示从没练过，页面自己决定垫哪。
-      lastAt: Math.floor(num(rec.lastAt, 0)),
+      // 老存档在 2026-11 之前没有这个字段，退回「本门最佳成绩的时间」——
+      // 那只在破纪录时写，比真时间旧一点，但足够让老玩家一进来就按熟悉度排上，
+      // 而不是整张表全 0 一起退化成按门名。
+      lastAt: Math.floor(num(rec.lastAt, 0)) || (best && best.at ? Math.floor(num(best.at, 0)) : 0),
       methodName: method.name,
       methodTip: method.tip,
       methodDesc: method.desc,
