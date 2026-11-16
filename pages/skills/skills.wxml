@@ -1,7 +1,11 @@
 <view class="pg pg--imm">
-  <view class="imm-tabs">
-    <view class="imm-tab {{tab === 'learned' ? 'imm-tab--on' : ''}} pressable" hover-class="pressable--on" data-tab="learned" bindtap="onTab">{{copy.skillsTabs.learned}} {{learnedCount}}</view>
-    <view class="imm-tab {{tab === 'shop' ? 'imm-tab--on' : ''}} pressable" hover-class="pressable--on" data-tab="shop" bindtap="onTab">{{copy.skillsTabs.shop}} {{shopCount}}</view>
+  <!-- 两个分区页签滚动时钉在顶上。sticky 挂在外层条上：直接钉 .imm-tabs，
+       它上方的页面留白会透出下面滚过的卡片，像一条漏光的缝。 -->
+  <view class="sk-tabs-bar">
+    <view class="imm-tabs">
+      <view class="imm-tab {{tab === 'learned' ? 'imm-tab--on' : ''}} pressable" hover-class="pressable--on" data-tab="learned" bindtap="onTab">{{copy.skillsTabs.learned}} {{learnedCount}}</view>
+      <view class="imm-tab {{tab === 'shop' ? 'imm-tab--on' : ''}} pressable" hover-class="pressable--on" data-tab="shop" bindtap="onTab">{{copy.skillsTabs.shop}} {{shopCount}}</view>
+    </view>
   </view>
 
   <!-- 藏经阁分区才报身家：已持玉简里看的是熟练度，不是还有多少灵力。 -->

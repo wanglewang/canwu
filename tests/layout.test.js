@@ -808,6 +808,20 @@ check('加载 / 空 / 错误状态统一用 .state 占位，不再白屏', funct
   }
 });
 
+check('功法页分区页签吸顶：滚到深处仍能换「已持玉简 / 藏经阁」', function () {
+  const wxml = read('pages/skills/skills.wxml');
+  const wxss = read('pages/skills/skills.wxss');
+  assert.ok(/class="sk-tabs-bar"[\s\S]{0,600}class="imm-tabs"/.test(wxml),
+    '分区页签没包吸顶条，滚动后就找不到切换入口');
+  const bar = /\.sk-tabs-bar\s*\{[\s\S]{0,320}?\}/.exec(wxss);
+  assert.ok(bar && /position:\s*sticky/.test(bar[0]) && /top:\s*0/.test(bar[0]),
+    '页签条没有 sticky 到顶部');
+  assert.ok(bar && /background:\s*var\(--c-bg\)/.test(bar[0]),
+    '吸顶条没铺底色：滚过的卡片会从页签上方透出来');
+  assert.ok(bar && /var\(--page-top\)/.test(bar[0]) && /var\(--page-x\)/.test(bar[0]),
+    '吸顶条没抵掉 .pg 的留白：首屏位置会变，或两侧留一条缝');
+});
+
 check('可点 view 统一按压反馈，反馈样式落在全局基础层', function () {
   const css = read('app.wxss');
   assert.ok(/\.pressable \{/.test(css) && /\.pressable--on \{/.test(css), '按压反馈样式没定义');
@@ -1700,6 +1714,23 @@ check('玩家可见文案不写「看详情 / 去看看」这类口语前缀', f
   assert.ok(/copy\.UI\.actions\.buy/.test(read('pages/skills/skills.js')), '藏经阁换取没走文案真源');
   assert.ok(/copy\.UI\.actions\.goSkills/.test(read('pages/index/index.js')), '主页无推荐时没走文案真源');
   assert.ok(/copy\.actions\.allAchievements/.test(read('pages/profile/profile.wxml')), '成就入口没走文案真源');
+});
+
+check('领奖只写「领取」，关弹层只写「知道了」', function () {
+  const c = require('../data/copy.js');
+  assert.ok(c.UI.actions.claim === '领取', '领奖按钮没写「领取」');
+  assert.ok(c.UI.actions.confirm === '确定', '通用弹层按钮不是标准的「确定」');
+  // 「领受」是本门自造的词，游戏里没人这么写；存档码弹层也跟着用，读起来尤其怪。
+  const files = ['data/copy.js', 'pages/index/index.js', 'pages/index/index.wxml',
+    'pages/guide/guide.js', 'pages/profile/profile.wxml',
+    'components/duel-result/duel-result.wxml'];
+  files.forEach(function (f) {
+    assert.ok(!/领受/.test(read(f)), f + ' 还在写「领受」');
+  });
+  assert.ok(/bindtap="closeOffline">\{\{copy\.actions\.claim\}\}/.test(read('pages/index/index.wxml')),
+    '离线收获的按钮没走 claim 文案');
+  assert.ok(!/收下 ›/.test(read('pages/index/index.wxml')),
+    '同一屏领奖还写着「收下」：一个动作两个说法');
 });
 
 check('阵灯破阵：四路反馈齐备、破阵即结算、规则写进游戏内', function () {

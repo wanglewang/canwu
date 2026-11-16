@@ -1,3 +1,15 @@
+/* 分区页签常驻：滚到列表深处仍能在「已持玉简 / 藏经阁」之间切换。
+   负 margin 把条铺到页面左右边缘、顶到导航栏下沿（抵掉 .pg 的 page-top），
+   再用同色 padding 把第一屏的间距还回去——首屏位置不变，滚动时才盖住底下的行。 */
+.sk-tabs-bar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    margin: calc(-1 * var(--page-top)) calc(-1 * var(--page-x)) 0;
+    padding: var(--page-top) var(--page-x) var(--sp-2);
+    background: var(--c-bg);
+}
+
 /* 功法页：一张紧凑列表 + 一个图鉴弹窗。
    每张卡片固定三行：正名 + 品阶 / 一行元信息 / 进度条，右侧动作按钮宽度锁死。
    名字与元信息一律 nowrap + ellipsis：中文一旦被 flex 压到一字宽就会竖排，

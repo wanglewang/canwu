@@ -84,7 +84,10 @@ const UI = {
         leave: '暂且退去',
         close: '关闭',
         cancel: '取消',
-        confirm: '领受',
+        // 领奖别用自造词：它同时被领奖弹层和纯关闭弹层用，
+        // 存档码那屏也跟着用就说不通了。拆成两句：领奖走 claim，关弹层走 confirm。
+        claim: '领取',
+        confirm: '确定',
         retry: '重试',
         expand: '展开 ›',
         collapse: '收起',

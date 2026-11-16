@@ -168,7 +168,7 @@ Page({
       // 领之前就写清能领多少：气海装不下时写「+60」再给 21，等于当场骗一次。
       // 气海一点空位都没有时，这一行仍然出现（玩家得知道有份例），但动作改成「气海已满」，
       // 别让人点一下才被告知领不了。
-      dailyAction: dailyWill > 0 ? '领取 ›' : '气海已满 ›',
+      dailyAction: dailyWill > 0 ? (copy.actions.claim + ' ›') : '气海已满 ›',
       dailyGain: dailyWill >= ov.daily.qi
         ? copy.formatGain(dailyWill, 0)
         : (dailyWill > 0
