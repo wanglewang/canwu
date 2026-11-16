@@ -1,0 +1,1253 @@
+.gitee-sync-plus-gitignore-setting {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+}
+.gitee-sync-plus-gitignore-setting .setting-item-info {
+	margin-bottom: 8px;
+}
+.gitee-sync-plus-gitignore-setting .setting-item-control {
+	width: 100%;
+}
+.gitee-sync-plus-gitignore-editor {
+	width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+	font-family: monospace;
+}
+
+/* ===== Settings tab section headers ===== */
+.gitee-sync-plus-section-header {
+	padding: 18px 0 6px !important;
+	margin-top: 4px !important;
+	background: none !important;
+	border: none !important;
+	box-shadow: none !important;
+	border-radius: 0 !important;
+}
+.gitee-sync-plus-section-header .setting-item-name {
+	font-size: var(--font-ui-medium);
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+/* ===== Git panel (sidebar) ===== */
+.gitee-sync-plus-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 8px;
+	overflow-y: auto;
+}
+.gitee-sync-plus-panel-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 6px;
+}
+.gitee-sync-plus-panel-title {
+	font-weight: 600;
+}
+.gitee-sync-plus-panel-status {
+	font-size: 0.78em;
+	color: var(--text-muted);
+	text-align: right;
+}
+.gitee-sync-plus-panel-info {
+	font-size: 0.78em;
+	color: var(--text-muted);
+	word-break: break-all;
+}
+.gitee-sync-plus-panel-textarea {
+	width: 100%;
+	min-height: 48px;
+	resize: vertical;
+	font-size: 0.85em;
+}
+.gitee-sync-plus-panel-hint {
+	font-size: 0.72em;
+	color: var(--text-faint);
+}
+.gitee-sync-plus-panel-buttons {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+/* The single commit button is a direct child of the column container — fill the row. */
+.gitee-sync-plus-panel-buttons > .gitee-sync-plus-panel-btn {
+	width: 100%;
+}
+/* Pull + refresh share a row and split it evenly. */
+.gitee-sync-plus-panel-button-row {
+	display: flex;
+	gap: 6px;
+}
+.gitee-sync-plus-panel-button-row .gitee-sync-plus-panel-btn {
+	flex: 1;
+}
+.gitee-sync-plus-panel-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.gitee-sync-plus-panel-group-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 6px;
+	cursor: pointer;
+	border-radius: 4px;
+}
+.gitee-sync-plus-panel-group-header:hover {
+	background: var(--background-modifier-hover);
+}
+.gitee-sync-plus-panel-group-header-left {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+}
+.gitee-sync-plus-panel-group-title {
+	font-size: 0.82em;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+.gitee-sync-plus-panel-collapse-btn {
+	width: 20px;
+	height: 20px;
+	color: var(--icon-color, var(--text-faint));
+}
+.gitee-sync-plus-panel-collapse-btn svg {
+	width: 16px;
+	height: 16px;
+}
+.gitee-sync-plus-panel-group.is-collapsed .gitee-sync-plus-panel-group-title {
+	color: var(--text-faint);
+}
+.gitee-sync-plus-panel-group-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+.gitee-sync-plus-panel-group-empty {
+	font-size: 0.78em;
+	color: var(--text-faint);
+	padding-left: 4px;
+}
+.gitee-sync-plus-panel-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 4px;
+	border-radius: 4px;
+}
+.gitee-sync-plus-panel-item:hover {
+	background: var(--background-modifier-hover);
+}
+.gitee-sync-plus-panel-item-status {
+	flex: 0 0 auto;
+	min-width: 16px;
+	text-align: center;
+	font-family: var(--font-monospace);
+	font-size: 0.72em;
+	font-weight: 700;
+	color: var(--text-muted);
+}
+.gitee-sync-plus-panel-item-status.s-mod {
+	color: var(--text-warning);
+}
+.gitee-sync-plus-panel-item-status.s-add {
+	color: var(--text-success);
+}
+.gitee-sync-plus-panel-item-status.s-del {
+	color: var(--text-error);
+}
+.gitee-sync-plus-panel-item-status.s-remote {
+	color: var(--text-accent);
+}
+.gitee-sync-plus-panel-item-path {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: 0.8em;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.gitee-sync-plus-panel-icon-btn {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: var(--icon-color, var(--text-muted));
+	border-radius: var(--clickable-icon-radius, 4px);
+	box-shadow: none;
+	cursor: pointer;
+	font-size: 16px;
+	line-height: 1;
+}
+.gitee-sync-plus-panel-icon-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--icon-color-hover, var(--text-normal));
+}
+.gitee-sync-plus-panel-icon-btn svg {
+	width: 16px;
+	height: 16px;
+	color: currentColor;
+}
+/* Per-file actions (e.g. discard) are hidden until the row is hovered, like VS Code. */
+.gitee-sync-plus-panel-item-action {
+	opacity: 0;
+	transition: opacity 0.12s ease;
+}
+.gitee-sync-plus-panel-item:hover .gitee-sync-plus-panel-item-action {
+	opacity: 1;
+}
+.gitee-sync-plus-panel-empty {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	padding: 4px;
+}
+
+/* ===== Diff view ===== */
+.gitee-sync-plus-diff {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+}
+.gitee-sync-plus-diff-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+.gitee-sync-plus-diff-path {
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.gitee-sync-plus-diff-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
+}
+.gitee-sync-plus-diff-action-btn.gitee-sync-plus-diff-action-btn,
+.gitee-sync-plus-diff-layout-btn.gitee-sync-plus-diff-layout-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-muted);
+	font-size: 14px;
+	line-height: 1;
+	cursor: pointer;
+	transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.gitee-sync-plus-diff-action-btn:hover,
+.gitee-sync-plus-diff-layout-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+	border-color: var(--background-modifier-border-hover);
+}
+.gitee-sync-plus-diff-action-btn.is-active,
+.gitee-sync-plus-diff-layout-btn.is-active {
+	background: var(--background-modifier-active-hover);
+	color: var(--text-accent);
+	border-color: var(--text-accent);
+}
+.gitee-sync-plus-diff-content {
+	flex: 1;
+	overflow: auto;
+	padding: 8px;
+}
+
+/* ===== Two-pane file diff (side-by-side or stacked) ===== */
+.gitee-sync-plus-diff-files {
+	display: flex;
+	flex-direction: row;
+	height: 100%;
+	min-height: min-content;
+}
+.gitee-sync-plus-diff-content.layout-vertical .gitee-sync-plus-diff-files {
+	flex-direction: column;
+}
+.gitee-sync-plus-diff-section {
+	flex: 1 1 50%;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	background: var(--background-primary);
+}
+.gitee-sync-plus-diff-content.layout-vertical .gitee-sync-plus-diff-section {
+	flex: 1 1 auto;
+	width: 100%;
+	height: 50%;
+}
+.gitee-sync-plus-diff-section + .gitee-sync-plus-diff-section {
+	border-left: 1px solid var(--background-modifier-border);
+}
+.gitee-sync-plus-diff-content.layout-vertical .gitee-sync-plus-diff-section + .gitee-sync-plus-diff-section {
+	border-left: none;
+	border-top: 1px solid var(--background-modifier-border);
+}
+.gitee-sync-plus-diff-section-label {
+	flex: 0 0 auto;
+	padding: 4px 8px;
+	font-size: 0.78em;
+	font-weight: 600;
+	color: var(--text-muted);
+	background: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+	/* The version label (本地版本 / 远端版本) must always be fully visible
+	   above its own pane — never clipped by pane overflow. */
+	white-space: nowrap;
+	overflow: visible;
+}
+.gitee-sync-plus-diff-section-scroll {
+	flex: 1;
+	min-height: 0;
+	/* Horizontal scroll stays always-on so long lines that overflow the pane
+	   can always be revealed (instead of being silently clipped). Vertical
+	   scroll only appears when there's actual overflow. */
+	overflow-x: scroll;
+	overflow-y: auto;
+	/* Reserve space for the horizontal scrollbar so the table layout doesn't
+	   jump when the scrollbar appears / disappears. */
+	scrollbar-gutter: stable;
+	/* Drag-to-scroll affordance: hint that the pane can be panned. */
+	cursor: grab;
+}
+/* While panning, swap to the grabbing cursor, suppress text selection, and
+   disable inline buttons so the drag's end position doesn't accidentally
+   trigger accept/revert. */
+.gitee-sync-plus-diff-section-scroll.is-dragging {
+	cursor: grabbing;
+	user-select: none;
+}
+.gitee-sync-plus-diff-section-scroll.is-dragging button {
+	pointer-events: none;
+}
+/* Make the horizontal scrollbar visibly interactive — without an obvious
+   handle, users don't know that long lines are horizontally scrollable.
+   The vertical track is untouched so it remains unobtrusive when there's
+   no vertical overflow. */
+.gitee-sync-plus-diff-section-scroll::-webkit-scrollbar {
+	height: 12px;
+	width: 10px;
+}
+.gitee-sync-plus-diff-section-scroll::-webkit-scrollbar-track {
+	background: var(--background-secondary);
+	border-radius: 6px;
+}
+.gitee-sync-plus-diff-section-scroll::-webkit-scrollbar-thumb {
+	background: var(--background-modifier-border-hover);
+	border-radius: 6px;
+	border: 2px solid var(--background-secondary);
+}
+.gitee-sync-plus-diff-section-scroll::-webkit-scrollbar-thumb:hover {
+	background: var(--text-muted);
+	border-color: var(--background-secondary);
+}
+.gitee-sync-plus-diff-section-scroll::-webkit-scrollbar-thumb:active {
+	background: var(--text-accent);
+}
+.gitee-sync-plus-diff-section-scroll {
+	scrollbar-color: var(--background-modifier-border-hover) var(--background-secondary);
+	scrollbar-width: thin;
+}
+.gitee-sync-plus-diff-section-table {
+	width: max-content;
+	min-width: 100%;
+	border-collapse: collapse;
+	table-layout: auto;
+	font-family: var(--font-monospace);
+	font-size: 0.82em;
+	line-height: 1.45;
+}
+.gitee-sync-plus-diff-section-table td {
+	vertical-align: top;
+}
+/* Hatched placeholder for the side that has no content on this row
+   (deleted/added line). Applies to both diff panes. */
+.gitee-sync-plus-diff-cell.gitee-sync-plus-diff-empty {
+	background: repeating-linear-gradient(
+		45deg,
+		var(--background-primary),
+		var(--background-primary) 8px,
+		var(--background-modifier-border-hover) 8px,
+		var(--background-modifier-border-hover) 16px
+	);
+}
+.gitee-sync-plus-diff-num {
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    padding: 1px 6px;
+    color: var(--text-faint);
+    background: var(--background-secondary);
+    border-right: 1px solid var(--background-modifier-border);
+    user-select: none;
+    /* Flex layout: row number text on the left (right-aligned within its
+       span), accept button fixed width pinned to the right. This avoids
+       the absolute-positioning + padding-right trap where the button
+       would overlap the line number (absolute anchors against the
+       padding box, so padding doesn't reserve space for an absolute
+       child). */
+    display: flex;
+    align-items: center;
+}
+.gitee-sync-plus-diff-num-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    /* Left-align: keep the row number on the left edge of the num cell
+       so it doesn't visually attach to the accept button on the right.
+       The accept button is the action affordance; the line number is a
+       reference label — putting it on the left makes scanning easier and
+       keeps the gutter visually unambiguous. */
+    text-align: left;
+}
+.gitee-sync-plus-diff-cell {
+	padding: 1px 6px;
+	white-space: pre;
+	/* Allow long lines to overflow the (fixed-width) cell into the scroll
+	   container so they become horizontally scrollable + drag-pannable,
+	   instead of being silently clipped. */
+	overflow: visible;
+}
+/* Inner span fills the cell for short lines and grows past it for long
+   lines, which is what creates the horizontal overflow that scroll/drag
+   reveal. */
+.gitee-sync-plus-diff-cell-text {
+	display: inline-block;
+	white-space: pre;
+	min-width: 100%;
+	box-sizing: border-box;
+}
+.gitee-sync-plus-diff-row {
+	border-bottom: 1px solid var(--background-modifier-border-hover);
+}
+/* ===== Row coloring: delete=red, insert=green, change=orange ===== */
+.gitee-sync-plus-diff-row.state-equal .gitee-sync-plus-diff-cell {
+	background: var(--background-primary);
+}
+.gitee-sync-plus-diff-row.state-delete .gitee-sync-plus-diff-cell {
+	background: rgba(var(--color-red-rgb), 0.12);
+}
+.gitee-sync-plus-diff-row.state-insert .gitee-sync-plus-diff-cell {
+	background: rgba(var(--color-green-rgb), 0.12);
+}
+.gitee-sync-plus-diff-row.state-change .gitee-sync-plus-diff-cell {
+	background: rgba(var(--color-orange-rgb), 0.12);
+}
+/* Placeholder rows used to keep both sides vertically aligned */
+.gitee-sync-plus-diff-row.state-placeholder .gitee-sync-plus-diff-cell {
+	background: var(--background-primary);
+}
+.gitee-sync-plus-diff-row.state-placeholder {
+	border-bottom: 1px solid var(--background-modifier-border-hover);
+}
+.gitee-sync-plus-diff-row.state-placeholder .gitee-sync-plus-diff-num {
+	color: var(--text-faint);
+	background: var(--background-secondary);
+}
+.gitee-sync-plus-diff-row.state-empty .gitee-sync-plus-diff-cell {
+	color: var(--text-faint);
+	font-style: italic;
+}
+.gitee-sync-plus-diff-error {
+	color: var(--text-error);
+	padding: 12px;
+}
+
+/* Collapse unchanged fragments: hide the middle of long equal runs */
+.collapse-unchanged .gitee-sync-plus-diff-collapsed-body .gitee-sync-plus-diff-collapsible {
+	display: none;
+}
+.collapse-unchanged .gitee-sync-plus-diff-collapsed-placeholder {
+	display: table-row;
+	cursor: pointer;
+}
+.collapse-unchanged .gitee-sync-plus-diff-collapsed-placeholder .gitee-sync-plus-diff-num {
+	color: var(--text-accent);
+}
+.collapse-unchanged .gitee-sync-plus-diff-collapsed-placeholder .gitee-sync-plus-diff-cell {
+	color: var(--text-muted);
+	font-style: italic;
+}
+.collapse-unchanged .gitee-sync-plus-diff-collapsed-placeholder:hover {
+	background: var(--background-modifier-hover);
+}
+.collapse-unchanged .gitee-sync-plus-diff-collapsed-body.is-expanded .gitee-sync-plus-diff-collapsed-placeholder {
+	display: none;
+}
+.collapse-unchanged .gitee-sync-plus-diff-collapsed-body.is-expanded .gitee-sync-plus-diff-collapsible {
+	display: table-row;
+}
+
+/* Hide collapsed placeholder when not in collapse mode */
+.gitee-sync-plus-diff-collapsed-placeholder {
+	display: none;
+}
+
+/* Sync-scroll indicator for section scrollers (subtle active border) */
+.gitee-sync-plus-diff-content.sync-scroll-active .gitee-sync-plus-diff-section-scroll {
+	border-color: var(--text-accent);
+}
+
+/* Revert-chunk button inside the right gutter cell */
+.gitee-sync-plus-diff-num {
+	position: relative;
+}
+.gitee-sync-plus-diff-revert-btn.gitee-sync-plus-diff-revert-btn {
+	position: absolute;
+	right: 2px;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 28px;
+	height: 20px;
+	padding: 0;
+	line-height: 1;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-muted);
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+	opacity: 1;
+	transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+	cursor: pointer;
+	pointer-events: auto;
+}
+.gitee-sync-plus-diff-revert-btn:hover {
+	color: var(--text-accent);
+	border-color: var(--text-accent);
+	background: var(--background-modifier-hover);
+	opacity: 1;
+}
+
+/* Modal button row used by revert-chunk confirm */
+.gitee-sync-plus-modal-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 16px;
+}
+
+/* ===== Identical-content hint shown in the diff view ===== */
+.gitee-sync-plus-diff-identical {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 16px;
+	padding: 32px 24px;
+	text-align: center;
+	color: var(--text-muted);
+}
+.gitee-sync-plus-diff-identical-hint {
+	max-width: 480px;
+	line-height: 1.5;
+	margin: 0;
+}
+.gitee-sync-plus-diff-identical-actions {
+	display: flex;
+	gap: 10px;
+}
+.gitee-sync-plus-diff-identical-secondary.gitee-sync-plus-diff-identical-secondary {
+	background: transparent;
+	border: 1px solid var(--background-modifier-border);
+	color: var(--text-muted);
+	padding: 6px 14px;
+	height: auto;
+	border-radius: 4px;
+	cursor: pointer;
+}
+.gitee-sync-plus-diff-identical-secondary:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+/* ===== Token select modal ===== */
+.gitee-sync-plus-token-modal {
+	width: 520px !important;
+	max-width: 90vw !important;
+}
+
+.gitee-sync-plus-token-modal .modal-content {
+	display: flex;
+	flex-direction: column;
+	height: 440px;
+	overflow: hidden;
+}
+
+.gitee-sync-plus-token-title {
+	margin-bottom: 12px;
+	flex: 0 0 auto;
+}
+
+.gitee-sync-plus-token-search {
+	margin-bottom: 12px;
+}
+
+.gitee-sync-plus-token-search-input {
+	width: 100%;
+}
+
+.gitee-sync-plus-token-add-form {
+	margin-bottom: 12px;
+	padding: 12px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+}
+
+.gitee-sync-plus-token-add-input {
+	width: 100%;
+	margin-bottom: 8px;
+}
+
+.gitee-sync-plus-token-add-input[type="password"] {
+	font-family: var(--font-monospace);
+}
+
+.gitee-sync-plus-token-add-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.gitee-sync-plus-token-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	flex: 1 1 auto;
+	overflow-y: auto;
+	min-height: 0;
+	margin-bottom: 0;
+}
+
+.gitee-sync-plus-token-empty {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	padding: 8px;
+	text-align: center;
+}
+
+.gitee-sync-plus-token-item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 10px;
+	border-radius: 6px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.gitee-sync-plus-token-item.is-selected {
+	background: var(--background-modifier-form-field-highlighted);
+	border-color: var(--text-accent);
+}
+
+.gitee-sync-plus-token-item-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.gitee-sync-plus-token-name {
+	font-weight: 500;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.gitee-sync-plus-token-badge {
+	font-size: 0.75em;
+	padding: 2px 6px;
+	border-radius: 4px;
+	background: var(--text-accent);
+	color: var(--text-on-accent);
+}
+
+.gitee-sync-plus-token-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex: 0 0 auto;
+}
+
+.gitee-sync-plus-token-icon-btn.gitee-sync-plus-token-icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: var(--text-muted);
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.gitee-sync-plus-token-icon-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.gitee-sync-plus-token-icon-btn svg {
+	width: 15px;
+	height: 15px;
+}
+
+.gitee-sync-plus-token-value {
+	width: 100%;
+	font-family: var(--font-monospace);
+	font-size: 0.8em;
+	color: var(--text-muted);
+	word-break: break-all;
+	margin-top: 4px;
+}
+
+.gitee-sync-plus-token-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-top: 16px;
+	flex: 0 0 auto;
+}
+
+.gitee-sync-plus-token-footer-right {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+/* ===== Conflict resolver modal ===== */
+.gitee-sync-plus-conflict-modal {
+	width: auto !important;
+	max-width: 90vw !important;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+.gitee-sync-plus-conflict-intro {
+	font-size: 0.85em;
+	color: var(--text-muted);
+	margin: 4px 0 12px;
+	line-height: 1.5;
+}
+.gitee-sync-plus-conflict-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	height: 210px; /* fixed height for exactly 5 items */
+	overflow-y: auto;
+	overflow-x: hidden;
+	flex-shrink: 0;
+}
+/* Conflict file list item — single row: icon | name | path */
+.gitee-sync-plus-conflict-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border-radius: 4px;
+	background: var(--background-primary);
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+}
+.gitee-sync-plus-conflict-item:hover {
+	background: var(--background-modifier-hover);
+}
+.gitee-sync-plus-conflict-item-status {
+	font-size: 0.7em;
+	line-height: 1;
+	flex-shrink: 0;
+	color: var(--text-faint);
+}
+.gitee-sync-plus-conflict-item-status.s-pending {
+	color: var(--text-warning);
+}
+.gitee-sync-plus-conflict-item-status.s-local {
+	color: var(--text-success);
+}
+.gitee-sync-plus-conflict-item-status.s-remote {
+	color: var(--text-accent);
+}
+/* Merge resolved: same "handled" green as keep-local, so a merged item is
+   visually distinct from the orange pending state. */
+.gitee-sync-plus-conflict-item-status.s-merge {
+	color: var(--text-success);
+}
+.gitee-sync-plus-conflict-item-name {
+	font-weight: 600;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	flex-shrink: 0;
+	max-width: 110px;
+}
+.gitee-sync-plus-conflict-item-path {
+	font-size: 0.8em;
+	color: var(--text-faint);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.gitee-sync-plus-conflict-btn.gitee-sync-plus-conflict-btn {
+	flex: 0 0 auto;
+	padding: 6px 12px;
+	height: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	font-size: 0.85em;
+	transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.gitee-sync-plus-conflict-btn:hover {
+	background: var(--background-modifier-hover);
+}
+.gitee-sync-plus-conflict-btn.is-selected {
+	border-color: var(--text-accent);
+	background: var(--background-modifier-form-field-highlighted);
+	color: var(--text-accent);
+	font-weight: 600;
+}
+.gitee-sync-plus-conflict-footer {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin-top: 16px;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+.gitee-sync-plus-conflict-footer-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.gitee-sync-plus-conflict-footer-right {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+}
+.gitee-sync-plus-conflict-btn.is-disabled,
+.gitee-sync-plus-conflict-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+.gitee-sync-plus-conflict-btn:disabled:hover {
+	background: var(--background-primary);
+}
+
+/* Confirm-pull (mod-cta) disabled until every conflict is resolved.
+   Obsidian's built-in .mod-cta doesn't visually grey out on :disabled, so we
+   scope a clear disabled style to the conflict modal footer. */
+.gitee-sync-plus-conflict-footer .mod-cta:disabled,
+.gitee-sync-plus-conflict-footer .mod-cta.is-disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+	filter: grayscale(1);
+}
+.gitee-sync-plus-conflict-footer .mod-cta:disabled:hover {
+	background: var(--interactive-accent);
+	filter: grayscale(1);
+}
+
+/* ===== In-modal conflict diff viewer ===== */
+.gitee-sync-plus-conflict-diff-frame {
+	width: min(1100px, 94vw);
+}
+.gitee-sync-plus-conflict-diff-modal {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	height: 82vh;
+}
+.gitee-sync-plus-conflict-diff-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex: 0 0 auto;
+}
+.gitee-sync-plus-conflict-diff-title {
+	font-weight: 600;
+	flex: 1 1 auto;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.gitee-sync-plus-conflict-diff-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
+}
+.gitee-sync-plus-conflict-diff-btn.gitee-sync-plus-conflict-diff-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 26px;
+	padding: 0 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-muted);
+	font-size: 0.8em;
+	cursor: pointer;
+	transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.gitee-sync-plus-conflict-diff-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+.gitee-sync-plus-conflict-diff-btn.is-active {
+	background: var(--background-modifier-active-hover);
+	color: var(--text-accent);
+	border-color: var(--text-accent);
+}
+.gitee-sync-plus-conflict-diff-body {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+.gitee-sync-plus-conflict-diff-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 8px 12px;
+	border-top: 1px solid var(--background-modifier-border);
+	flex: 0 0 auto;
+}
+.gitee-sync-plus-conflict-diff-footer-left {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 6px;
+}
+.gitee-sync-plus-conflict-diff-footer-right {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 6px;
+}
+/* Vertical (top/bottom) diff layout */
+.gitee-sync-plus-diff-files-vertical {
+	flex-direction: column !important;
+}
+/* Shared pane styles for the conflict diff sections. Height capping is
+   applied only in the vertical layout; without the scope, side-by-side panes
+   were capped at 50% of the body height, leaving a large blank area below
+   the diff table. */
+.gitee-sync-plus-diff-section-remote,
+.gitee-sync-plus-diff-section-local {
+	flex: 1 1 auto;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	background: var(--background-primary);
+}
+/* Vertical (top/bottom) diff layout: each pane takes at most half the body. */
+.gitee-sync-plus-diff-files-vertical .gitee-sync-plus-diff-section-remote,
+.gitee-sync-plus-diff-files-vertical .gitee-sync-plus-diff-section-local {
+	max-height: 50%;
+}
+.gitee-sync-plus-diff-section-remote + .gitee-sync-plus-diff-section-local {
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Icon-only buttons in diff header */
+.gitee-sync-plus-conflict-diff-icon-btn {
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	font-size: 14px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* ConflictResolver (conflict diff modal): widen the num column so the
+   absolute-positioned revert button — which is now shared with the tab
+   view (.gitee-sync-plus-diff-revert-btn) — has room and doesn't cover
+   the line number text. Matches the tab view visually. */
+/* Inline rollback button column width: each num cell must leave room
+   for the absolute-positioned revert button (.gitee-sync-plus-diff-revert-btn)
+   so the line number text isn't covered.
+
+   - Side-by-side (two independent panes, each with its own
+     [num + content] table): 60px per pane gutter keeps the line number +
+     revert button + padding fitting side by side in one column. */
+.gitee-sync-plus-diff-content.layout-side-by-side .gitee-sync-plus-diff-section-table .gitee-sync-plus-diff-num {
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
+    box-sizing: border-box;
+}
+/* Row rolled back via the revert button — dim it to show the change is rejected */
+.gitee-sync-plus-diff-row.is-rolled-back {
+    opacity: 0.4;
+}
+.gitee-sync-plus-diff-row.is-rolled-back .gitee-sync-plus-diff-revert-btn {
+    background: var(--background-modifier-active-hover);
+    color: var(--text-accent);
+    border-color: var(--text-accent);
+}
+
+/* ===== Per-row "accept local / accept remote" buttons (line-level merge) =====
+   The button lives inside its own num cell as a normal flex child (not
+   absolute-positioned), pinned to the right edge by the flex layout above.
+   This way the line number text always sits to its left with a guaranteed
+   margin, and the button cannot accidentally overlap it. The num cell is
+   already position: relative (see earlier rule) but we don't need that
+   anymore — flex handles it.
+
+   Local side = left/first num cell (oldText). Remote side = right/second num
+   cell (newText). In vertical layout the same classes apply per row. */
+.gitee-sync-plus-diff-accept-checkbox {
+    flex: 0 0 auto;
+    margin-left: 4px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--interactive-accent);
+    transition: transform 0.15s ease;
+}
+.gitee-sync-plus-diff-accept-checkbox:hover {
+    transform: scale(1.1);
+}
+.gitee-sync-plus-diff-accept-checkbox:checked {
+    accent-color: var(--interactive-accent);
+}
+
+/* Chosen-row feedback: the accepted side is tinted with an accent edge, the
+   rejected side is dimmed. Applies to whole rows (vertical layout) and to
+   individual cells (side-by-side layout). */
+.gitee-sync-plus-diff-row.is-accepted > td,
+.gitee-sync-plus-diff-num.is-accepted,
+.gitee-sync-plus-diff-cell.is-accepted {
+    background: var(--background-modifier-hover);
+    box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+.gitee-sync-plus-diff-row.is-rejected,
+.gitee-sync-plus-diff-num.is-rejected,
+.gitee-sync-plus-diff-cell.is-rejected {
+    opacity: 0.4;
+}
+
+/* Vertical layout: each panel is its own 2-column table, so the num column
+   can be wider without squeezing the content column. The flex layout on the
+   base class handles button + line-number spacing, so no padding gymnastics
+   are needed here. */
+.gitee-sync-plus-diff-files-vertical .gitee-sync-plus-diff-num {
+    width: 72px;
+    min-width: 72px;
+    max-width: 72px;
+    box-sizing: border-box;
+}
+
+/* Disabled state for the "Apply merge" button until a row is chosen */
+.gitee-sync-plus-conflict-btn.is-disabled,
+.gitee-sync-plus-conflict-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* ===== Merge editor modal ===== */
+.gitee-sync-plus-merge-modal {
+	width: 720px !important;
+	max-width: 94vw !important;
+	display: flex;
+	flex-direction: column;
+	max-height: 86vh;
+}
+.gitee-sync-plus-merge-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin-bottom: 8px;
+}
+.gitee-sync-plus-merge-title {
+	font-weight: 600;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.gitee-sync-plus-merge-back.gitee-sync-plus-merge-back {
+	padding: 4px 12px;
+	height: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-muted);
+	cursor: pointer;
+	flex: 0 0 auto;
+}
+.gitee-sync-plus-merge-back:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+.gitee-sync-plus-merge-hint {
+	font-size: 0.8em;
+	color: var(--text-muted);
+	margin: 0 0 10px;
+	line-height: 1.5;
+}
+.gitee-sync-plus-merge-body {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	overflow-y: auto;
+	min-height: 0;
+	flex: 1 1 auto;
+}
+.gitee-sync-plus-merge-equal {
+	font-size: 0.72em;
+	color: var(--text-faint);
+	font-style: italic;
+	padding: 2px 4px;
+	border-left: 2px solid var(--background-modifier-border);
+}
+.gitee-sync-plus-merge-chunk {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-secondary);
+}
+.gitee-sync-plus-merge-chunk-label {
+	font-size: 0.78em;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+.gitee-sync-plus-merge-chunk-sides {
+	display: flex;
+	gap: 8px;
+}
+.gitee-sync-plus-merge-side {
+	flex: 1 1 50%;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	border-radius: 4px;
+	overflow: hidden;
+}
+.gitee-sync-plus-merge-side-local {
+	border: 1px solid rgba(var(--color-green-rgb), 0.4);
+}
+.gitee-sync-plus-merge-side-remote {
+	border: 1px solid rgba(var(--color-blue-rgb), 0.4);
+}
+.gitee-sync-plus-merge-side-title {
+	font-size: 0.72em;
+	font-weight: 600;
+	padding: 3px 8px;
+	color: var(--text-normal);
+}
+.gitee-sync-plus-merge-side-local .gitee-sync-plus-merge-side-title {
+	background: rgba(var(--color-green-rgb), 0.14);
+	color: var(--text-success);
+}
+.gitee-sync-plus-merge-side-remote .gitee-sync-plus-merge-side-title {
+	background: rgba(var(--color-blue-rgb), 0.14);
+	color: var(--text-accent);
+}
+.gitee-sync-plus-merge-side-pre {
+	margin: 0;
+	padding: 6px 8px;
+	font-family: var(--font-monospace);
+	font-size: 0.78em;
+	line-height: 1.45;
+	white-space: pre-wrap;
+	word-break: break-word;
+	max-height: 180px;
+	overflow: auto;
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+.gitee-sync-plus-merge-chunk-btns {
+	display: flex;
+	gap: 6px;
+}
+.gitee-sync-plus-merge-choice.gitee-sync-plus-merge-choice {
+	flex: 1 1 auto;
+	padding: 5px 8px;
+	height: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	font-size: 0.8em;
+	transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.gitee-sync-plus-merge-choice:hover {
+	background: var(--background-modifier-hover);
+}
+.gitee-sync-plus-merge-choice.is-selected {
+	border-color: var(--text-accent);
+	background: var(--background-modifier-form-field-highlighted);
+	color: var(--text-accent);
+	font-weight: 600;
+}
+.gitee-sync-plus-merge-result-label {
+	font-size: 0.82em;
+	font-weight: 600;
+	color: var(--text-normal);
+	margin-top: 4px;
+}
+.gitee-sync-plus-merge-result {
+	width: 100%;
+	min-height: 140px;
+	resize: vertical;
+	font-family: var(--font-monospace);
+	font-size: 0.82em;
+	line-height: 1.5;
+	box-sizing: border-box;
+	padding: 8px;
+}
+.gitee-sync-plus-merge-footer {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+	flex: 0 0 auto;
+}
