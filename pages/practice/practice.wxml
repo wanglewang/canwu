@@ -232,6 +232,8 @@
                只写「普通」会让人以为自己还在一个叫「普通」的池子里。 -->
           <text class="eyebrow hud__skill">{{title}}<text wx:if="{{stageName}}"> · {{stageName}} · 第 {{level}} 关</text></text>
           <text class="hud__time">{{vm.timeText || '正在参悟'}}</text>
+          <!-- 拍速另起一行小字：跟在小节号后面会被右侧「评级 / 收功」挤断，孤字「秒」掉到第二行。 -->
+          <text wx:if="{{vm.speedText}}" class="hud__speed">{{vm.speedText}}</text>
         </view>
         <view class="hud__right">
           <text wx:if="{{vm.comboText}}" class="combo-chip">{{vm.comboText}}</text>
@@ -314,8 +316,12 @@
         <!-- 环自己一层，绝对居中在玉台正中：提示轨与提示句是「台子上的字」，
              它们铺在版流里会把环顶偏——环歪半个身位，判定点就跟着歪。 -->
         <view class="ring-cells">
-          <view wx:for="{{vm.rings}}" wx:key="id" class="ring-cell" data-index="{{index}}" bindtouchstart="onCellTap">
-            <view class="ring-orb ring-orb--{{item.tone}}" style="transform:scale({{item.scale}});border-color:{{index === 1 ? theme.ink : theme.accent}}">
+          <view wx:for="{{vm.rings}}" wx:key="id" class="ring-cell" style="width:{{vm.ringGeom.track}}rpx;height:{{vm.ringGeom.track}}rpx" data-index="{{index}}" bindtouchstart="onCellTap">
+            <!-- 归位圈：珠子每次从这里出发，缩到朱带即为一拍。
+                 它恒定存在，所以「一手刚起、一手已经收到底」时，两格的外轮廓仍然一样大——
+                 没有这一圈，收到底的那一手看起来就是「一个很小的环」，玩家读成两环一大一小。 -->
+            <view class="ring-track"></view>
+            <view class="ring-orb ring-orb--{{item.tone}}" style="width:{{vm.ringGeom.orb}}rpx;height:{{vm.ringGeom.orb}}rpx;transform:scale({{item.scale}});border-color:{{index === 1 ? theme.ink : theme.accent}}">
               <text style="color:{{index === 1 ? theme.accent : theme.ink}}">{{theme.glyph}}</text>
             </view>
             <!-- 判定带画在光环之上：光环往里收的时候会整块盖住朱带，压在最上层才看得见要瞄的那条带。 -->

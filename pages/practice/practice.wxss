@@ -212,6 +212,9 @@
 .hud__id {
     display: flex;
     flex-direction: column;
+    /* 占满右侧读数之外的全部宽度，再靠 nowrap 兜底：让它自己「折行」是最坏的结果，
+       折出来的一定是孤零零一个字。 */
+    flex: 1 1 auto;
     min-width: 0;
 }
 
@@ -224,12 +227,23 @@
 .hud__time {
     margin-top: 2rpx;
     color: var(--c-imm-text);
-    /* 计时是这一屏最该有「器物感」的数字：衬线 + 等宽，读起来像香炷而不是标题。 */
+    /* 计时是这一屏最该有「器物感」的数字：衬线 + 等宽，读起来像香炷而不是标题。
+       40rpx 是「第 3 / 4 小节」在右侧评级与收功占位之后仍能单行站住的字号。 */
     font-family: "Songti SC", "STSong", serif;
-    font-size: 44rpx;
+    font-size: 40rpx;
     line-height: 1.15;
     font-variant-numeric: tabular-nums;
-    letter-spacing: 2rpx;
+    letter-spacing: 1rpx;
+    white-space: nowrap;
+}
+
+/* 拍速：开打前记住一次就够，所以不跟小节号抢那一行大字。 */
+.hud__speed {
+    margin-top: 4rpx;
+    color: var(--c-imm-text-3);
+    font-size: 22rpx;
+    letter-spacing: 1rpx;
+    white-space: nowrap;
 }
 
 .hud__right {
@@ -491,7 +505,9 @@
        环绝对居中，提示轨与提示句绝对贴底。混在一个 flex 里换行时，
        环会被下面的字挤偏半个身位——判定点跟着歪，玩家瞄的是错的圆心。 */
     display: block;
-    height: 500rpx;
+    /* 高度要装得下：最外圈 280rpx + 提示轨两行 52rpx + 提示句 34rpx + 三段留白。
+       环格子纵向取正中，提示轨与提示句绝对贴底——三者不共用版流，所以高度得按最挤的那一种算。 */
+    height: 560rpx;
     margin-top: 20rpx;
     border-radius: 20rpx;
     background-color: var(--well, #0b2331);
@@ -515,15 +531,30 @@
 .ring-cell {
     position: relative;
     flex: 0 0 auto;
-    width: 240rpx;
-    height: 240rpx;
+    /* 边长由玩法下发（vm.ringGeom.track = 基准 160 × START_SCALE 1.75 = 280rpx），
+       这里只在没拿到几何时兜底面。写死一个数就等于盘面按自己的尺寸画、玩法按另一个算。 */
+    width: 280rpx;
+    height: 280rpx;
+}
+
+/* 归位圈：这一格恒定不变的外轮廓，珠子每次从它出发。
+   它不是为了好看——一手刚起、一手已经收到底时，没有这一圈，两格看着就是一大一小两个环。
+   压到最低一档亮度：它是轨道，不是要瞄的东西，抢了朱带的注意力反而误事。 */
+.ring-track {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    border: 1rpx solid rgba(255, 243, 214, 0.14);
+    border-radius: 50%;
+    background: radial-gradient(80% 80% at 50% 26%, rgba(255, 243, 214, 0.05), rgba(255, 243, 214, 0) 70%);
+    box-shadow: inset 0 0 0 1rpx rgba(0, 0, 0, 0.28);
 }
 
 .ring-area--dual .ring-cell + .ring-cell {
-    /* 双手段：两格之间留够一道缝。缝要是窄于判定带的溢出量，两条带会连成一条。
-       双手段的带最宽是 259rpx（窗 289ms ÷ 1000ms 隔 × 1.03 行程），比格子宽 19rpx，
-       两边各溢 10rpx，所以缝至少 20rpx——这里给 44rpx，两根拇指也不会互相蹭到。 */
-    margin-left: 44rpx;
+    /* 双手段：两格之间留一道缝，两根拇指才不会互相蹭到。
+       一格的横向最大占位是归位圈的 280rpx（判定带最宽才 226rpx，收在圈里），
+       两格共 560rpx，页面可用宽度 750 − 2×28 = 694rpx，缝给 48rpx 后两边各余 43rpx。 */
+    margin-left: 48rpx;
 }
 
 .ring-judge {
@@ -532,9 +563,9 @@
     margin: auto;
     box-sizing: border-box;
     /* 尺寸与描边宽度由玩法注入（vm.rings[].bandBox / bandWidth），带有多宽就是判定窗有多宽。
-       这里留 200 / 6 只是兜底：判定带是「能瞄的东西」，不是装饰，不能写成固定像素。 */
-    width: 200rpx;
-    height: 200rpx;
+       这里留 160 / 6 只是兜底：判定带是「能瞄的东西」，不是装饰，不能写成固定像素。 */
+    width: 160rpx;
+    height: 160rpx;
     border: 6rpx solid rgba(180, 69, 60, 0.16);
     border-radius: 50%;
     /* 两沿各压一道细朱线：光环外沿落进这条带里才算圆满，边界看得清才知道自己差多少。 */
@@ -559,20 +590,21 @@
     position: absolute;
     inset: 0;
     margin: auto;
-    /* 判定带是按「200rpx 盒子、半径 100 × scale」算出来的（见 tempo.js 的 bandBox）。
-       这里必须 border-box：内容盒加两侧 8rpx 边框是 216rpx，视觉半径凭空大 8%，
-       珠子扫过带子的时刻会比判定早一截——玩家照着带点，判出来却是晚的。 */
+    /* 判定带是按「160rpx 盒子、半径 80 × scale」算出来的（见 tempo.js 的 ORB_RPX / bandBox）。
+       这里必须 border-box：内容盒加两侧 8rpx 边框会多出 16rpx，视觉半径凭空大 5%，
+       珠子扫过带子的时刻会比判定早一截——玩家照着带点，判出来却是晚的。
+       宽高由玩法注入（vm.ringGeom.orb），这里两个数只是兜底。 */
     box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 200rpx;
-    height: 200rpx;
+    width: 160rpx;
+    height: 160rpx;
     border: 8rpx solid var(--acc, #3d8c74);
     border-radius: 50%;
     background: var(--bg, #efe9db);
     font-family: serif;
-    font-size: 56rpx;
+    font-size: 48rpx;
     box-shadow: 0 12rpx 26rpx rgba(0, 0, 0, 0.18), inset 0 4rpx 0 rgba(255, 255, 255, 0.55);
 }
 
@@ -586,7 +618,7 @@
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 56rpx;
+    bottom: 60rpx;
     display: flex;
     flex-direction: column;
     padding: 0 40rpx;
@@ -627,7 +659,7 @@
 
 .ring-tip {
     position: absolute;
-    bottom: 16rpx;
+    bottom: 10rpx;
     width: 100%;
     text-align: center;
     color: var(--ink, #5d6358);

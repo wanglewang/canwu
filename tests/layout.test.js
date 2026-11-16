@@ -1514,6 +1514,47 @@ check('节律判定：写下拍速、响出拍子、环在正中', function () {
   assert.ok(/class="ring-cells"/.test(wxml), '模板里没有环的定位层');
   assert.ok(!/\.ring-area\s*\{[\s\S]{0,200}flex-wrap/.test(wxss),
     'ring-area 又变回 flex 换行排版：环会被顶偏');
+  // 2026-11 真机第二轮：「这个还是不对」——字挤成两行、两环一大一小。
+  // ① 拍速不许跟在小节号后面一起写：右侧「评级 / 收功」一挤，行尾就剩一个孤字「秒」。
+  assert.ok(!/小节'\s*\+\s*speedText/.test(tempo), '拍速又挂回小节号那一行了，行尾会掉孤字');
+  assert.ok(/vm\.timeText\s*=[^\n]*小节'/.test(tempo), '小节号没有单独成句');
+  assert.ok(/class="hud__speed"/.test(wxml), '模板里没有拍速那一行');
+  assert.ok(/\.hud__time\s*\{[\s\S]{0,400}white-space:\s*nowrap/.test(wxss),
+    '小节号没锁单行：右侧读数一变宽它就会折行');
+  // ② 环的尺寸只许玩法下发。wxss 自己写一个 200rpx，判定带按别的基准算，珠子扫过朱带的时刻就偏了。
+  assert.ok(/vm\.ringGeom\s*=\s*\{[^}]*orb[^}]*track/.test(tempo),
+    '没把环的基准尺寸下发给页面，页面只能自己猜一个数');
+  assert.ok(/vm\.ringGeom\.orb/.test(wxml) && /vm\.ringGeom\.track/.test(wxml),
+    '模板没用玩法下发的环尺寸');
+  assert.ok(/ORB_RPX\s*\/\s*2\s*\+\s*ORB_RPX\s*\/\s*2\s*\*\s*scaleWin/.test(tempo),
+    '判定带的盒子没从环的基准尺寸换算，是另写的一份常数');
+  // ③ 每一格要有一圈恒定的归位圈：一手刚起、一手已收到底时，没有它两格看着就是一大一小两个环。
+  assert.ok(/class="ring-track"/.test(wxml), '盘面没有归位圈：两环会被读成一大一小');
+  assert.ok(/\.ring-track\s*\{[\s\S]{0,260}border-radius:\s*50%/.test(wxss), '归位圈不是圆的');
+  // 归位圈必须等于珠子的最外沿（基准 × START_SCALE），小了珠子会跑出圈外。
+  assert.ok(/TRACK_RPX\s*=\s*Math\.round\(ORB_RPX\s*\*\s*START_SCALE\)/.test(tempo),
+    '归位圈不等于珠子最外沿，珠子起步时会溢出圈外');
+});
+
+check('节律盘装得下：环格子、提示轨、提示句三层不互相压', function () {
+  const tempo = read('minigames/tempo.js');
+  const wxss = read('pages/practice/practice.wxss');
+  // 三层各占一块：环格子纵向取正中，提示轨与提示句绝对贴底。高度不够就是「环压着字」，
+  // 之前 500rpx 配 350rpx 的珠子，双手段两行提示轨正好顶到珠子下沿。
+  const area = /\.ring-area\s*\{([\s\S]*?)\}/.exec(wxss);
+  const h = area ? Number((/height:\s*(\d+)rpx/.exec(area[1]) || [])[1]) : 0;
+  const cell = /\.ring-cell\s*\{[\s\S]*?width:\s*(\d+)rpx/.exec(wxss);
+  const cellRpx = cell ? Number(cell[1]) : 0;
+  const orb = Number((/const ORB_RPX\s*=\s*(\d+)/.exec(tempo) || [])[1]);
+  const start = Number((/const START_SCALE\s*=\s*([\d.]+)/.exec(tempo) || [])[1]);
+  assert.ok(h > 0 && cellRpx > 0 && orb > 0 && start > 0, '读不到环区的尺寸');
+  // 珠子最外沿必须装进格子，否则判定带的圆心与格子圆心对不上（格子按内容居中）。
+  assert.ok(Math.round(orb * start) <= cellRpx,
+    '珠子最外沿 ' + Math.round(orb * start) + 'rpx 超出格子 ' + cellRpx + 'rpx');
+  // 格子居中 → 下沿 = H/2 + 格子/2；提示轨两行 52rpx、贴底 60rpx → 上沿 = H − 112。中间至少留 24rpx。
+  // 整理后就是一条：H ≥ 格子 + 272。
+  const need = cellRpx + 272;
+  assert.ok(h >= need, '环区高 ' + h + 'rpx 装不下：珠子下沿会压住两行提示轨（至少要 ' + need + 'rpx）');
 });
 
 check('功法卡片紧凑单行：名字不竖排、按钮不抢宽度、阶段色走令牌', function () {

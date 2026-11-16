@@ -25,6 +25,11 @@ const F = require('../data/practice.js').TEMPO_FLOOR;
 const START_SCALE = 1.75;
 const JUDGE_SCALE = 1.0;
 const FLOOR_SCALE = 0.72;
+// 环的基准直径（rpx）= 判定那一瞬的盒子边长。判定带的盒子与描边宽都由它换算，
+// 页面不再自己写 200rpx——两处各写一份，改了玩法尺寸盘面就对不上判定点。
+// 最外圈 = 基准 × START_SCALE：160 × 1.75 = 280rpx，正好一整格，也是「归位圈」的直径。
+const ORB_RPX = 160;
+const TRACK_RPX = Math.round(ORB_RPX * START_SCALE);
 // 判定那一刻落在这次收缩的第几成：1.75 → 1.0 占 1.03 行程的 0.728。
 // 余下的 0.27 是「点中之后环继续收到底」的那一截——没有它，环一判就弹回起点，
 // 每一拍都变成一次全新的反应任务（这门叫「节律」，练的不该是反应）。
@@ -172,8 +177,9 @@ function create(ctx) {
       window: scaleWin,
       // 判定带画在盘面上，粗细就等于窗口：外沿 = 带心 + 窗口，内沿 = 带心 − 窗口。
       // bandBox 是这一圈的盒子直径，bandWidth 是描边宽度，两者相减正好落回内沿。
-      bandBox: 2 * Math.round(100 + 100 * scaleWin),
-      bandWidth: Math.round(100 + 100 * scaleWin) - Math.round(100 - 100 * scaleWin),
+      bandBox: 2 * Math.round(ORB_RPX / 2 + ORB_RPX / 2 * scaleWin),
+      bandWidth: Math.round(ORB_RPX / 2 + ORB_RPX / 2 * scaleWin)
+        - Math.round(ORB_RPX / 2 - ORB_RPX / 2 * scaleWin),
       tone: 'idle',
       caption: s.tracks.length > 1 ? (h === 0 ? '左' : '右') : '',
       total: t.notes.length,
@@ -182,6 +188,10 @@ function create(ctx) {
     });
   }
   vm.rings = rings;
+  // 环的尺寸只从这一处下发给页面：一格多大、珠子多大、外圈多大。
+  // 页面把它写进 style，wxss 只管形状与颜色——写死一个 200rpx 在那里，
+  // 就变成「玩法按 160 算判定带、盘面按 200 画珠子」，珠子扫过朱带的时刻会整体偏一截。
+  vm.ringGeom = { orb: ORB_RPX, track: TRACK_RPX };
   // 兼容：单手段的旧渲染路径与说明页仍读 vm.ring。
   vm.ring = rings[0];
 
@@ -219,13 +229,15 @@ function create(ctx) {
     return Math.max(1, Math.min(s.bars, Math.ceil(Math.max(1, ms) / s.barMs)));
   }
 
-  // 拍速写在时间行里：这一局多快是玩家唯一能提前知道的变量，
-  // 不写出来就只能靠耳朵猜——而音效可以关，字关不掉。
-  // 一拍 = 一格 = unitMs；这里用秒，不用 BPM（没人拿节拍器对表）。
-  const beatSec = Math.round(s.unitMs / 10) / 100;
-  const speedText = ' · 一拍 ' + beatSec + ' 秒';
-  vm.speedText = speedText;
-  vm.timeText = '第 1 / ' + s.bars + ' 小节' + speedText;
+  // 拍速单独成行。跟在小节号后面一起写时，「第 3 / 4 小节 · 一拍 0.48 秒」会被右侧
+  // 「评级 C + 收功」挤断，孤零零一个「秒」掉到第二行——一行大字末尾挂一个孤字，
+  // 比不写还糟。小节号是大字（局内最该一眼看见的进度），拍速是小字（开打前记住一次就够）。
+  //
+  // 一拍 = **两格**（格是八分音符，BPM = 60000 ÷ 2 × unitMs），跟档表的 bpm、
+  // 本门 tip 里的「早一点晚一点只算半拍」是同一套口径。写一格会跟这两个说法打架。
+  const beatSec = Math.round(s.unitMs / 5) / 100;
+  vm.speedText = '一拍 ' + beatSec + ' 秒';
+  vm.timeText = '第 1 / ' + s.bars + ' 小节';
   vm.scoreText = '计 0 分';
   vm.goal = C.goalFor('C', band.sMin, '分');
   vm.hint = vm.costText;
@@ -267,9 +279,11 @@ function create(ctx) {
 
   function syncHud() {
     const ms = tick * TICK_MS;
-    vm.timeText = '第 ' + barNoAt(ms) + ' / ' + s.bars + ' 小节' + speedText;
+    vm.timeText = '第 ' + barNoAt(ms) + ' / ' + s.bars + ' 小节';
     vm.scoreText = '计 ' + fmt(points()) + ' 分';
-    // 第几拍：页面拿它跟上一帧比，变了就播一声——节律这一门没有声音等于让人空手数拍。
+    // 第几格：页面拿它跟上一帧比，变了就播一声——节律这一门没有声音等于让人空手数拍。
+    // 响在**格**上而不是拍上：音符就落在格线上，一拍两下的细分比一拍一下更能帮玩家对位，
+    // HUD 写的是「一拍几秒」（两格），数的是一拍两响，不冲突。
     vm.beatKey = Math.floor(ms / s.unitMs);
     vm.progress = C.pct(Math.min(ms, s.endMs), s.endMs);
     vm.progressText = Math.round(Math.min(ms, s.endMs) / 1000) + ' / ' + Math.round(s.endMs / 1000) + ' 秒';
