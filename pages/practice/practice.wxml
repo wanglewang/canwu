@@ -522,7 +522,7 @@
   <view class="mask" wx:if="{{pickerOpen}}" bindtap="onCloseLevelPicker">
     <view class="modal lv-picker" catchtap="noop">
       <text class="modal__title">选关</text>
-      <text class="modal__sub">只可选已到达的关 · 本门走到第 {{levelMax}} 关</text>
+      <text class="modal__sub">已走到第 {{levelMax}} 关 · 其后的关尚不可选</text>
       <view class="lv-segs">
         <view wx:for="{{pickerSegs}}" wx:key="key"
               class="lv-seg {{item.active ? 'lv-seg--on' : ''}} {{item.locked ? 'lv-seg--lock' : ''}}"
@@ -534,7 +534,7 @@
       <scroll-view scroll-y class="lv-grid" scroll-into-view="{{pickerScrollTo}}">
         <view class="lv-cells">
           <view wx:for="{{pickerLevels}}" wx:key="v" id="lv-{{item.v}}"
-                class="lv-cell {{item.cur ? 'lv-cell--cur' : ''}}"
+                class="lv-cell {{item.cur ? 'lv-cell--cur' : ''}} {{item.locked ? 'lv-cell--lock' : ''}}"
                 data-lv="{{item.v}}" bindtap="onPickLevel">{{item.v}}</view>
         </view>
       </scroll-view>

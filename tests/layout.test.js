@@ -1475,6 +1475,23 @@ check('中途收功的「返回」回到本门静室，不是退回列表', func
   assert.ok(!/returnSkillId/.test(pg), '还留着 returnSkillId 那套跨页递话，返回仍会弹浮层');
 });
 
+check('选关面板铺满整段：未至的关也显示，只是不可选', function () {
+  const pg = read('pages/practice/practice.js');
+  const wxml = read('pages/practice/practice.wxml');
+  // 2026-11 真机反馈：面板只列到「已到达」，后半段关号凭空消失，
+  // 玩家读不出这一段还有多少关。走没走到是进度，看不看得见是面板的事。
+  assert.ok(/for \(let lv = d\.from; lv <= d\.to; lv \+= 1\)/.test(pg),
+    '选关网格只铺到已到达的关，整段被截断');
+  assert.ok(/locked: lv > levelMax/.test(pg), '未至的关没有标记，样式挂不上');
+  assert.ok(/lv-cell--lock/.test(wxml), '未至的关没有压暗');
+  // 压暗只是提示不是禁用：真点下去必须答一句差在哪，否则就是「点了没反应」。
+  assert.ok(/lv > this\.data\.levelMax[\s\S]{0,200}toast\(/.test(pg),
+    '点未至的关一声不响，玩家会以为面板卡住');
+  // 段标签也一样：压暗写「未至」不等于可以白点一下。
+  assert.ok(/STAGES\[idx\]\.from[\s\S]{0,160}toast\(/.test(pg),
+    '点未至的段没有任何回应');
+});
+
 check('功法卡片紧凑单行：名字不竖排、按钮不抢宽度、阶段色走令牌', function () {
   const js = read('pages/skills/skills.js');
   const wxml = read('pages/skills/skills.wxml');

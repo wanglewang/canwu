@@ -1730,6 +1730,14 @@
     background: var(--c-imm-gold-soft);
     font-weight: 600;
 }
+/* 未至的关：铺在盘上但压暗，只到「能读出这里有这么一关」的程度。
+   它是提示不是禁用——真点下去会答一句「先走通第 N 关」，不做成点了没动静的死格。 */
+.lv-cell--lock {
+    opacity: 0.42;
+    color: var(--c-imm-text-3);
+    border-color: var(--c-imm-line-soft);
+    background: transparent;
+}
 /* 网格与底部按钮之间比别处稍宽一点：按钮是出口，不跟格子连成一片。 */
 .lv-picker .modal__actions { margin-top: var(--sp-5); }
 

@@ -1218,9 +1218,11 @@ Page({
     const levelMax = this.data.levelMax;
     const cur = this.data.level;
     const out = [];
-    if (levelMax >= d.from) {
-      const end = Math.min(d.to, levelMax);
-      for (let lv = d.from; lv <= end; lv += 1) out.push({ v: lv, cur: lv === cur });
+    // 整段都铺出来。只列已到达的关会让这一段像被截断——后半段的关号凭空消失，
+    // 玩家读不出「这一段还有多少」，也看不出自己离段尾多远。
+    // 走没走到是这个人的进度，看不看得见是面板的事，两件事分开。
+    for (let lv = d.from; lv <= d.to; lv += 1) {
+      out.push({ v: lv, cur: lv === cur, locked: lv > levelMax });
     }
     return out;
   },
@@ -1236,8 +1238,12 @@ Page({
     if (this.data.started || this.data.countdown > 0) return;
     const idx = Number(event.currentTarget.dataset.idx);
     if (!(idx >= 0 && idx < practiceData.STAGES.length)) return;
-    // 未到达的段不响应：不是「点了没反应」，段标签本来就压暗写着「未至」。
-    if (this.data.levelMax < practiceData.STAGES[idx].from) return;
+    // 没走到的段不给切：但也不能点下去一点动静都没有——
+    // 段标签压暗写着「未至」只是提示，手指落上去仍要得到一句解释。
+    if (this.data.levelMax < practiceData.STAGES[idx].from) {
+      toast('这一段还没走到');
+      return;
+    }
     const self = this;
     this.setData({
       pickerSegs: this.buildPickerSegs(idx),
@@ -1251,7 +1257,13 @@ Page({
   onPickLevel: function (event) {
     if (this.data.started || this.data.countdown > 0) return;
     const lv = Number(event.currentTarget.dataset.lv);
-    if (!(lv >= 1 && lv <= this.data.levelMax)) return;
+    if (!(lv >= 1)) return;
+    // 未至的关铺在盘上但不可点：压暗只是提示，不是禁用——
+    // 真点下去必须答一句「差在哪」，否则就是「点了没反应」。
+    if (lv > this.data.levelMax) {
+      toast('第 ' + lv + ' 关还没走到，先走通第 ' + this.data.levelMax + ' 关');
+      return;
+    }
     this.setData({ pickerOpen: false });
     if (lv === this.data.level) return;
     this.levelOverride = lv;
