@@ -1560,29 +1560,10 @@
     font-size: 22rpx;
     line-height: 1.65;
 }
-.diff-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-2);
-}
-/* 五档排成 3 + 2：用 flex-basis 让第二行两块自己撑满，
-   否则右下角空出一格，看着像漏了一张卡。 */
-.diff-chip {
-    flex: 1 1 29%;
-    box-sizing: border-box;
-    padding: var(--sp-3) var(--sp-2);
-    border: 1rpx solid var(--c-border);
-    border-radius: var(--r-sm);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2rpx;
-    background: var(--c-imm-bg-2);
-}
-.diff-chip__name { font-size: var(--fs-body-sm); color: var(--c-text); font-weight: 600; }
+/* 段位条与难度档共用一个 .diff-chip：这里只补两条预览卡片要用的字色，
+   尺寸与排版统一在下面「难度档：五条并列的线」那一组里，不在两处各写一套。 */
 .diff-chip__mult { font-size: var(--fs-caption); color: var(--c-text-2); }
 .diff-chip__need { font-size: var(--fs-caption); color: var(--c-imm-gold); }
-/* 选中这一档实际收紧了什么：一行小字，跟在档位下面，不占一格。 */
 /* 本章规格：准备页唯一一处常驻的「你打的是哪一副盘」。
    旧金描边、不铺色块、不从 opacity:0 起跳——一屏只允许一处金色实心（开始参悟）。 */
 .chapter-note {
@@ -1602,11 +1583,9 @@
     color: var(--c-imm-text-3);
     line-height: 1.6;
 }
-/* 选中档只换描边与字色，不铺色块：一屏只允许一处金色实心（开始参悟）。 */
-.diff-chip--on { border-color: var(--c-imm-gold-dim); background: var(--c-imm-gold-soft); }
-.diff-chip--on .diff-chip__name { color: var(--c-imm-gold); }
+/* 选中档只换描边与字色，不铺色块：一屏只允许一处金色实心（开始参悟）。
+   这条规则统一在下面「难度档」那组里写一次，这里只补预览卡片的次行字色。 */
 .diff-chip--on .diff-chip__mult { color: var(--c-imm-text-2); }
-.diff-chip--lock { opacity: 0.55; }
 
 /* 入门卡：左侧一道旧金细线，读完就收。不铺底色——它和规则卡是同一层，
    铺色会把它变成第二个「主卡」，一屏里就有两个重点了。 */
@@ -1649,17 +1628,63 @@
 }
 .lv-num { font-size: var(--fs-h3); color: var(--c-imm-gold); font-weight: 600; line-height: 1.1; }
 .lv-sub { font-size: var(--fs-caption); color: var(--c-imm-text-3); }
-/* 选关入口：中格第三行的小字，只作提示，不抢关卡号本身。 */
+/* 选关入口：跟在「已走通多少关」后面的一小截，只作提示，不抢关卡号本身。 */
 .lv-open { font-size: var(--fs-caption); color: var(--c-imm-gold-dim); }
+
+/* 这一局的账：耗多少、还剩多少，一眼看完。
+   放在关卡块正下方而不是混进下面那堆说明——它和「盘面是什么」不是一件事，
+   过去两行字同字号同灰度等距堆着，读起来是一坨。 */
+.lv-cost {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-2);
+    margin-top: var(--sp-4);
+    color: var(--c-imm-text-3);
+    font-size: var(--fs-caption);
+}
+.lv-cost__v {
+    color: var(--c-imm-text);
+    font-size: var(--fs-note);
+    font-weight: 600;
+}
+/* 余额推到行尾：左「花多少」右「还剩多少」，像一小笔账，扫一眼就够。 */
+.lv-cost__r { margin-left: auto; }
+
+/* 本局盘面：整盘规格 → 这一关动了哪一处 → S 线门槛，三行一组、行距紧。
+   组与组之间（账 / 盘面 / 加成）留 sp-4，组内只留 sp-1。 */
+.lv-spec { margin-top: var(--sp-4); }
+.lv-spec__main {
+    display: block;
+    color: var(--c-imm-text-2);
+    font-size: var(--fs-caption);
+    line-height: 1.6;
+}
+.lv-spec__sub {
+    display: block;
+    margin-top: var(--sp-1);
+    color: var(--c-imm-text-3);
+    font-size: var(--fs-caption);
+    line-height: 1.6;
+}
+/* 加成讲的是收益口径，不是盘面——单独成行，不与上面那组连读。 */
+.lv-note {
+    display: block;
+    margin-top: var(--sp-4);
+    color: var(--c-imm-text-3);
+    font-size: var(--fs-caption);
+    line-height: 1.6;
+}
 
 /* ---------- 选关面板：五段分栏 + 段内关号网格 ----------
    一千关不铺成一张图：先选段，再把这一段的关号摆成网格。段内只列已到达的关，
    未走到的段压暗写「未至」——不给人「点了没反应」的空手。 */
 .lv-picker { max-height: 78vh; }
+/* 弹层里的竖向节奏只有一种：标题→副标题 8 / 副标题→段位条 32 / 段位条→网格 32 / 网格→按钮 40。
+   过去是 8 / 48 / 32 / 64 四段各写一个数，看起来每块都各走各的。 */
 .lv-segs {
     display: flex;
     gap: var(--sp-2);
-    margin-top: var(--sp-6);
+    margin-top: var(--sp-4);
 }
 .lv-seg {
     flex: 1;
@@ -1679,15 +1704,16 @@
 .lv-seg--on .lv-seg__name { color: var(--c-imm-gold); }
 .lv-seg__sub { font-size: var(--fs-caption); color: var(--c-imm-text-3); }
 .lv-grid { margin-top: var(--sp-4); height: 46vh; }
+/* 五列等宽：用 grid 而不是 flex + 固定宽，格子才会跟着面板宽度走。
+   固定 92rpx 在窄屏上只能放四列，最后一列被挤到下一行，整块像被啃掉一角。 */
 .lv-cells {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
     gap: var(--sp-2);
     padding: 2rpx;
 }
 .lv-cell {
     box-sizing: border-box;
-    width: 92rpx;
     height: 76rpx;
     display: flex;
     align-items: center;
@@ -1704,6 +1730,8 @@
     background: var(--c-imm-gold-soft);
     font-weight: 600;
 }
+/* 网格与底部按钮之间比别处稍宽一点：按钮是出口，不跟格子连成一片。 */
+.lv-picker .modal__actions { margin-top: var(--sp-5); }
 
 /* ---------- 难度档：五条并列的线 ----------
    五档不是「同一个盘的五个容差」，是五副盘。做成一行并列的按钮，
@@ -1727,7 +1755,7 @@
     background: var(--c-imm-bg-2);
 }
 .diff-chip__name { font-size: 24rpx; line-height: 1.2; color: var(--c-imm-text-2); }
-.diff-chip__hint { font-size: 18rpx; line-height: 1.2; color: var(--c-imm-text-3); }
+.diff-chip__hint { font-size: 20rpx; line-height: 1.2; color: var(--c-imm-text-3); }
 /* 当前档：旧金描边 + 金字。全站只有一个强调色，这里不另起一种。 */
 .diff-chip--on {
     border-color: var(--c-imm-gold-dim);

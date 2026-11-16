@@ -100,6 +100,8 @@ Page({
     stageIndex: 0,
     stageName: '未入门',
     levelSub: '',
+    stageLv: 0,
+    stageSize: 0,
     // 选关面板：只列已到达的关（1–levelMax），按五段分栏，一次只铺一段。
     pickerOpen: false,
     pickerSegs: [],
@@ -567,14 +569,17 @@ Page({
       cleared: cleared,
       // 进度只写两个数：本门走通了几关（0–1000），以及在本段里的位置。
       // 段名是玩家理解进度的那把尺子，「第 762 关」本身不说明任何事。
-      levelSub: '已走通 ' + cleared + ' / ' + levelData.LEVEL_MAX + ' 关 · 本段 '
-        + levelData.levelInStage(level) + ' / ' + levelData.stageSize(stageIdx) + ' 关'
-        + (level < curNo ? ' · 本局回打第 ' + level + ' 关' : ''),
+      // 中格第二行只报「走通了多少关」与「是不是在回打」。
+      // 本段进度已经在小节标题右侧那行，关号在第一行——同一个格子里不说两遍。
+      levelSub: '已走通 ' + cleared + ' / ' + levelData.LEVEL_MAX + ' 关'
+        + (level < curNo ? ' · 回打' : ''),
+      // 小节标题右侧沿用「哪一段 + 这一段走到第几关」，与中格各报一件事。
+      stageLv: levelData.levelInStage(level),
+      stageSize: levelData.stageSize(stageIdx),
       levelChange: (function () {
         const d = practiceData.levelDelta(method, level);
-        if (!d.length) return '与上一关规格相同（本段第 '
-          + levelData.levelInStage(level) + ' / ' + levelData.stageSize(stageIdx)
-          + ' 关；盘面规格换段才换，段内只收时辰与评级线）';
+        // 兜底那句不再重复本段第几关：同一屏里已经说过两次，第三遍只会让这一行像噪音。
+        if (!d.length) return '与上一关规格相同（盘面换段才换，段内只收时辰与评级线）';
         return (d[0].chapter ? '' : '本关变化：') + d.map(function (x) { return x.text; }).join(' · ');
       })(),
       // 段位条：五段一条，只报「哪几段走完了、现在在哪一段、这一段还有几关」。

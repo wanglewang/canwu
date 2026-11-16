@@ -125,8 +125,9 @@
       <view class="divider"></view>
       <view class="row--between">
         <text class="section__title">关卡</text>
-        <!-- 关卡行只报三件事：哪一段、第几关、这一局烧多少气。 -->
-        <text class="tiny">{{stageName}} · 第 {{level}} / {{levelTotal}} 关 · 耗灵力 {{qiCost}}</text>
+        <!-- 关卡行只报一件标题行该报的事：哪一段、这一段走到第几关。
+             关号交给下面那一格，耗气交给再下面那行账——同一件事在这一屏只出现一次。 -->
+        <text class="tiny">{{stageName}} · 本段 {{stageLv}} / {{stageSize}} 关</text>
       </view>
       <!-- 一关一格：关号由「走通了几关」定，只能往回翻找手感，不能往上挑。
            往前走唯一的走法是走通当前这一关；点中间可直接跳到已到达的任意一关，
@@ -135,8 +136,7 @@
         <view class="lv-step {{level > 1 ? '' : 'lv-step--off'}} pressable" hover-class="pressable--on" data-d="-1" bindtap="onLevel">‹</view>
         <view class="lv-mid pressable" hover-class="pressable--on" bindtap="onOpenLevelPicker">
           <text class="lv-num">第 {{level}} / {{levelTotal}} 关</text>
-          <text class="lv-sub">{{levelSub}}</text>
-          <text wx:if="{{levelMax > 1}}" class="lv-open">点此选关</text>
+          <text class="lv-sub">{{levelSub}}<text wx:if="{{levelMax > 1}}" class="lv-open"> · 选关 ›</text></text>
         </view>
         <view class="lv-step {{level < levelMax ? '' : 'lv-step--off'}} pressable" hover-class="pressable--on" data-d="1" bindtap="onLevel">›</view>
       </view>
@@ -144,20 +144,26 @@
         <text class="text-link tiny pressable" hover-class="pressable--on" bindtap="onLevelResume">回到本门当前第 {{curLevel}} 关</text>
       </view>
       <!-- 本段规格常驻：段不是玩家挑的，但「这一段换了什么」仍要说清。 -->
-      <text wx:if="{{stageChange}}" class="chapter-note mt8">{{stageChange}}</text>
-      <!-- 一关一处小变化，写清楚变的是哪一项。 -->
-      <text class="tiny diff-brief mt8">{{levelChange}}</text>
-      <!-- 灵力不够时不给「开始」，先说明差多少、去哪儿补，以及气海能装多少。 -->
-      <text wx:if="{{!canStart}}" class="warn-note mt8">灵力 {{qi}} / {{qiMax}}，本局要 {{qiCost}} 点。回洞府闭关片刻即可补上；气海不够用时，破境或练真元都能拓深。</text>
-      <text wx:else class="tiny diff-brief">耗灵力 {{qiCost}} · 余 {{qi}} / {{qiMax}}</text>
+      <text wx:if="{{stageChange}}" class="chapter-note mt12">{{stageChange}}</text>
+      <!-- 这一局花多少、还剩多少：紧贴关卡块，别的都排在它后面。
+           灵力不够时不给「开始」，先说明差多少、去哪儿补，以及气海能装多少。 -->
+      <view wx:if="{{canStart}}" class="lv-cost">
+        <text class="lv-cost__k">耗灵力</text>
+        <text class="lv-cost__v">{{qiCost}}</text>
+        <text class="lv-cost__r">余 {{qi}} / {{qiMax}}</text>
+      </view>
+      <text wx:else class="warn-note mt8">灵力 {{qi}} / {{qiMax}}，本局要 {{qiCost}} 点。回洞府闭关片刻即可补上；气海不够用时，破境或练真元都能拓深。</text>
       <!-- 折减只在真的回关时出现一行：说清退了几关、熟练度折成多少、还叠不叠连 S。 -->
       <text wx:if="{{retreatText}}" class="warn-note mt8">{{retreatText}}</text>
-      <!-- 这一段还收紧了哪几处（亮起时长 / 口诀轮数…），一一摆出来。 -->
-      <text wx:if="{{stageBoardBrief}}" class="tiny diff-brief">{{stageBoardBrief}}</text>
-      <!-- S 线随章变：局内只报「还差几分」，这一行给出本章总分门槛与评级口径。 -->
-      <text wx:if="{{goalText}}" class="tiny diff-brief">{{goalText}}</text>
-      <!-- 收益口径：只奖不罚，开局前就写清本局会不会吃到换门加成。 -->
-      <text class="tiny diff-brief">{{repeatNote}}</text>
+      <!-- 本局盘面是一组：先说整盘规格，再说这一关动了哪一处。
+           这一段还收紧了哪几处（亮起时长 / 口诀轮数…）与 S 线门槛都归这一组。 -->
+      <view class="lv-spec">
+        <text wx:if="{{stageBoardBrief}}" class="lv-spec__main">{{stageBoardBrief}}</text>
+        <text class="lv-spec__sub">{{levelChange}}</text>
+        <text wx:if="{{goalText}}" class="lv-spec__sub">{{goalText}}</text>
+      </view>
+      <!-- 加成单独成行：它讲的是收益口径，不是盘面。 -->
+      <text wx:if="{{repeatNote}}" class="lv-note">{{repeatNote}}</text>
     </block>
 
     <block wx:if="{{stageRules.length}}">
