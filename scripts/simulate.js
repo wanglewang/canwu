@@ -3,7 +3,7 @@
 // 收支曲线模拟：验证「熟练度」与「灵力」这两条线各自的形状，以及两者之间的兑换比。
 //   ① 熟练度 = 单局基础（C 10 / B 15 / A 23 / S 34 / F 0）+ 连 S 倍率
 //      （第 k 连 S = round(34 × 1.5^(k-1))，10 层封顶）；每局独立取整，
-//      低档局按档差逐档 ÷2 四舍五入、且不参与连 S；不吃品阶 / 难度 / 境界 / 属性；
+//      回关局按「本关 ÷ 当前关」折一次、且不参与连 S；不吃品阶 / 品阶 / 境界 / 属性；
 //   ② 灵力 = 参悟与对战的运功消耗，唯一真源 economy.practiceQiCost()；
 //      它不产出，只从闭关（world.idle）与份例来。所以「一局练多久」的度量是
 //      「这一局烧掉的气，要闭关几分钟才回得来」——本脚本把它一起算出来；
@@ -18,13 +18,13 @@ const world = require('../data/world.js');
 const economy = require('../data/economy.js');
 const opponents = require('../data/opponents.js');
 
-// 各难度档的评级分布（经验值，真机数据出来后回来校准）。
+// 各段的评级分布（经验值，真机数据出来后回来校准）。
 const GRADE_DIST = {
-  easy: { S: 0.25, A: 0.40, B: 0.25, C: 0.08, F: 0.02 },
-  normal: { S: 0.20, A: 0.35, B: 0.30, C: 0.12, F: 0.03 },
-  hard: { S: 0.13, A: 0.27, B: 0.35, C: 0.20, F: 0.05 },
-  expert: { S: 0.08, A: 0.20, B: 0.35, C: 0.28, F: 0.09 },
-  desperate: { S: 0.05, A: 0.15, B: 0.35, C: 0.33, F: 0.12 },
+  novice: { S: 0.25, A: 0.40, B: 0.25, C: 0.08, F: 0.02 },
+  entry: { S: 0.20, A: 0.35, B: 0.30, C: 0.12, F: 0.03 },
+  minor: { S: 0.13, A: 0.27, B: 0.35, C: 0.20, F: 0.05 },
+  major: { S: 0.08, A: 0.20, B: 0.35, C: 0.28, F: 0.09 },
+  full: { S: 0.05, A: 0.15, B: 0.35, C: 0.33, F: 0.12 },
 };
 
 // 一次「闭关」的产量：world.idle.qiPerMinute，封顶 capHours。
@@ -55,31 +55,29 @@ function pickGrade(rng, dist) {
   return 'F';
 }
 
-// 这一门在某一档要烧多少气：直接读引擎，和准备页、结算用的是同一把尺子。
-// 档位是显式参数——耗气只看档，与档内第几关无关。
-function costOf(state, skillId, diffKey) {
-  return game.practiceCostOf(state, skillId, diffKey);
+// 这一门打某一关要烧多少气：直接读引擎，和准备页、结算用的是同一把尺子。
+// 关卡是显式参数——耗气看这一关落在哪一段，与段内第几关无关。
+function costOf(state, skillId, level) {
+  return game.practiceCostOf(state, skillId, level);
 }
 
-// 本门当前档的当前关（档内 1–40）。三种刷法都用它取「auto = 一路往前走」。
+// 本门当前关（已走通 + 1，封顶 1000）。三种刷法都用它取「auto = 一路往前走」。
 function frontierOf(rec) {
-  const key = practice.currentDiffKey(rec);
-  const done = practice.levelsOf(rec)[key] || 0;
-  return { key: key, level: Math.min(levels.LEVELS_PER_DIFF, done + 1) };
+  return { level: practice.curLevelOf(rec) };
 }
 
-// 五档耗气：`cost` 是这一门在这一档的实价（含时长系数与悟性），
+// 五段耗气：`cost` 是这一门在本段首关的实价（含时长系数与悟性），
 // `base` 是 economy.RUN_QI 的裸基数——两者分开列，才不会把「基数」当成「到手价」。
 function qiByDiff(skillId) {
   const state = game.createNewState();
   state.skills[skillId].unlocked = true;
-  return practice.DIFFICULTIES.map(function (d, i) {
+  return practice.STAGES.map(function (d, i) {
     return {
       key: d.key,
       name: d.name,
-      open: d.open,
+      from: d.from,
       base: economy.RUN_QI[i],
-      cost: costOf(state, skillId, d.key),
+      cost: costOf(state, skillId, d.from),
     };
   });
 }
@@ -101,23 +99,19 @@ function runBudget(opts) {
   while (spent < opts.budget && runs < 5000) {
     const rec = state.skills[opts.skillId];
     if (rec.prof >= world.PROF_MAX) break;
-    const maxIdx = practice.currentDiffIndex(rec);
     const frontier = frontierOf(rec);
-    // 三种刷法都用「档 + 关」表达：auto = 本门当前档当前关；easy = 简单档第 1 关；
-    // below = 回打到上一档的第 1 关。评级分布跟着实际打的那一档走。
+    // 三种刷法都用「打第几关」表达：auto = 本门当前关；first = 回打第 1 关；
+    // half = 回打当前关的一半。评级分布跟着这一关落在哪一段走。
     let lv;
-    let key;
-    if (opts.mode === 'easy') { lv = 1; key = 'easy'; }
-    else if (opts.mode === 'below') {
-      const idx = Math.max(0, maxIdx - 1);
-      lv = 1;
-      key = practice.DIFFICULTIES[idx].key;
-    } else { lv = frontier.level; key = frontier.key; }
-    const cost = costOf(state, opts.skillId, key);
+    if (opts.mode === 'first') lv = 1;
+    else if (opts.mode === 'half') lv = Math.max(1, Math.floor(frontier.level / 2));
+    else lv = frontier.level;
+    const key = levels.stageKeyOfLevel(lv);
+    const cost = costOf(state, opts.skillId, lv);
     // 气不够这一局就停手：真机上这时该回去闭关，而不是「先欠着」。
     if (state.resources.qi < cost) break;
     const grade = pickGrade(rng, GRADE_DIST[key]);
-    const r = game.applyPractice(state, opts.skillId, grade, { diffKey: key, level: lv, score: 0 });
+    const r = game.applyPractice(state, opts.skillId, grade, { level: lv, score: 0 });
     if (!r.ok) break;
     profGain += r.gain;
     if (grade === 'S') sRuns += 1;
@@ -142,7 +136,7 @@ function fullCRun() {
   let spent = 0;
   while (state.skills.jian.prof < world.PROF_MAX && runs < 20000) {
     const f = frontierOf(state.skills.jian);
-    const r = game.applyPractice(state, 'jian', 'C', { diffKey: f.key, level: f.level, score: 0 });
+    const r = game.applyPractice(state, 'jian', 'C', { level: f.level, score: 0 });
     spent += r.qiCost;
     runs += 1;
     for (let t = 1; t < world.TIERS.length; t += 1) {
@@ -164,9 +158,9 @@ function fullSRun() {
   let runs = 0;
   let spent = 0;
   let atTen = 0;
-  while (state.skills.jian.prof < world.PROF_MAX && runs < 500) {
+  while (state.skills.jian.prof < world.PROF_MAX && runs < 5000) {
     const f = frontierOf(state.skills.jian);
-    const r = game.applyPractice(state, 'jian', 'S', { diffKey: f.key, level: f.level, score: 0 });
+    const r = game.applyPractice(state, 'jian', 'S', { level: f.level, score: 0 });
     spent += r.qiCost;
     runs += 1;
     if (runs === 10) atTen = state.skills.jian.prof;
@@ -191,7 +185,7 @@ console.log('  ' + Object.keys(world.PROF_BASE).map(function (g) {
 console.log('  第 1～10 连 S：' + world.COMBO_TABLE.join(' / ')
   + ' 点 · 一轮 ' + world.COMBO_ROUND + ' 点 · 之后每局锁死 ' + world.COMBO_CAP_GAIN);
 
-console.log('\n== 五档耗气（黄阶 · 悟性 0 · 不换门 · 未超上限）==');
+console.log('\n== 五段耗气（黄阶 · 悟性 0 · 不换门 · 未超上限 · 各段首关）==');
 const qiTable = qiByDiff('jian');
 for (const q of qiTable) {
   const perQi = (world.PROF_BASE.S / q.cost).toFixed(2);
@@ -203,7 +197,7 @@ console.log('  单价随档上升、单点灵力的首局熟练度反而下降�
 console.log('  往上走的回报不在单价，在「连 S 只在本门最高档叠、低档还要折半」（见文末预算实验）。');
 console.log('  闭关 ' + QI_PER_MIN + ' 点/分：8 小时产能 ' + QI_PER_CAP + ' 点，但炼气气海只装 '
   + OPEN_QI_CAP + ' 点（' + FILL_HOURS + ' 小时即满，溢出 ' + (QI_PER_CAP - OPEN_QI_CAP) + ' 点收不到）');
-console.log('  一池灵力 = 绝境 ' + Math.floor(OPEN_QI_CAP / qiTable[4].cost)
+console.log('  一池灵力 = 圆满 ' + Math.floor(OPEN_QI_CAP / qiTable[4].cost)
   + ' 局 / 困难 ' + Math.floor(OPEN_QI_CAP / qiTable[2].cost) + ' 局'
   + '；想把一池练大，靠破境（气海 150→620）与真元（每点 +2）。');
 
@@ -235,7 +229,7 @@ console.log('  共烧灵力 ' + fullS.spent + ' 点 ≈ 闭关 ' + Math.round(fu
 
 const BUDGET = 6000;
 const strategies = [
-  { name: '黄阶 · 只刷第 1 关', skillId: 'jian', realmIndex: 0, mode: 'easy' },
+  { name: '黄阶 · 只刷第 1 关', skillId: 'jian', realmIndex: 0, mode: 'novice' },
   { name: '黄阶 · 逐关进', skillId: 'jian', realmIndex: 0, mode: 'auto' },
   { name: '黄阶 · 退一章', skillId: 'jian', realmIndex: 0, mode: 'below' },
   { name: '天阶 · 逐关进', skillId: 'taixu', realmIndex: 3, mode: 'auto' },
@@ -273,12 +267,12 @@ function expect(cond, msg) {
   if (!cond) bad += 1;
 }
 
-// ① 五档耗气按档单调上升；实价 = 基数 × 时长系数 ÷ 悟性，逐档都复算一遍。
+// ① 五段耗气按段单调上升；实价 = 基数 × 时长系数 ÷ 悟性，逐档都复算一遍。
 for (let i = 0; i < qiTable.length; i += 1) {
   expect(qiTable[i].base === economy.RUN_QI[i],
     qiTable[i].name + ' 基数 ' + qiTable[i].base + ' 与 RUN_QI 一致');
   const want = economy.practiceQiCost({
-    diffIndex: i, tierKey: 'huang', methodBase: practice.getMethod('jian').base,
+    stageIndex: i, tierKey: 'huang', methodBase: practice.getMethod('jian').base,
     wu: world.getWorld().baseAttributes.wu,
   });
   expect(qiTable[i].cost === want,
@@ -286,7 +280,7 @@ for (let i = 0; i < qiTable.length; i += 1) {
   if (i > 0) expect(qiTable[i].cost > qiTable[i - 1].cost,
     qiTable[i].name + ' 比 ' + qiTable[i - 1].name + ' 贵（' + qiTable[i].cost + ' vs ' + qiTable[i - 1].cost + '）');
 }
-expect(tianTable[4].cost > qiTable[4].cost, '天阶绝境比黄阶绝境贵（' + tianTable[4].cost + ' vs ' + qiTable[4].cost + '）');
+expect(tianTable[4].cost > qiTable[4].cost, '天阶圆满比黄阶圆满贵（' + tianTable[4].cost + ' vs ' + qiTable[4].cost + '）');
 
 // ② 全 C：一万局到 99999，每段局数正好是门槛 ÷ 10（最后一局补 9 点）。
 expect(fullC.prof === world.PROF_MAX, '全 C 最终到 ' + fullC.prof + '，硬顶是 ' + world.PROF_MAX);
@@ -315,10 +309,12 @@ expect(fullS.spent < fullC.spent / 50,
 const comboState = game.createNewState();
 comboState.skills.jian.unlocked = true;
 comboState.skills.jian.prof = 24000;
+comboState.skills.jian.cleared = 800;
 comboState.resources.qi = 1e6;
 const comboGains = [];
 for (let i = 1; i <= 14; i += 1) {
-  const r = game.applyPractice(comboState, 'jian', 'S', { difficulty: 'desperate', score: 0 });
+  // 一局一关：每局都打当时的当前关，才拿得到全额与连 S。
+  const r = game.applyPractice(comboState, 'jian', 'S', { level: comboState.skills.jian.cleared + 1, score: 0 });
   comboGains.push(r.gain);
   expect(r.gain === world.comboGain(i) && r.comboNow === Math.min(i, 10),
     '第 ' + i + ' 连 S：' + r.gain + ' 点 · 层数 ' + r.comboNow);
@@ -331,65 +327,60 @@ expect(world.comboGain(4) !== Math.round(world.comboGain(3) * world.COMBO_STEP),
 // ③b 断连与收功：非 S / 走火 / breakCombo 都归零，下一局回到 34。
 const breakState = game.createNewState();
 breakState.resources.qi = 1e6;
-game.applyPractice(breakState, 'jian', 'S', { difficulty: 'easy', score: 0 });
-game.applyPractice(breakState, 'jian', 'S', { difficulty: 'easy', score: 0 });
-const afterA = game.applyPractice(breakState, 'jian', 'A', { difficulty: 'easy', score: 0 });
+game.applyPractice(breakState, 'jian', 'S', { score: 0 });
+game.applyPractice(breakState, 'jian', 'S', { score: 0 });
+const afterA = game.applyPractice(breakState, 'jian', 'A', { score: 0 });
 expect(afterA.comboNow === 0 && afterA.gain === world.PROF_BASE.A, '非 S 归零并给固定基础值');
-game.applyPractice(breakState, 'jian', 'S', { difficulty: 'easy', score: 0 });
+game.applyPractice(breakState, 'jian', 'S', { score: 0 });
 game.breakCombo(breakState, 'jian');
-const afterAbort = game.applyPractice(breakState, 'jian', 'S', { difficulty: 'easy', score: 0 });
+const afterAbort = game.applyPractice(breakState, 'jian', 'S', { score: 0 });
 expect(afterAbort.comboNow === 1 && afterAbort.gain === 34, '收功断连后下一局从 34 点重起');
 
-// ④ 高档基础值不受任何倍率影响：C 都是 10 点。
-// 难度已不由熟练度解锁，所以逐档把前面几档记满，才能挑到那一档。
-for (const d of practice.DIFFICULTIES) {
+// ④ 各段基础值不受任何倍率影响：C 都是 10 点。
+// 段位只看走通了几关，所以逐段把前面几段整段走通，才能站到那一段的首关。
+for (const d of practice.STAGES) {
   const s = game.createNewState();
   s.skills.jian.unlocked = true;
-  const idx = practice.DIFFICULTIES.indexOf(d);
-  const lv = {};
-  for (let i = 0; i < idx; i += 1) lv[practice.DIFFICULTIES[i].key] = levels.LEVELS_PER_DIFF;
-  s.skills.jian.levels = lv;
+  s.skills.jian.cleared = d.from - 1;
   s.resources.qi = 1e6;
-  const r = game.applyPractice(s, 'jian', 'C', { diffKey: d.key, level: 1, score: 0 });
+  const r = game.applyPractice(s, 'jian', 'C', { level: d.from, score: 0 });
   expect(r.gain === world.PROF_BASE.C,
-    d.name + ' 档 C 仍是 ' + world.PROF_BASE.C + ' 点（实为 ' + r.gain + '）');
+    d.name + ' 段 C 仍是 ' + world.PROF_BASE.C + ' 点（实为 ' + r.gain + '）');
 }
 
-// ④b 回关：只折熟练度（按 本档本关÷本档当前关 四舍五入），耗气按档位照算。
-const curTop = 21;   // 绝境档已走到第 20 关 → 当前关 21
+// ④b 回关：只折熟练度（按 本关 ÷ 当前关 四舍五入），耗气按这一关所在段照算。
+const curTop = 21;   // 已走通 20 关 → 当前关 21
 [21, 15, 10, 5, 1].forEach(function (lv) {
   const st = game.createNewState();
   st.skills.jian.unlocked = true;
-  st.skills.jian.levels = { easy: 40, normal: 40, hard: 40, expert: 40, desperate: curTop - 1 };
+  st.skills.jian.cleared = curTop - 1;
   st.resources.qi = 1e6;
-  const r = game.applyPractice(st, 'jian', 'C', { diffKey: 'desperate', level: lv, score: 0 });
-  const wantF = lv >= curTop ? 1 : lv / levels.LEVELS_PER_DIFF;
+  const r = game.applyPractice(st, 'jian', 'C', { level: lv, score: 0 });
+  const wantF = lv >= curTop ? 1 : lv / curTop;
   expect(r.gain === practice.profByLevel(world.PROF_BASE.C, lv, curTop)
     && Math.abs(r.levelBelowFactor - wantF) < 1e-9,
-    '回关到本档第 ' + lv + ' 关：熟练度 ×' + wantF.toFixed(3)
-    + '、实得 ' + r.gain + ' 点，耗气按绝境档 ' + r.qiCost + ' 点');
+    '回关到第 ' + lv + ' 关：熟练度 ×' + wantF.toFixed(3)
+    + '、实得 ' + r.gain + ' 点，耗气按本段 ' + r.qiCost + ' 点');
 });
-// 当前关 ×1、回关按「本档位置 ÷ 40」：第 21 关退到第 20 关是 ×1 → ×0.5。
-// 这道坎是刻意的（往前打与回头刷必须拉开），所以这里守的是「确实有一道坎」，
-// 不是「退一关只掉一点」——后者是「分母用当前关」才成立的旧口径。
-expect(practice.profByLevel(world.PROF_BASE.C, 20, curTop) === 5,
-  '第 21 → 20 关应是从 ×1 掉到 ×0.5（C 10 → 5），实为 '
+// 折减是连续的：退一关只掉一点点（20/21 = 0.952），没有「退一关砍一半」的台阶。
+// 旧版拿「本段总关数 40」当分母才有一道坎；现在关号只由走通推进，
+// 想停在某一关只有每局走火（给 0 分），那颗刷分口子在结构上已经不存在了。
+expect(practice.profByLevel(world.PROF_BASE.C, 20, curTop) === 10,
+  '第 21 → 20 关只该掉 5%（C 10 → 10），实为 '
   + practice.profByLevel(world.PROF_BASE.C, 20, curTop));
 
 // ④c 回关与连 S 解耦：不叠层、不砍连击收益、层数原样保留。
 const lowCombo = game.createNewState();
 lowCombo.skills.jian.unlocked = true;
-lowCombo.skills.jian.levels = { easy: 40, normal: 8, hard: 0, expert: 0, desperate: 0 };
+lowCombo.skills.jian.cleared = 8;
 lowCombo.resources.qi = 1e6;
-game.applyPractice(lowCombo, 'jian', 'S', { diffKey: 'normal', level: 9, score: 0 });
-game.applyPractice(lowCombo, 'jian', 'S', { diffKey: 'normal', level: 10, score: 0 });
-const lowRound = game.applyPractice(lowCombo, 'jian', 'S', { diffKey: 'normal', level: 3, score: 0 });
+game.applyPractice(lowCombo, 'jian', 'S', { level: 9, score: 0 });
+game.applyPractice(lowCombo, 'jian', 'S', { level: 10, score: 0 });
+const lowRound = game.applyPractice(lowCombo, 'jian', 'S', { level: 3, score: 0 });
 expect(lowRound.comboActive === false && lowRound.comboNow === 2
   && lowRound.gain === practice.profByLevel(world.PROF_BASE.S, 3, 11),
   '回关 S 与连 S 解耦：不叠层、层数保留 2、收益 ' + lowRound.gain + ' 点');
-const backTop = game.applyPractice(lowCombo, 'jian', 'S', {
-  diffKey: 'normal', level: 11, score: 0,
-});
+const backTop = game.applyPractice(lowCombo, 'jian', 'S', { level: 11, score: 0 });
 expect(backTop.comboNow === 3 && backTop.gain === 77, '回当前关照接第 3 连 77 点');
 
 // ⑤ 品阶只影响耗气与属性，不碰熟练度：四阶 C 都是 10 点，但价目不同。
@@ -403,7 +394,7 @@ for (const tier of practice.TIERS) {
   s.resources.qi = 1e6;
   // 四阶都摆到「刚好到门槛」的境界：未到门槛现在直接拒绝开局，测耗气就进不去了。
   s.realmIndex = tier.needRealm - 1;
-  const r = game.applyPractice(s, id, 'C', { difficulty: 'easy', score: 0 });
+  const r = game.applyPractice(s, id, 'C', { difficulty: 'novice', score: 0 });
   tierCost[tier.key] = r.qiCost;
   expect(r.gain === world.PROF_BASE.C, tier.label + ' C 仍是 ' + world.PROF_BASE.C + ' 点');
 }
@@ -415,7 +406,7 @@ const decayState = game.createNewState();
 decayState.skills.jian.unlocked = true;
 decayState.realmIndex = 2;
 decayState.resources.qi = 1e6;
-const decayRun = game.applyPractice(decayState, 'jian', 'C', { difficulty: 'easy', score: 0 });
+const decayRun = game.applyPractice(decayState, 'jian', 'C', { difficulty: 'novice', score: 0 });
 expect(decayRun.gain === world.PROF_BASE.C && decayRun.realmAbove && decayRun.realmOverCost === economy.REALM_OVER,
   '境界超上限：熟练度照给 ' + world.PROF_BASE.C + ' 点，耗气 ×' + decayRun.realmOverCost);
 expect(decayRun.qiCost > qiTable[0].cost,
@@ -425,22 +416,22 @@ expect(decayRun.qiCost > qiTable[0].cost,
 const syncState = game.createNewState();
 syncState.skills.jian.unlocked = true;
 syncState.skills.jian.prof = 30000;
-// 预判与结算要打同一档：难度已不由熟练度解锁，得先把五档走通。
-syncState.skills.jian.levels = { easy: 40, normal: 40, hard: 40, expert: 40, desperate: 40 };
+// 预判与结算要打同一关：段位只看走通了几关，所以逐段把进度摆到段首关再比。
 syncState.resources.qi = 1e6;
-for (const d of practice.DIFFICULTIES) {
-  const guess = game.practiceCostOf(syncState, 'jian', d.key);
-  const real = game.applyPractice(syncState, 'jian', 'C', { diffKey: d.key, level: 1, score: 0 }).qiCost;
+for (const d of practice.STAGES) {
+  syncState.skills.jian.cleared = d.from - 1;
+  const guess = game.practiceCostOf(syncState, 'jian', d.from);
+  const real = game.applyPractice(syncState, 'jian', 'C', { level: d.from, score: 0 }).qiCost;
   expect(guess === real, d.name + ' 预判 ' + guess + ' 点 = 结算扣除 ' + real + ' 点');
 }
 
 // ⑧ 灵力不足直接拒绝开局，不扣任何东西。
 const poorState = game.createNewState();
 poorState.skills.jian.unlocked = true;
-// 五档全走通才挑得到绝境：难度已不由熟练度解锁，靠 levels 判。
-poorState.skills.jian.levels = { easy: 40, normal: 40, hard: 40, expert: 40, desperate: 40 };
+// 摆到最后一关：那一段的耗气最贵，1 点灵力一定不够。
+poorState.skills.jian.cleared = levels.LEVEL_MAX - 1;
 poorState.resources.qi = 1;
-const poor = game.applyPractice(poorState, 'jian', 'C', { diffKey: 'desperate', level: 1, score: 0 });
+const poor = game.applyPractice(poorState, 'jian', 'C', { level: levels.LEVEL_MAX, score: 0 });
 expect(poor.ok === false && poor.lackQi > 0 && poorState.skills.jian.prof === 0
   && poorState.resources.qi === 1,
   '灵力不足被拦下（差 ' + poor.lackQi + ' 点），熟练度与灵力都没动');
@@ -450,17 +441,17 @@ const saveState = game.createNewState();
 saveState.skills.jian.unlocked = true;
 saveState.skills.jian.prof = 30000;
 saveState.resources.qi = 1e6;
-const baseCost = game.practiceCostOf(saveState, 'jian', 'hard');
+const baseCost = game.practiceCostOf(saveState, 'jian', practice.STAGES[2].from);
 saveState.skills.jingxin.unlocked = true;
-saveState.skills.jingxin.prof = 6000;   // 大成（特效 3/4）只为验证省气叠满，不再当作生效门槛
-const savedCost = game.practiceCostOf(saveState, 'jian', 'hard');
+saveState.skills.jingxin.prof = 6000;   // 纯熟（特效 3/4）只为验证省气叠满，不再当作生效门槛
+const savedCost = game.practiceCostOf(saveState, 'jian', practice.STAGES[2].from);
 expect(savedCost < baseCost, '学了静心记诵诀后耗气 ' + baseCost + ' → ' + savedCost + ' 点');
 
 // ⑩ 到顶后熟练度封顶，但灵力照扣（到顶再练就是纯烧气）。
 const cappedState = fullC.state;
 cappedState.resources.qi = 1e6;
 const qiBefore = cappedState.resources.qi;
-const afterCap = game.applyPractice(cappedState, 'jian', 'S', { difficulty: 'desperate', score: 123 });
+const afterCap = game.applyPractice(cappedState, 'jian', 'S', { score: 123 });
 expect(afterCap.gain === 0 && afterCap.comboNow === 1
   && cappedState.resources.qi === qiBefore - afterCap.qiCost
   && cappedState.skills.jian.prof === world.PROF_MAX,
@@ -470,7 +461,7 @@ expect(afterCap.gain === 0 && afterCap.comboNow === 1
 const prodState = game.createNewState();
 prodState.skills.jian.unlocked = true;
 prodState.resources.qi = 1e6;
-const prodRun = game.applyPractice(prodState, 'jian', 'S', { difficulty: 'easy', score: 0 });
+const prodRun = game.applyPractice(prodState, 'jian', 'S', { score: 0 });
 expect(prodRun.qi === undefined && prodRun.stone === undefined && prodRun.qiCost > 0,
   '参悟只耗不产：qiCost ' + prodRun.qiCost + ' 点，qi/stone 产出字段已不存在');
 
@@ -479,7 +470,7 @@ const wipedState = game.createNewState();
 wipedState.skills.jian.unlocked = true;
 wipedState.sCombo.jian = 6;
 wipedState.resources.qi = 200;
-const wipedRun = game.applyPractice(wipedState, 'jian', 'F', { difficulty: 'easy', score: 0 });
+const wipedRun = game.applyPractice(wipedState, 'jian', 'F', { score: 0 });
 expect(wipedRun.gain === 0 && wipedRun.comboNow === 0
   && wipedState.resources.qi === 200 - wipedRun.qiCost,
   '走火：熟练度 0、连 S 归零，已扣的 ' + wipedRun.qiCost + ' 点灵力不退');
@@ -488,7 +479,7 @@ expect(wipedRun.gain === 0 && wipedRun.comboNow === 0
 expect(easy.prof <= auto.prof,
   '同样 ' + BUDGET + ' 点灵力，只刷第 1 关不该反超逐关进（' + easy.prof + ' vs ' + auto.prof + '）');
 expect(belowOne.prof <= auto.prof,
-  '同样 ' + BUDGET + ' 点灵力，退一章也不该反超逐关进（' + belowOne.prof + ' vs ' + auto.prof + '）');
+  '同样 ' + BUDGET + ' 点灵力，回打半程也不该反超逐关进（' + belowOne.prof + ' vs ' + auto.prof + '）');
 expect(decayed.prof < auto.prof,
   '金丹后练黄阶（耗气 ×' + economy.REALM_OVER + '）进度明显变慢（' + decayed.prof + ' vs ' + auto.prof + '）');
 expect(tian.profGain / Math.max(1, tian.spent) > auto.profGain / Math.max(1, auto.spent) * 0.5,

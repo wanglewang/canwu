@@ -22,7 +22,7 @@
 const practice = require('../data/practice.js');
 const index = require('../minigames/index.js');
 
-const KEYS = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+const KEYS = ['novice', 'entry', 'minor', 'major', 'full'];
 // 唯一的内部键（档位索引）。名单住在 data/practice.js，审计与 rank.test 读同一份，
 // 不许各抄一遍——曾经这里多出 gear / sBase / sStep 三个根本不存在的键。
 const INTERNAL = new Set(practice.INTERNAL_PARAM_KEYS);

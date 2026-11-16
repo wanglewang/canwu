@@ -47,13 +47,17 @@ const PROF_S_RUNS = (function () {
   }
   return runs;
 }());
+// 熟练度的六级「火候」。**这不是段位**——段位（未入门…大圆满）现在归关卡，
+// 由「走通了几关」决定（见 data/levels.js 的 STAGES）。两条线各有各的名字，
+// 不许再混用：熟练度管属性加成与阶段新法，关卡管内容与难度。
+// 火候名取「生→熟→化」这一路，与段位名一个也不重：重名会让「我小成了」有两种意思。
 const TIERS = [
-  { key: 'none', name: '未入门', threshold: 0, bonus: 0, color: '#9aa39a', desc: '尚无属性加成' },
-  { key: 'basic', name: '入门', threshold: 300, bonus: 1, color: '#3d8c74', desc: '属性加成 ×1' },
-  { key: 'skilled', name: '小成', threshold: 1500, bonus: 1.8, color: '#2f6b5b', desc: '属性加成 ×1.8' },
-  { key: 'master', name: '大成', threshold: 6000, bonus: 2.8, color: '#b8893b', desc: '属性加成 ×2.8，本门新法自此逐条开' },
-  { key: 'grand', name: '圆满', threshold: 24000, bonus: 4, color: '#b4453c', desc: '属性加成 ×4' },
-  { key: 'perfect', name: '大圆满', threshold: PROF_MAX, bonus: 5, color: '#8a5cb0', desc: '属性加成 ×5，本门新法开到最后一条' },
+  { key: 'none', name: '生涩', threshold: 0, bonus: 0, color: '#9aa39a', desc: '尚无属性加成' },
+  { key: 'basic', name: '初熟', threshold: 300, bonus: 1, color: '#3d8c74', desc: '属性加成 ×1' },
+  { key: 'skilled', name: '精熟', threshold: 1500, bonus: 1.8, color: '#2f6b5b', desc: '属性加成 ×1.8' },
+  { key: 'master', name: '纯熟', threshold: 6000, bonus: 2.8, color: '#b8893b', desc: '属性加成 ×2.8，本门新法自此逐条开' },
+  { key: 'grand', name: '通玄', threshold: 24000, bonus: 4, color: '#b4453c', desc: '属性加成 ×4' },
+  { key: 'perfect', name: '化境', threshold: PROF_MAX, bonus: 5, color: '#8a5cb0', desc: '属性加成 ×5，本门新法开到最后一条' },
 ];
 
 // 评级倍率：只决定这一局的挂机加速与评级观感，既不进熟练度，也不进资源产出。

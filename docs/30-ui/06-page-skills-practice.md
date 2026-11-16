@@ -38,7 +38,7 @@
 
 排序用的是「按阶段跨度归一」的分数，不是绝对值——否则一门熟练度 5000 的功法永远霸榜，玩家永远看不到另一门。
 
-**藏经阁按「能不能立刻换」分三档**：能换且买得起在前，能换但灵石不够其次，只能靠切磋 / 境界没到的最后。
+**藏经阁按「能不能立刻换」分三段**：能换且买得起在前，能换但灵石不够其次，只能靠切磋 / 境界没到的最后。
 
 ### 3.2 一行卡片里有六样东西
 
@@ -113,7 +113,7 @@
 ○ 简单 7 气   ● 普通 11 气   ○ 困难 17 气   ○ 极难 24 气   ○ 绝境 32 气
 ```
 
-「回关便宜、当前关贵，翻关之前就看得到代价」。未解锁的档（`need` 未达）不可点。
+「回关便宜、当前关贵，翻关之前就看得到代价」。未解锁的段（`need` 未达）不可点。
 
 ### 4.3 三行条件提示
 
@@ -121,8 +121,8 @@
 | --- | --- | --- |
 | 灵力不足 | `!canStart` | 差多少、去哪儿补、气海能装多少 |
 | 回关折减 | 回打到低于当前关 | 退了几关、熟练度折到几成、S 算不算 |
-| 本档收紧 | 高档 | 亮起时长 / 口诀轮数… 一一摆出来（`diffDetail`） |
-| S 线 | 常态 | 本档 S/A/B/C 各要多少（`sLineText`） |
+| 本段收紧 | 后段 | 亮起时长 / 口诀轮数… 一一摆出来（`stageDetail`） |
+| S 线 | 常态 | 本段 S/A/B/C 各要多少（`sLineText`） |
 
 ### 4.4 「本门新法」默认折起
 
@@ -251,7 +251,7 @@ SETTLE.short = [0, 150, 350, 600, 900];     // B / C / F
 - `pages/skills/skills.wxml` / `.js` —— 两个分区、`recommendScore` 排序、`rank` 排序、图鉴弹层、`primaryOf`
 - `pages/practice/practice.wxml`（491 行）—— 三段结构、两套 HUD、两种结算
 - `pages/practice/practice.js`（1406 行）—— `onStart` / 倒计时 / `buildGame` / `syncBar` / `onAgain` / `onStay` / `onAbandon`
-- `data/practice.js` —— `buildParams` / `diffDetail` / `sLineText` / `stageRulesOf` / `tipFor`
+- `data/practice.js` —— `buildParams` / `stageDetail` / `sLineText` / `stageRulesOf` / `tipFor`
 - `data/visual.js` —— `ENABLED` / `settleTimeline`
 - `data/navigation.js` —— `practiceHelpUrl()`
 - `tests/layout.test.js` —— 准备页不许铺长文、页面名一致性、盘面无汉字

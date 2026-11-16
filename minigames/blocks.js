@@ -557,7 +557,7 @@ function create(ctx) {
   });
 }
 
-// 评级只看得分。S 线由章节表（practice.BLOCK_LEVELS）注入，按本档实测标定。
+// 评级只看得分。S 线由章节表（practice.BLOCK_LEVELS）注入，按本段实测标定。
 function gradeLimits(p) {
   const s = (p && p.sLine) || 3000;
   return { s: s, a: Math.ceil(s * 0.60), b: Math.ceil(s * 0.32) };

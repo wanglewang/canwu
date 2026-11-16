@@ -7,7 +7,7 @@
 // 与「三秀同收」的区别：三消是换相邻两格凑三连，这里是同一行整体滑到底、撞上才合。
 //
 // 一局一盘：四条方向键把全盘往那个方向挤，同数相撞合成双倍，空出来的格子里补一块新的。
-// 合出本档的目标块即收功；盘满又推不动了就是走火 F（无路可走，不是「打得糙」）。
+// 合出本段的目标块即收功；盘满又推不动了就是走火 F（无路可走，不是「打得糙」）。
 // 评级看最大那一块合到多大，倍率之外不再看别的；得分（合并值累加）只用来破纪录。
 
 const C = require('./common.js');
@@ -204,7 +204,7 @@ function create(ctx) {
       return notes;
     }
     notes.push('合出 ' + best + ' 一块，用了 ' + moves + ' 手。');
-    if (grade !== 'S') notes.push('本档 S 要合出 ' + lim[0] + ' 一块，还差 ' + (lim[0] - best) + '。');
+    if (grade !== 'S') notes.push('本段 S 要合出 ' + lim[0] + ' 一块，还差 ' + (lim[0] - best) + '。');
     return notes;
   }
 
@@ -305,7 +305,7 @@ function create(ctx) {
 function lines(p) {
   const lim = linesOf(p);
   return {
-    rule: '按最大那一块合到多大评级（本档起手 '
+    rule: '按最大那一块合到多大评级（本段起手 '
       + Math.max(2, Math.min(5, (p && p.startTiles) || 2)) + ' 块 · 合出目标块即收功）',
     items: [
       'S：合出 ' + lim[0] + ' 一块',

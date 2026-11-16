@@ -27,7 +27,7 @@ module.exports = {
 | 字段 | 类型 | 内容 |
 | --- | --- | --- |
 | `params` | object | `practiceData.buildParams(method, diffKey)` 的结果（盘面规格、时长、罚时…） |
-| `difficulty` | `'normal'` \| `'hard'` | **只有两档手感**。真差异全在 `params` 里 |
+| `difficulty` | `'normal'` \| `'hard'` | **只有两段手感**。真差异全在 `params` 里 |
 | `perks` | object | `{ easy, tier, offTwists }`；突破局是 `{ easy: realmIndex >= 2, tier }` |
 | `tip` | string | 代价句（`practiceData.tipFor(method, diffKey)`） |
 | `twist` | string | 本门玄机的文案名 |
@@ -36,11 +36,11 @@ module.exports = {
 | `finish` | `(result) => void` | 终局唯一出口 |
 | `index` / 其他 | — | 页面额外塞的上下文 |
 
-**`difficulty` 只有两档**是刻意的：
+**`difficulty` 只有两段**是刻意的：
 
-> 玩法模块只认 `normal` / `hard` 两档手感；真正的五档差异全部落在 `params` 上。
+> 玩法模块只认 `normal` / `hard` 两段手感；真正的五段差异全部落在 `params` 上。
 
-理由：`gear` 只有两值，玩法拿它分不出「困难」与「绝境」，很容易一档一个样。把五档差异做成**参数**（`minOpt` / `capFactor` / `penaltySec`…）比做成 `if (difficulty === 'hard')` 更可测。
+理由：`gear` 只有两值，玩法拿它分不出「困难」与「绝境」，很容易一段一个样。把五段差异做成**参数**（`minOpt` / `capFactor` / `penaltySec`…）比做成 `if (difficulty === 'hard')` 更可测。
 
 ## 4. `vm` 协议
 
@@ -178,7 +178,7 @@ function lines(p) {
 
 三处消费：
 
-1. **说明页**（`topic=practice`）列出本档 S/A/B/C 门槛；
+1. **说明页**（`topic=practice`）列出本段 S/A/B/C 门槛；
 2. **局内 HUD**（模块自己 `lim[0]` / `lim[1]` / `lim[2]`）；
 3. **结算**（同一个 `gradeOf()`）。
 
@@ -218,7 +218,7 @@ typeof mod.lines === 'function'
 | 5 | `data/visual.js` | `FAMILY_OF` 加一行（漏了会静默落到 sword 兜底，场景辉光与盘面各说各话） |
 | 6 | `data/guides.js` | `goal` / `steps` / `terms` / `scoring` / `tip` |
 | 7 | `data/practice.js` | 若这一门有阶段新法，加 `STAGE_RULES` |
-| 8 | 测试 | `tests/minigames.test.js`（整局驱动）、`tests/rank.test.js`（五档区分度） |
+| 8 | 测试 | `tests/minigames.test.js`（整局驱动）、`tests/rank.test.js`（五段区分度） |
 | 9 | 文档 | `docs/20-minigames/` 一篇 + README 矩阵 + 根 README 统计 |
 
 漏第 5 步是最隐蔽的一种：不报错，只是颜色不对。
@@ -229,7 +229,7 @@ typeof mod.lines === 'function'
 | --- | --- |
 | 玩法模块自己写存档 | 会绕过熟练度、称号、日志 |
 | 页面自己算评级 | 三处口径必然分叉 |
-| 用 `difficulty` 直接分五档 | 只有 normal / hard 两值，硬分会一档一个样 |
+| 用 `difficulty` 直接分五段 | 只有 normal / hard 两值，硬分会一段一个样 |
 | 一个模块管两门功法 | 「一门功法一套互不复用的玩法内核」是硬约束 |
 | `finish` 可多次调用 | 多个失败条件都会触发，必然重复结算 |
 | 不写 `notes` | 玩家不知道「差在哪、怎么改」 |
@@ -239,7 +239,7 @@ typeof mod.lines === 'function'
 
 - `minigames/common.js` —— 契约的注释头在文件前 18 行，是这份文档的第一手来源
 - `minigames/index.js` —— `MODULES` / `createGame` / `gradeLines` / `hasTeach` / `PRACTICE_GAMES`
-- `data/practice.js` —— `buildParams` / `tipFor` / `STAGE_RULES` / 各档位表
+- `data/practice.js` —— `buildParams` / `tipFor` / `STAGE_RULES` / 各段位表
 - `pages/practice/practice.js:441` —— `buildGame()`，`ctx` 的组装处
 - `tests/minigames.test.js` —— 逐门驱动、`teach` 走一遍
 - `tests/rank.test.js` —— 逐门复算评级线

@@ -119,7 +119,7 @@ function reachable(walls, boxes, cols, rows, from) {
 
 // 最少推数：按「推一次算一步」做 BFS，人在盘上怎么绕是无所谓的。
 // 同一张图上重复算一次只要几毫秒，比在数据里手写最优推数可靠。
-// cap 是「找够这么多推就放弃」的上限：生成器只要知道这张图有没有超出本档上界，
+// cap 是「找够这么多推就放弃」的上限：生成器只要知道这张图有没有超出本段上界，
 // 不关心它到底要二十推还是三十推——按 80 层跑满纯属浪费。
 function solve(level, cap) {
   const g = parse(level);
@@ -178,7 +178,7 @@ function solve(level, cap) {
 
 // 档位规格：盘面从六格长到七格，难度落在「几处阵位、几道内墙、最优推数区间」三处。
 // 三处都随档递增，相邻档只差一档（原则三：递增曲线平缓，不做断崖）。
-// 区间下界是**承诺**（本档不会抽到一步就推完的图），上界是护栏
+// 区间下界是**承诺**（本段不会抽到一步就推完的图），上界是护栏
 //（极端图会让推数预算失去意义，也可能把阵位堵成死格）。
 // pulls 不是难度参数，是生成强度：从解往回拉几步。4×4 内盘只有十六格，
 // 拉过头会被墙反复弹回，所以五档各留一个实测过的值。
@@ -354,7 +354,7 @@ function buildOnce(spec) {
   return cells.map(function (l) { return l.join(''); });
 }
 
-// 抽一张落在本档区间里的图。抽不中就把「离区间最近」的那张交出去：
+// 抽一张落在本段区间里的图。抽不中就把「离区间最近」的那张交出去：
 // 略难或略易都只是偏差，开不出局才是事故。最多试 24 次，
 // 生成一次 BFS 的代价是毫秒级，24 次的上限保证开局不卡。
 function generateBoard(spec) {
@@ -497,7 +497,7 @@ function create(ctx) {
   // 两条都不动判定：能推的照样推得动，推错照样费推数。
   const stage = typeof (ctx.perks && ctx.perks.tier) === 'number' ? ctx.perks.tier : 0;
   const spec = specOf(p);
-  // 一局一图：每局都在本档规格里现抽一张。只有参数被改成不可能的组合
+  // 一局一图：每局都在本段规格里现抽一张。只有参数被改成不可能的组合
   //（例如 4×4 内盘要塞六个箱子）才会退回兜底图——正常一局见不到那张。
   const board = generateBoard(spec) || { rows: LEVELS[0], optimal: Math.max(1, solve(LEVELS[0])) };
   const level = board.rows;
@@ -785,14 +785,14 @@ function create(ctx) {
   });
 }
 
-// 说明页与准备页要的是「本档的图大概多难」。图每局现抽，所以这里给区间不给具体数——
+// 说明页与准备页要的是「本段的图大概多难」。图每局现抽，所以这里给区间不给具体数——
 // 局内 HUD 报的是这一张图自己的最优（生成时就解出来了），两个数不冲突也不重复。
 function lines(p) {
   const spec = specOf(p);
   return {
     rule: '按已推次数与本图最优推数比（走多少步不算）',
     items: [
-      'S：正好本图最优（本档 ' + spec.minOpt + '～' + spec.maxOpt + ' 推 · ' + spec.boxes + ' 处阵位）',
+      'S：正好本图最优（本段 ' + spec.minOpt + '～' + spec.maxOpt + ' 推 · ' + spec.boxes + ' 处阵位）',
       'A：多 2 次以内',
       'B：不超过最优的两倍',
       'C：超过两倍才全部入位',

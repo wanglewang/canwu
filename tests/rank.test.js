@@ -25,11 +25,16 @@ function check(name, fn) {
   console.log('OK  ' + name);
 }
 
-// 解锁到第 idx 档（0 起）：把前面几档记满 40 关。难度不再看熟练度，只看这条路有没有走通。
-function levelsThrough(idx) {
-  const lv = {};
-  for (let i = 0; i < idx; i += 1) lv[practice.DIFFICULTIES[i].key] = L.LEVELS_PER_DIFF;
-  return lv;
+// 站到第 idx 段（0 起）的开头：把前面几段整段走通。
+// 段位不再由玩家挑，也不再由熟练度换，只是「已走通几关」的另一个说法。
+function clearedThrough(idx) {
+  return idx <= 0 ? 0 : L.STAGE_GATES[idx - 1];
+}
+
+// 把某门的状态摆成「已走通 clear 关」——关号只进不退，这是唯一的进度入口。
+function setCleared(s, skillId, clear) {
+  s.skills[skillId].cleared = clear;
+  return s;
 }
 
 function freshState(skillId, prof, realmIndex) {
@@ -59,35 +64,40 @@ check('四品阶：天地玄黄，耗气与属性系数逐级递增', function (
   }
 });
 
-check('五难度档：门槛与耗气基数都单调递增，且不再挂倍率', function () {
+check('五段：段界 10/50/200/500/1000，段名与耗气基数逐段抬高', function () {
   const economy = require('../data/economy.js');
-  assert.strictEqual(practice.DIFFICULTIES.length, 5);
-  assert.deepStrictEqual(practice.DIFFICULTIES.map(function (d) { return d.name; }), ['简单', '普通', '困难', '极难', '绝境']);
-  // 难度不再由熟练度解锁：need 字段已删，每档改写成「怎么开」（走通上一档 40 关）。
-  for (const d of practice.DIFFICULTIES) {
-    assert.strictEqual(d.need, undefined, d.name + ' 还留着 need：难度已经不由熟练度解锁了');
-    assert.ok(d.open && d.open.length > 0, d.name + ' 没写怎么开');
+  assert.strictEqual(practice.STAGES.length, 5);
+  assert.deepStrictEqual(practice.STAGES.map(function (d) { return d.name; }),
+    ['未入门', '入门', '小成', '大成', '圆满']);
+  // 段不是玩家可挑的档：没有 need（不拿熟练度开门），也没有 open（没有第二个入口）。
+  for (const d of practice.STAGES) {
+    assert.strictEqual(d.need, undefined, d.name + ' 还留着 need：段位已经不由熟练度解锁了');
+    assert.strictEqual(d.open, undefined, d.name + ' 还留着 open：段位不是玩家挑的');
   }
-  assert.deepStrictEqual(practice.DIFFICULTIES.map(function (d) { return d.qi; }), economy.RUN_QI,
-    '五档耗气基数没跟 economy.RUN_QI 对齐');
-  for (const d of practice.DIFFICULTIES) {
+  assert.deepStrictEqual(practice.STAGES.map(function (d) { return d.qi; }), economy.RUN_QI,
+    '五段的耗气基数没跟 economy.RUN_QI 对齐');
+  for (const d of practice.STAGES) {
     assert.strictEqual(d.mult, undefined, d.name + ' 还挂着早就没人用的收益倍率');
   }
-  for (let i = 1; i < practice.DIFFICULTIES.length; i += 1) {
-    assert.ok(practice.DIFFICULTIES[i].pace < practice.DIFFICULTIES[i - 1].pace, '高档节奏没有更紧');
-    assert.ok(practice.DIFFICULTIES[i].goal > practice.DIFFICULTIES[i - 1].goal, '高档目标没有更高');
-    assert.ok(practice.DIFFICULTIES[i].qi > practice.DIFFICULTIES[i - 1].qi, '高档耗气没有更贵');
+  for (let i = 1; i < practice.STAGES.length; i += 1) {
+    assert.ok(practice.STAGES[i].pace < practice.STAGES[i - 1].pace, '后一段节奏没有更紧');
+    assert.ok(practice.STAGES[i].goal > practice.STAGES[i - 1].goal, '后一段目标没有更高');
+    assert.ok(practice.STAGES[i].qi > practice.STAGES[i - 1].qi, '后一段耗气没有更贵');
   }
+  // 段界是全系统唯一的关卡分层真源：10 + 40 + 150 + 300 + 500 = 1000。
+  assert.deepStrictEqual(practice.STAGES.map(function (d) { return d.from; }), [1, 11, 51, 201, 501]);
+  assert.deepStrictEqual(practice.STAGES.map(function (d) { return d.to; }), [10, 50, 200, 500, 1000]);
+  assert.deepStrictEqual(practice.STAGES.map(function (d) { return d.depth; }), [0, 1, 2, 3, 4]);
 });
 
 check('熟练度六阶仍是硬顶，但不再兼任难度门槛', function () {
   assert.strictEqual(world.TIERS.length, 6);
   assert.deepStrictEqual(world.TIERS.map(function (t) { return t.threshold; }),
     [0, 300, 1500, 6000, 24000, 99999]);
-  // 六段段位还在（属性加成 ×1→×5 靠它），但它们已经不是难度的门：
-  // 难度看「上一档 40 关走通没有」，看熟练度的地方只剩段位本身。
-  assert.ok(practice.DIFFICULTIES.every(function (d) { return d.need === undefined; }),
-    '还有档位拿熟练度当门槛');
+  // 六阶火候还在（属性加成 ×1→×5 靠它），但它们已经不是关卡的门：
+  // 关卡只看「走通了几关」，火候不换关号、不开段。
+  assert.ok(practice.STAGES.every(function (d) { return d.need === undefined; }),
+    '还有段位拿熟练度当门槛');
   assert.strictEqual(world.PROF_MAX, 99999);
   assert.strictEqual(world.PROF_C_RUNS, 9999);
   assert.strictEqual(world.PROF_S_RUNS, 84, '全程不断 S 的理论最少局数变了');
@@ -176,22 +186,32 @@ check('阵法难，挂地阶；扫雷轻，挂黄阶', function () {
   assert.ok(zhen.name.indexOf('入门') < 0, '地阶功法还叫「入门」，名实不副');
 });
 
-// ---------------------------------------------------------------- 难度解锁
+// ---------------------------------------------------------------- 段位
 
-check('难度档只由上一档 40 关走通解锁，与熟练度无关', function () {
-  // 每档 40 关：0 关只开第一档，走通一档开一档，走通四档开满五档。
+check('段位只由「已走通几关」判定，与熟练度、品阶无关', function () {
+  // 站在第 cleared+1 关，就属于那一关所在的段：走通 10 关 → 站在第 11 关 → 入门。
   const cases = [
-    [{}, 1], [{ easy: 0 }, 1], [{ easy: 39 }, 1], [{ easy: 40 }, 2],
-    [{ easy: 40, normal: 40 }, 3], [{ easy: 40, normal: 40, hard: 40 }, 4],
-    [{ easy: 40, normal: 40, hard: 40, expert: 40 }, 5], [{ easy: 40, normal: 40, hard: 40, expert: 40, desperate: 40 }, 5],
+    [0, 0, '未入门'], [1, 0, '未入门'], [8, 0, '未入门'], [9, 0, '未入门'],
+    [10, 1, '入门'], [49, 1, '入门'],
+    [50, 2, '小成'], [199, 2, '小成'],
+    [200, 3, '大成'], [499, 3, '大成'],
+    [500, 4, '圆满'], [999, 4, '圆满'],
+    [1000, 5, '大圆满'],
   ];
   for (const c of cases) {
-    assert.strictEqual(practice.unlockedDiffCount({ levels: c[0] }), c[1],
-      JSON.stringify(c[0]) + ' 解锁档数不对');
+    assert.strictEqual(L.stageIndexOfCleared(c[0]), c[1], '走通 ' + c[0] + ' 关的段号不对');
+    assert.strictEqual(L.stageNameOfCleared(c[0]), c[2], '走通 ' + c[0] + ' 关的段名不对');
+    assert.strictEqual(practice.stageIndexOfCleared(c[0]), c[1]);
+    assert.strictEqual(practice.stageNameOfCleared(c[0]), c[2]);
   }
-  // 熟练度再高也不开门：这只证明「解锁不看 prof」，不看别的。
-  assert.strictEqual(practice.unlockedDiffCount({ prof: 99999, levels: {} }), 1,
-    '熟练度还在解锁难度');
+  // 走通 1000 关之后再没有段，只有「大圆满」这一个终点说法。
+  assert.strictEqual(L.FINAL_STAGE_NAME, '大圆满');
+  assert.strictEqual(L.stageIndexOfCleared(1000), L.STAGES.length);
+  // 熟练度再高也不换段：这只证明「段不看 prof」，不看别的。
+  assert.strictEqual(practice.stageIndexOfCleared(0), 0, '熟练度还在换段');
+  const s = freshState('jingxin', 99999, 1);
+  assert.strictEqual(practice.curLevelOf(s.skills.jingxin), 1, '满熟练度把玩家推到了后面的关');
+  assert.strictEqual(practice.stageIndexOfCleared(practice.clearedOf(s.skills.jingxin)), 0);
 });
 
 // ---------------------------------------------------------------- 结算公式
@@ -207,7 +227,7 @@ check('熟练度基础值不吃品阶：四阶同为 15 点，品阶只抬高耗
   const costs = [];
   for (const c of cases) {
     const s = freshState(c.id, 0, c.realm);
-    const r = game.applyPractice(s, c.id, 'B', { difficulty: 'easy', score: 0 });
+    const r = game.applyPractice(s, c.id, 'B', { score: 0 });
     assert.strictEqual(r.realmAbove, false, c.id + ' 不该超可修上限');
     gains.push(r.gain);
     costs.push(r.qiCost);
@@ -220,99 +240,105 @@ check('熟练度基础值不吃品阶：四阶同为 15 点，品阶只抬高耗
   }
 });
 
-check('熟练度基础值不吃关卡：每一档都是 15 点，档位只抬耗气', function () {
-  // 在本档当前关打 B：不管哪一档，都是基础值 B = 15 点。档位只改参数与耗气，不改公式。
+check('熟练度基础值不吃关卡：每一段的当前关都是 15 点，段位只抬耗气', function () {
+  // 站在本段第一关打 B：不管哪一段，都是基础值 B = 15 点。段只改参数与耗气，不改公式。
   const costs = [];
-  practice.DIFFICULTIES.forEach(function (d, i) {
-    const s = freshState('jingxin', 0, 1);
-    const lv = {};
-    for (let k = 0; k < i; k += 1) lv[practice.DIFFICULTIES[k].key] = L.LEVELS_PER_DIFF;
-    s.skills.jingxin.levels = lv;
-    const r = game.applyPractice(s, 'jingxin', 'B', { diffKey: d.key, level: 1, score: 0 });
+  practice.STAGES.forEach(function (d, i) {
+    const clear = clearedThrough(i);
+    const curNo = clear + 1;
+    const s = setCleared(freshState('jingxin', 0, 1), 'jingxin', clear);
+    assert.strictEqual(practice.curLevelOf(s.skills.jingxin), curNo, d.name + ' 的当前关不对');
+    const r = game.applyPractice(s, 'jingxin', 'B', { level: curNo, score: 0 });
     assert.strictEqual(r.levelBelowCap, false, d.name + ' 的首关被当成回关了');
+    assert.strictEqual(r.stageName, d.name, d.name + ' 判到了别的段');
     assert.strictEqual(r.gain, world.PROF_BASE.B, d.name + ' 的熟练度不是基础值');
     costs.push(r.qiCost);
   });
   for (let i = 1; i < costs.length; i += 1) {
     assert.ok(costs[i] > costs[i - 1],
-      '第 ' + (i + 1) + ' 档首关的耗气没有更高：' + costs.join(' / '));
+      '第 ' + (i + 1) + ' 段首关的耗气没有更高：' + costs.join(' / '));
   }
 });
 
-check('低档逐档折半：打低一档基础值减半，且不叠连 S', function () {
-  // 绝境第 40 关是当前关；回打简单档第 40 关 = 低四档。
-  // 逐档取整（不是先乘 1/16 再一次取整）：34 → 17 → 9 → 5 → 3。
-  const s = freshState('jingxin', 0, 1);
-  s.skills.jingxin.levels = { easy: 40, normal: 40, hard: 40, expert: 40, desperate: 39 };
-  const r = game.applyPractice(s, 'jingxin', 'S', { diffKey: 'easy', level: 40, score: 0 });
-  assert.strictEqual(r.diffGap, 4, '没报出低了几档');
-  assert.strictEqual(r.comboActive, false, '打低档还叠连 S');
-  assert.strictEqual(r.gain, 3, 'S 低四档应是 34 → 17 → 9 → 5 → 3');
+check('回打更早的段不再叠第二刀：只按「本关 ÷ 当前关」折一次', function () {
+  // 走通 799 关（站在第 800 关），回打第 1 关：34 × 1/800 → 0 点。
+  // 旧版「打低档再逐档折半」那一道刀必须消失——段位现在只是关号的另一个说法，
+  // 再折一次等于同一件事收两遍钱，玩家也算不清。
+  const s = setCleared(freshState('jingxin', 0, 1), 'jingxin', 799);
+  const r = game.applyPractice(s, 'jingxin', 'S', { level: 1, score: 0 });
+  assert.strictEqual(r.stageKey, 'novice', '第 1 关不在未入门段');
+  assert.strictEqual(r.levelGap, 799, '没报出退了几关');
+  assert.strictEqual(r.comboActive, false, '回打还叠连 S');
+  assert.strictEqual(r.comboNow, 0, '回打 S 叠了层');
+  assert.strictEqual(r.gain, practice.profByLevel(world.PROF_BASE.S, 1, 800),
+    '回打熟练度没按 本关 ÷ 当前关 折');
+  assert.strictEqual(r.gain, 0, '34 × 1/800 应四舍五入为 0');
+
+  // 打到半程第 400 关：34 × 400/800 → 17，玩家照公式能自己复算。
+  const half = setCleared(freshState('jingxin', 0, 1), 'jingxin', 799);
+  const rh = game.applyPractice(half, 'jingxin', 'S', { level: 400, score: 0 });
+  assert.strictEqual(rh.gain, 17, '回打第 400 关应是 34 × 0.5 → 17');
+  assert.strictEqual(rh.comboNow, 0, '回打第 400 关还叠了连 S');
 });
 
-check('回关折减：按 本档本关 ÷ 本档总关数 折，当前关全额，不叠连 S，层数原样保留', function () {
-  // 本档已走到第 20 关 → 当前关 21。回打 21 全额，回打 10 关是 ×10/40。
+check('回关折减：按 本关 ÷ 当前关 折，当前关全额，不叠连 S，层数原样保留', function () {
+  // 已走通 20 关 → 当前关 21。回打 21 全额，回打 10 关是 ×10/21。
   const curNo = 21;
   assert.strictEqual(practice.levelFactor(21, 21), 1, '当前关不是 ×1');
-  // 分母是本档总关数（40），不是「当前关」：后者会让「不推进就一直 ×1/2」变成刷分口子。
-  assert.strictEqual(practice.levelFactor(10, 21), 10 / L.LEVELS_PER_DIFF,
-    '回关系数不是 (本关 ÷ 当前关) × (已通 ÷ 40)');
+  // 分母是「当前关」：关号只由走通推进，而走通必推——想停在某一关只能每局走火，
+  // 而走火给 0 分，于是「钉在低关反复刷」在结构上不存在，分母不必再借段长。
+  assert.strictEqual(practice.levelFactor(10, 21), 10 / 21, '回关系数不是 本关 ÷ 当前关');
   assert.strictEqual(practice.levelFactor(99, 21), 1, '回关系数不该超过 1');
 
-  const top = freshState('jingxin', 0, 1);
-  top.skills.jingxin.levels = { easy: 40, normal: 40, hard: 40, expert: 40, desperate: curNo - 1 };
-  const rt = game.applyPractice(top, 'jingxin', 'B', { diffKey: 'desperate', level: curNo, score: 0 });
+  const top = setCleared(freshState('jingxin', 0, 1), 'jingxin', curNo - 1);
+  const rt = game.applyPractice(top, 'jingxin', 'B', { level: curNo, score: 0 });
   assert.strictEqual(rt.gain, world.PROF_BASE.B, '当前关的 B 不是全额');
   assert.strictEqual(rt.levelBelowCap, false);
 
-  const low = freshState('jingxin', 0, 1);
-  low.skills.jingxin.levels = { easy: 40, normal: 40, hard: 40, expert: 40, desperate: curNo - 1 };
-  const rl = game.applyPractice(low, 'jingxin', 'S', { diffKey: 'desperate', level: 10, score: 0 });
+  const low = setCleared(freshState('jingxin', 0, 1), 'jingxin', curNo - 1);
+  const rl = game.applyPractice(low, 'jingxin', 'S', { level: 10, score: 0 });
   assert.strictEqual(rl.levelBelowCap, true, '回关没被标成折减');
   assert.strictEqual(rl.levelGap, 11, '没报出退了几关');
   assert.strictEqual(rl.gain, practice.profByLevel(world.PROF_BASE.S, 10, curNo),
-    '回关熟练度没按 (本关 ÷ 当前关) × (已通 ÷ 40) 折');
-  assert.strictEqual(rl.gain, 9, 'S 在本档第 10 关应是 34 × 10/40 → 9');
+    '回关熟练度没按 本关 ÷ 当前关 折');
+  assert.strictEqual(rl.gain, 16, 'S 在第 10 关应是 34 × 10/21 → 16');
   assert.strictEqual(rl.comboActive, false, '回关 S 走了连击曲线');
   assert.strictEqual(rl.comboNow, 0, '回关 S 叠了层');
   assert.strictEqual(low.sCombo.jingxin, 0, '回关 S 写进了连击存档');
 
   // 回关不砍已有层数：连两局 S 后回关打一局 B，层数原样保留；回当前关照接第 3 连。
-  const kept = freshState('jingxin', 0, 1);
-  kept.skills.jingxin.levels = { easy: 40, normal: 40, hard: 40, expert: 40, desperate: curNo - 1 };
+  const kept = setCleared(freshState('jingxin', 0, 1), 'jingxin', curNo - 1);
   // 每一局都按「打完上一局之后的当前关」出手，否则第二局就成了回关。
-  game.applyPractice(kept, 'jingxin', 'S', { diffKey: 'desperate', level: curNo, score: 0 });
-  game.applyPractice(kept, 'jingxin', 'S', { diffKey: 'desperate', level: curNo + 1, score: 0 });
+  game.applyPractice(kept, 'jingxin', 'S', { level: curNo, score: 0 });
+  game.applyPractice(kept, 'jingxin', 'S', { level: curNo + 1, score: 0 });
   assert.strictEqual(kept.sCombo.jingxin, 2);
-  const back = game.applyPractice(kept, 'jingxin', 'B', { diffKey: 'desperate', level: 5, score: 0 });
+  const back = game.applyPractice(kept, 'jingxin', 'B', { level: 5, score: 0 });
   assert.strictEqual(back.comboNow, 2, '回关把连 S 清了');
   assert.strictEqual(back.levelBelowCap, true);
-  const third = game.applyPractice(kept, 'jingxin', 'S', { diffKey: 'desperate', level: curNo + 2, score: 0 });
+  const third = game.applyPractice(kept, 'jingxin', 'S', { level: curNo + 2, score: 0 });
   assert.strictEqual(third.comboNow, 3);
   assert.strictEqual(third.gain, 77, '回关练手后第 3 连没按 34 × 1.5² 接上');
 });
 
-check('回关折减连续无断崖：档内越退越薄，叠低档折半后第 1 关几乎归零', function () {
-  // 档内最狠是 1/40 = 2.5%（第 40 关回打第 1 关），单看并不够低；
-  // 但「打低档」还要逐档折半，两者叠起来才是「刷最低档」的封条：
-  // 绝境第 40 关回打简单第 1 关 = 2.5% × 1/16 = 0.16%，S 只剩 0 点（四舍五入）。
-  const cur = L.LEVELS_PER_DIFF;
-  assert.strictEqual(practice.levelFactor(1, cur), 1 / cur, '满档回打第 1 关不是 1/40');
-  assert.strictEqual(practice.profByLevel(world.PROF_BASE.S, 1, cur), 1,
-    '满档回打第 1 关的 S 应是 34 × 1/40 → 1 点');
+check('回关折减连续无断崖：越退越薄，走通满关后回打第 1 关归零', function () {
+  // 分母是当前关，所以最狠的一刀在「走通 1000 关之后回打第 1 关」= 1/1000。
+  // 这也替代了旧版「低档再折半」那道封条：一道连续折减比两道乘法更算得清。
+  const cur = L.LEVEL_MAX;
+  assert.strictEqual(practice.levelFactor(1, cur), 1 / cur, '满关回打第 1 关不是 1/1000');
+  assert.strictEqual(practice.profByLevel(world.PROF_BASE.S, 1, cur), 0,
+    '满关回打第 1 关的 S 应是 34 × 1/1000 → 0 点');
 
-  // 连续：退一关只差一点点，不存在「退一档砍一半」的台阶。
+  // 连续：退一关只差一点点，不存在「退一段砍一半」的台阶。
   let prev = 0;
   for (let lv = 1; lv <= cur; lv += 1) {
     const fv = practice.levelFactor(lv, cur);
     assert.ok(fv >= prev, '回关系数出现倒挂：第 ' + lv + ' 关');
     prev = fv;
   }
-  assert.ok(practice.levelFactor(cur - 1, cur) > 0.97, '退一关就掉了超过 3%');
+  assert.ok(practice.levelFactor(cur - 1, cur) > 0.99, '退一关就掉了超过 1%');
 
   // 走火仍是 0 点，且不分关一律断连。
-  const s = freshState('jingxin', 0, 1);
-  s.skills.jingxin.levels = { easy: 40, normal: 40, hard: 40, expert: 40, desperate: 40 };
+  const s = setCleared(freshState('jingxin', 0, 1), 'jingxin', cur);
   s.sCombo.jingxin = 7;
   const r = game.applyPractice(s, 'jingxin', 'F', { level: 1, score: 0 });
   assert.strictEqual(r.gain, 0, '走火还给了熟练度');
@@ -328,7 +354,7 @@ check('走火：F 算一局，但熟练度为零——气照烧、灵石不动�
   const qiBefore = s.resources.qi;
   const stoneBefore = s.resources.stone;
   const profBefore = s.skills.jingxin.prof;
-  const r = game.applyPractice(s, 'jingxin', 'F', { difficulty: 'hard', score: 0 });
+  const r = game.applyPractice(s, 'jingxin', 'F', { score: 0 });
   assert.strictEqual(r.gradeFactor, 0, '走火倍率不是 0');
   assert.strictEqual(r.wiped, true, '走火没被标记成整局作废');
   assert.strictEqual(r.gain, 0, '走火还给了熟练度');
@@ -343,7 +369,7 @@ check('走火：F 算一局，但熟练度为零——气照烧、灵石不动�
 
   // 对照：同一门、同一档打出 S，熟练度必须有——F 与 S 是「有」和「没有」，不是「差几倍」。
   const s2 = freshState('jingxin', 1200, 1);
-  const rs = game.applyPractice(s2, 'jingxin', 'S', { difficulty: 'hard', score: 0 });
+  const rs = game.applyPractice(s2, 'jingxin', 'S', { score: 0 });
   assert.ok(rs.gain > 0, 'S 没有熟练度收益');
   assert.ok(rs.qiCost > 0, 'S 这一局没有报价');
 
@@ -351,8 +377,8 @@ check('走火：F 算一局，但熟练度为零——气照烧、灵石不动�
   assert.strictEqual(s.records.jingxin, undefined, '走火被写成了本门纪录');
   // 而同一存档之后打出 S，纪录照常出现。
   const s3 = freshState('jingxin', 1200, 1);
-  game.applyPractice(s3, 'jingxin', 'F', { difficulty: 'hard', score: 0 });
-  game.applyPractice(s3, 'jingxin', 'S', { difficulty: 'hard', score: 640 });
+  game.applyPractice(s3, 'jingxin', 'F', { score: 0 });
+  game.applyPractice(s3, 'jingxin', 'S', { score: 640 });
   assert.strictEqual(s3.records.jingxin.score, 640, '走火之后的正常一局没立纪录');
 });
 
@@ -367,7 +393,7 @@ check('参悟是纯支出：一百局里灵石一分不动，灵力只按 qiCost
   let spent = 0;
   for (let i = 0; i < 60; i += 1) {
     const before = s.resources.qi;
-    const r = game.applyPractice(s, 'jingxin', 'B', { difficulty: 'hard', score: i });
+    const r = game.applyPractice(s, 'jingxin', 'B', { score: i });
     assert.strictEqual(r.ok, true, '第 ' + (i + 1) + ' 局没开起来');
     assert.strictEqual(before - s.resources.qi, r.qiCost,
       '第 ' + (i + 1) + ' 局的灵力差不是 qiCost');
@@ -393,98 +419,111 @@ check('参悟是纯支出：一百局里灵石一分不动，灵力只按 qiCost
     'applyPractice 里还有一处直接给存档加灵力或灵石');
 });
 
-check('默认档 = 本门第一个还没走通的档（与熟练度无关）', function () {
-  const pairs = [
-    [{}, 'easy'], [{ easy: 12 }, 'easy'], [{ easy: 40 }, 'normal'],
-    [{ easy: 40, normal: 40 }, 'hard'], [{ easy: 40, normal: 40, hard: 40 }, 'expert'],
-    [{ easy: 40, normal: 40, hard: 40, expert: 40 }, 'desperate'],
-    [{ easy: 40, normal: 40, hard: 40, expert: 40, desperate: 40 }, 'desperate'],
+check('默认关 = 已走通的关数 + 1（与熟练度无关）', function () {
+  // 一门只有一条线，没有「挑哪一档」这个动作：当前关只由进度推出来。
+  const cases = [
+    [0, 1], [1, 2], [9, 10], [10, 11], [49, 50], [50, 51],
+    [199, 200], [200, 201], [499, 500], [500, 501], [999, 1000], [1000, 1000],
   ];
-  for (const pair of pairs) {
-    assert.strictEqual(practice.currentDiffKey({ levels: pair[0] }), pair[1],
-      JSON.stringify(pair[0]) + ' 的默认档不是 ' + pair[1]);
+  for (const c of cases) {
+    assert.strictEqual(practice.curLevelOf({ cleared: c[0] }), c[1],
+      '走通 ' + c[0] + ' 关之后当前关不对');
   }
+  // 熟练度再高也不推关：这只证明「关不看 prof」，不看别的。
+  assert.strictEqual(practice.curLevelOf({ prof: 99999 }), 1, '熟练度还在推进关卡');
 });
 
 // ---------------------------------------------------------------- 关卡
-check('200 关：五章各 40 关，章 = 原难度档', function () {
-  assert.strictEqual(L.LEVEL_MAX, 200);
-  assert.strictEqual(L.CHAPTERS.length, 5, '章节不是五章');
+check('1000 关：五段 10/40/150/300/500，段界关属于本段', function () {
+  assert.strictEqual(L.LEVEL_MAX, 1000);
+  assert.strictEqual(L.STAGES.length, 5, '不是五段');
+  const sizes = [];
   let total = 0;
-  for (let i = 0; i < L.CHAPTERS.length; i += 1) {
-    const c = L.CHAPTERS[i];
-    total += c.to - c.from + 1;
-    assert.strictEqual(c.to - c.from + 1, 40, '第 ' + (i + 1) + ' 章不是 40 关');
-    assert.strictEqual(c.key, practice.DIFFICULTIES[i].key, '第 ' + (i + 1) + ' 章的难度键与档位表分叉');
-    if (i > 0) assert.strictEqual(c.from, L.CHAPTERS[i - 1].to + 1, '章节之间有缝或重叠');
+  for (let i = 0; i < L.STAGES.length; i += 1) {
+    const st = L.STAGES[i];
+    const n = st.to - st.from + 1;
+    sizes.push(n);
+    total += n;
+    assert.strictEqual(st.key, practice.STAGES[i].key, '第 ' + (i + 1) + ' 段的键与档位表分叉');
+    assert.strictEqual(st.depth === undefined ? i : st.depth, i, '第 ' + (i + 1) + ' 段的 depth 不对');
+    if (i > 0) assert.strictEqual(st.from, L.STAGES[i - 1].to + 1, '段之间有缝或重叠');
   }
-  assert.strictEqual(total, 200, '五章加起来不是 200 关');
-  assert.strictEqual(L.chapterOf(1), 0);
-  assert.strictEqual(L.chapterOf(40), 0);
-  assert.strictEqual(L.chapterOf(41), 1);
-  assert.strictEqual(L.chapterOf(200), 4);
+  assert.deepStrictEqual(sizes, [10, 40, 150, 300, 500], '五段关数不是 10/40/150/300/500');
+  assert.strictEqual(total, 1000, '五段加起来不是 1000 关');
+  assert.deepStrictEqual(L.STAGE_GATES, [10, 50, 200, 500, 1000], '段界关不是 10/50/200/500/1000');
+  // 段界关算在「本段」：走通第 10 关才站在第 11 关（入门）。
+  assert.strictEqual(L.stageOfLevel(1), 0);
+  assert.strictEqual(L.stageOfLevel(10), 0);
+  assert.strictEqual(L.stageOfLevel(11), 1);
+  assert.strictEqual(L.stageOfLevel(50), 1);
+  assert.strictEqual(L.stageOfLevel(1000), 4);
+  const entryRange = L.stageRange(1);
+  assert.strictEqual(entryRange.from, 11, '入门从第几关开始不对');
+  assert.strictEqual(entryRange.to, 50, '入门到第几关结束不对');
+  assert.strictEqual(L.levelInStage(11), 1, '入门第一关不是本段第 1 关');
+  assert.strictEqual(L.levelInStage(50), 40, '入门末关不是本段第 40 关');
 });
 
-check('关卡换算只剩老档迁移用：六锚与段位表同源、章内线性、只增不减', function () {
-  // 现行规则是「每档 40 关、走通推进」，关卡不再由熟练度算。
-  // levelFromProf() 只服务一件事：v7 及更早的存档里只有 prof，迁移时按它反推
-  // 老玩家走到哪一关。所以这里守的是「换算本身没坏」，不是「现行难度由它决定」。
+check('关卡换算只剩老档迁移用：六锚与火候表同源、只增不减', function () {
+  // 现行规则是「1000 关一条线、走通推进」，关卡不再由熟练度算。
+  // legacyLevelFromProf() 只服务一件事：没有 cleared 字段的老存档里只有 prof，
+  // 迁移时按它反推老玩家走到 200 关制的哪一关。所以这里守的是「换算本身没坏」。
   for (let i = 0; i < L.LEVEL_PROF_STEPS.length; i += 1) {
     assert.strictEqual(L.LEVEL_PROF_STEPS[i], world.TIERS[i].threshold,
-      '第 ' + i + ' 个熟练度锚与段位表分叉');
+      '第 ' + i + ' 个熟练度锚与火候表分叉');
   }
-  assert.strictEqual(L.levelFromProf(0), 1);
-  assert.strictEqual(L.levelFromProf(299), 40);
-  assert.strictEqual(L.levelFromProf(300), 41);
-  assert.strictEqual(L.levelFromProf(1500), 81);
-  assert.strictEqual(L.levelFromProf(6000), 121);
-  assert.strictEqual(L.levelFromProf(24000), 161);
-  assert.strictEqual(L.levelFromProf(99999), 200);
-  // 单调：熟练度涨，关号只能涨。这是「关不掉」的全部依据。
+  assert.strictEqual(L.legacyLevelFromProf(0), 1);
+  assert.strictEqual(L.legacyLevelFromProf(299), 40);
+  assert.strictEqual(L.legacyLevelFromProf(300), 41);
+  assert.strictEqual(L.legacyLevelFromProf(1500), 81);
+  assert.strictEqual(L.legacyLevelFromProf(6000), 121);
+  assert.strictEqual(L.legacyLevelFromProf(24000), 161);
+  assert.strictEqual(L.legacyLevelFromProf(99999), 200);
+  // 单调：熟练度涨，关号只能涨。这是「关不掉」的迁移依据。
   let prev = 0;
   for (let p = 0; p <= 99999; p += 37) {
-    const lv = L.levelFromProf(p);
+    const lv = L.legacyLevelFromProf(p);
     assert.ok(lv >= prev, '熟练度 ' + p + ' 的关号 ' + lv + ' 比前一个小：' + prev);
     prev = lv;
   }
 });
 
-// 台阶数的下限按门给：这一门难度是「盘面规格 + 最优步数区间 + 余量」三段离散值，
-// 200 关里真能变的地方本来就少。阵灯推演原来凑到 30 级以上，靠的是把 `minSteps`
-// 也塞进收紧表——可那个数乘 0.7 是「章末要求更短的解」，方向是往简单走的，
-// 台阶数好看、难度反而倒退。把假台阶去掉之后还剩 10 级，这里据实给 10：
-// 「做不到每段都动就据实写沿用上一段」，别为了让数字好看去动一个方向相反的旋钮。
+// 台阶数的下限按门给：这一门难度是「盘面规格 + 最优步数区间 + 余量」三段离散值。
+// 阵灯推演原来凑到 30 级以上，靠的是把 `minSteps` 也塞进收紧表——可那个数乘 0.7 是
+// 「段末要求更短的解」，方向是往简单走的，台阶数好看、难度反而倒退。把假台阶去掉之后
+// 只剩十级，这里据实给 10：「做不到每段都动就据实写沿用上一段」，别为了让数字好看
+// 去动一个方向相反的旋钮。
 const STEP_FLOOR = { lights: 10 };
 
-check('一关一段：章内只往难走，每门规格台阶不少于本条门的下限', function () {
+check('一关一段：段内只往难走，每门规格台阶不少于本条门的下限', function () {
   // 「规格台阶」= 相邻两关参数真的不同。规格类玩法（阵灯 3×3→5×5、摘魁 8→16 批）
-  // 的难度是盘面规格，规格是离散的，量化到 200 关刻度上本来就只有 10–40 级台阶。
+  // 的难度是盘面规格，规格是离散的，量化到关号刻度上本来就只有十几级台阶。
   // 这条断言守两件事：台阶数不许再掉、方向只许变难。
   for (const m of practice.PRACTICE_METHODS) {
     let changed = 0;
     let prev = null;
-    for (let lv = 1; lv <= 200; lv += 1) {
+    for (let lv = 1; lv <= L.LEVEL_MAX; lv += 1) {
       const p = practice.buildParamsAt(m, lv);
       if (prev) {
         const keys = Object.keys(p).filter(function (k) { return k !== 'level' && k !== 'stage' && p[k] !== prev[k]; });
         if (keys.length) changed += 1;
         for (const k of ['duration', 'timeLimit', 'flashMs', 'gapMs', 'flipMs', 'dropMs', 'msPerNote', 'capFactor', 'budgetSlack']) {
           if (typeof p[k] !== 'number' || typeof prev[k] !== 'number') continue;
-          // 章界「回弹」是换盘面的代价（九宫 4×4→6×6 要多给读盘时间），只在本章内要求单调。
-          if (L.chapterOf(lv) !== L.chapterOf(lv - 1)) continue;
+          // 段界「回弹」是换盘面的代价（九宫 4×4→6×6 要多给读盘时间），只在段内要求单调。
+          if (L.stageOfLevel(lv) !== L.stageOfLevel(lv - 1)) continue;
           assert.ok(p[k] <= prev[k], m.id + ' 第 ' + lv + ' 关的 ' + k + ' 反而放宽了');
         }
       }
       prev = p;
     }
-    // 阵灯推演的最优步数只许换章时变：章内把它收紧 = 要求更短的解 = 更简单。
+    // 阵灯推演的最优步数只许换段时变：段内把它收紧 = 要求更短的解 = 更简单。
     if (m.game === 'lights') {
       let base = null;
-      for (let lv = 1; lv <= 200; lv += 1) {
+      for (let lv = 1; lv <= L.LEVEL_MAX; lv += 1) {
         const p = practice.buildParamsAt(m, lv);
-        if (lv === 1 || L.chapterOf(lv) !== L.chapterOf(lv - 1)) { base = p; continue; }
+        if (lv === 1 || L.stageOfLevel(lv) !== L.stageOfLevel(lv - 1)) { base = p; continue; }
         assert.ok(p.minSteps === base.minSteps && p.hiSteps === base.hiSteps,
-          '第 ' + lv + ' 关把最优步数区间改了：章内动这个数就是往简单走');
+          '第 ' + lv + ' 关把最优步数区间改了：段内动这个数就是往简单走');
       }
     }
     const floor = STEP_FLOOR[m.game] || 30;
@@ -492,112 +531,116 @@ check('一关一段：章内只往难走，每门规格台阶不少于本条门�
   }
 });
 
-check('换章要报出盘面规格，不许把结构变化藏在毫秒后面', function () {
-  // 真机反馈「玩了一百多关没发现任何变化」：换章是 200 关里唯一一次玩家看得见的
-  // 盘面变化，旧版 levelDelta 却按 PACE_KEYS 顺序只报两条，结果第一章里报的全是
-  // 「亮起时长 0.66 → 0.65 秒」，换章那次的「气窍 5 → 6 对」被挤掉，五门直接报「同」。
+check('换段要报出盘面规格，不许把结构变化藏在毫秒后面', function () {
+  // 真机反馈「玩了一百多关没发现任何变化」：换段是长线里唯一一次玩家看得见的
+  // 盘面变化，旧版 levelDelta 却按 PACE_KEYS 顺序只报两条，结果第一段里报的全是
+  // 「亮起时长 0.66 → 0.65 秒」，换段那次的「气窍 5 → 6 对」被挤掉，五门直接报「同」。
   const struct = practice.LEVEL_STRUCT_KEYS;
   for (const m of practice.PRACTICE_METHODS) {
-    for (const lv of [41, 81, 121, 161]) {
+    for (const lv of [11, 51, 201, 501]) {
       const d = practice.levelDelta(m, lv);
       const now = practice.buildParamsAt(m, lv);
       const prev = practice.buildParamsAt(m, lv - 1);
-      assert.ok(d.length, m.id + ' 第 ' + lv + ' 关换章没报任何变化');
-      assert.ok(d[0].chapter === true, m.id + ' 第 ' + lv + ' 关没打换章标记');
+      assert.ok(d.length, m.id + ' 第 ' + lv + ' 关换段没报任何变化');
+      assert.ok(d[0].chapter === true, m.id + ' 第 ' + lv + ' 关没打换段标记');
       const changed = struct.filter(function (k) {
         return typeof now[k] === 'number' && typeof prev[k] === 'number' && now[k] !== prev[k];
       });
       for (const x of d.slice(1)) {
         // score / cue 是节律判定的「谱型」与「提示层级」：和盘面规格同类，
-        // 换章时换的正是这两样（手数在 LEVEL_STRUCT_KEYS 里）。
+        // 换段时换的正是这两样（手数在 LEVEL_STRUCT_KEYS 里）。
         assert.ok(x.key === 'sameBoard' || x.key === 'cols' || x.key === 'perPair'
           || x.key === 'score' || x.key === 'cue'
           || struct.indexOf(x.key) >= 0,
-        m.id + ' 第 ' + lv + ' 关把「' + x.key + '」当换章变化报了出来（那是毫秒/时辰，不是盘面）');
+        m.id + ' 第 ' + lv + ' 关把「' + x.key + '」当换段变化报了出来（那是毫秒/时辰，不是盘面）');
       }
       if (changed.length) {
         assert.ok(!d.some(function (x) { return x.key === 'sameBoard'; }),
           m.id + ' 第 ' + lv + ' 关明明换了盘，却报「沿用同一副盘」');
         assert.ok(d.length > 1, m.id + ' 第 ' + lv + ' 关有结构变化却一条都没报');
       }
-      // 关号一局能跳四五关，章首关常被整个跨过去：第 46 关也得拿到本章规格。
-      const label = L.chapterRange(L.chapterOf(lv)).label;
+      // 段首关不该是唯一知道「本段规格」的地方：任意一关都要能取到本段规格。
+      const label = L.stageRange(L.stageOfLevel(lv)).label;
       for (const later of [lv + 3, lv + 9]) {
-        if (L.chapterOf(later) !== L.chapterOf(lv)) continue;
-        assert.ok(practice.chapterSpec(m, later).indexOf(label) >= 0,
-          m.id + ' 第 ' + later + ' 关取不到本章规格（跳关把换章提示跨过去了）');
+        if (L.stageOfLevel(later) !== L.stageOfLevel(lv)) continue;
+        assert.ok(practice.stageSpec(m, later).indexOf(label) >= 0,
+          m.id + ' 第 ' + later + ' 关取不到本段规格');
       }
     }
   }
 });
 
-check('章内结构副轴：数距沿全书只紧不松，换章不回卷', function () {
+check('段内结构副轴：数距沿全书只紧不松，换段不回卷', function () {
   // D7 待拍板方向之一：不靠收时间、不缩盘面，给离散门加一条盘面看得见的结构量。
   // 择大辨微的 nearGap 是「一批数里最大与次大差几」，按全书关号连续收，
-  // 按章回卷会让第 41 关比第 40 关更好辨——正是 D9 里那条章末倒挂。
+  // 按段回卷会让第 11 关比第 10 关更好辨——正是 D9 里那条段末倒挂。
   const m = practice.getMethod('zeda');
   let prev = null;
-  for (let lv = 1; lv <= 200; lv += 1) {
+  for (let lv = 1; lv <= L.LEVEL_MAX; lv += 1) {
     const q = practice.buildParamsAt(m, lv);
     assert.ok(typeof q.nearGap === 'number', '第 ' + lv + ' 关没给数距');
     assert.ok(q.nearGap >= 2, '第 ' + lv + ' 关数距压破 2：C 带会被吃掉');
     if (prev !== null) assert.ok(q.nearGap <= prev, '第 ' + lv + ' 关数距反而放宽了');
     prev = q.nearGap;
   }
-  assert.ok(practice.buildParamsAt(m, 1).nearGap > practice.buildParamsAt(m, 200).nearGap,
+  assert.ok(practice.buildParamsAt(m, 1).nearGap > practice.buildParamsAt(m, L.LEVEL_MAX).nearGap,
     '首尾两关数距一样，副轴等于没加');
 });
 
-check('关卡由走通推进：越权回落、回关与走火都不推进、满 40 不越界', function () {
+check('关卡由走通推进：越权回落、回关与走火都不推进、满关不越界', function () {
   const s = game.createNewState();
-  // 一档都没走通时只有第 1 关：传第 40 关一律回落到第 1 关。
-  const r1 = game.applyPractice(s, 'jian', 'B', { diffKey: 'easy', level: 40, score: 10 });
+  // 一关都没走通时只有第 1 关：传第 40 关一律回落到第 1 关。
+  const r1 = game.applyPractice(s, 'jian', 'B', { level: 40, score: 10 });
   assert.strictEqual(r1.levelFellBack, true, '越权挑关没被回落');
   assert.strictEqual(r1.curLevel, 1);
   assert.strictEqual(r1.level, 1);
   assert.strictEqual(r1.advanced, true, '走通了第 1 关却没推进');
-  assert.strictEqual(s.skills.jian.levels.easy, 1, '进度没记到存档里');
+  assert.strictEqual(s.skills.jian.cleared, 1, '进度没记到存档里');
   // 下一局接第 2 关。
-  const r2 = game.applyPractice(s, 'jian', 'B', { diffKey: 'easy', level: 2, score: 10 });
+  const r2 = game.applyPractice(s, 'jian', 'B', { level: 2, score: 10 });
   assert.strictEqual(r2.levelFellBack, false);
   assert.strictEqual(r2.level, 2);
-  assert.strictEqual(s.skills.jian.levels.easy, 2);
+  assert.strictEqual(s.skills.jian.cleared, 2);
   // 回关：能打，但不推进（已经走过的那一关不该再算一次）。
-  const r3 = game.applyPractice(s, 'jian', 'B', { diffKey: 'easy', level: 1, score: 10 });
+  const r3 = game.applyPractice(s, 'jian', 'B', { level: 1, score: 10 });
   assert.strictEqual(r3.advanced, false, '回关也推进了进度');
-  assert.strictEqual(s.skills.jian.levels.easy, 2);
+  assert.strictEqual(s.skills.jian.cleared, 2);
   // 走火：不推进。
-  const before = s.skills.jian.levels.easy;
-  const r4 = game.applyPractice(s, 'jian', 'F', { diffKey: 'easy', level: 3, score: 0 });
+  const before = s.skills.jian.cleared;
+  const r4 = game.applyPractice(s, 'jian', 'F', { level: 3, score: 0 });
   assert.strictEqual(r4.wiped, true);
   assert.strictEqual(r4.advanced, false, '走火把进度推上去了');
-  assert.strictEqual(s.skills.jian.levels.easy, before);
-  // 满 40 不越界：重打第 40 关不再推进，也不会算出第 41 关。
+  assert.strictEqual(s.skills.jian.cleared, before);
+  // 满关不越界：重打第 1000 关不再推进，也不会算出第 1001 关。
   const t = game.createNewState();
-  t.skills.jian.levels = { easy: 40, normal: 0, hard: 0, expert: 0, desperate: 0 };
-  const r5 = game.applyPractice(t, 'jian', 'S', { diffKey: 'easy', level: 40, score: 99 });
-  assert.strictEqual(t.skills.jian.levels.easy, 40, '满 40 还往前推了');
+  t.skills.jian.cleared = L.LEVEL_MAX;
+  const r5 = game.applyPractice(t, 'jian', 'S', { level: L.LEVEL_MAX, score: 99 });
+  assert.strictEqual(t.skills.jian.cleared, L.LEVEL_MAX, '满关还往前推了');
   assert.strictEqual(r5.advanced, false);
-  assert.strictEqual(r5.level, 40);
-  assert.strictEqual(r5.curLevel, 40);
+  assert.strictEqual(r5.level, L.LEVEL_MAX);
+  assert.strictEqual(r5.curLevel, L.LEVEL_MAX);
   // 老存档里还带着 levelBest，读档时整条忽略、不报错，也不会再被当成进度。
   const loaded = game.normalizeState({ skills: s.skills, worldId: s.worldId, levelBest: { jian: 999 } });
   assert.ok(!('levelBest' in loaded), 'levelBest 该已退役，却还在存档结构里');
-  assert.strictEqual(loaded.skills.jian.levels.easy, 2, '老字段把关卡进度带偏了');
+  assert.strictEqual(loaded.skills.jian.cleared, 2, '老字段把关卡进度带偏了');
 });
 
-check('关卡越界夹回、章末取本章末关，段号一关一段', function () {
+check('关卡越界夹回，段内第几关与段内进度都对得上', function () {
   assert.strictEqual(L.clampLevel(0), 1);
   assert.strictEqual(L.clampLevel(-5), 1);
-  assert.strictEqual(L.clampLevel(5000), 200);
-  assert.strictEqual(L.maxLevelOf(0), 40);
-  assert.strictEqual(L.maxLevelOf(4), 200);
-  // 段号：一段一关，章内第 1 关是第 0 段、第 40 关是第 39 段。
-  assert.strictEqual(L.stageOf(1), 0);
-  assert.strictEqual(L.stageOf(5), 4);
-  assert.strictEqual(L.stageOf(40), 39);
-  assert.strictEqual(L.stageOf(41), 0);
-  assert.strictEqual(L.stageOf(200), 39);
+  assert.strictEqual(L.clampLevel(5000), L.LEVEL_MAX);
+  // 段内第几关：入门的第 1 关是本段第 1 关，末关是本段第 40 关。
+  assert.strictEqual(L.levelInStage(11), 1);
+  assert.strictEqual(L.levelInStage(50), 40);
+  assert.strictEqual(L.levelInStage(501), 1);
+  assert.strictEqual(L.levelInStage(1000), 500);
+  assert.strictEqual(L.stageSize(0), 10);
+  assert.strictEqual(L.stageSize(1), 40);
+  assert.strictEqual(L.stageSize(4), 500);
+  // 段内进度：段首关是 1/段长（不是 0），段界关正好 1。
+  assert.ok(Math.abs(L.progressOf(11) - 1 / 40) < 1e-9);
+  assert.strictEqual(L.progressOf(50), 1);
+  assert.strictEqual(L.progressOf(1000), 1);
 });
 
 check('滑块让路：预算系数随档收紧，但永不压到 C 线以下', function () {
@@ -608,7 +651,7 @@ check('滑块让路：预算系数随档收紧，但永不压到 C 线以下', f
   //
   // C 线是「超过最优两倍才脱身」。预算若小于两倍最优，玩家还没走到两倍就先判
   // 「困住了」——C 这一档永远拿不到，评级表里那行评语等于删掉。那不是变难，是断档。
-  const DIFFS = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const DIFFS = ['novice', 'entry', 'minor', 'major', 'full'];
   let prev = null;
   const seen = [];
   for (const key of DIFFS) {
@@ -621,10 +664,10 @@ check('滑块让路：预算系数随档收紧，但永不压到 C 线以下', f
   }
   assert.ok(seen[0] - seen[seen.length - 1] > 0.5, '五档预算系数几乎没有差别：' + seen.join(' / '));
 
-  // 章内也要收：一章 40 关里，预算只许紧不许松。
+  // 段内也要收：一段之内，预算只许紧不许松。
   const m = practice.getMethod('rongdao');
   let last = null;
-  for (let lv = 401; lv <= 600; lv += 5) {
+  for (let lv = 501; lv <= 1000; lv += 20) {
     const q = practice.buildParamsAt(m, lv);
     if (last !== null) assert.ok(q.capFactor <= last, '第 ' + lv + ' 关的预算反而放宽了');
     assert.ok(q.capFactor >= 2, "第 " + lv + " 关的预算压到 C 线以下：" + q.capFactor);
@@ -637,28 +680,28 @@ check('越权挑关自动回落到本门当前关', function () {
   const r = game.applyPractice(s, 'jian', 'B', { level: 200, score: 0 });
   assert.strictEqual(r.levelFellBack, true);
   assert.strictEqual(r.curLevel, 1);
-  assert.strictEqual(r.diffKey, 'easy');
+  assert.strictEqual(r.stageKey, 'novice');
   assert.strictEqual(r.level, 1);
 });
 
-check('耗气叠乘有底：天阶绝境最贵，但也压不穿最低 1 点', function () {
+check('耗气叠乘有底：天阶圆满段最贵，但也压不穿最低 1 点', function () {
   const economy = require('../data/economy.js');
   const s = freshState('taixu', 24000, 3);
   s.realmIndex = 3;
-  s.skills.taixu.levels = levelsThrough(4);
-  const r = game.applyPractice(s, 'taixu', 'S', { diffKey: 'desperate', level: 1, score: 0 });
+  s.skills.taixu.cleared = L.LEVEL_MAX;
+  const r = game.applyPractice(s, 'taixu', 'S', { level: L.LEVEL_MAX, score: 0 });
   assert.strictEqual(r.tierKey, 'tian');
   assert.ok(r.qiCost >= economy.QI_COST_MIN, '耗气低于绝对下限');
   const got = [];
-  // 三档各取本档首关：档位越后越贵（与档内第几关无关）。
-  for (const key of ['hard', 'expert', 'desperate']) {
+  // 三段各取本段首关：段位越后越贵（与段内第几关无关）。
+  for (const key of ['minor', 'major', 'full']) {
     const st = freshState('taixu', 0, 3);
     st.realmIndex = 3;
-    st.skills.taixu.levels = levelsThrough(practice.diffKeyIndex(key));
-    got.push(game.applyPractice(st, 'taixu', 'S', { diffKey: key, level: 1 }).qiCost);
+    st.skills.taixu.cleared = clearedThrough(practice.stageIndexOfKey(key));
+    got.push(game.applyPractice(st, 'taixu', 'S', { level: st.skills.taixu.cleared + 1 }).qiCost);
   }
   assert.ok(got[1] > got[0] && got[2] > got[1],
-    '天阶各难度档耗气没有一档比一档贵：' + got.join(' / '));
+    '天阶各段耗气没有一段比一段贵：' + got.join(' / '));
   // 反向：悟性拉满 + 心法省气封顶，也不能把耗气压到 0 或负数。
   const cheap = game.createNewState();
   cheap.skills.jian.unlocked = true;
@@ -668,7 +711,7 @@ check('耗气叠乘有底：天阶绝境最贵，但也压不穿最低 1 点', f
     cheap.skills[id].unlocked = true;
     cheap.skills[id].prof = 6000;
   }
-  const floor = game.applyPractice(cheap, 'jian', 'C', { difficulty: 'easy', score: 0 });
+  const floor = game.applyPractice(cheap, 'jian', 'C', { score: 0 });
   assert.ok(floor.qiCost >= economy.QI_COST_MIN, '堆满省气后耗气压到了 ' + floor.qiCost + ' 点');
 });
 
@@ -676,10 +719,10 @@ check('境界超上限只加价 1.5 倍，不禁练也不砍熟练度', function
   const economy = require('../data/economy.js');
   // 黄阶（门槛炼气、上限筑基）：炼气正常，金丹超上限要加价
   const low = freshState('jian', 0, 0);
-  const r0 = game.applyPractice(low, 'jian', 'B', { difficulty: 'easy' });
+  const r0 = game.applyPractice(low, 'jian', 'B', {});
   assert.strictEqual(r0.realmOverCost, 1);
   const old = freshState('jian', 0, 2);
-  const r1 = game.applyPractice(old, 'jian', 'B', { difficulty: 'easy' });
+  const r1 = game.applyPractice(old, 'jian', 'B', {});
   assert.strictEqual(r1.realmAbove, true);
   assert.strictEqual(r1.realmOverCost, economy.REALM_OVER);
   assert.ok(r1.realmReason.indexOf('上限') >= 0);
@@ -691,12 +734,12 @@ check('境界超上限只加价 1.5 倍，不禁练也不砍熟练度', function
 check('没到门槛不许开练，与「超上限只加价」是两件事', function () {
   // 天阶（门槛元婴）：炼气期连开练都不允许，返回 ok:false 而不是打折结算。
   const early = freshState('duanyue', 0, 0);
-  const r = game.applyPractice(early, 'duanyue', 'B', { difficulty: 'easy' });
+  const r = game.applyPractice(early, 'duanyue', 'B', {});
   assert.strictEqual(r.ok, false, '没到门槛也让它练了');
   assert.ok(String(r.msg).indexOf('境界') >= 0 || String(r.msg).indexOf('修') >= 0,
     '拒绝理由没提境界：' + r.msg);
   const proper = freshState('duanyue', 0, 3);
-  const rp = game.applyPractice(proper, 'duanyue', 'B', { difficulty: 'easy' });
+  const rp = game.applyPractice(proper, 'duanyue', 'B', {});
   assert.strictEqual(rp.ok, true);
   assert.strictEqual(rp.realmOverCost, 1);
 });
@@ -738,12 +781,12 @@ check('难度档缩放不碰盘面尺寸，且各档参数确有区分', functio
   const internalGames = ['merge', 'schulte', 'pushbox', 'biggest'];
   for (const m of practice.PRACTICE_METHODS) {
     if (tableGames.indexOf(m.game) >= 0) continue;
-    const easy = practice.buildParams(m, 'easy');
-    const hard = practice.buildParams(m, 'desperate');
+    const easy = practice.buildParams(m, 'novice');
+    const hard = practice.buildParams(m, 'full');
     if (internalGames.indexOf(m.game) >= 0) {
       const mod = require('../minigames/' + m.game + '.js');
-      const a = mod.lines(easy, 'normal').items.join('');
-      const b = mod.lines(hard, 'hard').items.join('');
+      const a = mod.lines(easy, 'entry').items.join('');
+      const b = mod.lines(hard, 'minor').items.join('');
       assert.notStrictEqual(a, b, m.id + ' 的评级线不随难度档收紧');
       continue;
     }
@@ -764,7 +807,7 @@ check('顺序点格：五档两两不同，同盘面的那两档必须差一条�
   // 所以判据不是「参数不同」（罚时也不同，照样过），而是「同盘面就必须差一条规则」。
   const schulte = require('../minigames/schulte.js');
   const method = practice.getMethod('shumu');
-  const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const keys = ['novice', 'entry', 'minor', 'major', 'full'];
   const seen = keys.map(function (k) {
     const p = practice.buildParams(method, k);
     return { key: k, text: schulte.lines(p).items.join('|'), row: schulte.LEVELS[p.depth] };
@@ -792,7 +835,7 @@ check('换承重轴的三门：变的是复杂度与盘面，不是时间', func
   // 这三门把承重交给盘面、刀路、键位与禁制，时间只负责让节奏别拖。
   let prevGrid = 0;
   let prevLen = -1;
-  for (const d of practice.DIFFICULTIES) {
+  for (const d of practice.STAGES) {
     const lv = practice.CLICK_LEVELS[d.depth];
     assert.ok(lv.grid >= prevGrid, d.name + ' 开锋斩桩诀盘面反而变小');
     assert.strictEqual(lv.cols * lv.cols, lv.grid, d.name + ' 开锋斩桩诀的 grid 与 cols 对不上');
@@ -811,7 +854,7 @@ check('换承重轴的三门：变的是复杂度与盘面，不是时间', func
 
   let prevCells = 0;
   let prevMines = 0;
-  for (const d of practice.DIFFICULTIES) {
+  for (const d of practice.STAGES) {
     const lv = practice.MINES_LEVELS[d.depth];
     const cells = lv.cols * lv.rows;
     // 前两档同为 6×6，靠禁制数（5→6）区分；盘面只许变大，不许缩回去。
@@ -838,7 +881,7 @@ check('换承重轴的三门：变的是复杂度与盘面，不是时间', func
   // 步法：五档必须是五个不同配置。旧表 segments 3/4/4/5/5、baseLen 3/3/3/4/4，
   // 算下来 hard 与 normal 都是 18 步、expert 与 desperate 都是 30 步——五档只有三个配置。
   const seen = {};
-  for (const d of practice.DIFFICULTIES) {
+  for (const d of practice.STAGES) {
     const lv = practice.SWORD_LEVELS[d.depth];
     const sig = lv.segments + '段/' + lv.baseLen + '起';
     assert.ok(!seen[sig], d.name + ' 步法连环与前面某档配置完全一样（' + sig + '）');
@@ -851,7 +894,7 @@ check('换承重轴的三门：变的是复杂度与盘面，不是时间', func
 check('九宫填数与滑块让路的档位表逐档变难', function () {
   let prevHoles = 0;
   let prevS = 0;
-  for (const d of practice.DIFFICULTIES) {
+  for (const d of practice.STAGES) {
     const lv = practice.sudokuLevelOf(d.key);
     assert.ok(lv.size >= 4, d.name + ' 的盘面规格不合法');
     assert.ok(lv.holes > prevHoles, d.name + ' 要填的格数没有增加');
@@ -863,7 +906,7 @@ check('九宫填数与滑块让路的档位表逐档变难', function () {
     assert.ok(kl.maxOpt >= kl.minOpt, d.name + ' 的最优步数区间反了');
   }
   let prevOpt = 0;
-  for (const d of practice.DIFFICULTIES) {
+  for (const d of practice.STAGES) {
     const kl = practice.klotskiLevelOf(d.key);
     assert.ok(kl.minOpt > prevOpt, d.name + ' 的最优步数下限没有提高');
     prevOpt = kl.minOpt;
@@ -872,7 +915,7 @@ check('九宫填数与滑块让路的档位表逐档变难', function () {
 
 check('阵灯推演：两条轴递进，相邻两档不会两条轴都一样，余量压不破 B 档', function () {
   let prev = null;
-  for (const d of practice.DIFFICULTIES) {
+  for (const d of practice.STAGES) {
     const lv = practice.lightsLevelOf(d.key);
     // 余量 < 5 时 A 线（多 2 步）与 B 线（余量 − 2）重合成一条，B 这一档就消失了。
     // 这是「收紧类参数有硬下限」在这一门的具体数字，改余量前先问：五档还齐吗？
@@ -887,7 +930,7 @@ check('阵灯推演：两条轴递进，相邻两档不会两条轴都一样，�
     }
     prev = lv;
   }
-  const p = practice.buildParams(practice.getMethod('arrayEye'), 'desperate');
+  const p = practice.buildParams(practice.getMethod('arrayEye'), 'full');
   assert.deepStrictEqual([p.size, p.minSteps, p.hiSteps, p.budgetSlack],
     [practice.LIGHTS_LEVELS[4].size, practice.LIGHTS_LEVELS[4].min,
       practice.LIGHTS_LEVELS[4].hi, practice.LIGHTS_LEVELS[4].slack],
@@ -896,7 +939,7 @@ check('阵灯推演：两条轴递进，相邻两档不会两条轴都一样，�
 
 check('节奏不越过触屏安全下限', function () {
   for (const m of practice.PRACTICE_METHODS) {
-    const out = practice.buildParams(m, 'desperate');
+    const out = practice.buildParams(m, 'full');
     for (const key of ['interval', 'life', 'flashMs', 'gapMs', 'flipMs', 'shuffleMs']) {
       if (typeof out[key] === 'number') {
         assert.ok(out[key] >= 150, m.id + ' 的 ' + key + ' 压到 ' + out[key] + 'ms，低于安全下限');
@@ -914,8 +957,9 @@ check('getSkillList 输出品阶、可修境界与难度档', function () {
     assert.ok(item.starsText.length === 4);
     assert.ok(item.rewardText.indexOf('耗气') >= 0, '功法卡片没写运功耗气');
     assert.ok(item.maxRealmName && item.needRealmName);
-    assert.ok(item.diffName && item.diffText.indexOf(item.diffName) >= 0,
-      '功法卡片的难度行没写「最高可选哪一档」');
+    assert.ok(item.stageName && item.stageText.indexOf(item.stageName) >= 0,
+      '功法卡片的关卡行没写站在哪一段');
+    assert.ok(item.stageText.indexOf('已走通') >= 0, '功法卡片的关卡行把已走通数写成了关号');
     assert.ok(item.profTierName, '熟练度段位缺失');
     assert.strictEqual(typeof item.decayed, 'boolean');
   }
@@ -942,22 +986,28 @@ check('getFamilies 四档刻度齐全，缺变体的档位标空档', function (
 
 check('纪录只记最高分，低分不覆盖', function () {
   const s = freshState('jian', 0, 0);
-  game.applyPractice(s, 'jian', 'B', { difficulty: 'easy', score: 30 });
-  const r = game.applyPractice(s, 'jian', 'S', { difficulty: 'easy', score: 8 });
+  game.applyPractice(s, 'jian', 'B', { score: 30 });
+  const r = game.applyPractice(s, 'jian', 'S', { score: 8 });
   assert.strictEqual(r.newRecord, false);
   assert.strictEqual(r.bestScore, 30);
   assert.strictEqual(s.records.jian.score, 30);
 });
 
-check('v3 存档升到 v7，熟练度与纪录原样保留，灵力补到身家并夹到气海', function () {
+check('v3 存档升到 v9，熟练度与纪录原样保留，灵力补到身家并夹到气海', function () {
   const old = freshState('jian', 812, 0);
   old.version = 3;
   old.records = { jian: { score: 42, grade: 'A', at: 1 } };
   old.resources.qi = 0;   // 老档的灵力没有任何意义（旧版参悟产灵力，攒下来的没处花）
+  delete old.skills.jian.cleared;   // v3 存档里没有关卡进度这个字段，全靠迁移补
   const n = game.normalizeState(old);
-  assert.strictEqual(n.version, 8);
+  assert.strictEqual(n.version, 9);
   assert.strictEqual(n.skills.jian.prof, 812);
   assert.strictEqual(n.records.jian.score, 42);
+  // 迁移补齐关卡进度：老档只有 prof，按 legacyLevelFromProf 反推老 200 关制的关号再 ×5。
+  assert.ok(typeof n.skills.jian.cleared === 'number', '迁移没补出关卡进度');
+  assert.strictEqual(n.skills.jian.cleared,
+    (L.legacyLevelFromProf(812) - 1) * 5, '老档关卡进度折算不是 (老关号 − 1) × 5');
+  assert.ok(!('levels' in n.skills.jian), '老档的五档进度字段没清掉');
   // 只补不削：抬到开局身家，否则更新后一局都开不了。
   const economy = require('../data/economy.js');
   assert.strictEqual(n.resources.qi, economy.START_QI, '老档灵力没补到开局身家');
@@ -1019,9 +1069,9 @@ check('三秀同收：五档整表同管盘面、时辰、罚息与 S 线，不�
   assert.ok(lv[4].kinds > lv[0].kinds && lv[0].duration > lv[4].duration,
     '绝境与简单的盘面拉不开：花色 / 时辰都没变');
 
-  const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const keys = ['novice', 'entry', 'minor', 'major', 'full'];
   const method = practice.getMethod('harvest');
-  assert.strictEqual(method.tip, practice.tipFor(method, 'easy'),
+  assert.strictEqual(method.tip, practice.tipFor(method, 'novice'),
     '功法表里的兜底代价句和简单档罚息分叉了');
   keys.forEach(function (k, i) {
     const p = practice.buildParams(method, k);
@@ -1037,8 +1087,8 @@ check('三秀同收：五档整表同管盘面、时辰、罚息与 S 线，不�
   });
   // 代价句按档变，不许五档共用一句写死的「少 2 息」。
   assert.strictEqual(new Set(keys.map(function (k) { return practice.tipFor(method, k); })).size, 3);
-  assert.strictEqual(practice.tipFor(practice.getMethod('forge'), 'easy'),
-    practice.tipFor(practice.getMethod('forge'), 'desperate'), '别的门不该被按档改写代价句');
+  assert.strictEqual(practice.tipFor(practice.getMethod('forge'), 'novice'),
+    practice.tipFor(practice.getMethod('forge'), 'full'), '别的门不该被按档改写代价句');
 });
 
 check('时辰尺子与四门补的档位参数都只收紧不放宽，且玩法层真的拿得到', function () {
@@ -1049,7 +1099,7 @@ check('时辰尺子与四门补的档位参数都只收紧不放宽，且玩法�
   const mines = require('../minigames/mines.js');
   assert.deepStrictEqual(mines.HEARTS_BY_DEPTH, practice.MINES_HEARTS,
     '心神表的两份真源分叉了');
-  const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const keys = ['novice', 'entry', 'minor', 'major', 'full'];
   const get = function (id, key, field) {
     return practice.buildParams(practice.getMethod(id), key)[field];
   };
@@ -1060,14 +1110,14 @@ check('时辰尺子与四门补的档位参数都只收紧不放宽，且玩法�
     assert.strictEqual(get('tuisuo', keys[i], 'capFactor'), practice.PUSHBOX_CAP_FACTORS[i]);
   }
   // 时辰收紧对带限时的门生效，但准备页不许再写「入门基准」。
-  assert.ok(get('forge', 'easy', 'duration') > get('forge', 'desperate', 'duration'));
-  assert.ok(get('stones', 'easy', 'timeLimit') > get('stones', 'desperate', 'timeLimit'));
-  const detail = practice.diffDetail(practice.getMethod('tanlei'), 'desperate');
+  assert.ok(get('forge', 'novice', 'duration') > get('forge', 'full', 'duration'));
+  assert.ok(get('stones', 'novice', 'timeLimit') > get('stones', 'full', 'timeLimit'));
+  const detail = practice.stageDetail(practice.getMethod('tanlei'), 'full');
   assert.ok(detail.changes.length >= 2, '绝境档的难度说明没写出两处收紧');
 });
 
 check('十九门五档都至少两个可见参数在变，且评级线或盘面规格给出对照', function () {
-  const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const keys = ['novice', 'entry', 'minor', 'major', 'full'];
   const internal = practice.INTERNAL_PARAM_KEYS;   // 与 difficulty-audit.js 同一份，不许各抄
   for (const m of practice.PRACTICE_METHODS) {
     const ps = keys.map(function (k) { return practice.buildParams(m, k); });
@@ -1081,7 +1131,7 @@ check('十九门五档都至少两个可见参数在变，且评级线或盘面�
     assert.ok(vary.length >= 2,
       m.id + '（' + practice.GAME_LABELS[m.game] + '）五档只有 ' + vary.length + ' 个可见参数在变：' + vary.join(','));
     const variants = new Set(ps.map(function (p, i) {
-      return (index.MODULES[m.game].lines(p, practice.difficultyOf(keys[i]).gear).items || []).join('|');
+      return (index.MODULES[m.game].lines(p, practice.STAGES[practice.stageIndexLike(keys[i])].gear).items || []).join('|');
     })).size;
     const boardChanged = vary.some(function (k) { return /size|holes|minSteps|hiSteps|budgetSlack|level/.test(k); });
     assert.ok(variants > 1 || boardChanged,
@@ -1092,40 +1142,52 @@ check('十九门五档都至少两个可见参数在变，且评级线或盘面�
 check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备页与局内同一份时辰', function () {
   const m = practice.getMethod('linkpair');
   const link = require('../minigames/link.js');
-  const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const keys = ['novice', 'entry', 'minor', 'major', 'full'];
   const ps = keys.map(function (k) { return practice.buildParams(m, k); });
   // 档差的判据不是「秒表差几秒」，是这一档换了哪种盘、纹种多了几种。
   const specs = ps.map(function (p) { return p.cols + '×' + p.rows + '/' + p.kinds + ' 种'; });
   assert.ok(new Set(specs).size >= 4, '五档盘面或纹种没换够：' + specs.join(' '));
-  assert.ok(ps[4].cols > ps[0].cols, '绝境档没加列：五档又是同一张 6×4');
-  assert.ok(ps[2].kinds > ps[0].kinds, '困难档没加纹种');
+  assert.ok(ps[4].cols > ps[0].cols, '圆满段没加列：五段又是同一张 6×4');
+  assert.ok(ps[2].kinds > ps[0].kinds, '小成段没加纹种');
   for (let i = 1; i < ps.length; i += 1) {
     const before = ps[i - 1].duration / (ps[i - 1].cols * ps[i - 1].rows / 2);
     const after = ps[i].duration / (ps[i].cols * ps[i].rows / 2);
     assert.ok(after < before, keys[i] + ' 的每对预算反而宽了（' + before + ' → ' + after + '）');
   }
-  // 时辰由 linkDurationAt(章首关号) 现算；准备页 brief 里的息数必须就是局内那个数，
+  // 时辰由 linkDurationAt(段首关号) 现算；准备页 brief 里的息数必须就是局内那个数，
   // 否则「每对 5.50 息」与倒计时会是两张嘴。
   for (let i = 0; i < keys.length; i += 1) {
-    assert.strictEqual(ps[i].duration, practice.linkDurationAt(L.chapterRange(i).from),
+    assert.strictEqual(ps[i].duration, practice.linkDurationAt(L.stageRange(i).from),
       keys[i] + ' 的时辰不是按关号现算的');
-    const brief = practice.diffDetail(m, keys[i]).brief;
+    const brief = practice.stageDetail(m, keys[i]).brief;
     assert.ok(brief.indexOf(ps[i].duration + ' 息') >= 0, keys[i] + ' 准备页写的时辰与局内分叉了');
     assert.ok(/每对 /.test(brief), keys[i] + ' 准备页没写「一对平均给几息」');
     const g = link.gradeLefts(ps[i].duration);
     assert.ok(g.s > g.a && g.a > g.b && g.b > 0, keys[i] + ' 的评级线挤在一起，C 带没了');
     assert.ok(link.lines(ps[i]).fail, keys[i] + ' 缺失败线：C 与 F 得是两个结论');
   }
-  // 200 关：每对预算只减不增；界面报得出的关数必须等于参数真变的关数
+  // 一条 1–1000 的长线：每对预算只减不增；界面报得出的关数必须等于参数真变的关数
   //（旧版靠 flashMs 报「199 关真的变了」，其中一百多关只是提示短了 10ms）。
+  //
+  // 判据分两层，因为「每对 = 总息数 ÷ 对数」在换段时会换口径：
+  //   ① 段内对数不变，除出来的商必须逐关不增——这是真刀；
+  //   ② 换段时盘变大、总息数跟着变长，取的又是整秒，商允许 ±0.02 息的取整回弹
+  //      （59÷12 = 4.917，69÷14 = 4.929：名义值在降，截断误差在变），
+  //      这时比的是名义值 linkPerPairAt，那也是设计用的那一把尺子。
   let changed = 0;
   let reported = 0;
   let prev = practice.buildParamsAt(m, 1);
   let prevPP = prev.duration / (prev.cols * prev.rows / 2);
-  for (let lv = 2; lv <= 200; lv += 1) {
+  for (let lv = 2; lv <= L.LEVEL_MAX; lv += 1) {
     const q = practice.buildParamsAt(m, lv);
     const pp = q.duration / (q.cols * q.rows / 2);
-    assert.ok(pp <= prevPP + 1e-9, '第 ' + lv + ' 关每对预算往松走：章界倒挂了');
+    assert.ok(practice.linkPerPairAt(lv) <= practice.linkPerPairAt(lv - 1) + 1e-12,
+      '第 ' + lv + ' 关每对预算的名义值往松走了');
+    if (L.stageOfLevel(lv) === L.stageOfLevel(lv - 1)) {
+      assert.ok(pp <= prevPP + 1e-9, '第 ' + lv + ' 关每对预算往松走');
+    } else {
+      assert.ok(pp <= prevPP + 0.02, '第 ' + lv + ' 关换段时每对预算松了 ' + (pp - prevPP).toFixed(3) + ' 息');
+    }
     if (q.duration !== prev.duration || q.cols !== prev.cols || q.rows !== prev.rows
       || q.kinds !== prev.kinds) changed += 1;
     const ds = practice.levelDelta(m, lv);
@@ -1137,14 +1199,14 @@ check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备�
   }
   assert.strictEqual(changed, reported, '逐关真变 ' + changed + ' 关、界面可报 ' + reported + ' 关，两者对不上');
   assert.ok(changed >= 30, '规格台阶掉到 ' + changed + ' 级');
-  assert.strictEqual(m.tip, practice.tipFor(m, 'easy'), '功法表的兜底代价句与简单档分叉了');
+  assert.strictEqual(m.tip, practice.tipFor(m, 'novice'), '功法表的兜底代价句与简单档分叉了');
   assert.ok(!/flashMs/.test(JSON.stringify(m.params)), '种子参数里还有 flashMs');
   assert.strictEqual(typeof m.params.hintMs, 'number', 'hintMs 没有生成端');
 });
 
 check('连 S 层数上限与存档版本对齐，三连晋级已彻底退役', function () {
   assert.strictEqual(game.COMBO_MAX, world.COMBO_MAX);
-  assert.strictEqual(game.createNewState().version, 8);
+  assert.strictEqual(game.createNewState().version, 9);
   assert.strictEqual(game.S_STREAK_GOAL, undefined, '旧的三连目标常量还在导出');
   assert.deepStrictEqual(game.createNewState().sCombo, {});
   const engine = fs.readFileSync(path.join(ROOT, 'utils/game.js'), 'utf8');
@@ -1283,4 +1345,4 @@ check('本场运功：三处对战共用同一份掷骰，谁也不许自己拼�
   assert.ok(Math.round(bare * (1 + mv.powerBonus)) > bare, '运功没有抬高出战战力');
 });
 
-console.log('品阶与难度断言全部通过：' + passed + ' 项');
+console.log('品阶与段位断言全部通过：' + passed + ' 项');

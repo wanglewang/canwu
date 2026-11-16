@@ -9,7 +9,7 @@
 //
 // 一局固定若干轮：每轮盘上重排一批数，点最大的那个进下一轮，走完即完成。
 // 点错不换轮，只罚 2 秒；时辰到还没走完是走火 F。
-// 评级只看用时（含罚时），三条线由本模块 linesOf 按本档轮数与档位推。
+// 评级只看用时（含罚时），三条线由本模块 linesOf 按本段轮数与档位推。
 
 const C = require('./common.js');
 
@@ -107,7 +107,7 @@ function create(ctx) {
     vm.scoreText = '用时 ' + used() + ' 秒';
     vm.goal = '第 ' + round + ' / ' + rounds + ' 轮' + (wrong ? ' · 点错 ' + wrong + ' 次' : '');
     vm.gradeNow = used() <= lim[0] ? 'S' : used() <= lim[1] ? 'A' : used() <= lim[2] ? 'B' : 'C';
-    vm.hint = costText + ' · 本档 ' + rounds + ' 轮 · ' + lim[0] + ' 秒内 S';
+    vm.hint = costText + ' · 本段 ' + rounds + ' 轮 · ' + lim[0] + ' 秒内 S';
   }
 
   function finishOnce(grade, summary) {

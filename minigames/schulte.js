@@ -145,7 +145,7 @@ function create(ctx) {
   const fade = typeof p.fade === 'boolean' ? p.fade : row.fade;
   // 章内时辰会被 lineScale 收紧，linesOf 已经把它压在 B 线之上，这里再兜一层。
   const timeLimit = Math.max(lim.b + C_WINDOW, p.timeLimit || lim.limit);
-  const costText = ctx.tip ? ctx.tip + ' · 本档 ' + penaltySec + ' 秒' : '点错不换格，罚 ' + penaltySec + ' 秒';
+  const costText = ctx.tip ? ctx.tip + ' · 本段 ' + penaltySec + ' 秒' : '点错不换格，罚 ' + penaltySec + ' 秒';
 
   const bag = C.TimerBag();
   const vm = C.makeVm(size, n, '按 1 到 ' + n + ' 的顺序点过去', costText);

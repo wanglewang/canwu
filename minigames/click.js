@@ -778,7 +778,7 @@ function create(ctx) {
   });
 }
 
-// 本档 S/A/B 三条线。局内 HUD、结算与说明页共用这一处，别在别处再推一遍。
+// 本段 S/A/B 三条线。局内 HUD、结算与说明页共用这一处，别在别处再推一遍。
 function gradeLimits(duration, depth, profile) {
   const gs = profile.gradeScale;
   return {
@@ -788,7 +788,7 @@ function gradeLimits(duration, depth, profile) {
   };
 }
 
-// 说明页那一节：按本档基准参数给全四条线（新手便利只同步放宽时长，比例不变）。
+// 说明页那一节：按本段基准参数给全四条线（新手便利只同步放宽时长，比例不变）。
 function lines(p) {
   const lim = gradeLimits(Math.max(8, (p && p.duration) || 15), (p && p.depth) || 0,
     W.weaponOf(p && p.weapon));

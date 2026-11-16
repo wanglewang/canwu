@@ -134,7 +134,7 @@ function create(ctx) {
   const kinds = Math.min(GLYPHS.length, Math.max(3, p.kinds || 5));
   const stage = typeof perks.tier === 'number' ? perks.tier : 0;
   // 五档各改什么，全部由 data/practice.js 的 MATCH_LEVELS 注入；这里一个数字都不写死，
-  // 否则准备页写「本档 55 息」、局内却按 60 息跑，玩家会以为规则骗人。
+  // 否则准备页写「本段 55 息」、局内却按 60 息跑，玩家会以为规则骗人。
   const duration = Math.max(25, p.duration || 60);
   const missCost = Math.max(1, p.missCost || 2);
   const shuffleCost = Math.max(1, p.shuffleCost || 3);
@@ -143,7 +143,7 @@ function create(ctx) {
   const hintCost = Math.max(1, (p.hintCost || 2) - (stage >= 3 ? 1 : 0));
   const realShuffleCost = Math.max(1, shuffleCost - (stage >= 5 ? 1 : 0));
   const chainBonus = stage >= 5 ? 0.25 : 0;
-  // 代价句由准备页按本档罚息生成（tipFor），局内一直挂在 hint 上。以前写死「少 2 息」，
+  // 代价句由准备页按本段罚息生成（tipFor），局内一直挂在 hint 上。以前写死「少 2 息」，
   // 改了难度档就成假话；现在连浮字也取 missCost，三个地方说的是同一个数。
   const costText = ctx.tip || ('换不出三连少 ' + missCost + ' 息');
 
@@ -376,7 +376,7 @@ function gradeLimits(p) {
 function lines(p) {
   const lim = gradeLimits(p);
   return {
-    rule: '按本局总分（无效互换只少息、不扣分；本档盘面与时辰见准备页难度栏）',
+    rule: '按本局总分（无效互换只少息、不扣分；本段盘面与时辰见准备页难度栏）',
     items: ['S ≥ ' + lim.s + ' 分', 'A ≥ ' + lim.a + ' 分', 'B ≥ ' + lim.b + ' 分', '其余为 C'],
   };
 }

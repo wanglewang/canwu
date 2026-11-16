@@ -58,7 +58,7 @@ function createTeach(gameId, ctx) {
 
 function gameName(gameId) { return GAME_NAMES[gameId] || '顺光扫斩'; }
 
-// 本档 S/A/B/C 四条线。各玩法自己导出 lines()，说明页从这里取，
+// 本段 S/A/B/C 四条线。各玩法自己导出 lines()，说明页从这里取，
 // 与局内 HUD、结算用同一份算法——门槛只许有一个出处。
 function gradeLines(gameId, params, gear) {
   const mod = MODULES[gameId];

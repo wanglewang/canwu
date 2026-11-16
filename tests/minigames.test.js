@@ -84,7 +84,7 @@ function makeCtx(method, perks, params) {
   st.method = method;
   const c = index.createGame(method.game, {
     params: params || method.params,
-    difficulty: 'normal',
+    difficulty: 'entry',
     perks: perks || {},
     tip: method.tip,
     twist: method.twist,
@@ -404,8 +404,8 @@ check('每门玩法都给出本档 S/A/B/C 四条线，说明页与局内同源'
   for (const m of data.PRACTICE_METHODS) {
     const mod = index.MODULES[m.game];
     assert.strictEqual(typeof mod.lines, 'function', m.id + ' 没导出 lines()');
-    for (const dk of ['easy', 'normal', 'desperate']) {
-      const r = mod.lines(data.buildParams(m, dk), data.difficultyOf(dk).gear);
+    for (const dk of ['novice', 'entry', 'full']) {
+      const r = mod.lines(data.buildParams(m, dk), data.STAGES[data.stageIndexLike(dk)].gear);
       assert.ok(r && Array.isArray(r.items), m.id + ' 的 lines() 没给 items');
       assert.ok(r.items.length >= 4, m.id + ' 的 ' + dk + ' 档没给全四条线');
       const text = r.items.join('');
@@ -418,8 +418,8 @@ check('每门玩法都给出本档 S/A/B/C 四条线，说明页与局内同源'
     // 谁大谁小由 tests/rank.test.js 的 MATCH_LEVELS 专条守。
     // 段数与步数类（步法 / 燃灯）本身不随档变，只能靠盘面规格变难，这里不强行要求。
     // gear（normal / hard）要跟着档走：剑法的时长、五行的目标都按它再收一次。
-    const easy = mod.lines(data.buildParams(m, 'easy'), data.difficultyOf('easy').gear);
-    const hard = mod.lines(data.buildParams(m, 'desperate'), data.difficultyOf('desperate').gear);
+    const easy = mod.lines(data.buildParams(m, 'novice'), data.STAGES[data.stageIndexLike('novice')].gear);
+    const hard = mod.lines(data.buildParams(m, 'full'), data.STAGES[data.stageIndexLike('full')].gear);
     const nums = function (r) {
       return r.items.join(' ').match(/\d+(\.\d+)?/g) || [];
     };
@@ -677,7 +677,7 @@ check('成对翻牌：大成「留影」照见不再到时就散，没到大成�
   installClock();
   try {
     const m = data.getMethod('seal');
-    const params = data.buildParams(m, 'normal');
+    const params = data.buildParams(m, 'entry');
     const boot = function (tier) {
       const ctx = makeCtx(m, { tier: tier }, params);
       ctx.c.start();
@@ -716,7 +716,7 @@ check('成对翻牌：大圆满「记印」只给翻错过的牌留残影，没�
   installClock();
   try {
     const m = data.getMethod('seal');
-    const params = data.buildParams(m, 'normal');
+    const params = data.buildParams(m, 'entry');
     const boot = function (tier) {
       const ctx = makeCtx(m, { tier: tier }, params);
       ctx.c.start();
@@ -978,13 +978,13 @@ check('记序复现：叠印的解锁段位与准备页说明一致（圆满，�
 check('阵灯推演：五档两条轴都单调，相邻两档不会两条轴都一样', function () {
   const m = data.getMethod('arrayEye');
   const rows = [];
-  for (let i = 0; i < data.DIFFICULTIES.length; i += 1) {
-    const p = data.buildParams(m, data.DIFFICULTIES[i].key);
+  for (let i = 0; i < data.STAGES.length; i += 1) {
+    const p = data.buildParams(m, data.STAGES[i].key);
     assert.strictEqual(typeof p.duration, 'undefined', '还在往这一门传限时，步数制不该有倒计时');
     assert.strictEqual(typeof p.capSteps, 'undefined', '还在传写死的步数预算：预算该按「最优 + 余量」现算');
     assert.ok(p.hiSteps >= p.minSteps, '最优步数区间反了');
     rows.push({
-      name: data.DIFFICULTIES[i].name,
+      name: data.STAGES[i].name,
       size: p.size, lo: p.minSteps, hi: p.hiSteps, slack: p.budgetSlack,
     });
   }
@@ -1010,8 +1010,8 @@ check('阵灯推演：五档开出来的盘都解得开，且最优步数落在�
   installClock();
   try {
     const m = data.getMethod('arrayEye');
-    for (let d = 0; d < data.DIFFICULTIES.length; d += 1) {
-      const p = data.buildParams(m, data.DIFFICULTIES[d].key);
+    for (let d = 0; d < data.STAGES.length; d += 1) {
+      const p = data.buildParams(m, data.STAGES[d].key);
       for (let round = 0; round < 4; round += 1) {
         const ctx = makeCtx(m, {}, p);
         ctx.c.start();
@@ -1022,9 +1022,9 @@ check('阵灯推演：五档开出来的盘都解得开，且最优步数落在�
         for (let i = 0; i < vm.cells.length; i += 1) allowed.push(i);
         const plan = lightsMod.solve(board, p.size, allowed);
         assert.ok(plan && plan.length > 0,
-          data.DIFFICULTIES[d].name + ' 第 ' + (round + 1) + ' 盘开出来就是无解盘');
+          data.STAGES[d].name + ' 第 ' + (round + 1) + ' 盘开出来就是无解盘');
         assert.ok(plan.length >= p.minSteps && plan.length <= p.hiSteps,
-          data.DIFFICULTIES[d].name + ' 的最优步数跑出该档区间 [' + p.minSteps + ',' + p.hiSteps + ']：'
+          data.STAGES[d].name + ' 的最优步数跑出该档区间 [' + p.minSteps + ',' + p.hiSteps + ']：'
           + plan.length);
         ctx.c.destroy();
       }
@@ -1036,7 +1036,7 @@ check('阵灯推演：正好走最优解是 S，破阵即结算', function () {
   installClock();
   try {
     const m = data.getMethod('arrayEye');
-    const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'novice'));
     ctx.c.start();
     const vm = ctx.st.vm;
     const board = vm.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; });
@@ -1067,7 +1067,7 @@ check('阵灯推演：S / A / B / C / F 五档都真的拿得到', function () {
       { pairs: 4, grade: 'F' },
     ];
     for (const cs of cases) {
-      const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
+      const ctx = makeCtx(m, {}, data.buildParams(m, 'novice'));
       ctx.c.start();
       const vm = ctx.st.vm;
       const allowed = [];
@@ -1124,7 +1124,7 @@ check('阵灯推演：阵眼感应照一格算 2 步，不是免费封顶', func
   installClock();
   try {
     const m = data.getMethod('arrayEye');
-    const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'novice'));
     ctx.c.start();
     ctx.c.hint();
     assert.ok(/算 2 步/.test(ctx.st.vm.status), '感应没有当场交代它花了多少步：' + ctx.st.vm.status);
@@ -1172,7 +1172,7 @@ check('阵灯推演：重置阵局回开局、步数清零，但本盘同样封�
   installClock();
   try {
     const m = data.getMethod('arrayEye');
-    const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'novice'));
     ctx.c.start();
     const vm0 = ctx.st.vm;
     const board0 = vm0.cells.map(function (c) { return c.cls.indexOf('cell--lit') >= 0; }).join(',');
@@ -1478,7 +1478,7 @@ check('循数勘禁诀：结算分数越大越好，玩得快不会反而输给�
 check('循数勘禁诀：五档禁制数与心神数真的分开，不再叠一次 hard +3', function () {
   installClock();
   try {
-    const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+    const keys = ['novice', 'entry', 'minor', 'major', 'full'];
     const mines = [];
     const hearts = [];
     for (let i = 0; i < keys.length; i += 1) {
@@ -1527,7 +1527,7 @@ check('循数勘禁诀：阵钉读数常驻，钉超了照实报 7 / 6', functio
   installClock();
   try {
     const m = data.getMethod('tanlei');
-    const params = data.buildParams(m, 'easy');
+    const params = data.buildParams(m, 'novice');
     const ctx = makeCtx(m, {}, params);
     ctx.c.start();
     ctx.c.tap(14);
@@ -1549,7 +1549,7 @@ check('循数勘禁诀：开出一片要报格数，不能一律「石格无事�
   installClock();
   try {
     const m = data.getMethod('tanlei');
-    const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'novice'));
     ctx.c.start();
     // 首点必展开一片（mines.js 保证首点九邻无禁制），所以第一下就该报格数。
     ctx.c.tap(14);
@@ -1806,7 +1806,7 @@ check('顺光扫斩：档位越高刀路越长，重斩是更长的金桩长招'
   installClock();
   try {
     const m = data.getMethod('forge');
-    const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+    const keys = ['novice', 'entry', 'minor', 'major', 'full'];
     const maxLens = [];
     let sawGold = false;
     for (let d = 0; d <= 4; d += 1) {
@@ -2113,7 +2113,7 @@ check('刀法标 dao、剑法·截锋断岳诀仍标 sword，buildParams 原样�
   const m = data.getMethod('forge');
   assert.strictEqual(m.params.weapon, 'dao', '刀法·开锋斩桩诀没标兵器');
   assert.strictEqual(data.getMethod('snatch').params.weapon, 'sword', '剑法·截锋断岳诀没标兵器');
-  for (const k of ['easy', 'normal', 'hard', 'expert', 'desperate']) {
+  for (const k of ['novice', 'entry', 'minor', 'major', 'full']) {
     assert.strictEqual(data.buildParams(m, k).weapon, 'dao', k + ' 档把兵器字段弄丢了');
   }
   assert.strictEqual(weapons.weaponOf('nope'), weapons.PROFILES.dao, '漏标兵器时没回落到当前启用的刀法');
@@ -2124,7 +2124,7 @@ check('同一套 click 引擎，两套兵器 profile 仍分得开（剑预留、
   try {
     function sample(weapon) {
       const m = data.getMethod('forge');
-      const params = Object.assign({}, data.buildParams(m, 'easy'), { weapon: weapon, duration: 12, life: 700 });
+      const params = Object.assign({}, data.buildParams(m, 'novice'), { weapon: weapon, duration: 12, life: 700 });
       const ctx = makeCtx(m, {}, params);
       ctx.c.start();
       let total = 0;
@@ -2292,7 +2292,7 @@ check('走火：有失败态的玩法判负给 F，没有失败态的玩法不�
   // 有失败态的玩法，说明页必须写出这条：玩家要能在开局前知道「崩了会掉到哪」。
   for (const m of data.PRACTICE_METHODS) {
     const mod = index.MODULES[m.game];
-    const r = mod.lines(data.buildParams(m, 'normal'), 'normal');
+    const r = mod.lines(data.buildParams(m, 'entry'), 'entry');
     if (mustBeF[m.game]) {
       assert.ok(r.fail, m.id + ' 有失败态却没在说明页写 fail 线');
       assert.ok(/走火\s*F|走火（F）/.test(r.fail), m.id + ' 的 fail 线没说清是走火 F：' + r.fail);
@@ -2322,7 +2322,7 @@ check('顺序点格：盘上不标「下一个在哪」，五档各自换盘面�
     const method = data.getMethod('shumu');
     const sizes = [];
     for (let depth = 0; depth < 5; depth += 1) {
-      const params = data.buildParams(method, data.DIFFICULTIES[depth].key);
+      const params = data.buildParams(method, data.STAGES[depth].key);
       const ctx = makeCtx(method, {}, params);
       ctx.c.start();
       const vm = ctx.st.vm;
@@ -2381,7 +2381,7 @@ check('顺序点格：罚时只吃评级，不提前收场', function () {
   installClock();
   try {
     const method = data.getMethod('shumu');
-    const params = data.buildParams(method, 'desperate');
+    const params = data.buildParams(method, 'full');
     const row = schulteMod.LEVELS[4];
     const ctx = makeCtx(method, {}, params);
     ctx.c.start();
@@ -2458,7 +2458,7 @@ check('按最优步数评级的三门：反悔过就本盘封顶 A', function ()
   for (const game of cases) {
     const m = data.PRACTICE_METHODS.filter(function (x) { return x.game === game; })[0];
     assert.ok(m, game + ' 没登记成功法');
-    const p = data.buildParams(m, 'easy');
+    const p = data.buildParams(m, 'novice');
 
     // ① 干净一局：按最优路径走完，应当是 S。
     installClock();
@@ -2493,7 +2493,7 @@ check('推石入位：撤销只退位置，不退推数', function () {
   installClock();
   try {
     const m = data.getMethod('tuisuo');
-    const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'novice'));
     ctx.c.start();
     const plan = pushboxMod.solutionMoves(ctx.st.vm.pushbox.layout) || [];
     assert.ok(plan.length >= 2, '这张图的最优解不到 2 步，断言前提不成立');
@@ -2522,7 +2522,7 @@ check('推石入位：图每局现抽，可解、落在本档区间、同档不�
   // 第三遍开始玩家记的是答案而不是走法，「先给谁让路」的推演就退化成回忆。
   // 现在档位只给规格（内盘多大、几处阵位、几道内墙、最优推数的区间），图现抽。
   const m = data.getMethod('tuisuo');
-  const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const keys = ['novice', 'entry', 'minor', 'major', 'full'];
   const seen = new Set();
   let prevMin = 0;
   let prevBoxes = 0;
@@ -2761,7 +2761,7 @@ check('牵灵引线：连上的那一对真的画得出一条折线', function (
 check('牵灵引线：S / A / B / C 四档都真的拿得到，未收干净才是 F', function () {
   const mod = require('../minigames/link.js');
   const m = data.getMethod('linkpair');
-  const params = data.buildParams(m, 'easy');
+  const params = data.buildParams(m, 'novice');
   const g = mod.gradeLefts(params.duration);
   assert.ok(g.s > g.a && g.a > g.b && g.b > 0, '三条线挤在一起，C 带没了');
   assert.deepStrictEqual([g.s, g.a, g.b, g.b - 1].map(function (x) {
@@ -2778,7 +2778,7 @@ check('牵灵引线：S / A / B / C 四档都真的拿得到，未收干净才�
       let vm = null;
       let fin = null;
       const c = index.createGame('link', {
-        params: params, difficulty: 'easy', perks: { tier: 0 }, tip: m.tip, twist: m.twist,
+        params: params, difficulty: 'novice', perks: { tier: 0 }, tip: m.tip, twist: m.twist,
         theme: themes.themeOf(m.id, m.game),
         render: function (v) { vm = v; }, finish: function (r) { fin = r; },
       });
@@ -2814,13 +2814,13 @@ check('牵灵引线：S / A / B / C 四档都真的拿得到，未收干净才�
 check('牵灵引线：局内不报「已入 S」，时辰到还剩对子才是走火 F', function () {
   const mod = require('../minigames/link.js');
   const m = data.getMethod('linkpair');
-  const params = data.buildParams(m, 'easy');
+  const params = data.buildParams(m, 'novice');
   installClock();
   try {
     let vm = null;
     let fin = null;
     const c = index.createGame('link', {
-      params: params, difficulty: 'easy', perks: { tier: 0 }, tip: m.tip, twist: m.twist,
+      params: params, difficulty: 'novice', perks: { tier: 0 }, tip: m.tip, twist: m.twist,
       theme: themes.themeOf(m.id, m.game),
       render: function (v) { vm = v; }, finish: function (r) { fin = r; },
     });
@@ -2848,12 +2848,12 @@ check('牵灵引线：局内不报「已入 S」，时辰到还剩对子才是�
 check('牵灵引线：照纹按段位收费、双照一次照见两对、点空地不罚息', function () {
   const mod = require('../minigames/link.js');
   const m = data.getMethod('linkpair');
-  const params = data.buildParams(m, 'easy');
+  const params = data.buildParams(m, 'novice');
   const open = function (tier) {
     let vm = null;
     let fin = null;
     const c = index.createGame('link', {
-      params: params, difficulty: 'easy', perks: { tier: tier }, tip: m.tip, twist: m.twist,
+      params: params, difficulty: 'novice', perks: { tier: tier }, tip: m.tip, twist: m.twist,
       theme: themes.themeOf(m.id, m.game),
       render: function (v) { vm = v; }, finish: function (r) { fin = r; },
     });
@@ -2956,7 +2956,7 @@ check('两门的评级说明都写清「反悔封顶」，玩家查得到', func
   // 玩家复位后会以为还能拿 S，结算给 A 就成了「凭什么」。
   for (const game of ['klotski', 'pushbox']) {
     const m = data.PRACTICE_METHODS.filter(function (x) { return x.game === game; })[0];
-    const r = index.MODULES[game].lines(data.buildParams(m, 'easy'), 'normal');
+    const r = index.MODULES[game].lines(data.buildParams(m, 'novice'), 'entry');
     assert.ok(/最高(\s*只?到)?\s*A|最高 A/.test(r.items.join(' ')),
       game + ' 的评级说明没写复位后封顶 A');
   }
@@ -2968,7 +2968,7 @@ check('五档各生成一局：19 门 × 5 档都能开局，盘面不出空值'
   // 而「参数拼出一个不存在的盘面」这类错在低档看不出来。这里只建局、不跑完。
   installClock();
   try {
-    const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+    const keys = ['novice', 'entry', 'minor', 'major', 'full'];
     for (const m of data.PRACTICE_METHODS) {
       for (const dk of keys) {
         const ctx = makeCtx(m, {}, data.buildParams(m, dk));
@@ -3004,7 +3004,7 @@ check('推填九宫：选中空格时，同行列宫已有的数字在数字键�
   installClock();
   try {
     const m = data.getMethod('shudu');
-    const ctx = makeCtx(m, {}, data.buildParams(m, 'hard'));
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'minor'));
     ctx.c.start();
     const g = ctx.st.vm.sudoku;
     assert.ok(g && g.size === 9, '困难档不是 9×9');
@@ -3051,7 +3051,7 @@ check('推填九宫：大成「密勘」只标唯一空位，没到大成一处�
   installClock();
   try {
     const m = data.getMethod('shudu');
-    const params = data.buildParams(m, 'hard');
+    const params = data.buildParams(m, 'minor');
     const boot = function (tier) {
       const ctx = makeCtx(m, { tier: tier }, params);
       ctx.c.start();
@@ -3114,7 +3114,7 @@ check('推填九宫：大圆满「唯余」只描唯一候选的键，没到大�
   installClock();
   try {
     const m = data.getMethod('shudu');
-    const params = data.buildParams(m, 'hard');
+    const params = data.buildParams(m, 'minor');
     const boot = function (tier) {
       const ctx = makeCtx(m, { tier: tier }, params);
       ctx.c.start();
@@ -3182,7 +3182,7 @@ check('推石入位：大成「死位」只标真死位，没到大成一处都�
   installClock();
   try {
     const m = data.getMethod('tuisuo');
-    const params = data.buildParams(m, 'normal');
+    const params = data.buildParams(m, 'entry');
     const boot = function (tier) {
       const ctx = makeCtx(m, { tier: tier }, params);
       ctx.c.start();
@@ -3290,7 +3290,7 @@ check('推石入位：大圆满「临渊」只描「一推就进死位」的那�
   installClock();
   try {
     const m = data.getMethod('tuisuo');
-    const params = data.buildParams(m, 'normal');
+    const params = data.buildParams(m, 'entry');
     const boot = function (tier) {
       const ctx = makeCtx(m, { tier: tier }, params);
       ctx.c.start();
@@ -3402,7 +3402,7 @@ check('推填九宫：点题面格 / 没选格就落子，要给浮字而不是�
   installClock();
   try {
     const m = data.getMethod('shudu');
-    const ctx = makeCtx(m, {}, data.buildParams(m, 'easy'));
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'novice'));
     ctx.c.start();
     const g = ctx.st.vm.sudoku;
     let given = -1;
@@ -3425,7 +3425,7 @@ check('滑块让路：选中块的四个方向先标在键上，标出来的一�
   installClock();
   try {
     const m = data.getMethod('rongdao');
-    const ctx = makeCtx(m, {}, data.buildParams(m, 'hard'));
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'minor'));
     ctx.c.start();
     const stepOf = function () {
       const hit = String(ctx.st.vm.goal || '').match(/已走\s*(\d+)\s*步/);
@@ -3462,7 +3462,7 @@ check('滑块让路：挪不动要说清是盘沿还是谁挡着，描红 460ms 
     const seen = { edge: false, block: false };
     // 一盘里未必同时出现两种情形，抽几盘凑。
     for (let round = 0; round < 14 && !(seen.edge && seen.block); round += 1) {
-      const ctx = makeCtx(m, {}, data.buildParams(m, 'normal'));
+      const ctx = makeCtx(m, {}, data.buildParams(m, 'entry'));
       ctx.c.start();
       for (let i = 0; i < 5 && !(seen.edge && seen.block); i += 1) {
         ctx.c.tap(i);
@@ -3493,7 +3493,7 @@ check('滑块让路：挪不动要说清是盘沿还是谁挡着，描红 460ms 
     // 四面都堵的块：四个键一起压暗，选中时要说一句，别让玩家一个个试完才知道。
     let stuckSeen = 0;
     for (let round = 0; round < 20 && stuckSeen < 2; round += 1) {
-      const one = makeCtx(m, {}, data.buildParams(m, 'normal'));
+      const one = makeCtx(m, {}, data.buildParams(m, 'entry'));
       one.c.start();
       for (let i = 0; i < 5; i += 1) {
         one.c.tap(i);
@@ -3514,7 +3514,7 @@ check('滑块让路：脱身时主块沉进出口，出口从缺口变成开着�
   installClock();
   try {
     const m = data.getMethod('rongdao');
-    const ctx = makeCtx(m, {}, data.buildParams(m, 'normal'));
+    const ctx = makeCtx(m, {}, data.buildParams(m, 'entry'));
     ctx.c.start();
     const toState = function () {
       return ctx.st.vm.klotski.blocks.map(function (b) {
@@ -3544,7 +3544,7 @@ check('滑块让路：脱身时主块沉进出口，出口从缺口变成开着�
 
 check('节律判定：五档各换一件东西，不是只换秒表', function () {
   const m = data.getMethod('absorb');
-  const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
+  const keys = ['novice', 'entry', 'minor', 'major', 'full'];
   const specs = keys.map(function (k) { return data.buildParams(m, k); });
   const cueRank = { all: 3, next: 2, bar: 1, none: 0 };
   for (let i = 1; i < specs.length; i += 1) {
@@ -3590,7 +3590,7 @@ check('节律判定：每一手的判定窗都不许吞掉下一个音符', func
 check('节律判定：双手是两条独立时间线，不是和弦', function () {
   const m = data.getMethod('absorb');
   const mod = index.MODULES.tempo;
-  const two = mod.score(data.buildParams(m, 'expert'), { twist: m.twist });
+  const two = mod.score(data.buildParams(m, 'major'), { twist: m.twist });
   assert.strictEqual(two.tracks.length, 2, '极难档没有起第二只手');
   const lg = two.tracks[0].notes[0].gap;
   const rg = two.tracks[1].notes[0].gap;
@@ -3599,7 +3599,7 @@ check('节律判定：双手是两条独立时间线，不是和弦', function (
   const rAt = two.tracks[1].notes.map(function (n) { return n.at; });
   const shared = lAt.filter(function (t) { return rAt.indexOf(t) >= 0; });
   assert.ok(shared.length >= 2, '极难的两条线一个对齐点都没有，「同相位」是假的');
-  const three = mod.score(data.buildParams(m, 'desperate'), { twist: m.twist });
+  const three = mod.score(data.buildParams(m, 'full'), { twist: m.twist });
   const l3 = three.tracks[0].notes[0].gap;
   const r3 = three.tracks[1].notes[0].gap;
   // 二对三：左手一小节 2 下、右手 3 下，所以间隔比是 3:2。
@@ -3617,7 +3617,7 @@ check('节律判定：本门机制（判定带更宽）五档都成立', functio
   const own = mod.score(ref, { twist: m.twist });
   assert.ok(Math.abs(own.tracks[0].winMs / bare.tracks[0].winMs - mod.TWIST_WIN) < 1e-9,
     '本门判定带不是 ×' + mod.TWIST_WIN);
-  for (const k of ['easy', 'normal', 'hard', 'expert', 'desperate']) {
+  for (const k of ['novice', 'entry', 'minor', 'major', 'full']) {
     const a = mod.score(data.buildParams(m, k), {});
     const b = mod.score(data.buildParams(m, k), { twist: m.twist });
     assert.ok(b.tracks[0].winMs >= a.tracks[0].winMs - 1e-9,
@@ -3685,16 +3685,16 @@ check('节律判定：章内收紧同步到盘面，不许报盘面上没有的�
 });
 
 check('五档难度表不许留没人读的旋钮（windowPace / speed / window 已退役）', function () {
-  for (const d of data.DIFFICULTIES) {
+  for (const d of data.STAGES) {
     assert.ok(!Object.prototype.hasOwnProperty.call(d, 'windowPace'),
       d.key + ' 档还留着 windowPace：WINDOW_KEYS 已删，没有任何参数乘它');
   }
   // 反向也守一句：判定窗确实还随档收紧，别把「删死参数」做成「整张表不动」。
   const m = data.getMethod('absorb');
-  assert.ok(data.buildParams(m, 'easy').winMs > data.buildParams(m, 'desperate').winMs,
+  assert.ok(data.buildParams(m, 'novice').winMs > data.buildParams(m, 'full').winMs,
     '五档的判定窗没有随档收紧');
   // 旧版的三个键已经没人读了：留着它们会让人以为这门还是「一个恒定速度的光环」。
-  for (const k of ['easy', 'desperate']) {
+  for (const k of ['novice', 'full']) {
     const q = data.buildParams(m, k);
     assert.ok(!Object.prototype.hasOwnProperty.call(q, 'speed'), k + ' 档还留着 speed');
     assert.ok(!Object.prototype.hasOwnProperty.call(q, 'window'), k + ' 档还留着 window');

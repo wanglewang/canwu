@@ -181,11 +181,11 @@ check('说明页写清本档四条线：C / B / A / S 各自要什么', function
   const help = require('../data/help.js');
   const pd = require('../data/practice.js');
   for (const m of pd.PRACTICE_METHODS) {
-    const t = help.practiceTopic({ method: m.id, diff: 'hard' });
+    const t = help.practiceTopic({ method: m.id, stage: 'minor' });
     const sec = t.sections.filter(function (x) { return x.key === 'score'; })[0];
     assert.ok(sec, m.id + ' 的说明页没有评级节');
     const text = sec.lines.join(' ');
-    assert.ok(/本档「困难」/.test(text), m.id + ' 没写清是哪一档的门槛');
+    assert.ok(/本段「小成」/.test(text), m.id + ' 没写清是哪一段的门槛');
     ['S', 'A', 'B', 'C'].forEach(function (g) {
       assert.ok(text.indexOf(g) >= 0, m.id + ' 的四条线缺 ' + g);
     });
@@ -193,7 +193,7 @@ check('说明页写清本档四条线：C / B / A / S 各自要什么', function
   // 链接没带档时按简单档给，不许留空或写「见局内」。
   const plain = help.practiceTopic({ method: 'tanlei' });
   const line = plain.sections.filter(function (x) { return x.key === 'score'; })[0].lines.join(' ');
-  assert.ok(/本档「简单」/.test(line), '没带难度档时没回落到简单档');
+  assert.ok(/本段「未入门」/.test(line), '没带段位时没回落到第一段');
 });
 
 check('规则分层：准备页一行、局内两行、整篇在说明页', function () {
@@ -455,7 +455,7 @@ check('战力明细收进「说明」真源，首屏只留数值；指南保留�
   const lines = (power ? power.lines : []).join('');
   assert.ok(lines.length > 0, '说明页缺战力专节');
   assert.ok(/体魄 ×1\.0/.test(lines) && /境界加成/.test(lines) && /功法特效/.test(lines), '说明没讲公式三项');
-  assert.ok(/突破境界/.test(lines) && /大成/.test(lines) && /另择一门/.test(lines)
+  assert.ok(/突破境界/.test(lines) && /化境/.test(lines) && /另择一门/.test(lines)
     && /不减所得/.test(lines), '说明没讲突破、特效与「只奖不罚」');
   const index = read('pages/index/index.wxml');
   const indexJs = read('pages/index/index.js');
@@ -528,7 +528,7 @@ check('战力是阶梯：结算与主页都要说「跳到多少」，不能只�
   // 属性 = 功法条目 × 段位系数，段位是阶梯。所以练一局常常「熟练度涨了、战力没动」，
   // 这不是 bug，是设计。界面必须能如实表达它，而不是每局丢一个 +0 给玩家。
   const id = Object.keys(s.skills).filter(function (k) { return s.skills[k].unlocked; })[0];
-  const r = game.applyPractice(s, id, 'S', { difficulty: 'easy', score: 100 });
+  const r = game.applyPractice(s, id, 'S', { difficulty: 'novice', score: 100 });
   assert.ok(r.ok, '参悟结算没跑通');
   assert.ok(typeof r.powerBefore === 'number' && typeof r.powerAfter === 'number', '结算没带战力前后值');
   assert.ok(r.profAfter > r.profBefore, '熟练度没涨，断言前提不成立');
@@ -565,7 +565,7 @@ check('局内两行不说同一句话：tip 讲代价，inline 讲操作', funct
   }
 });
 
-check('准备页交代「下一段给什么」与「这一档收紧了什么」', function () {
+check('准备页交代「下一段给什么」与「这一段收紧了什么」', function () {
   const wxml = read('pages/practice/practice.wxml');
   const js = read('pages/practice/practice.js');
   const world = require('../data/world.js');
@@ -574,8 +574,8 @@ check('准备页交代「下一段给什么」与「这一档收紧了什么」'
   assert.ok(/nextBenefit/.test(wxml) && /nextTier\.desc/.test(js), '准备页没交代下一段给什么');
   for (const t of world.TIERS) assert.ok(t.desc && t.desc.length >= 4, t.name + ' 没写收益');
   // 难度档：倍率之外实际收紧了哪几处，diffDetail.brief 早就算好了，以前没渲染。
-  assert.ok(/diffBrief/.test(wxml) && /diff\.brief/.test(js), '难度档只摆了倍率，没摆收紧了什么');
-  const d = practice.diffDetail(practice.getMethod('recite'), 'normal');
+  assert.ok(/stageBoardBrief/.test(wxml) && /stageBoardBrief: stageInfo\.brief/.test(js), '段位只摆了名号，没摆本段收紧了什么');
+  const d = practice.stageDetail(practice.getMethod('recite'), 'entry');
   assert.ok(d.brief.indexOf('→') >= 0, '难度对比没算出任何变化：' + d.brief);
 });
 
@@ -1202,8 +1202,8 @@ check('三秀同收：局内 hint 必须留住代价句，不许被纯计数覆�
   assert.ok(/tip = practiceData\.tipFor\(/.test(page), '准备页没把按档代价句传给玩法');
   assert.ok(!/tip: method\.tip/.test(page), '参悟页还有一处写死的功法表代价句没跟着档走');
   // 罚息按档变，代价句不能还是那句写死的「少 2 息」。
-  assert.ok(/少 1 息/.test(pd.tipFor(pd.getMethod('harvest'), 'easy'))
-    && /少 3 息/.test(pd.tipFor(pd.getMethod('harvest'), 'desperate')),
+  assert.ok(/少 1 息/.test(pd.tipFor(pd.getMethod('harvest'), 'novice'))
+    && /少 3 息/.test(pd.tipFor(pd.getMethod('harvest'), 'full')),
     '代价句没跟着本档罚息走');
 });
 
@@ -1223,14 +1223,14 @@ check('「错换」已统一为「无效互换」：玩家可见文件不留旧�
 check('三秀同收：S 线与提示按钮名各只有一份真源', function () {
   const pd = require('../data/practice.js');
   const method = pd.getMethod('harvest');
-  assert.strictEqual(pd.sLineOf(method, 'easy'), 1900, '简单档 S 线变了');
-  assert.strictEqual(pd.sLineOf(method, 'hard'), 1400, '困难档 S 线没按本档盘面标定');
+  assert.strictEqual(pd.sLineOf(method, 'novice'), 1900, '简单档 S 线变了');
+  assert.strictEqual(pd.sLineOf(method, 'minor'), 1400, '困难档 S 线没按本档盘面标定');
   // 盘面越难，绝对分数线越低；这不是倒退，是同一把尺子量不同盘会骗人。
-  const lines = ['easy', 'normal', 'hard', 'expert', 'desperate'].map(function (k) { return pd.sLineOf(method, k); });
+  const lines = ['novice', 'entry', 'minor', 'major', 'full'].map(function (k) { return pd.sLineOf(method, k); });
   assert.ok(lines.every(function (v, i) { return i === 0 || v <= lines[i - 1]; }), '评级线没按盘面难度逐档标定');
   assert.strictEqual(new Set(lines).size, 5, '五档评级线还有并列的');
-  assert.strictEqual(pd.sLineOf(pd.getMethod('linkpair'), 'easy'), 0, '非三消玩法不该有 S 线');
-  assert.strictEqual(pd.buildParams(method, 'hard').sLine, pd.sLineOf(method, 'hard'), '玩法层没拿到同源 S 线');
+  assert.strictEqual(pd.sLineOf(pd.getMethod('linkpair'), 'novice'), 0, '非三消玩法不该有 S 线');
+  assert.strictEqual(pd.buildParams(method, 'minor').sLine, pd.sLineOf(method, 'minor'), '玩法层没拿到同源 S 线');
   // 门槛只能出现在 gradeLimits 一处：create 里只许调它，不许再自己写 620 / 150 这种数。
   assert.ok(/lim = gradeLimits\(p\)/.test(read('minigames/match.js')),
     'match.js 又把 S 线写死在玩法层');
@@ -1270,7 +1270,7 @@ check('阵灯推演：代价句按阶段出现，盘面只画图形不写汉字'
   function boot(perks) {
     let vm = null;
     const c = L.create({
-      params: pd.buildParams(method, 'easy'), perks: perks, theme: { glyph: '●' },
+      params: pd.buildParams(method, 'novice'), perks: perks, theme: { glyph: '●' },
       tip: method.tip, render: function (v) { vm = v; }, finish: function () { },
     });
     c.destroy();
@@ -1361,7 +1361,7 @@ check('19 套玩法的代价句在局内真的看得见（运行时探针）', f
     const M = require('../minigames/' + m.game + '.js');
     let vm = null;
     const c = M.create({
-      params: pd.buildParams(m, 'easy'), perks: { tier: 0 }, theme: {},
+      params: pd.buildParams(m, 'novice'), perks: { tier: 0 }, theme: {},
       tip: m.tip, render: function (v) { vm = v; }, finish: function () { },
     });
     // 死门是大成才解锁的进阶规则，未解锁时阵灯推演只讲阵眼感应与步数余量的代价，不提前讲死门。
@@ -1529,16 +1529,16 @@ check('阵灯推演：盘面规格与步数预算同源、阵眼术语收敛、H
 
   // 规格与预算只有一份表：准备页那行与玩法层共用，换难度档跟着变。
   assert.ok(Array.isArray(pd.LIGHTS_LEVELS)
-    && pd.LIGHTS_LEVELS.length === pd.DIFFICULTIES.length, '档位表没盖住全部难度档');
-  assert.strictEqual(pd.lightsLevelOf('hard').size, 4, '困难档盘面规格变了');
-  assert.strictEqual(pd.lightsLevelOf('desperate').size, 5, '绝境档盘面规格变了');
-  const hp = pd.buildParams(method, 'hard');
+    && pd.LIGHTS_LEVELS.length === pd.STAGES.length, '档位表没盖住全部难度档');
+  assert.strictEqual(pd.lightsLevelOf('minor').size, 4, '困难档盘面规格变了');
+  assert.strictEqual(pd.lightsLevelOf('full').size, 5, '绝境档盘面规格变了');
+  const hp = pd.buildParams(method, 'minor');
   assert.deepStrictEqual([hp.size, hp.minSteps, hp.hiSteps, hp.budgetSlack],
     [pd.LIGHTS_LEVELS[2].size, pd.LIGHTS_LEVELS[2].min, pd.LIGHTS_LEVELS[2].hi, pd.LIGHTS_LEVELS[2].slack],
     '玩法层没拿到按档注入的盘面规格、最优区间与余量');
   assert.ok(/p\.size/.test(lights) && !/const LIGHTS_LEVELS|const LIGHTS_TARGETS/.test(lights),
     'lights.js 又抄了一份档位表');
-  assert.ok(/本档 3×3 盘 · 最优 2～3 步 · 最多多走 7 步/.test(pd.sLineText(method, 'easy')),
+  assert.ok(/本段 3×3 盘 · 最优 2～3 步 · 最多多走 7 步/.test(pd.sLineText(method, 'novice')),
     '准备页没写出本档规格、最优区间与余量');
   // 预算不再是写死的参数：它是「本盘最优 + 余量」，在玩法层现算。表里若又出现 cap，
   // 说明那两处迟早会脱钩（旧表预算是最优的 3–4.5 倍，文档却写着「够 A、不够乱点」）。
@@ -1737,7 +1737,7 @@ check('19 门盘面图案化：果器纹 / 卦象器物纹 / 数字纸纹三层�
     const M = require('../minigames/' + m.game + '.js');
     let vm = null;
     const c = M.create({
-      params: pd.buildParams(m, 'easy'), perks: { tier: 0 }, theme: {},
+      params: pd.buildParams(m, 'novice'), perks: { tier: 0 }, theme: {},
       tip: m.tip, render: function (v) { vm = v; }, finish: function () { },
     });
     c.start();

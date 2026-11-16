@@ -87,25 +87,21 @@ Page({
     percent: 0,
     nextText: '',
     nextBenefit: '',
-    diffBrief: '',
+    stageBoardBrief: '',
     goalText: '',
-    difficulty: 'easy',
-    // 关卡：五档并列、各 40 关。关只由「本档走通了几关」定，与熟练度无关；
-    // 玩家看到的是档内第几关，参数层仍吃全书 1–200 关号（见 buildGame）。
+    stageKey: 'novice',
+    // 关卡：一门一条 1–1000 的长线，五段。关只由「走通了几关」定，与熟练度无关。
     level: 1,
-    levelNo: 1,
-    levelGlobal: 1,
-    levelTotal: 40,
-    levelMax: 40,
+    levelTotal: 1000,
+    levelMax: 1,
     cleared: 0,
-    // 五档按钮：{ key, name, on, locked, done, total, hint }
-    diffs: [],
-    diffIndex: 0,
-    diffUnlocked: 1,
+    // 段位条：{ key, name, on, done, locked, hint }。没有按钮——段不是可选项。
+    stages: [],
+    stageIndex: 0,
+    stageName: '未入门',
     levelSub: '',
     levelChange: '',
-    chapterChange: '',
-    diffName: '简单',
+    stageChange: '',
     rankLabel: '黄阶',
     rankChar: '黄',
     rankColor: '#8a8f83',
@@ -222,11 +218,10 @@ Page({
     this.lastTouchY = 0;
     this.theme = themes.themeOf('forge', 'click');
     this.twist = '';
-    // 关卡不落存档之外的任何地方：每次进这一页都按存档里本门的五档进度现算
-    // （默认停在「本门当前档」的当前关）。两个 override 都只记「这一次停留里玩家
-    // 自己点了什么」，换页即弃——否则半年前点过一次绝境，练到圆满也永远默认绝境。
+    // 关卡不落存档之外的任何地方：每次进这一页都按存档里本门走通的关数现算
+    // （默认停在「已通 + 1」）。override 只记「这一次停留里玩家往回翻到第几关」，
+    // 换页即弃——否则半年前回打过第 3 关，练到第 700 关还默认从第 3 关开局。
     this.levelOverride = 0;
-    this.diffOverride = -1;
     this.maxIdxSeen = -1;
     this.mode = query && query.mode === 'breakthrough' ? 'breakthrough' : 'practice';
     this.skillId = (query && query.skillId) || '';
@@ -312,8 +307,7 @@ Page({
         percent: 100,
         nextText: '目标 ' + info.nextName,
         nextBenefit: '',
-        diffBrief: '',
-        diffName: '',
+        stageBoardBrief: '',
         rankLabel: '',
         rankChar: '',
         rankRewardText: '',
@@ -346,39 +340,30 @@ Page({
     const twist = themes.twistOf(method.twist);
     const tier = practiceData.tierOf(skill.tier);
 
-    // 五档是五条并列的线：玩家自己挑打哪一档，每档固定 40 关，各记各的进度。
-    // 熟练度不再算关号、也不再解锁难度——它只决定段位与属性加成。
-    // 没走通的档按钮是锁的，点了不换档；已走通的档随时能回去。
-    const lvMap = practiceData.levelsOf(rec);
-    const unlocked = practiceData.unlockedDiffCount(rec);
-    const curDiffIdx = practiceData.currentDiffIndex(rec);
-    const picked = Number.isFinite(this.diffOverride) && this.diffOverride >= 0
-      ? this.diffOverride : curDiffIdx;
-    const diffIdx = Math.max(0, Math.min(picked, unlocked - 1));
-    const diffKey = practiceData.DIFFICULTIES[diffIdx].key;
-    const cleared = lvMap[diffKey];
-    // 本档当前关 = 已通 + 1；满 40 停在 40。往回打只能打到已走通过的关。
-    const curNo = Math.min(levelData.LEVELS_PER_DIFF, cleared + 1);
+    // 一门一条 1–1000 的长线，五段。段位只由「走通了几关」定，玩家没有挑档这个动作：
+    // 只能往前走（走通才推进一关），或往回翻（回关按本关÷当前关折熟练度）。
+    const cleared = practiceData.clearedOf(rec);
+    // 本门当前关 = 已通 + 1；走完 1000 关停在 1000。
+    const curNo = practiceData.curLevelOf(rec);
     const override = Math.round(this.levelOverride) || 0;
     const level = Math.max(1, Math.min(curNo, override || curNo));
     const levelMax = curNo;
-    // 参数层吃全书关号（1–200），对外只报档内关号。两个口径的换算只有这一处。
-    const levelGlobal = levelData.globalLevelOf(diffIdx, level);
-    const levelNo = level;
-    const diff = practiceData.diffDetail(method, diffKey);
+    const stageIdx = levelData.stageOfLevel(level);
+    const stageDef = practiceData.STAGES[stageIdx];
+    const stageInfo = practiceData.stageDetail(method, stageIdx);
     const retreatText = practiceData.retreatText(level, curNo);
     // 本局要烧的灵力，与结算走同一个函数（engine.practiceCostOf）。
-    // 耗气只看档位，与档内第几关无关。面板与结算各算一遍的话，
+    // 耗气只看本关所在的段，与段内第几关无关。面板与结算各算一遍的话，
     // 最后一定会出现「写 17、扣 24」这种对不上的账。
-    const qiCost = engine.practiceCostOf(state, skill.id, diffKey);
+    const qiCost = engine.practiceCostOf(state, skill.id, level);
     const qiNow = state.resources.qi;
     const qiMax = engine.qiCap(state);
     const canStart = qiNow >= qiCost;
     const costText = '耗灵力 ' + qiCost + ' · 余 ' + qiNow + ' / ' + qiMax;
     const best = state.records ? state.records[skill.id] : null;
-    const bestText = best ? '本门最佳 ' + best.score + ' 分 · ' + best.grade + ' 档' : '';
+    const bestText = best ? '本门最佳 ' + best.score + ' 分 · ' + best.grade : '';
 
-    // 连 S 每门各算各的：只有「本门当前档、当前关」的 S 叠层，回关局与低档局都不叠，
+    // 连 S 每门各算各的：只有「本门当前关」的 S 叠层，回关局不叠，
     // C/B/A 与走火归零。一行只写「现在几层 / 下一局 S 值多少点」，整条曲线在说明页，别铺公式。
     const comboMax = worldData.COMBO_MAX;
     const comboNow = Math.min(comboMax, Math.floor(Number(state.sCombo && state.sCombo[skill.id]) || 0));
@@ -431,8 +416,8 @@ Page({
     // 好处就在 world.TIERS[].desc 里（属性加成 / 本门新法），原样搬一句，不另编。
     const nextTier = info.maxed ? null : worldData.TIERS[info.index + 1];
     // S 线只写在准备页：局内只报「还差几分」，这里给出本档门槛与评级口径。
-    // 分数线（三秀同收）与盘数线（阵灯推演）都由 practiceData 同源生成，换难度档跟着变。
-    const sLine = practiceData.sLineText(method, diffKey);
+    // 分数线（三秀同收）与盘数线（阵灯推演）都由 practiceData 同源生成，换段跟着变。
+    const sLine = practiceData.sLineText(method, stageIdx);
     // 开局卡那一行：整篇规则在说明页，首屏只留「这一局做什么」。
     const guideData = guides.guideOf(method.game);
     const ruleText = guideData ? guideData.goal : method.desc;
@@ -472,7 +457,7 @@ Page({
       subtitle: skill.desc,
       gameName: minigames.gameName(method.game),
       // 与局内那一行同源：三秀同收的罚息按档变，这里不许留一句写死的「少 2 息」。
-      tip: practiceData.tipFor(method, diffKey),
+      tip: practiceData.tipFor(method, stageIdx),
       ruleText: ruleText,
       introOn: introOn,
       intro: intro,
@@ -482,45 +467,41 @@ Page({
       percent: info.percent,
       nextText: info.maxed ? '已至大圆满' : '距 ' + info.nextName + ' 还差 ' + (info.nextThreshold - rec.prof),
       nextBenefit: nextTier ? '到「' + nextTier.name + '」：' + nextTier.desc : '',
-      difficulty: diffKey,
+      stageKey: stageDef.key,
       level: level,
-      levelNo: levelNo,
-      levelGlobal: levelGlobal,
-      levelTotal: levelData.LEVELS_PER_DIFF,
+      levelTotal: levelData.LEVEL_MAX,
       levelMax: levelMax,
       curLevel: curNo,
       cleared: cleared,
-      // 关卡进度只说一件事：本档 40 关走到哪了。不再写「全书第 68 关」——
-      // 五档是并列的五条线，把档内关号折成一条 200 关的长轴，玩家反而看不出自己在哪一档。
-      levelSub: '已走通 ' + cleared + ' / ' + levelData.LEVELS_PER_DIFF + ' 关'
-        + (level < curNo ? ' · 本局回打第 ' + level + ' 关' : ' · 本局第 ' + level + ' 关'),
+      // 进度只写两个数：本门走通了几关（0–1000），以及在本段里的位置。
+      // 段名是玩家理解进度的那把尺子，「第 762 关」本身不说明任何事。
+      levelSub: '已走通 ' + cleared + ' / ' + levelData.LEVEL_MAX + ' 关 · 本段 '
+        + levelData.levelInStage(level) + ' / ' + levelData.stageSize(stageIdx) + ' 关'
+        + (level < curNo ? ' · 本局回打第 ' + level + ' 关' : ''),
       levelChange: (function () {
-        const d = practiceData.levelDelta(method, levelGlobal);
-        if (!d.length) return '与上一关规格相同（本档第 '
-          + level + ' / ' + levelData.LEVELS_PER_DIFF
-          + ' 关；盘面规格换档才换，档内只收时辰与评级线）';
+        const d = practiceData.levelDelta(method, level);
+        if (!d.length) return '与上一关规格相同（本段第 '
+          + levelData.levelInStage(level) + ' / ' + levelData.stageSize(stageIdx)
+          + ' 关；盘面规格换段才换，段内只收时辰与评级线）';
         return (d[0].chapter ? '' : '本关变化：') + d.map(function (x) { return x.text; }).join(' · ');
       })(),
-      // 五档按钮：一行五个，只写档名与本档进度（已通几关）。
-      // 锁着的那几档写「未开」，点它才在 toast 里说「先走通上一档 40 关」——
-      // 按钮上塞一整句会把五个按钮挤成两行，反而不像一排并列的档。
-      diffs: practiceData.DIFFICULTIES.map(function (d, i) {
-        const done = lvMap[d.key];
+      // 段位条：五段一条，只报「哪几段走完了、现在在哪一段、这一段还有几关」。
+      // 这里没有按钮——段不是可选项，走通段界关才进下一段。
+      stages: practiceData.STAGES.map(function (d, i) {
+        const done = cleared >= d.to;
+        const on = i === stageIdx;
         return {
           key: d.key,
           name: d.name,
-          on: i === diffIdx,
-          locked: i >= unlocked,
+          on: on,
           done: done,
-          total: levelData.LEVELS_PER_DIFF,
-          hint: i >= unlocked ? '未开' : done + ' / ' + levelData.LEVELS_PER_DIFF,
+          locked: !done && !on,
+          hint: done ? '已走通' : (on ? cleared - d.from + 1 + ' / ' + (d.to - d.from + 1) : '未到'),
         };
       }),
-      diffIndex: diffIdx,
-      diffUnlocked: unlocked,
-      // 本档规格常驻：换档是玩家自己点的动作，但「这一档到底换了什么」仍要说清。
-      chapterChange: practiceData.chapterSpec(method, levelGlobal),
-      diffName: diff.name,
+      stageIndex: stageIdx,
+      stageName: stageDef.name,
+      stageChange: practiceData.stageSpec(method, level),
       qi: qiNow,
       qiMax: qiMax,
       stone: state.resources.stone,
@@ -529,9 +510,9 @@ Page({
       canStart: canStart,
       costText: costText,
       retreatText: retreatText,
-      // 高难度除了更贵还收紧了什么：diffDetail 已经算好了（亮起时长、口诀轮数…），
+      // 这一段除了更贵还收紧了什么：stageDetail 已经算好了（亮起时长、口诀轮数…），
       // 以前只在数据里躺着没渲染，玩家只能看到「×1.70」。
-      diffBrief: diff.brief,
+      stageBoardBrief: stageInfo.brief,
       goalText: sLine,
       rankLabel: tier.label,
       rankChar: tier.name,
@@ -571,12 +552,11 @@ Page({
       const skill = skillData.getSkill(this.skillId);
       const method = practiceData.getMethod(skill.method);
       gameId = method.game;
-      // 一段一关：本关参数由档内进度现算。参数层吃全书关号（第 41 关比第 40 关紧
-      // 这件事要能跨档比较），所以这里传 levelGlobal，不是玩家看到的档内关号。
-      params = practiceData.buildParamsAt(method, this.data.levelGlobal);
+      // 一关一副参数，按本关所在段 + 段内进度现算。
+      params = practiceData.buildParamsAt(method, this.data.level);
       methodName = method.name;
-      // 代价句里的罚息随难度档变（三秀同收），不能用写死在功法表里的那一句。
-      tip = practiceData.tipFor(method, this.data.difficulty);
+      // 代价句里的罚息随段变（三秀同收），不能用写死在功法表里的那一句。
+      tip = practiceData.tipFor(method, this.data.stageIndex);
       tier = engine.tierIndex(state.skills[this.skillId].prof);
     }
     const perks = this.mode === 'breakthrough'
@@ -589,9 +569,9 @@ Page({
     const self = this;
     this.controller = minigames.createGame(gameId, {
       params: params,
-      // 玩法模块只认 normal / hard 两档手感；真正的五档差异全部落在 params 上。
-      difficulty: practiceData.difficultyOf(this.data.difficulty).gear,
-      diffKey: this.data.difficulty,
+      // 玩法模块只认 normal / hard 两档手感；真正的段间差异全部落在 params 上。
+      difficulty: practiceData.STAGES[this.data.stageIndex].gear,
+      stageKey: this.data.stageKey,
       perks: perks,
       tip: tip,
       methodName: methodName,
@@ -1067,7 +1047,7 @@ Page({
   onGoHelp: function () {
     const skill = this.mode === 'practice' ? skillData.getSkill(this.skillId) : null;
     if (skill) {
-      wx.navigateTo({ url: nav.practiceHelpUrl(skill.method, '', this.data.difficulty) });
+      wx.navigateTo({ url: nav.practiceHelpUrl(skill.method, '', this.data.stageKey) });
       return;
     }
     wx.navigateTo({ url: nav.practiceHelpUrl('', 'charge') });
@@ -1084,32 +1064,12 @@ Page({
         // 到顶不让人白点：说清「下一关怎么来」。关卡靠走通推进，不靠熟练度，
         // 所以这里不能说「熟练度到 300 才开新关」——那句话现在已经是假的。
         toast(this.data.cleared >= this.data.levelTotal
-          ? '本档 40 关已走通，换上一档接着走'
-          : '本档打到第 ' + this.data.levelMax + ' 关：走通它，下一关才开');
+          ? '本门 1000 关已走完，已是「大圆满」'
+          : '本门打到第 ' + this.data.levelMax + ' 关：走通它，下一关才开');
       }
       return;
     }
     this.levelOverride = next;
-    this.refresh();
-    this.buildGame();
-  },
-
-  // 换档：五档是并列的五条线，各自记进度。锁着的档点了不换，只说怎么开。
-  // 换档后关号回到该档自己的进度线（已通 + 1），不沿用上一档的关号——
-  // 简单第 30 关与绝境第 30 关不是同一件事，沿用会让玩家以为难度没变。
-  onDiff: function (event) {
-    if (this.data.started || this.data.countdown > 0) return;
-    const key = String(event.currentTarget.dataset.k || '');
-    const idx = practiceData.diffKeyIndex(key);
-    if (idx >= this.data.diffUnlocked) {
-      const prev = practiceData.DIFFICULTIES[Math.max(0, idx - 1)];
-      toast('「' + practiceData.DIFFICULTIES[idx].name + '」还没开：先走通「'
-        + prev.name + '」40 关');
-      return;
-    }
-    if (idx === this.data.diffIndex) return;
-    this.diffOverride = idx;
-    this.levelOverride = 0;
     this.refresh();
     this.buildGame();
   },
@@ -1382,7 +1342,6 @@ Page({
   onFinish: function (res) {
     if (!this.pageAlive) return;
     const skillId = this.skillId;
-    const diffKey = this.data.difficulty;
     const grade = res.grade || 'C';
     const color = worldData.GRADE_COLOR[grade] || '#8a8f83';
     const gradeTitle = copy.GRADE_TITLE[grade] || '';
@@ -1447,7 +1406,7 @@ Page({
     } else {
       const lv = this.data.level;
       const r = store.commitCritical(function (s) {
-        return engine.applyPractice(s, skillId, grade, { difficulty: diffKey, level: lv, score: res.score || 0 });
+        return engine.applyPractice(s, skillId, grade, { level: lv, score: res.score || 0 });
       });
       // 参悟只换熟练度，不产资源：结算卡里灵力是「花掉的」，不是「赚到的」。
       // 这一行是玩家唯一能核对的账，所以耗气的三个修正也要在同一屏写清（见 notes）。
@@ -1460,14 +1419,14 @@ Page({
         ]
         : [
           // 三连晋级取消后，这一栏就是本局实得点数，与 profAfter - profBefore 严格对齐。
-          { k: '熟练度', v: r.gain > 0 ? '+' + r.gain : '已圆满' },
-          // 打的是本档当前关就写「本档当前」，往回翻就写「回关」。
-          // 关号只在档内数：简单第 30 关与绝境第 30 关不是同一件事，折成一条 200 关的长轴
-          // 会让玩家以为「第 68 关」和「第 69 关」是一档里的相邻两关。
+          { k: '熟练度', v: r.gain > 0 ? '+' + r.gain : '已化境' },
+          // 打的是本门当前关就写「本关」，往回翻就写「回关」。
+          // 关号是一条 1–1000 的长轴，段名只是这段读法：写「入门 · 第 3 / 1000 关」，
+          // 玩家才不会以为「大成的第 3 关」与「入门的第 3 关」是同一格。
           ...(r.level > 0 ? [{
             k: '关卡',
-            v: r.diffName + ' · 第 ' + r.level + ' / ' + r.levelTotal + ' 关'
-              + (r.levelWasCurrent ? '（本档当前）' : ' · 回关'),
+            v: r.stageName + ' · 第 ' + r.level + ' / ' + r.levelTotal + ' 关'
+              + (r.levelWasCurrent ? '（本关）' : ' · 回关'),
           }] : []),
           { k: '灵力', v: '−' + r.qiCost + ' · 余 ' + r.qiAfter + ' / ' + r.qiMax },
           { k: '局内得分', v: String(res.score || 0) },
@@ -1496,7 +1455,7 @@ Page({
       // 耗气要当场可复算：玩家看到「灵力 −17」，得知道这个 17 是怎么来的。
       // 只在真被修正时才展开，标准档位不啰嗦。
       if (r.methodQiFactor !== 1 || r.tierQiCost > 1 || r.realmOverCost > 1 || r.qiSave > 0) {
-        notes.push('本局耗气 ' + r.qiCost + '：' + r.diffName + '档基数'
+        notes.push('本局耗气 ' + r.qiCost + '：' + r.stageName + '段基数'
           + (r.methodQiFactor !== 1 ? ' × 时长 ' + r.methodQiFactor.toFixed(2) : '')
           + (r.tierQiCost > 1 ? ' × ' + r.tierLabel + '品阶 ' + r.tierQiCost.toFixed(2) : '')
           + (r.realmOverCost > 1 ? ' × 境界超限 ' + r.realmOverCost.toFixed(1) : '')
@@ -1506,25 +1465,20 @@ Page({
       // 回关折减要当场说：面板上退了几关、结算只给一部分，不解释就像算错了。
       if (r.levelBelowCap) {
         // 折减只作用在基础熟练度上（本关 ÷ 当前关）；耗气不跟着折，回关本来就便宜。
-        notes.push('回打本档第 ' + r.level + ' 关（本档已走到第 ' + r.curLevel + ' 关，退 '
+        notes.push('回打第 ' + r.level + ' 关（本门已走到第 ' + r.curLevel + ' 关，退 '
           + r.levelGap + ' 关）：基础熟练度按 ×'
           + String(Math.round(r.levelBelowFactor * 1000) / 1000) + ' 计，本局不叠连 S，已有层数原样保留；'
           + '回第 ' + r.curLevel + ' 关打才全额。');
       }
-      // 打低档也要说清：档位现在能自己挑，低一档熟练度就折一半。
-      // 不说的话，玩家会以为「回简单档打一局怎么只给 4 点」是算错了。
-      if (r.diffGap > 0) {
-        notes.push('本局打的是低一档：基础熟练度逐档折半（低 ' + r.diffGap + ' 档 → ×'
-          + String(1 / Math.pow(2, r.diffGap)) + '），本局不叠连 S。');
-      }
       // 走通的那一关要说出来：关卡靠过关推进，不报玩家就不知道刚才那局推没推进。
       if (r.advanced) {
-        notes.push('「' + r.diffName + '」第 ' + r.level + ' 关已走通：本档进度 '
-          + (r.level + 1) + ' / ' + r.levelTotal + '，下一局接第 '
-          + Math.min(r.levelTotal, r.level + 1) + ' 关。');
+        notes.push('第 ' + r.level + ' 关已走通（本门 ' + r.level + ' / ' + r.levelTotal
+          + '）：下一局接第 ' + Math.min(r.levelTotal, r.level + 1) + ' 关。');
       } else if (!r.wiped && r.levelWasCurrent && r.level >= r.levelTotal) {
-        notes.push('「' + r.diffName + '」40 关已全部走通：换上一档接着走。');
+        notes.push('本门 ' + r.levelTotal + ' 关已全部走通：' + r.stageAfterName + '。');
       }
+      // 跨段是 1000 关里玩家最该知道的一刻：盘面换了、耗气涨了、段名变了。
+      if (r.promoted) notes.push('踏入「' + r.stageAfterName + '」：这一段换了盘面，一局耗气也跟着涨。');
       // 连 S 回执：本局叠了几层、下一局值多少点，数字全部由 world.comboGain 同源给。
       if (r.comboActive) {
         notes.push('连 S ' + r.comboNow + ' / ' + r.comboMax + '：本局 34 × 1.5^'
@@ -1535,9 +1489,9 @@ Page({
       } else if (grade !== 'F') {
         notes.push('非 S，连 S 归零；下一局 S 重新从 34 点起算。');
       }
-      if (r.tierUp) notes.push('【' + r.skillName + '】升段至「' + r.tierName + '」，属性加成提高。');
+      if (r.tierUp) notes.push('【' + r.skillName + '】火候至「' + r.tierName + '」，属性加成提高。');
       if (r.cross) notes.push('触类旁通：换了门功法，本局运功更顺，耗气少 8%。');
-      if (r.levelFellBack) notes.push('所选关超出本档当前进度，已按第 ' + r.curLevel + ' 关结算。');
+      if (r.levelFellBack) notes.push('所选关超出本门当前进度，已按第 ' + r.curLevel + ' 关结算。');
       if (r.realmAbove) {
         notes.push('人物境界已超本门可修上限「' + r.maxRealmName + '」：照样能练，但本局耗气 ×'
           + r.realmOverCost.toFixed(1) + '；熟练度照给，该换更高阶的功法了。');
@@ -1558,7 +1512,7 @@ Page({
         gradeTitle: grade === 'F' ? '此局未竟' : gradeTitle,
         headline: grade === 'F'
           ? '走火'
-          : (r.tierUp ? '升段 · ' + r.tierName : '参悟完成'),
+          : (r.promoted ? '晋段 · ' + r.stageAfterName : '参悟完成'),
         subline: r.methodName + ' · ' + res.summary,
         summary: res.summary,
         lines: lines,
@@ -1591,7 +1545,7 @@ Page({
       // 走火/收功各自一个词，别再拼「这一局没走完」那种一读就断的短语。
       const briefTitle = rv.kind === 'abandon' ? '收功' : (grade === 'F' ? '走火' : rv.gradeTitle);
       recordBrief = '上局 · ' + (briefTitle || '')
-        + (gain ? ' · ' + (gain === '已圆满' ? '熟练度已圆满' : gain + ' 熟练度') : '');
+        + (gain ? ' · ' + (gain === '已化境' ? '熟练度已化境' : gain + ' 熟练度') : '');
     }
     this.clearCountdown();
     this.setData({ showResult: true, result: rv, recordBrief: recordBrief, started: false, boardHeld: false });

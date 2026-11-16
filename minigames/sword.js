@@ -211,7 +211,7 @@ function lines(p) {
   const t = Math.max(1, (p && p.segments) || 4);
   const shuffled = !!(p && p.shuffle);
   return {
-    rule: '只看走完的段数（踏错不算走完）' + (shuffled ? '；本档键位每段重排，须读符号' : ''),
+    rule: '只看走完的段数（踏错不算走完）' + (shuffled ? '；本段键位每段重排，须读符号' : ''),
     items: ['S：' + t + ' 段全成', 'A：走完 ' + (t - 1) + ' 段',
       'B：走完 ' + Math.max(0, t - 2) + ' 段', '其余为 C'],
   };

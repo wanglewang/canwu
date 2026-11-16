@@ -68,13 +68,13 @@ function helpUrl(pageKey) {
 // 参悟页的说明不是「一页一节」，而是「一门一册」：整篇规则按功法生成，
 // 所以它不进 HELP_TOPICS（那里是静态主题表），单独给一个带参数的入口。
 // 传 method 就按参悟方式生成；冲关局没有功法，传 game 直接取蓄力停区的玩法说明。
-// diff 带上当前难度档：说明页要把「本档 S/A/B/C 各要多少」写成具体数字，
+// stage 带上当前所在的段：说明页要把「本段 S/A/B/C 各要多少」写成具体数字，
 // 不带档就只能给个笼统口径，等于没写清。
-function practiceHelpUrl(methodId, gameId, diffKey) {
+function practiceHelpUrl(methodId, gameId, stageKey) {
     let url = '/pages/help/help?topic=practice';
     if (methodId) url += '&method=' + methodId;
     else if (gameId) url += '&game=' + gameId;
-    if (diffKey) url += '&diff=' + diffKey;
+    if (stageKey) url += '&stage=' + stageKey;
     return url;
 }
 

@@ -270,8 +270,8 @@ const skillMod = require('../data/skills.js');
 const practiceMod = require('../data/practice.js');
 // 功法数不写死：一门功法必须正好对应一套参悟方式，加内容时两处一起加。
 if (skillMod.SKILLS.length !== practiceMod.PRACTICE_METHODS.length
-  || practiceMod.TIERS.length !== 4 || practiceMod.DIFFICULTIES.length !== 5) {
-  errors.push('功法数与参悟方式数不等，或品阶数 / 难度档数不符合约定');
+  || practiceMod.TIERS.length !== 4 || practiceMod.STAGES.length !== 5) {
+  errors.push('功法数与参悟方式数不等，或品阶数 / 关卡段数不符合约定');
 } else checked += 1;
 const tierSeen = {};
 for (const s of skillMod.SKILLS) {
@@ -621,12 +621,16 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   let reportOk = true;
   let reported = 0;
   let prevPP = null;
-  for (let lv = 1; lv <= 200; lv += 1) {
+  // 走完整门 1000 关：一关一副参数，只抽查前 200 关会把「后 800 关一动不动」漏掉。
+  const linkMax = require(path.join(ROOT, 'data/levels.js')).LEVEL_MAX;
+  for (let lv = 1; lv <= linkMax; lv += 1) {
     const q = practiceMod.buildParamsAt(m, lv);
     if (q.hintMs !== seed.hintMs) hintStable = false;
     // 时辰必须由 linkDurationAt(关号) 现算，不许退回「章内收三成、换章复位」。
     if (q.duration !== practiceMod.linkDurationAt(lv)) sourced = false;
-    const pp = q.duration / (q.cols * q.rows / 2);
+    // 比的是「每对预算」而不是「总时辰 ÷ 对数」：后者是整数秒的商，
+    // 换段时对数从 12 跳到 14，商的粒度变了会天然回弹一次，那不是变松。
+    const pp = practiceMod.linkPerPairAt(lv);
     if (prevPP !== null && pp > prevPP + 1e-9) perPairOk = false;
     prevPP = pp;
     if (lv > 1) {
@@ -637,7 +641,7 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
       if (txt) reported += 1;
     }
   }
-  if (!hintStable) errors.push('linkpair 的 hintMs 在 200 关里变了：照纹亮多久不是难度旋钮');
+  if (!hintStable) errors.push('linkpair 的 hintMs 在 1000 关里变了：照纹亮多久不是难度旋钮');
   else checked += 1;
   if (!sourced) errors.push('linkpair 的时辰没按 linkDurationAt(关号) 现算：章末会倒挂到下章首关之上');
   else checked += 1;
@@ -645,12 +649,12 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   else checked += 1;
   if (!reportOk) errors.push('linkpair 的 levelDelta 又报毫秒假变化，或把变长的总时辰写成变难');
   else checked += 1;
-  if (reported < 30) errors.push('linkpair 只有 ' + reported + ' 关有规格台阶，低于 30 级下限');
+  if (reported < 30) errors.push('linkpair 全书只有 ' + reported + ' 关有规格台阶，低于 30 级下限');
   else checked += 1;
 
   // 评级四条线逐档可达，且 C 带非空；失败线必须单独给（C 与 F 是两个结论）。
   let gradesOk = true;
-  for (const k of practiceMod.DIFFICULTIES.map(function (d) { return d.key; })) {
+  for (const k of practiceMod.STAGES.map(function (d, i) { return i; })) {
     const p = practiceMod.buildParams(m, k);
     const g = linkMod.gradeLefts(p.duration);
     if (!(g.s > g.a && g.a > g.b && g.b > 0)) { gradesOk = false; break; }
@@ -683,7 +687,7 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
     errors.push('data/guides.js 的 link 段还写着旧代价句，说明页会照抄成假话');
   } else checked += 1;
   const doc = fs.readFileSync(path.join(ROOT, 'docs/20-minigames/11-linkpair.md'), 'utf8');
-  if (!/收干净那一刻的剩余息/.test(doc) || !/39 关参数真变/.test(doc)) {
+  if (!/收干净那一刻的剩余息/.test(doc) || !/44 关参数真变/.test(doc)) {
     errors.push('11-linkpair.md 又是旧版：改了机制必须同批改那一篇');
   } else checked += 1;
 }
@@ -802,27 +806,36 @@ for (const s of skillMod.SKILLS) {
   if (!s.source || !s.source.kind) errors.push('功法缺获取方式: ' + s.id);
   else checked += 1;
 }
-// 难度不再由熟练度解锁：DIFFICULTIES 上的 need 已删，门槛改成「走通上一档 40 关」。
-// 这里守两件事——首档必须默认可选，其余各档都要写清「走通上一档的档名 + 40 关」；
-// 耗气仍要逐档递增，否则「越难越贵」这条定价就断了。
+// 关卡五段：难度档整组退役，只剩「段」这一套。这里守四件事——
+// ① 五段首尾相接、不重不漏，最后一段收在 LEVEL_MAX；
+// ② 段界关就是 10 / 50 / 200 / 500 / 1000（前密后疏那条曲线的硬指标）；
+// ③ 耗气逐段递增，否则「越难越贵」这条定价就断了；
+// ④ 难度档那套字段（need / open）不许再回来。
 const lvlMod = require(path.join(ROOT, 'data/levels.js'));
-for (let i = 0; i < practiceMod.DIFFICULTIES.length; i += 1) {
-  const cur = practiceMod.DIFFICULTIES[i];
-  if (cur.need !== undefined) errors.push('难度档还留着 need（难度已不由熟练度解锁）: ' + cur.key);
-  else checked += 1;
-  if (i === 0) {
-    if (!/默认/.test(cur.open || '')) errors.push('首档没写「默认可选」: ' + cur.key);
+if (lvlMod.LEVEL_MAX !== 1000) errors.push('LEVEL_MAX 不是 1000（关卡总数变了要同批改文案与审计）');
+else checked += 1;
+if (lvlMod.STAGE_GATES.join('/') !== '10/50/200/500/1000') {
+  errors.push('段界关不是 10/50/200/500/1000：' + lvlMod.STAGE_GATES.join('/'));
+} else checked += 1;
+for (let i = 0; i < practiceMod.STAGES.length; i += 1) {
+  const cur = practiceMod.STAGES[i];
+  if (cur.need !== undefined || cur.open !== undefined) {
+    errors.push('段位上还留着难度档字段（need / open）: ' + cur.key);
+  } else checked += 1;
+  if (cur.from !== lvlMod.STAGES[i].from || cur.to !== lvlMod.STAGES[i].to) {
+    errors.push('段边界与 levels.STAGES 不一致: ' + cur.key);
+  } else checked += 1;
+  if (i > 0) {
+    const prev = practiceMod.STAGES[i - 1];
+    if (cur.from !== prev.to + 1) errors.push('段没首尾相接: ' + prev.key + ' → ' + cur.key);
     else checked += 1;
-  } else {
-    const prev = practiceMod.DIFFICULTIES[i - 1];
-    if (!cur.open || cur.open.indexOf(prev.name) < 0
-      || cur.open.indexOf(String(lvlMod.LEVELS_PER_DIFF)) < 0) {
-      errors.push('难度档没写「走通上一档」的开法: ' + cur.key + ' → ' + cur.open);
-    } else checked += 1;
-    if (cur.qi <= prev.qi) errors.push('难度档耗气未递增: ' + cur.key);
+    if (cur.qi <= prev.qi) errors.push('段耗气未递增: ' + cur.key);
     else checked += 1;
   }
 }
+if (practiceMod.STAGES[practiceMod.STAGES.length - 1].to !== lvlMod.LEVEL_MAX) {
+  errors.push('最后一段没收到第 ' + lvlMod.LEVEL_MAX + ' 关');
+} else checked += 1;
 // 盘面尺寸只许按「显式规格表」变。规格阶梯写在 CLICK_LEVELS / MINES_LEVELS / MEMORY_LEVELS
 // （以及 lights / sudoku / klotski / LINK_LEVELS 各自那张表）里，玩法层真的读它，玩家在
 // 准备页也看得到「本档几乘几」。不允许的是另一件事：让 pace / goal 那套通用缩放顺手把
@@ -832,8 +845,8 @@ const BOARD_TABLE_GAMES = ['click', 'mines', 'lights', 'sudoku', 'klotski', 'pus
 let boardSafe = true;
 let boardStray = '';
 for (const m of practiceMod.PRACTICE_METHODS) {
-  for (const d of practiceMod.DIFFICULTIES) {
-    const out = practiceMod.buildParams(m, d.key);
+  for (let di = 0; di < practiceMod.STAGES.length; di += 1) {
+    const out = practiceMod.buildParams(m, di);
     for (const key of ['grid', 'cols', 'rows', 'size']) {
       if (typeof m.params[key] === 'number' && out[key] !== m.params[key]) {
         if (BOARD_TABLE_GAMES.indexOf(m.game) < 0) {
@@ -1102,11 +1115,11 @@ if (!fs.existsSync(checklistPath)) {
   const gradeLine = Object.keys(copyData.GRADE_TITLE).join(' / ');
   if (doc.indexOf(gradeLine) < 0) errors.push('自检清单的评级档位与 copy.GRADE_TITLE 不一致（应为 ' + gradeLine + '）');
   else checked += 1;
-  // 难度不再由熟练度解锁：清单必须写「每档 40 关、走通本档才开下一档」，
+  // 关卡不再由熟练度算：清单必须写「1000 关五段、走通段界关才进下一段」，
   // 且不许再留「熟练度到 X 解锁某档」的旧口径——那是这次改版特意拆掉的一层。
-  const levelMod = require(path.join(ROOT, 'data/levels.js'));
-  const perDiffLine = '每档 ' + levelMod.LEVELS_PER_DIFF + ' 关';
-  if (doc.indexOf(perDiffLine) < 0) errors.push('自检清单没写「' + perDiffLine + '」');
+  if (doc.indexOf('1000 关') < 0) errors.push('自检清单没写「1000 关」');
+  else checked += 1;
+  if (doc.indexOf('段界关') < 0) errors.push('自检清单没写「段界关」的分段口径');
   else checked += 1;
   if (/熟练度到 \d+ 才开/.test(doc) || /熟练度解锁难度/.test(doc)) {
     errors.push('自检清单还留着「熟练度解锁难度」的旧口径');
@@ -1136,12 +1149,18 @@ if (!fs.existsSync(checklistPath)) {
   // 以后照文档调数值，玩家看到的和代码算的就对不上。
   if (doc.indexOf('回关折减') < 0) errors.push('自检清单没写「回关折减」的口径');
   else checked += 1;
-  if (doc.indexOf('走通本档才开下一档') < 0) errors.push('自检清单没写「走通本档才开下一档」');
+  if (doc.indexOf('走通段界关') < 0) errors.push('自检清单没写「走通段界关才进下一段」');
   else checked += 1;
   const gameSrc = fs.readFileSync(path.join(ROOT, 'utils/game.js'), 'utf8');
   if (!/practiceData\.profByLevel\(/.test(gameSrc)) errors.push('utils/game.js 没走 profByLevel() 按关折减');
   else checked += 1;
-  if (!/levelData\.levelFromProf\(/.test(gameSrc)) errors.push('utils/game.js 没把关卡交给 levelFromProf()');
+  // 关号只许由「走通了几关」推进；段位只许由 stageIndexOfCleared 算。
+  // levelFromProf 现在只剩迁移用途，运行时再调它就是把熟练度又接回关卡。
+  if (/levelData\.levelFromProf\(/.test(gameSrc)) errors.push('utils/game.js 又用 levelFromProf() 算关卡了');
+  else checked += 1;
+  if (!/levelData\.stageIndexOfCleared\(/.test(gameSrc)) errors.push('utils/game.js 没按走通关数算段位');
+  else checked += 1;
+  if (!/\.cleared/.test(gameSrc)) errors.push('utils/game.js 没读写 cleared（本门走通了几关）');
   else checked += 1;
   if (/Math\.round\(profBase \* lowFactor\)/.test(gameSrc)) {
     errors.push('熟练度折减又退回「先乘总系数、最后取整一次」');
@@ -1163,7 +1182,7 @@ if (!fs.existsSync(checklistPath)) {
     errors.push('utils/game.js 还留着三连 S 晋级的旧字段');
   } else checked += 1;
   const engineApi = require(path.join(ROOT, 'utils/game.js'));
-  if (engineApi.SAVE_VERSION !== 8) errors.push('存档版本没升到 v8（难度改成五条并列的线，进度要按档存）');
+  if (engineApi.SAVE_VERSION !== 9) errors.push('存档版本没升到 v9（关卡改成 1000 关一条线，进度要按 cleared 存）');
   else checked += 1;
   // 参悟页的说明是按功法现拼的，不能塞进静态主题表（那里只放整页主题）。
   const navData = require(path.join(ROOT, 'data/navigation.js'));

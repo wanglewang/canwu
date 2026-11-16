@@ -369,7 +369,7 @@ function create(ctx) {
   }
 
   // 从全亮出发只点「点得动的格」把阵打乱，再解一遍，解出来多长就是这盘的最优步数。
-  // 必须落进本档的 [loSteps, hiSteps]：这是档位表写下的唯一难度承诺，宽一格就名不副实。
+  // 必须落进本段的 [loSteps, hiSteps]：这是档位表写下的唯一难度承诺，宽一格就名不副实。
   function newBoard() {
     const all = [];
     for (let i = 0; i < n; i += 1) all.push(i);

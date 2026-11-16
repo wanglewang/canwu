@@ -33,7 +33,7 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 | --- | --- | --- |
 | `economy.js` | 186 | 七条经济常量、`practiceQiCost()`、`qiCapOf()`、`breakthroughStone()` |
 | `world.js` | 155 | 四境界、四属性（含 `role`）、世界列表 |
-| `practice.js` | 834 | 19 门参悟方式、五档难度、`buildParams()`、`TIERS`、熟练度阶梯、`STAGE_RULES` |
+| `practice.js` | 834 | 19 门参悟方式、五段难度、`buildParams()`、`TIERS`、熟练度阶梯、`STAGE_RULES` |
 | `skills.js` | 327 | 19 门功法（属性加成、特效、价格、获取途径）+ `NAME_RULE` |
 | `guides.js` | 397 | 每门的 `goal` / `steps` / `terms` / `scoring` / `tip` |
 | `help.js` | 565 | 说明页的静态主题表 + `practiceTopic()` 现拼 |

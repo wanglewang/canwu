@@ -74,7 +74,7 @@ const PRACTICE_SAVE_MAX = 0.5;
 const QI_COST_MIN = 1;
 
 // 一局参悟要烧多少灵力。全部系数都从参数进来，不在页面里再算一遍：
-//   diffIndex   本局难度档（0–4）
+//   stageIndex  本局所在的段（0–4：未入门 / 入门 / 小成 / 大成 / 圆满）
 //   tierKey     功法品阶
 //   methodBase  这一门玩法的节奏基准（method.base，映射成 0.85–1.30 的时长系数）
 //   realmAbove  人物境界是否超过本门可修上限（只加消耗，不禁练）
@@ -83,7 +83,7 @@ const QI_COST_MIN = 1;
 //   cross       本局是否换了门功法
 function practiceQiCost(o) {
   const opt = o || {};
-  const idx = Math.max(0, Math.min(RUN_QI.length - 1, Math.floor(Number(opt.diffIndex) || 0)));
+  const idx = Math.max(0, Math.min(RUN_QI.length - 1, Math.floor(Number(opt.stageIndex) || 0)));
   let cost = RUN_QI[idx];
   cost *= methodQiFactor(opt.methodBase);
   cost *= TIER_QI[opt.tierKey] || 1;
@@ -95,7 +95,7 @@ function practiceQiCost(o) {
   return Math.max(QI_COST_MIN, Math.round(cost));
 }
 
-// 五档耗气的对照表（按「36 基准 / 黄阶 / 悟性 0 / 不换门」算），给说明页与测试复算用。
+// 五段耗气的对照表（按「36 基准 / 黄阶 / 悟性 0 / 不换门」算），给说明页与测试复算用。
 function runQiTable() {
   return RUN_QI.slice();
 }

@@ -45,10 +45,10 @@ const TOPICS = {
                     '战力 = 属性加权 × (1 + 境界加成 + 功法特效)。',
                     '属性基础 = 体魄 ×1.0 + 真元 ×1.2 + 悟性 ×0.8 + 身法 ×1.0。',
                     '四项属性各有一件正事：体魄撑战力，真元拓气海（每点 +2 灵力上限），悟性省灵力，身法压住切磋的波动下限。战力是共同的那一项。',
-                    '每门功法给的属性 = 功法加成 × 熟练度段位 × 品阶系数；入门 ×1 → 小成 ×1.8 → 大成 ×2.8 → 圆满 ×4 → 大圆满 ×5。',
+                    '每门功法给的属性 = 功法加成 × 火候 × 品阶系数；生涩 ×0 → 初熟 ×1 → 精熟 ×1.8 → 纯熟 ×2.8 → 通玄 ×4 → 化境 ×5。',
                     '多学一门最见效：藏经阁能换就换，切磋首胜与机缘也会给功法。',
                     '突破境界给全体属性加成：筑基 +6% / 金丹 +14% / 元婴 +24%。',
-                    '功法特效按段位逐级兑现：入门 25%、小成 50%、大成 75%、圆满起满额；品阶只影响属性、运功耗气与可修境界，不加速熟练度。',
+                    '功法特效按火候逐级兑现：初熟 25%、精熟 50%、纯熟 75%、通玄起满额；品阶只影响属性、运功耗气与可修境界，不加速熟练度。',
                     '战力只影响切磋与突破门槛，不参与参悟所得。另择一门修习另有触类旁通（耗气更省），同一门连练也不减所得。',
                 ],
             },
@@ -134,7 +134,7 @@ const TOPICS = {
                 lines: [
                     '点开任意一张玉简展开全本：玩法规则、盘面符号、练成所得、本门新法、习得路径。',
                     '未习得也能查全本，锁的只是「开练」与参悟所得 —— 先读清楚再决定要不要解开。',
-                    '列表默认把「离下一段最近、又能拿全额所得」的排在前面；境界不符的与已圆满的依次靠后。玉简只留五字正名、品阶、段位与属性，玩法名与整段规则都在这里。',
+                    '列表默认把「离下一级火候最近、又能拿全额所得」的排在前面；境界不符的与已化境的依次靠后。玉简只留五字正名、品阶、火候与属性，玩法名与整段规则都在这里。',
                 ],
             },
             {
@@ -158,7 +158,7 @@ const TOPICS = {
                 key: 'attrs',
                 title: '属性格',
                 lines: [
-                    '当前这一界有体魄 / 真元 / 悟性 / 身法四项，由功法加成、熟练度段位与境界共同决定；每一项的用途写在人物页属性格下面。',
+                    '当前这一界有体魄 / 真元 / 悟性 / 身法四项，由功法加成、火候与境界共同决定；每一项的用途写在人物页属性格下面。',
                     '战力按四项加权算出，权重见「主页 · 战力怎么算」；换个世界属性表也会换。',
                 ],
             },
@@ -166,7 +166,7 @@ const TOPICS = {
                 key: 'break',
                 title: '突破条件',
                 lines: [
-                    '门槛只有战力：清单第一行「战力 X / Y」打勾就能冲关；下面三行是主修功法的当前段位，只作参考。',
+                    '门槛只有战力：清单第一行「战力 X / Y」打勾就能冲关；下面三行是主修功法的当前火候，只作参考。',
                     '突破局是蓄力停区，失手不掉进度，可以再来一次。',
                 ],
             },
@@ -433,10 +433,10 @@ function practiceTopic(opts) {
     const sections = [];
     // 说明页要把本章门槛写成具体数字，所以章跟着链接传进来；
     // 没传（例如从别处点进来）就按第一章给，至少不是空话。
-    const diffKey = practiceData.DIFFICULTIES.some(function (d) { return d.key === o.diff; })
-        ? o.diff
-        : 'easy';
-    const diff = practiceData.difficultyOf(diffKey);
+    // 说明页要把「这一段」的门槛写成具体数字，所以段跟着链接传进来；
+    // 没传（例如从别处点进来）就落到第一段，至少不是空话。
+    const stageIdx = practiceData.stageIndexLike(o.stage !== undefined ? o.stage : (o.diff !== undefined ? o.diff : 0));
+    const stageDef = practiceData.STAGES[stageIdx];
 
     if (guide) {
         sections.push({
@@ -455,10 +455,10 @@ function practiceTopic(opts) {
         // 与局内 HUD、结算同源（各玩法 exports 的 lines()）。
         const scoreLines = [guide.scoring];
         const gradeLines = method
-            ? minigames.gradeLines(gameId, practiceData.buildParams(method, diffKey), diff.gear)
+            ? minigames.gradeLines(gameId, practiceData.buildParams(method, stageIdx), stageDef.gear)
             : null;
         if (gradeLines) {
-            scoreLines.push('本档「' + diff.name + '」的门槛：');
+            scoreLines.push('本段「' + stageDef.name + '」的门槛：');
             gradeLines.items.forEach(function (it) { scoreLines.push(it); });
             // 有失败态的玩法要单独写清「最差那档」：C 是「做糙了」，F 是「没走完」，
             // 两个都是差，但玩家该知道掉到哪一档、代价是多少。
@@ -505,36 +505,30 @@ function practiceTopic(opts) {
             });
         }
 
-        const diffLines = ['五档难度各 40 关、共 200 关，五档互不相干；走通本档 40 关才开下一档，'
-            + '与熟练度无关，品阶也不决定关卡：'];
-        practiceData.DIFFICULTIES.forEach(function (d, i) {
-            diffLines.push(d.name + ' · ' + d.open + ' · 基础耗气 ' + economyData.RUN_QI[i] + ' 点');
+        const diffLines = ['每门功法一条 1–1000 关的长线，五段。段名就是「这门练到哪」，'
+            + '走通段界关当场进下一段，与熟练度、品阶都无关：'];
+        practiceData.STAGES.forEach(function (d, i) {
+            diffLines.push(d.name + ' · 第 ' + d.from + '–' + d.to + ' 关 · 基础耗气 '
+                + economyData.RUN_QI[i] + ' 点');
         });
-        diffLines.push('档要自己挑：默认落在还没走通的那一档，也可以点档位牌回已走通的档。'
-            + '档内第几关由本档进度算出，关只进不退——一局只推一关，走通它，下一关才开。'
+        diffLines.push('第 10 / 50 / 200 / 500 / 1000 关是段界关：走通它，下一步就进「入门 / 小成 / 大成 / 圆满 / 大圆满」。'
+            + '段没有「挑」这个动作，只有一个方向——走通当前这一关，下一关才开；一局只推一关。'
             + '节奏与时辰类每关都紧一点；'
-            + '盘面规格挂在本档上，点灯破阵 / 踏云连环 / 一眼摘魁 / 扫目逐数 / 万石成岳 / 吐纳周天 / 让主出阵'
-            + '这七门隔几关才换一副盘，那一行会写「与上一关规格相同」，不是关卡坏了。');
-        diffLines.push('一局实际耗气 = 档位基数 × 时长系数（本门盘面 15–70 秒，0.85–1.30）'
+            + '盘面规格挂在本段上，一段一副主盘，换段才换一副；'
+            + '段内那几关若写「与上一关规格相同」，说明这一段还没铺满变体，不是关卡坏了。');
+        diffLines.push('一局实际耗气 = 本段基数 × 时长系数（本门盘面 15–70 秒，0.85–1.30）'
             + ' × 品阶（黄 1.00 / 玄 1.15 / 地 1.30 / 天 1.45）'
             + ' × 境界超限（超可修上限时 ×1.5）'
             + ' ×（1 − 心法省气，最多 50%）'
             + ' ÷ 悟性（1 + 悟性/200，最多 ÷1.6）'
             + ' ×（换门 0.92）。结算卡会把这几项逐条写出来，可以照着自己复算。');
-        diffLines.push('想找手感可以回关：退回本档第几关，基础熟练度就按「这一关 ÷ 本档 40 关」折一次、'
-            + '四舍五入（第 30 关 ×0.75、第 1 关 ×0.025），本局不叠连 S，但已有层数原样保留。');
-        diffLines.push('耗气不跟着折：回关本来就便宜（7 点起）。以 S（' + worldData.PROF_BASE.S + ' 点）为例，'
-            + '本档走到第 40 关时回打 40 / 30 / 20 / 10 / 1 关依次是 '
-            + [40, 30, 20, 10, 1].map(function (lv) {
-                return practiceData.profByLevel(worldData.PROF_BASE.S, lv, 40);
+        diffLines.push('想找手感可以回关：退回第几关，基础熟练度就按「这一关 ÷ 本门当前关」折一次、'
+            + '四舍五入，本局不叠连 S，但已有层数原样保留。往前打永远最划算。');
+        diffLines.push('耗气不跟着折：回关按本关所在的段报价（7 点起）。以 S（' + worldData.PROF_BASE.S + ' 点）为例，'
+            + '本门走到第 800 关时回打 800 / 400 / 200 / 100 / 1 关依次是 '
+            + [800, 400, 200, 100, 1].map(function (lv) {
+                return practiceData.profByLevel(worldData.PROF_BASE.S, lv, 800);
             }).join(' / ') + ' 点——退得越远越薄，第 1 关几乎为零，回关是练手不是刷分。');
-        diffLines.push('往下一档回也折：每低一档，这一局的熟练度先对半一次再四舍五入，连降四档的 S 只剩 '
-            + (function () {
-                let v = worldData.PROF_BASE.S;
-                for (let k = 0; k < 4; k += 1) v = Math.round(v / 2);
-                return v;
-            }()) + ' 点。'
-            + '往前打永远最划算，回旧档只为看盘面、找手感。');
         diffLines.push('单局基础：C ' + worldData.PROF_BASE.C + ' / B ' + worldData.PROF_BASE.B
             + ' / A ' + worldData.PROF_BASE.A + ' / S ' + worldData.PROF_BASE.S
             + ' 点，走火 F 是 0。只有连续的 S 才叠倍率，C / B / A 不叠层且会让连 S 归零。');
@@ -542,10 +536,10 @@ function practiceTopic(opts) {
             + worldData.COMBO_TABLE.join(' / ') + ' 点：每局独立算 34 × 1.5^(连数-1) 后四舍五入，'
             + '不拿上一局的整数接着乘。第 ' + (worldData.COMBO_MAX + 1) + ' 连起锁死 '
             + worldData.COMBO_CAP_GAIN + ' 点，一轮十连共 ' + worldData.COMBO_ROUND + ' 点。');
-        diffLines.push('全程不断 S、都打最高档，' + worldData.PROF_S_RUNS + ' 局到大圆满；全 C 则是 '
+        diffLines.push('全程不断 S、都打本门当前关，' + worldData.PROF_S_RUNS + ' 局熟练度到顶；全 C 则是 '
             + (worldData.PROF_C_RUNS + 1) + ' 局。走火、主动收功与非 S 都会让连 S 归零；'
             + '换一门各算各的，不互蹭；回关局既不叠也不清。');
-        sections.push({ key: 'difficulty', title: '难度与耗气', lines: diffLines });
+        sections.push({ key: 'difficulty', title: '段位 · 关卡 · 耗气', lines: diffLines });
 
         // 品阶与一脉：图鉴页也有，但玩家是在准备页起念「这门值不值得练」的，就地给一句。
         const skill = findSkillByMethod(method.id);

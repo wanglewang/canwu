@@ -120,7 +120,7 @@ function score(p, opts) {
 // 评级四条线只有这一个出处：局内 goal 与说明页 lines() 都读它。
 function bands(total) {
   const n = Math.max(4, Math.floor(total || 8));
-  // 1 分容错 = 本档的 6%–13%。音符越多这一分占比越小，所以 S 的相对宽容随谱变密而收窄。
+  // 1 分容错 = 本段的 6%–13%。音符越多这一分占比越小，所以 S 的相对宽容随谱变密而收窄。
   const sMin = n - 1;
   const aMin = n - 2.5;
   // B 线不许贴到 A 线上：音符少时 ceil(n×0.5) 与 A 只差半分，B 会变成一道缝。

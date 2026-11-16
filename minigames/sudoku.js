@@ -6,7 +6,7 @@
 // 这里是静态约束求解，填下去的每一格都不会改动别人，比的是「看得准、填得快」。
 // 与「记序复现」的区别也很清楚：那里是记位置、这里是推数字，靠的是排除法不是记性。
 //
-// 一局一盘：盘面按难度给规格（4×4 / 6×6 / 9×9），宫格与待填数由本档注入。
+// 一局一盘：盘面按难度给规格（4×4 / 6×6 / 9×9），宫格与待填数由本段注入。
 // 填满且全对即完成；填错一格罚 10 秒（数落错了地方，得回头改），时辰到还没填完是走火 F。
 // 评级只看用时（含罚时）：S / A / B 三条线由 data/practice.js 的 SUDOKU_LEVELS 按档给，
 // 准备页与说明页照同一份数写，局内只报下一条线。
@@ -103,7 +103,7 @@ function makePuzzle(size, holes) {
     const puzzle = dig(solution, size, d, holes);
     let blanks = 0;
     for (let i = 0; i < puzzle.length; i += 1) if (puzzle[i] === 0) blanks += 1;
-    // 挖不满就重来一盘：挖不满说明这盘的解太「松」，盘面会比本档该有的简单。
+    // 挖不满就重来一盘：挖不满说明这盘的解太「松」，盘面会比本段该有的简单。
     if (blanks >= Math.max(4, holes - 1)) return { puzzle: puzzle, solution: solution };
   }
   // 兜底：给一盘完整解 + 只挖正中一格，保证有解、也保证能完成。
@@ -289,7 +289,7 @@ function create(ctx) {
     vm.scoreText = '用时 ' + used() + ' 秒';
     vm.goal = C.paceGoal(used(), lines, '填错 ' + wrong + ' 格');
     vm.gradeNow = used() <= lines[0] ? 'S' : used() <= lines[1] ? 'A' : used() <= lines[2] ? 'B' : 'C';
-    vm.hint = costText + ' · 本档 ' + size + '×' + size + ' · ' + lines[0] + ' 秒内 S';
+    vm.hint = costText + ' · 本段 ' + size + '×' + size + ' · ' + lines[0] + ' 秒内 S';
   }
 
   function gradeOf() {

@@ -479,11 +479,11 @@ function lines(p) {
   const rows = (p && p.rows) || 6;
   const line = gradeLine(cols * rows, p && p.lineScale);
   return {
-    rule: '按探完全盘的用时（本档 ' + hearts + ' 盏心神，折了只扣结算分，不影响档位）',
-    items: ['本档 ' + cols + '×' + rows + ' 盘 · ' + ((p && p.mines) || 6) + ' 处禁制 · ' + hearts + ' 盏心神',
+    rule: '按探完全盘的用时（本段 ' + hearts + ' 盏心神，折了只扣结算分，不影响档位）',
+    items: ['本段 ' + cols + '×' + rows + ' 盘 · ' + ((p && p.mines) || 6) + ' 处禁制 · ' + hearts + ' 盏心神',
       'S ≤ ' + line[0] + ' 秒', 'A ≤ ' + line[1] + ' 秒',
       'B ≤ ' + line[2] + ' 秒', '其余为 C'],
-    fail: '本档 ' + hearts + ' 盏心神全折（禁制没探完）→ 走火 F，这一局没有收益',
+    fail: '本段 ' + hearts + ' 盏心神全折（禁制没探完）→ 走火 F，这一局没有收益',
   };
 }
 
