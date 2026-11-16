@@ -286,13 +286,22 @@
         <button class="btn btn--gold btn--block mt16" bindtouchstart="onPress" bindtouchend="onRelease" bindtouchcancel="onRelease" bindtap="onChargeTap">按住蓄力 · 松手定住</button>
       </view>
 
-      <view wx:if="{{vm.stage === 'ring' && vm.ring}}" class="ring-area" bindtap="onCellTap">
-        <view class="ring-orb ring-orb--{{vm.ring.tone}}" style="transform:scale({{vm.ring.scale}});border-color:{{theme.accent}}">
-          <text style="color:{{theme.ink}}">{{theme.glyph}}</text>
+      <view wx:if="{{vm.stage === 'ring' && vm.rings.length}}" class="ring-area {{vm.rings.length > 1 ? 'ring-area--dual' : ''}}">
+        <view wx:for="{{vm.rings}}" wx:key="id" class="ring-cell" data-index="{{index}}" bindtouchstart="onCellTap">
+          <view class="ring-orb ring-orb--{{item.tone}}" style="transform:scale({{item.scale}});border-color:{{index === 1 ? theme.ink : theme.accent}}">
+            <text style="color:{{index === 1 ? theme.accent : theme.ink}}">{{theme.glyph}}</text>
+          </view>
+          <!-- 判定带画在光环之上：光环往里收的时候会整块盖住朱带，压在最上层才看得见要瞄的那条带。 -->
+          <view class="ring-judge ring-judge--{{item.tone}}" style="width:{{item.bandBox}}rpx;height:{{item.bandBox}}rpx;border-width:{{item.bandWidth}}rpx"></view>
         </view>
-        <!-- 判定带画在光环之上：光环往里收的时候会整块盖住朱带，压在最上层才看得见要瞄的那条带。 -->
-        <view class="ring-judge ring-judge--{{vm.ring.tone}}" style="width:{{vm.ring.bandBox}}rpx;height:{{vm.ring.bandBox}}rpx;border-width:{{vm.ring.bandWidth}}rpx"></view>
-        <text wx:if="{{!boardHeld}}" class="ring-tip">点按盘面 · 第 {{vm.ring.beat}} / {{vm.ring.total}} 拍</text>
+        <!-- 提示轨：一小节的格位。四档提示是同一件事逐层往少走（全标 / 下一音 / 小节首 / 无），
+             不是四个不同控件，所以这里只有一层，靠 cue.level 决定哪些格亮。 -->
+        <view wx:if="{{vm.cue.show}}" class="cue-track cue-track--{{vm.cue.level}}">
+          <view wx:for="{{vm.cue.hands}}" wx:for-item="row" wx:key="h" class="cue-row">
+            <view wx:for="{{row.cells}}" wx:for-item="c" wx:key="i" class="cue-cell {{c.on ? 'cue-cell--on' : ''}} {{c.i === vm.cue.cursor ? 'cue-cell--now' : ''}}"></view>
+          </view>
+        </view>
+        <text wx:if="{{!boardHeld}}" class="ring-tip">{{vm.ringTip}}</text>
       </view>
 
       <view wx:if="{{vm.stage === 'lane' && vm.lane}}" class="lane-rule">

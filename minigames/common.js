@@ -177,7 +177,9 @@ function makeVm(cols, cellCount, status, hint) {
     timeText: '',
     scoreText: '',
     charge: null,
-    ring: null,
+    ring: null,       // 节律判定的第一只环（单手段直接读它）
+    rings: null,      // 节律判定的全部环：单手段一条、双手段左右各一条
+    cue: null,        // 节律判定的提示轨：{ show, level, bar, cursor, hands }
     trail: null,      // 需要划的玩法：当前刀路 { path, name, angle, gold, on }
     slash: null,      // 刺中时掠过盘面的白光 { key, angle }
     pad: null,        // 需要方向键的玩法：{ keys: [{ id, dir, glyph }] }

@@ -483,12 +483,15 @@
 }
 
 /* ---------- 节律判定盘 ---------- */
+/* 单手一格、双手两格并排：每一格是一手自己的环，各判各的。
+   两环之间的沟就是「左右各守一条」这件事本身，不画线、不写汉字。 */
 .ring-area {
     position: relative;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    height: 440rpx;
+    height: 500rpx;
     margin-top: 20rpx;
     border-radius: 20rpx;
     background-color: var(--well, #0b2331);
@@ -497,10 +500,25 @@
         inset 0 8rpx 24rpx rgba(0, 0, 0, 0.44);
 }
 
+.ring-cell {
+    position: relative;
+    width: 240rpx;
+    height: 240rpx;
+}
+
+.ring-area--dual .ring-cell + .ring-cell {
+    /* 双手段：两格之间留够一道缝。缝要是窄于判定带的溢出量，两条带会连成一条。
+       双手段的带最宽是 259rpx（窗 289ms ÷ 1000ms 隔 × 1.03 行程），比格子宽 19rpx，
+       两边各溢 10rpx，所以缝至少 20rpx——这里给 44rpx，两根拇指也不会互相蹭到。 */
+    margin-left: 44rpx;
+}
+
 .ring-judge {
     position: absolute;
+    inset: 0;
+    margin: auto;
     box-sizing: border-box;
-    /* 尺寸与描边宽度由玩法注入（vm.ring.bandBox / bandWidth），带有多宽就是判定窗有多宽。
+    /* 尺寸与描边宽度由玩法注入（vm.rings[].bandBox / bandWidth），带有多宽就是判定窗有多宽。
        这里留 200 / 6 只是兜底：判定带是「能瞄的东西」，不是装饰，不能写成固定像素。 */
     width: 200rpx;
     height: 200rpx;
@@ -526,6 +544,8 @@
 
 .ring-orb {
     position: absolute;
+    inset: 0;
+    margin: auto;
     /* 判定带是按「200rpx 盒子、半径 100 × scale」算出来的（见 tempo.js 的 bandBox）。
        这里必须 border-box：内容盒加两侧 8rpx 边框是 216rpx，视觉半径凭空大 8%，
        珠子扫过带子的时刻会比判定早一截——玩家照着带点，判出来却是晚的。 */
@@ -547,9 +567,54 @@
 .ring-orb--good { background: #e2efe6; }
 .ring-orb--miss { background: #f5dedb; }
 
+/* 提示轨：一小节的格位，格心里那颗点就是「这一格有音符」。
+   它只是提示，不是判定——撤掉之后环照样按谱走，所以整块可以整块隐藏（cue.level = none）。 */
+.cue-track {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 0 40rpx;
+    box-sizing: border-box;
+    margin-top: 6rpx;
+}
+
+.cue-row {
+    display: flex;
+    justify-content: center;
+    height: 26rpx;
+    align-items: center;
+}
+
+.cue-cell {
+    width: 20rpx;
+    height: 8rpx;
+    margin: 0 6rpx;
+    border-radius: 4rpx;
+    background: rgba(255, 243, 214, 0.16);
+}
+
+.cue-cell--on {
+    background: rgba(207, 174, 109, 0.78);
+}
+
+/* 走到哪一格：只换颜色，不做位移动画（减少动效时不会丢帧到看不见）。 */
+.cue-cell--now {
+    background: rgba(255, 243, 214, 0.92);
+}
+
+.cue-track--next .cue-cell--on {
+    background: rgba(207, 174, 109, 0.55);
+}
+
+.cue-track--bar .cue-cell--on {
+    background: rgba(207, 174, 109, 0.4);
+}
+
 .ring-tip {
     position: absolute;
-    bottom: 24rpx;
+    bottom: 16rpx;
+    width: 100%;
+    text-align: center;
     color: var(--ink, #5d6358);
     font-size: 24rpx;
 }

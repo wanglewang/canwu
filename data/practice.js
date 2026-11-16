@@ -61,10 +61,11 @@ const PRACTICE_METHODS = [
   },
   {
     id: 'absorb', name: '吸纳灵力', game: 'tempo', theme: 'absorb', twist: 'absorb',
-    desc: '一呼一吸皆有节律，气机收到最匀处才纳得进去。慢些，反而更难走偏。',
-    tip: '偏一点只算半拍，缩过头这一拍就空',
+    desc: '一呼一吸皆有节律，气机收到最匀处才纳得进去。谱越到后头越难，最后要靠身子记住拍子。',
+    tip: '早一点晚一点只算半拍，漏掉一音就空一拍',
     base: 30,
-    params: { beats: 8, speed: 0.026, window: 0.09 },
+    // 谱由 TEMPO_SCORES 按档整表注入，这里留简单档的数当兜底（准备页取参时也读得到）。
+    params: { bar: 8, unitMs: 500, bars: 4, hands: 1, cue: 'all', winMs: 320, pattern: [[0, 2, 4, 6]] },
   },
   {
     id: 'combo', name: '照卷踏位', game: 'sword', theme: 'combo', twist: 'combo',
@@ -666,16 +667,101 @@ function sLineText(method, diffKey) {
 }
 
 // ---------------------------------------------------------------- 参数缩放
-// 节律判定的判定带按毫秒定：单侧不得短于 MIN_WIN_MS（合计 200ms，全站反应下限）。
-// 参数层的 `window` 会被玩法层 ×TWIST_WIN，`speed` 会被 ×TWIST_STEP，所以下限要反推到
-// 参数口径，在生成端就钉住——否则章内收紧一直压 `window`，玩法层再悄悄托住，
-// 就成了「参数在动、盘面没动」，levelDelta 还会报「判定窗 5.5% → 5.4%」这种假变化。
-// 这四个数由 minigames/tempo.js 直接引用，不许再抄第二份。
-const TEMPO_FLOOR = { minWinMs: 100, tickMs: 40, twistWin: 1.45, twistStep: 0.86 };
-function tempoWindowFloor(speed) {
-  const f = TEMPO_FLOOR;
-  const raw = f.minWinMs / f.tickMs * (Number(speed) || 0.026) * f.twistStep / f.twistWin;
-  return Math.ceil(raw * 1000) / 1000;  // 向上取到参数精度，宁可略宽也不压破下限
+// 节律判定的判定带按毫秒给，两边一起守：
+// ① 单侧不得短于 minWinMs（合计 200ms，全站反应下限）；
+// ② 单侧不得超过该手「最短音符间隔」的四成（maxWinFrac）——双手里左手三秒一下、
+//    右手一秒一下，窗口若按左手定，右手相邻两个窗口会互相吞掉。
+// 这两个下限在 minigames/tempo.js 的 score() 里算（那里才知道每手的间隔），
+// 参数层只给「这一档本来想要多宽」，最终值由玩法层落定并回写，见 buildParamsAt。
+// 这几个数由 minigames/tempo.js 直接引用，不许再抄第二份。
+const TEMPO_FLOOR = {
+  minWinMs: 100, tickMs: 40, maxWinFrac: 0.4,
+  twistWin: 1.45, perkWin: 1.12,
+};
+
+// 节律判定五档的谱。这一门以前「五档只收一个窗」，200 关打下来是同一局；
+// 现在每一档换一件东西，玩家每次都要学一样新的：
+//   拍号定分组、速度定心跳、音符时值定疏密、手数定分工、cue 定提示还剩多少。
+// pattern 是「一小节里的格位」：格长 unitMs，小节长 bar 格。
+// 一手多个格位时，环的周期就是相邻格位的差，所以长短拍在盘面上快慢不同。
+const TEMPO_SCORES = [
+  {
+    key: 'easy', meter: '4/4', bpm: 60, bar: 8, unitMs: 500, bars: 3,
+    hands: 1, cue: 'all', pattern: [[0, 2, 4, 6]], winMs: 320,
+    label: '每拍一下', note: '一格一步，心跳先立住',
+  },
+  {
+    key: 'normal', meter: '4/4', bpm: 60, bar: 8, unitMs: 500, bars: 3,
+    hands: 1, cue: 'all', pattern: [[0, 3, 4, 6]], winMs: 260,
+    label: '长短交替', note: '速度没变，改的是音符时值',
+  },
+  {
+    key: 'hard', meter: '4/4', bpm: 75, bar: 8, unitMs: 400, bars: 4,
+    hands: 1, cue: 'next', pattern: [[0, 2, 4, 7]], winMs: 200,
+    label: '带上休止', note: '谱里有空档，空档不许点',
+  },
+  {
+    key: 'expert', meter: '2/4', bpm: 60, bar: 4, unitMs: 500, bars: 6,
+    hands: 2, cue: 'bar', pattern: [[0], [0, 2]], winMs: 220,
+    label: '双手 · 一与二', note: '左手一拍、右手两拍，相位相同',
+  },
+  {
+    key: 'desperate', meter: '6/8', bpm: 60, bar: 6, unitMs: 500, bars: 4,
+    hands: 2, cue: 'none', pattern: [[0, 3], [0, 2, 4]], winMs: 200,
+    label: '双手 · 二与三', note: '左手两拍对右手三拍，只有小节头尾对齐',
+  },
+];
+const TEMPO_SCORE_MAP = {};
+for (let i = 0; i < TEMPO_SCORES.length; i += 1) TEMPO_SCORE_MAP[TEMPO_SCORES[i].key] = TEMPO_SCORES[i];
+
+function tempoScoreOf(key) {
+  return TEMPO_SCORE_MAP[key] || TEMPO_SCORES[0];
+}
+// 绝境后段换比例（181–200）：章内只许变难，二对三换三对四更难。
+// 这一条由 buildParamsAt 按关号写进 pattern，档表里只留基准谱。
+const TEMPO_DESPERATE_LATE = { from: 181, pattern: [[0, 3], [0, 2, 3, 4]], label: '右手加切分' };
+
+const TEMPO_CUE_NAMES = { all: '全标', next: '只标下一音', bar: '只标小节首拍', none: '无提示' };
+
+// 节律判定的章内收紧。两件事：
+// ① 格长按章内进度收 12%（越往后心跳越快），判定窗收 18%；
+// ② 绝境后段（181 关起）右手谱加两个切分音——章内只许变难，这一条是「看得见」的那一半：
+//    格长收 12% 玩家听不出来，谱里多两个音一进局就看得出来。
+// 只在生成端算一次，玩法层不再二次收紧（否则「本关小变化」会报出盘面上没有的变化）。
+function tempoShortest(q) {
+  const bar = Math.max(2, Math.round(q.bar || 8));
+  const unit = Math.max(120, Math.round(q.unitMs || 500));
+  const rows = Array.isArray(q.pattern) ? q.pattern : [[0]];
+  let min = Infinity;
+  for (let h = 0; h < rows.length; h += 1) {
+    const onsets = (rows[h] || []).filter(function (v) { return v >= 0 && v < bar; })
+      .slice().sort(function (a, b) { return a - b; });
+    if (!onsets.length) continue;
+    for (let j = 0; j < onsets.length; j += 1) {
+      const next = j + 1 < onsets.length ? onsets[j + 1] : onsets[0] + bar;
+      min = Math.min(min, (next - onsets[j]) * unit);
+    }
+  }
+  return isFinite(min) ? min : bar * unit;
+}
+
+function tempoAt(out, level) {
+  const f = levelData.progressOf(level);
+  const lv = levelData.clampLevel(level);
+  out.unitMs = Math.max(240, Math.round(out.unitMs * (1 - 0.12 * f) / 10) * 10);
+  // 速度跟着格长走（格 = 八分音符，一拍两个格）：章内格长一收，BPM 就真涨，
+  // 档表上那个 60 / 75 只是本档首关的数，不能留着不动。
+  out.bpm = Math.round(60000 / (out.unitMs * 2));
+  // 判定窗在生成端就落到「生效值」：玩法层还要乘本门的 ×1.45、再按四成间隔封顶，
+  // 若这里只给「想要的宽」，被上限夹住的那几十关会报出「319 → 317 毫秒」而盘面一动不动。
+  const cap = tempoShortest(out) * TEMPO_FLOOR.maxWinFrac / TEMPO_FLOOR.twistWin;
+  out.winMs = Math.max(TEMPO_FLOOR.minWinMs,
+    Math.min(Math.round(out.winMs * (1 - 0.18 * f)), Math.round(cap)));
+  if (out.hands === 2 && lv >= TEMPO_DESPERATE_LATE.from) {
+    out.pattern = TEMPO_DESPERATE_LATE.pattern.map(function (row) { return row.slice(); });
+    out.scoreLabel = TEMPO_DESPERATE_LATE.label;
+  }
+  return out;
 }
 // 时间 / 判定窗类：pace 越小越难。window 是 0~1 的小数，保留三位。
 const PACE_KEYS = ['interval', 'flashMs', 'gapMs', 'windowMs', 'shuffleMs', 'flipMs', 'dropMs', 'window', 'msPerNote', 'life'];
@@ -796,11 +882,27 @@ function rawParams(method, depthIndex) {
     out.tA = lv.tA;
     out.tB = lv.tB;
   }
+  // 节律判定：整副谱按档注入。以前这里只给 beats / speed / window 三个数，
+  // 五档谱型一模一样，玩家在第一章就学会了全部本事——后面 160 关只是把窗收窄。
+  // 现在每档给「拍号 + 速度 + 音符时值 + 手数 + 提示层级」五项，
+  // 玩法层的 score() 再把它们折成两条时间线。
+  if (method && method.game === 'tempo') {
+    const sc = tempoScoreOf(d.key);
+    out.meter = sc.meter;
+    out.bpm = sc.bpm;
+    out.bar = sc.bar;
+    out.unitMs = sc.unitMs;
+    out.bars = sc.bars;
+    out.hands = sc.hands;
+    out.cue = sc.cue;
+    out.winMs = sc.winMs;
+    out.pattern = sc.pattern.map(function (row) { return row.slice(); });
+    out.scoreLabel = sc.label;
+  }
   // 滑块让路：本盘最优步数的上下限 + 步数预算系数，盘面固定 4×4。
   // capFactor 以前不注入，模块里那句 `p.capFactor || 2.4` 永远走兜底——
   // 界面上写着「预算 ×2.40」，五档其实一模一样。
-  if (method && method.game === 'klotski') {
-    const lv = KLOTSKI_LEVELS[d.depth];
+  if (method && method.game === 'klotski') {    const lv = KLOTSKI_LEVELS[d.depth];
     out.minOpt = lv.minOpt;
     out.maxOpt = lv.maxOpt;
     out.capFactor = lv.capFactor;
@@ -900,7 +1002,7 @@ const LEVEL_TIME_KEYS = ['duration', 'timeLimit', 'interval', 'flashMs', 'gapMs'
 
 // 某一关的完整参数。一段一关，所以相邻两关本该逐位不同——但「本该」不等于「一定」：
 // 七门的可动范围只够三五十格到一百多格（点灯破阵 31 / 踏云连环 36 / 一眼摘魁 37 /
-// 扫目逐数 52 / 万石成岳 108 / 吐纳周天 123 / 让主出阵 166），其余各关参数一字不动。
+// 扫目逐数 52 / 万石成岳 108 / 吐纳周天 95 / 让主出阵 166），其余各关参数一字不动。
 // 界面据实报「与上一关规格相同」，见 `levelDelta`。
 //
 // 章内只做一件事：把本档的时间与预算按段收紧，方向永远是「更难」。
@@ -927,9 +1029,9 @@ function buildParamsAt(method, level) {
   out.chapter = ch;
   out.stage = levelData.stageOf(lv);
   const tuned = levelData.tweakParams(method, out, lv);
-  // 章内收紧不许把判定窗压到生效下限以下：参数与盘面必须一起停，
+  // 节律判定的谱与格长在生成端一次收口：参数与盘面必须一起停，
   // 否则「本关小变化」会写出一个盘面上根本没有的变化。
-  if (method.game === 'tempo') tuned.window = Math.max(tuned.window, tempoWindowFloor(tuned.speed));
+  if (method.game === 'tempo') tempoAt(tuned, lv);
   // 灵纹连线的时辰在这一步统一收口：一关一个数，沿全书连续收，不按章回卷。
   if (linkGame) tuned.duration = linkDurationAt(lv);
   return tuned;
@@ -952,7 +1054,7 @@ const LEVEL_STRUCT_KEYS = ['cols', 'rows', 'size', 'grid', 'kinds', 'holes', 'co
   'target', 'minOpt', 'maxOpt', 'boxes', 'walls', 'startTiles', 'hearts', 'steps',
   'minSteps', 'hiSteps', 'startLevel', 'linesPerLevel', 'lenStep', 'decoys', 'pairs',
   'mines', 'beats', 'segments', 'chainGoal', 'maxRound', 'scramble', 'startLen',
-  'baseLen', 'budgetSlack', 'missCost', 'nearGap'];
+  'baseLen', 'budgetSlack', 'missCost', 'nearGap', 'hands', 'bar', 'bars'];
 // 沿全书关号连续收的结构旋钮不属于「本章换了哪一副盘」，换章时不与盘面规格抢那两条额度。
 const CONTINUOUS_STRUCT_KEYS = ['nearGap'];
 
@@ -1007,6 +1109,36 @@ function levelDelta(method, level) {
     out.push({ key: k, label: lineLabelOf(method, k), text: lineLabelOf(method, k) + ' ' + a + ' → ' + b });
   };
 
+  // 节律判定只报四样玩家真看得见的东西：换章、手数、谱型、提示还剩多少。
+  // 以前这里报的是「判定窗 5.5% → 5.4%」——盘面上一整局一模一样，
+  // 玩家打一百多关说不出哪里变了，正是这一条要挡住的假变化。
+  if (method && method.game === 'tempo') {
+    const out = [];
+    if (isChapter) {
+      const c = levelData.chapterRange(levelData.chapterOf(lv));
+      out.push({ key: 'chapter', label: '换章', chapter: true,
+        text: '踏入' + c.label + '（' + c.name + '）' });
+    }
+    if (now.hands !== prev.hands) {
+      out.push({ key: 'hands', label: '手数',
+        text: now.hands >= 2 ? '单手 → 双手，左右各守一条节拍' : '双手 → 单手' });
+    }
+    if (JSON.stringify(now.pattern) !== JSON.stringify(prev.pattern)) {
+      out.push({ key: 'score', label: '谱型',
+        text: '谱型「' + (prev.scoreLabel || '') + '」→「' + (now.scoreLabel || '') + '」' });
+    }
+    if (now.cue !== prev.cue) {
+      out.push({ key: 'cue', label: '提示',
+        text: '提示 ' + TEMPO_CUE_NAMES[prev.cue] + ' → ' + TEMPO_CUE_NAMES[now.cue] });
+    }
+    // 章内那点收紧（格长一关 2 毫秒、判定窗一关 1 毫秒）不报：报出来就是
+    // 「判定窗 319 → 317 毫秒」，玩家一个字都看不出来，和「把 20 秒写成 19.5 秒」是同一种假变化。
+    // 有 3% 的实质变化才开口，其余关据实写「与上一关规格相同」。
+    if (!isChapter && out.length < 3 && Math.abs(now.unitMs / prev.unitMs - 1) >= 0.03) push(out, 'unitMs');
+    if (!isChapter && out.length < 3 && Math.abs(now.winMs / prev.winMs - 1) >= 0.03) push(out, 'winMs');
+    return out.slice(0, 3);
+  }
+
   if (isChapter) {
     const ch = levelData.chapterRange(levelData.chapterOf(lv));
     const out = [{ key: 'chapter', label: '换章', chapter: true,
@@ -1053,7 +1185,9 @@ function chapterSpec(method, level) {
 }
 
 // 关卡表里独有的两个旋钮（合术起手 4 的比例、勘禁 S 线系数）没有通用标签。
-const LEVEL_LABELS = { fourRate: '起手给 4', lineScale: 'S 线', startLevel: '起手级数', linesPerLevel: '每级层数' };
+const LEVEL_LABELS = { fourRate: '起手给 4', lineScale: 'S 线', startLevel: '起手级数', linesPerLevel: '每级层数',
+  unitMs: '格长', winMs: '判定窗', bar: '每小节', bars: '小节数', hands: '手数', bpm: '速度',
+  meter: '拍号', cue: '提示', scoreLabel: '谱型' };
 // lineScale 在勘禁诀里只缩 S 线，在逐数诀里缩的是整条尺子（S/A/B 与时辰）——同一个键，两种口径。
 // 写错一边，第 3 关的「本关小变化」就会说「S 线 96% → 95%」，而实际连 A 线也收了。
 function lineLabelOf(method, key) {
@@ -1063,6 +1197,11 @@ function lineLabelOf(method, key) {
 
 function levelFmt(key, value) {
   if (key === 'fourRate') return Math.round(value * 100) + '%';
+  // 节律判定的格长 / 判定窗都要写到毫秒：一章收 12% 摊到 40 关，每关只动几毫秒，
+  // 四舍五入成整数就永远是「500 → 500」，那一行会一直是空的。
+  if (key === 'hands') return value >= 2 ? '双手' : '单手';
+  if (key === 'bar') return Math.round(value) + ' 格';
+  if (key === 'bpm') return Math.round(value) + ' 拍/分';
   // 评级线每关只动 0.09%（全书 18% ÷ 200 关），取整到 1% 就永远是「96% → 96%」，
   // 「本关小变化」那一行会一直是空的——玩家会以为这一关什么都没变。
   if (key === 'lineScale') return (Math.round(value * 1000) / 10).toFixed(1) + '%';
@@ -1084,6 +1223,8 @@ const MS_FIELDS = ['interval', 'life', 'flashMs', 'gapMs', 'windowMs', 'shuffleM
 const HIDDEN_FIELDS = ['window', 'speed'];
 
 function fmtField(key, value) {
+  // 节律判定的格长与判定窗按毫秒写：折成秒会变成「0.50 秒 → 0.44 秒」，看不出收了多少。
+  if (key === 'unitMs' || key === 'winMs') return Math.round(value) + ' 毫秒';
   if (MS_FIELDS.indexOf(key) >= 0) return (value / 1000).toFixed(2) + ' 秒';
   if (key === 'duration' || key === 'timeLimit' || key === 'penaltySec') return Math.round(value) + ' 秒';
   if (key === 'hearts') return Math.round(value) + ' 盏';
@@ -1114,7 +1255,9 @@ function diffDetail(method, diffKey) {
   const changes = [];
   // 时辰与四门新注入的档位参数也要进「本档紧在哪」：不然准备页写了「入门基准」，
   // 盘上的倒计时 / 心神 / 起手块却真的变了，说明和局内对不上。
-  const ordered = ['cols', 'rows', 'kinds'].concat(PACE_KEYS, GOAL_KEYS,
+  // 节律判定的「档差」是谱型/手数/格长，不是旧版的 speed / window（那两个键已经退役）。
+  const ordered = ['cols', 'rows', 'kinds', 'hands', 'bar', 'bars', 'unitMs', 'winMs']
+    .concat(PACE_KEYS, GOAL_KEYS,
     ['duration', 'timeLimit', 'hearts', 'startTiles', 'penaltySec', 'capFactor', 'steps', SPEED_KEY,
       'startLevel', 'linesPerLevel']).filter(function (k) {
     return HIDDEN_FIELDS.indexOf(k) < 0;
@@ -1179,6 +1322,12 @@ function diffDetail(method, diffKey) {
     const pairs = now.cols * now.rows / 2;
     brief = now.cols + '×' + now.rows + ' 盘 · ' + pairs + ' 对 · ' + now.kinds + ' 种灵纹 · '
       + now.duration + ' 息 · 每对 ' + (now.duration / pairs).toFixed(2) + ' 息';
+  } else if (method && method.game === 'tempo') {
+    // 这一门的档差是「换了一副谱」，不是「快了几毫秒」：谱型 / 手数 / 提示三样写在一句里，
+    // 准备页才不会写着「最快节奏」而玩家进局发现只是窗窄了一点。
+    brief = (now.meter || '') + ' · ' + (now.scoreLabel || '') + ' · ' + (now.hands > 1 ? '双手' : '单手')
+      + ' · 每小节 ' + now.bar + ' 格 · 共 ' + now.bars + ' 小节 · 一格 ' + now.unitMs + ' 毫秒'
+      + ' · 提示「' + (TEMPO_CUE_NAMES[now.cue] || '') + '」';
   } else if (method && method.game === 'blocks') {
     // 盘面是标准场地（10×20），写出来是让玩家知道「这一门不是小盘俄罗斯方块」；
     // 真正随档变的是起手级数与每级层数——这两句才是难度。
@@ -1294,7 +1443,9 @@ module.exports = {
   linkDurationAt: linkDurationAt,
   tipFor: tipFor,
   TEMPO_FLOOR: TEMPO_FLOOR,
-  tempoWindowFloor: tempoWindowFloor,
+  TEMPO_SCORES: TEMPO_SCORES,
+  tempoScoreOf: tempoScoreOf,
+  tempoAt: tempoAt,
   LEVEL_STRUCT_KEYS: LEVEL_STRUCT_KEYS,
   chapterSpec: chapterSpec,
   TIME_LEVELS: TIME_LEVELS,

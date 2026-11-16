@@ -468,7 +468,10 @@ check('换章要报出盘面规格，不许把结构变化藏在毫秒后面', f
         return typeof now[k] === 'number' && typeof prev[k] === 'number' && now[k] !== prev[k];
       });
       for (const x of d.slice(1)) {
+        // score / cue 是节律判定的「谱型」与「提示层级」：和盘面规格同类，
+        // 换章时换的正是这两样（手数在 LEVEL_STRUCT_KEYS 里）。
         assert.ok(x.key === 'sameBoard' || x.key === 'cols' || x.key === 'perPair'
+          || x.key === 'score' || x.key === 'cue'
           || struct.indexOf(x.key) >= 0,
         m.id + ' 第 ' + lv + ' 关把「' + x.key + '」当换章变化报了出来（那是毫秒/时辰，不是盘面）');
       }

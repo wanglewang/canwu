@@ -3537,126 +3537,169 @@ check('滑块让路：脱身时主块沉进出口，出口从缺口变成开着�
   } finally { restoreClock(); }
 });
 
-// ---------------------------------------------------------------- 断言：节律判定的难度曲线
-// 这一门的难度全压在「时机精度」一根轴上，而它由 window 与 speed 两个反向参数相乘得来，
-// 所以「参数表看着等比、实际手感断崖」是最容易复发的一类错。以下四条是它的护栏。
-check('节律判定：判定带按毫秒收，五档单调且没有断崖', function () {
+// ---------------------------------------------------------------- 断言：节律判定的谱面
+// 这一门旧版只有一个动词（等环、点一下），五档只是把窗收窄：玩家在第一章就学会了
+// 全部本事，后面一百六十关只是要求他糊弄得更准。现在每一档换一件东西（谱型 / 手数 /
+// 提示），护栏也从「窗单调」换成「每档真的多学一样、而且盘面解得开」。
+
+check('节律判定：五档各换一件东西，不是只换秒表', function () {
   const m = data.getMethod('absorb');
-  const mod = index.MODULES.tempo;
   const keys = ['easy', 'normal', 'hard', 'expert', 'desperate'];
-  const win = keys.map(function (k) {
-    return mod.metrics(data.buildParams(m, k), { twist: m.twist, easy: false });
-  });
-  for (let i = 0; i < win.length; i += 1) {
-    // 总窗不短于 200ms：40ms 刷新率加触控延迟之下，再窄就只能靠「正好停在那一帧」碰运气。
-    assert.ok(win[i].winMs * 2 >= 200,
-      keys[i] + ' 档总窗只有 ' + (win[i].winMs * 2).toFixed(0) + 'ms，破了 200ms 下限');
-    if (i === 0) continue;
-    const drop = 1 - win[i].winMs / win[i - 1].winMs;
-    assert.ok(drop > 0, keys[i] + ' 档的判定带没有比上一档更紧');
-    // 35% 以上算断崖：普通升困难曾经一夜之间紧 39%（pace 与 gear 两刀叠在同一个边界上）。
-    assert.ok(drop <= 0.35, keys[i] + ' 档比上一档紧 ' + (drop * 100).toFixed(0) + '%，是断崖');
-    // 10% 以下玩家说不出「这档更紧」，五档等于一个手感。
-    assert.ok(drop >= 0.10, keys[i] + ' 档只比上一档紧 ' + (drop * 100).toFixed(0) + '%，感觉不出来');
+  const specs = keys.map(function (k) { return data.buildParams(m, k); });
+  const cueRank = { all: 3, next: 2, bar: 1, none: 0 };
+  for (let i = 1; i < specs.length; i += 1) {
+    const a = specs[i - 1];
+    const b = specs[i];
+    const diff = [];
+    if (JSON.stringify(a.pattern) !== JSON.stringify(b.pattern)) diff.push('谱型');
+    if (a.hands !== b.hands) diff.push('手数');
+    if (a.cue !== b.cue) diff.push('提示');
+    // 环速也是盘面上看得见的一样东西：最短音符间隔拉开两成以上，环走得明显不一样快。
+    const shot = function (q) {
+      const sc = index.MODULES.tempo.score(q, { twist: m.twist });
+      return Math.min.apply(null, sc.tracks.map(function (t) { return t.shortest; }));
+    };
+    if (Math.abs(shot(b) / shot(a) - 1) >= 0.2) diff.push('环速');
+    // 只换一个数（窗、格长）等于「只换秒表」——那正是旧版的问题。
+    assert.ok(diff.length >= 2,
+      keys[i] + ' 档只换了 ' + (diff.length ? diff.join('/') : '秒表') + '，玩家学不到新东西');
+    assert.ok(b.hands >= a.hands, keys[i] + ' 档的手数比上一档还少');
+    assert.ok(cueRank[b.cue] <= cueRank[a.cue], keys[i] + ' 档的提示反而变多了');
   }
+  // 第一档全标、最后一档无提示：这就是「跟着页面点 → 凭感觉点」这条线本身。
+  assert.strictEqual(specs[0].cue, 'all', '第一档没有全标，玩家第一局无处可跟');
+  assert.strictEqual(specs[4].cue, 'none', '最后一档还留着提示，绝境等于没到');
 });
 
-check('节律判定：本门机制（带更宽、收得更慢）五档都成立', function () {
+check('节律判定：每一手的判定窗都不许吞掉下一个音符', function () {
   const m = data.getMethod('absorb');
   const mod = index.MODULES.tempo;
-  // 机制本身是乘性的，先拿一组不受下限夹的参考参数把倍数钉住。
-  const ref = { beats: 8, speed: 0.02, window: 0.09 };
-  assert.ok(Math.abs(mod.metrics(ref, { twist: m.twist }).window
-    / mod.metrics(ref, {}).window - mod.TWIST_WIN) < 1e-9, '本门判定带不是 ×' + mod.TWIST_WIN);
-  assert.ok(Math.abs(mod.metrics(ref, { twist: m.twist }).step
-    / mod.metrics(ref, {}).step - mod.TWIST_STEP) < 1e-9, '本门收敛不是 ×' + mod.TWIST_STEP);
-  for (const k of ['easy', 'normal', 'hard', 'expert', 'desperate']) {
-    const q = data.buildParams(m, k);
-    const bare = mod.metrics(q, {});
-    const own = mod.metrics(q, { twist: m.twist });
-    // 曾经玩法层还挂着一句 if (hard) { window -= .012; step += .004 }，困难 / 极难 / 绝境
-    // 三档正好把它抵消成零：本门「更慢」只在两档成立。这两条守的就是「不许再挂那一刀」。
-    assert.ok(own.step <= bare.step * mod.TWIST_STEP + 1e-12,
-      k + ' 档的收敛被别的修正又加回去了，本门在这一档不再更慢');
-    assert.ok(own.window >= q.window * mod.TWIST_WIN - 1e-12,
-      k + ' 档的判定带比本门该有的 ×' + mod.TWIST_WIN + ' 还窄');
-    assert.ok(own.step < bare.step && own.window > q.window, k + ' 档没有比别的门更宽更慢');
+  const F = data.TEMPO_FLOOR;
+  for (let lv = 1; lv <= 200; lv += 1) {
+    const s = mod.score(data.buildParamsAt(m, lv), { twist: m.twist });
+    for (const t of s.tracks) {
+      assert.ok(t.winMs >= F.minWinMs - 1e-9,
+        '第 ' + lv + ' 关第 ' + (t.hand + 1) + ' 手的判定窗破了下限');
+      // 双手里左手三秒一下、右手一秒一下：窗口按左手定，右手的两个窗口会叠在一起。
+      assert.ok(t.winMs <= t.shortest * F.maxWinFrac + 1e-9,
+        '第 ' + lv + ' 关第 ' + (t.hand + 1) + ' 手的判定窗比四成间隔还宽，会吞掉下一个音符');
+    }
   }
-  // 章内收紧也不能把窗口压穿下限：绝境章末关曾经只剩 ±72ms（1.8 帧）。
-  const last = mod.metrics(data.buildParamsAt(m, 200), { twist: m.twist });
-  assert.ok(last.winMs * 2 >= 200, '绝境第 200 关总窗只有 ' + (last.winMs * 2).toFixed(0) + 'ms');
 });
 
-check('节律判定：拍点走固定网格，点中了不再跳拍', function () {
+check('节律判定：双手是两条独立时间线，不是和弦', function () {
+  const m = data.getMethod('absorb');
+  const mod = index.MODULES.tempo;
+  const two = mod.score(data.buildParams(m, 'expert'), { twist: m.twist });
+  assert.strictEqual(two.tracks.length, 2, '极难档没有起第二只手');
+  const lg = two.tracks[0].notes[0].gap;
+  const rg = two.tracks[1].notes[0].gap;
+  assert.ok(Math.abs(lg / rg - 2) < 1e-9, '极难不是一与二：' + lg + ' / ' + rg);
+  const lAt = two.tracks[0].notes.map(function (n) { return n.at; });
+  const rAt = two.tracks[1].notes.map(function (n) { return n.at; });
+  const shared = lAt.filter(function (t) { return rAt.indexOf(t) >= 0; });
+  assert.ok(shared.length >= 2, '极难的两条线一个对齐点都没有，「同相位」是假的');
+  const three = mod.score(data.buildParams(m, 'desperate'), { twist: m.twist });
+  const l3 = three.tracks[0].notes[0].gap;
+  const r3 = three.tracks[1].notes[0].gap;
+  // 二对三：左手一小节 2 下、右手 3 下，所以间隔比是 3:2。
+  assert.ok(Math.abs(l3 / r3 - 1.5) < 1e-9, '绝境的间隔比不是 3:2：' + l3 + ' / ' + r3);
+  assert.strictEqual(three.tracks[0].onsets.length, 2, '绝境左手每小节不是 2 下');
+  assert.strictEqual(three.tracks[1].onsets.length, 3, '绝境右手每小节不是 3 下');
+});
+
+check('节律判定：本门机制（判定带更宽）五档都成立', function () {
+  const m = data.getMethod('absorb');
+  const mod = index.MODULES.tempo;
+  // 机制是乘性的，先拿一组不受四成上限夹的参考谱把倍数钉住。
+  const ref = { bar: 8, unitMs: 500, bars: 2, hands: 1, pattern: [[0, 2]], winMs: 100 };
+  const bare = mod.score(ref, {});
+  const own = mod.score(ref, { twist: m.twist });
+  assert.ok(Math.abs(own.tracks[0].winMs / bare.tracks[0].winMs - mod.TWIST_WIN) < 1e-9,
+    '本门判定带不是 ×' + mod.TWIST_WIN);
+  for (const k of ['easy', 'normal', 'hard', 'expert', 'desperate']) {
+    const a = mod.score(data.buildParams(m, k), {});
+    const b = mod.score(data.buildParams(m, k), { twist: m.twist });
+    assert.ok(b.tracks[0].winMs >= a.tracks[0].winMs - 1e-9,
+      k + ' 档的判定带比本门该有的还窄（机制被别的修正抵消了）');
+  }
+});
+
+check('节律判定：拍点落在固定网格上，点过之后继续收到底', function () {
   installClock();
   try {
     const m = data.getMethod('absorb');
     const ctx = makeCtx(m);
     ctx.c.start();
-    // 走到判定带里点一下。
-    let scaleAtTap = 0;
-    for (let i = 0; i < 200 && !scaleAtTap; i += 1) {
+    let hit = false;
+    for (let i = 0; i < 600 && !hit; i += 1) {
       advance(40);
-      const r = ctx.st.vm.ring;
-      if (Math.abs(r.scale - r.judge) <= r.window) { scaleAtTap = r.scale; ctx.c.tap(0); }
+      const r = ctx.st.vm.rings[0];
+      if (Math.abs(r.scale - r.judge) <= r.window * 0.6) { hit = true; ctx.c.tap(0); }
     }
-    assert.ok(scaleAtTap > 0, '第一拍没等到判定带');
-    const beatAtTap = ctx.st.vm.ring.beat;
-    // 点过之后光环继续往回收，随手连点都不许把拍号推走（旧做法点一下就复位，等于每拍一次反应题）。
-    for (let i = 0; i < 5; i += 1) { advance(40); ctx.c.tap(0); }
-    assert.strictEqual(ctx.st.vm.ring.beat, beatAtTap, '点一下就跳拍：拍点又被点击复位了');
-    assert.ok(ctx.st.vm.ring.scale < scaleAtTap, '点中之后光环停住不收了，节律断了');
-    // 缩到底才换下一拍。
-    for (let i = 0; i < 200 && ctx.st.vm.ring.beat === beatAtTap; i += 1) advance(40);
-    assert.strictEqual(ctx.st.vm.ring.beat, beatAtTap + 1, '光环缩到底却没换拍');
+    assert.ok(hit, '第一音没等到判定带');
+    const scaleAtTap = ctx.st.vm.rings[0].scale;
+    const idxAtTap = ctx.st.vm.rings[0].index;
+    // 点过之后环继续往底收，不弹回起点：弹回就等于每一拍都是一次全新的反应任务。
+    advance(40);
+    assert.ok(ctx.st.vm.rings[0].scale <= scaleAtTap + 1e-9,
+      '点一下就复位：环又弹回起点了');
+    assert.strictEqual(ctx.st.vm.rings[0].index, idxAtTap, '点一下就跳音符');
+    // 连点不再加分，也不许把音符推走。
+    for (let i = 0; i < 3; i += 1) { advance(40); ctx.c.tap(0); }
+    assert.strictEqual(ctx.st.vm.rings[0].index, idxAtTap, '连点把音符推走了：判定被点击驱动');
     ctx.c.destroy();
   } finally { restoreClock(); }
 });
 
 check('节律判定：B 线不与 A 线挤成一道缝', function () {
   const mod = index.MODULES.tempo;
-  for (const total of [7, 8, 9, 10, 11]) {
+  for (const total of [12, 16, 18, 20]) {
     const b = mod.bands(total);
-    assert.ok(b.sMin > b.aMin && b.aMin > b.bMin, total + ' 拍的四条线没有严格递减');
-    // 简单档曾经 ceil(7×0.5)=4 与 A 4.5 只差半拍：整个 B 档只有 0.5 分宽，几乎打不出来。
-    assert.ok(b.aMin - b.bMin >= 1, total + ' 拍的 B 线离 A 线不到 1 分，B 会变成一道缝');
-    assert.ok(b.bMin >= total * 0.4, total + ' 拍的 B 线低到四成以下，等于没有门槛');
+    assert.ok(b.sMin > b.aMin && b.aMin > b.bMin, total + ' 音的四条线没有严格递减');
+    // 音符少时 ceil(n×0.5) 与 A 只差半分：整个 B 档只有半分的宽度，几乎打不出来。
+    assert.ok(b.aMin - b.bMin >= 1, total + ' 音的 B 线离 A 线不到 1 分，B 会变成一道缝');
+    assert.ok(b.bMin >= total * 0.4, total + ' 音的 B 线低到四成以下，等于没有门槛');
   }
 });
 
-check('节律判定：章内参数与生效判定带同步，不许报盘面上没有的收紧', function () {
+check('节律判定：章内收紧同步到盘面，不许报盘面上没有的变化', function () {
   const m = data.getMethod('absorb');
   const mod = index.MODULES.tempo;
-  const F = data.TEMPO_FLOOR;
   const span = require('../data/levels.js').STAGE_SPAN;
-  const eff = function (lv) { return mod.metrics(data.buildParamsAt(m, lv), { twist: m.twist }); };
-  for (let lv = 1; lv <= 200; lv += 1) {
-    const q = data.buildParamsAt(m, lv);
-    const r = eff(lv);
-    // ① 下限必须在生成端算过：玩法层的 max() 不许再托第二回。
-    //    只在玩法层兜底时，参数继续变小、盘面不动，绝境章曾有 10 关在这么谎报。
-    assert.ok(q.window >= data.tempoWindowFloor(q.speed) - 1e-9,
-      '第 ' + lv + ' 关的参数判定窗压破了生效下限');
-    assert.ok(Math.abs(r.window - q.window * F.twistWin) < 1e-9,
-      '第 ' + lv + ' 关的生效判定带被下限托住了，参数与盘面不同步');
-    assert.ok(r.winMs * 2 >= F.minWinMs * 2 - 1e-6, '第 ' + lv + ' 关总窗破 200ms');
-    // ② 「本关小变化」报了判定窗收紧，生效判定带就必须真的变了。
-    const wd = data.levelDelta(m, lv).filter(function (d) { return d.key === 'window'; })[0];
-    if (!wd) continue;
-    assert.notStrictEqual(eff(lv).window.toFixed(6), eff(lv - span).window.toFixed(6),
-      '第 ' + lv + ' 关报了「' + wd.text + '」，可生效判定带和上一关一样');
+  const eff = function (lv) { return mod.score(data.buildParamsAt(m, lv), { twist: m.twist }); };
+  for (let lv = 2; lv <= 200; lv += 1) {
+    const cur = eff(lv);
+    const prev = eff(lv - span);
+    for (const d of data.levelDelta(m, lv)) {
+      if (d.key === 'unitMs') {
+        assert.notStrictEqual(cur.unitMs, prev.unitMs,
+          '第 ' + lv + ' 关报了「' + d.text + '」，可格长和上一关一样');
+      }
+      if (d.key === 'winMs') {
+        assert.notStrictEqual(cur.tracks[0].winMs.toFixed(3), prev.tracks[0].winMs.toFixed(3),
+          '第 ' + lv + ' 关报了「' + d.text + '」，可生效判定带和上一关一样');
+      }
+    }
   }
 });
 
-check('五档难度表不许留没人读的旋钮（windowPace 已退役）', function () {
+check('五档难度表不许留没人读的旋钮（windowPace / speed / window 已退役）', function () {
   for (const d of data.DIFFICULTIES) {
     assert.ok(!Object.prototype.hasOwnProperty.call(d, 'windowPace'),
       d.key + ' 档还留着 windowPace：WINDOW_KEYS 已删，没有任何参数乘它');
   }
-  // 反向也守一句：判定窗确实还在随档收紧，别把「删死参数」做成「整张表不动」。
+  // 反向也守一句：判定窗确实还随档收紧，别把「删死参数」做成「整张表不动」。
   const m = data.getMethod('absorb');
-  assert.ok(data.buildParams(m, 'easy').window > data.buildParams(m, 'desperate').window,
+  assert.ok(data.buildParams(m, 'easy').winMs > data.buildParams(m, 'desperate').winMs,
     '五档的判定窗没有随档收紧');
+  // 旧版的三个键已经没人读了：留着它们会让人以为这门还是「一个恒定速度的光环」。
+  for (const k of ['easy', 'desperate']) {
+    const q = data.buildParams(m, k);
+    assert.ok(!Object.prototype.hasOwnProperty.call(q, 'speed'), k + ' 档还留着 speed');
+    assert.ok(!Object.prototype.hasOwnProperty.call(q, 'window'), k + ' 档还留着 window');
+    assert.ok(!Object.prototype.hasOwnProperty.call(q, 'beats'), k + ' 档还留着 beats');
+  }
 });
 
 check('择大辨微：数距真的造进盘面，且分色不把答案标出来', function () {
