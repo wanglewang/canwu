@@ -1379,15 +1379,23 @@ check('只奖不罚：连练递减全站清零，换门的「省气」有单一�
     '刷法名又写回了 runBudget 不认识的值——那两条曲线会静默变成逐关进');
 });
 
-check('功法页默认排序与主页推荐同一份口径', function () {
+check('已持玉简按最近练过的在前，藏经阁仍是兑换顺序', function () {
   const js = read('pages/skills/skills.js');
   const engine = read('utils/game.js');
-  assert.ok(/engine\.recommendScore/.test(js), '功法页没走推荐排序真源');
+  // 列表的职责是「我手上有什么」，顺序就该按「我刚碰过谁」。
+  // 「离下一段最近」是主页「今日之课」的判据；搬到列表上只会让列表天天变，
+  // 玩家找不到昨天在练的那门——2026-11 按实际反馈改成「最近练过的在前」。
+  assert.ok(/learned\.sort\([\s\S]{0,400}lastAt/.test(js),
+    '已持玉简没按 lastAt 排：最近练过的那门会沉下去');
+  assert.ok(!/learned\.sort\([\s\S]{0,400}recommendScore/.test(js),
+    '已持玉简又改回推荐排序了：列表会跟着推荐算法天天变');
+  // 时间戳必须真的被写进去。只声明不写，全表 lastAt 恒 0，
+  // 排序会静默退化成「按门名」——看起来正常，其实「最近玩」根本没生效。
+  assert.ok(/rec\.lastAt = Date\.now\(\)/.test(engine), '参悟结算没有写 rec.lastAt');
+  assert.ok(/lastAt: Math\.floor\(num\(r\.lastAt, 0\)\)/.test(engine), '读档没给 lastAt 兜底');
+  // 主页「今日之课」仍只由 recommendScore 出，不许被列表顺序带过去。
   assert.ok(/function recommendScore/.test(engine) && /recommendScore: recommendScore/.test(engine),
-    '排序口径没有单一真源');
-  // 已持玉简按「离下一段多近」排，与主页「今日之课」同源。
-  assert.ok(/learned\.sort\([\s\S]{0,240}recommendScore/.test(js),
-    '已持玉简的排序没走 recommendScore：会和主页推荐对不上');
+    '推荐口径没有单一真源');
   // 藏经阁分区是兑换顺序，不是推荐顺序：换得起的不该被「离圆满最近但买不起」的顶下去。
   assert.ok(/pending\.sort\(/.test(js), '藏经阁分区没有自己的排序');
   assert.ok(!/pending\.sort\([\s\S]{0,240}recommendScore/.test(js),

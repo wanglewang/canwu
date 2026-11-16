@@ -88,12 +88,16 @@ Page({
       if (s.unlocked) learned.push(s);
       else pending.push(s);
     }
-    // 默认排序与主页「今日之课」共用 engine.recommendScore：离下一段最近的在前，
-    // 按阶段跨度归一；不另写「品阶 / 进度绝对值」一套，免得高熟练度功法永远霸榜。
+    // 排序：**最近练过的在前**，从没练过的垫底按正名。
+    // 原来这里按 recommendScore（离下一段最近的在前）——那是主页「今日之课」的判据，
+    // 用在列表上只会让列表天天变、玩家找不到昨天在练的那门。列表的职责是「我手上有什么」，
+    // 顺序就该按「我刚碰过谁」。同时间（同一毫秒 / 都没练过）按正名定序，保证每次进页面一样。
+    const sortKey = function (s) { return s.name.split(skillsData.NAME_RULE.sep)[1] || s.name; };
     learned.sort(function (a, b) {
-      const d = engine.recommendScore(a).score - engine.recommendScore(b).score;
-      if (d !== 0) return d;
-      return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0);
+      if (a.lastAt !== b.lastAt) return b.lastAt - a.lastAt;
+      const ka = sortKey(a);
+      const kb = sortKey(b);
+      return ka < kb ? -1 : (ka > kb ? 1 : 0);
     });
     // 藏经阁分区：换得起的在前，其次够不着但能换的，最后是境界没到 / 只能靠切磋的。
     // 与旧藏经阁页同一套排序，玩家换了地方找同一门功法，顺序不该变。

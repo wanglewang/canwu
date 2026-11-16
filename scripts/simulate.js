@@ -448,7 +448,7 @@ saveState.skills.jian.prof = 30000;
 saveState.resources.qi = 1e6;
 const baseCost = game.practiceCostOf(saveState, 'jian', practice.STAGES[2].from);
 saveState.skills.jingxin.unlocked = true;
-saveState.skills.jingxin.prof = 6000;   // 纯熟（特效 3/4）只为验证省气叠满，不再当作生效门槛
+saveState.skills.jingxin.prof = 6000;   // 精纯（特效 3/4）只为验证省气叠满，不再当作生效门槛
 const savedCost = game.practiceCostOf(saveState, 'jian', practice.STAGES[2].from);
 expect(savedCost < baseCost, '学了静心记诵诀后耗气 ' + baseCost + ' → ' + savedCost + ' 点');
 

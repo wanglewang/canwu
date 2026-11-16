@@ -9,7 +9,7 @@ const practiceData = require('./practice.js');
 //   qiSave   参悟省灵力 %；
 //   offline  闭关养回灵力的速度 %；
 //   qiCap    气海上限 %（心法专属：练心法＝把池子挖深）。
-// 强度随火候成长：初熟 1/4、精熟 1/2、纯熟 3/4、通玄起满额（EFFECT_TIER_SCALE）。
+// 强度随火候成长：初窥 1/4、渐熟 1/2、精纯 3/4、通玄起满额（EFFECT_TIER_SCALE）。
 // 旧版是「练到大成（6000）才一次性生效」，中前期所有特效都等于不存在——
 // 那正是「练了也感觉不到」的来源，所以改成逐段兑现。
 // source.kind：start 初始 / shop 藏经阁 / battle 首胜掉落 / chance 机缘

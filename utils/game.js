@@ -68,7 +68,9 @@ function createNewState() {
     // levels：五档各自的进度（已通到本档第几关，0–40）。难度由玩家自己挑、不再由
     // 熟练度解锁，所以进度必须一档一份——「简单走到第 12 关」与「绝境走到第 3 关」
     // 是两条独立的线，不能压成一个数。
-    skills[s.id] = { unlocked: s.source.kind === 'start', prof: 0, cleared: 0, onboarded: false };
+    // lastAt：这一门最后一次参悟的时间戳，只用来排「最近练过的在前」。
+    // 不参与任何数值——它不是冷却、不是衰减，只是列表顺序的依据。
+    skills[s.id] = { unlocked: s.source.kind === 'start', prof: 0, cleared: 0, onboarded: false, lastAt: 0 };
   }
   return {
     version: SAVE_VERSION,
@@ -204,6 +206,9 @@ function normalizeState(input) {
       prof: Math.floor(num(r.prof, 0)),
       // 关卡进度夹到 0–1000：脏存档写个 9999 也不许把段位顶到不存在的段。
       cleared: practiceData.clearedOf(r),
+      // 老存档没有这个数：一律当 0（＝从没练过），列表里自然落在「没玩过」那一段，
+      // 不许拿 lastSeen 之类别的钟来顶——那是整份存档的时间，不是这一门的。
+      lastAt: Math.floor(num(r.lastAt, 0)),
       onboarded: !!r.onboarded,
       introed: !!r.introed,
     };
@@ -914,6 +919,10 @@ function applyPractice(state, skillId, grade, options) {
   const bestScore = Math.max(prevBest, score);
 
   state.lastPractice = { skillId: skillId, at: Date.now() };
+  // 「最近练过的在前」要的是每一门自己的钟，不能只记最后一次：
+  // 只记 state.lastPractice 的话，换到第二门再换回来，第一门的时间就丢了。
+  // 走火也记——玩家确实练了这一局，顺序上该往前排。
+  rec.lastAt = Date.now();
   if (cross) state.stats.comboCount += 1;
 
   // 三连 S 晋级已取消：火候不再被「补额」跳过，只由上面这一局的实得点数一格格涨。
@@ -1820,6 +1829,8 @@ function getSkillList(state) {
       flavor: s.flavor,
       unlocked: rec.unlocked,
       prof: rec.prof,
+      // 功法页「最近练过的在前」用它排序；0 表示从没练过，页面自己决定垫哪。
+      lastAt: Math.floor(num(rec.lastAt, 0)),
       methodName: method.name,
       methodTip: method.tip,
       methodDesc: method.desc,
@@ -1897,9 +1908,11 @@ function getSkillList(state) {
 // 说法要跟「按段位兑现」对齐，不能再说「练到大成才有」——那已经是旧规则。
 function effectNoteOf(detail) {
   if (!detail) return '';
-  if (!detail.unlocked) return '习得后按段位逐级发挥：入门 25% → 圆满 100%';
+  // 特效按**火候**兑现（EFFECT_TIER_SCALE 的下标就是火候档），不是按关卡段位。
+  // 这两句原来说的是「入门 25% → 圆满 100%」——那是段位名，且「入门」在火候里不存在。
+  if (!detail.unlocked) return '习得后按火候逐级发挥：初窥 25% → 通玄满额';
   const pct = detail.effectPercent || 0;
-  if (pct <= 0) return '尚未入门 · 练到入门即开始发挥';
+  if (pct <= 0) return '火候尚在生涩 · 练到初窥即开始发挥';
   if (pct >= 100) return '已满额发挥';
   return detail.profTierName + ' · 已发挥 ' + pct + '%';
 }
