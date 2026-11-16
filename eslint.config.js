@@ -31,6 +31,9 @@ module.exports = [
       '.git/**',
       '.workbuddy/**',
       'assets/**',
+      // Obsidian 本地工作区的第三方插件（gitee-sync-plus 自带的 main.js 用较新语法），
+      // 不属于小程序源码，也不该被本项目的 lint 规则评断。
+      '.obsidian/**',
     ],
   },
   {
