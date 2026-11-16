@@ -1500,8 +1500,12 @@ check('节律判定：写下拍速、响出拍子、环在正中', function () {
   const wxss = read('pages/practice/practice.wxss');
   // 2026-11 真机反馈：局内只有「第 3 / 3 小节」，没写这一局多快，也没有任何声音。
   // 拍速必须写出来——音效可以关，字关不掉。
-  assert.ok(/speedText/.test(tempo) && /一拍/.test(tempo),
+  // 单位写「每格」不写「一拍」：一格恒是八分音符，一拍随拍号变（6/8 是附点四分 = 三格），
+  // 写成「一拍 0.96 秒」搬进 6/8 段就是错的。
+  assert.ok(/speedText/.test(tempo) && /每格/.test(tempo),
     '局内没写拍速，玩家只能靠耳朵猜这一局多快');
+  assert.ok(!/'一拍 '\s*\+/.test(tempo),
+    'HUD 又按「一拍」写秒数了：一拍在 6/8 段是三格，这个数会错');
   assert.ok(/vm\.beatKey/.test(tempo), '没暴露拍号，页面无从知道什么时候该响');
   assert.ok(/sfx\.play\('beat'\)/.test(pg), '节律局没有节拍音');
   assert.ok(/beat:\s*\{[^}]*tick\.wav/.test(sx), '音效表里没有节拍音');

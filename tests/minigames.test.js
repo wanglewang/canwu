@@ -3451,6 +3451,33 @@ check('节律判定：五档各换一件东西，不是只换秒表', function (
   assert.strictEqual(specs[4].cue, 'none', '最后一档还留着提示，绝境等于没到');
 });
 
+check('节律判定：拍号、BPM、音符时值三者对得上', function () {
+  const m = data.getMethod('absorb');
+  const keys = ['novice', 'entry', 'minor', 'major', 'full'];
+  // 一格恒是八分音符。所以一小节的格数 = 拍号分子 × 2（分母 4）或 = 分子（分母 8）；
+  // 一拍 = 分母那个音符：4/4、2/4 是四分音符（两格），6/8 是附点四分（三格）。
+  // 这两条错一条，玩家拿节拍器一对就发现两个说法打架。
+  for (let i = 0; i < keys.length; i += 1) {
+    const p = data.buildParams(m, keys[i]);
+    const parts = String(p.meter).split('/');
+    const num = Number(parts[0]);
+    const den = Number(parts[1]) || 4;
+    const cellsPerBar = den === 8 ? num : num * 2;
+    assert.strictEqual(p.bar, cellsPerBar,
+      keys[i] + ' 档：' + p.meter + ' 一小节该是 ' + cellsPerBar + ' 个八分音符，表里写的是 ' + p.bar + ' 格');
+    const cellsPerBeat = den === 8 ? 3 : 2;
+    assert.strictEqual(p.bpm, Math.round(60000 / (p.unitMs * cellsPerBeat)),
+      keys[i] + ' 档：BPM 与拍号不是一套（' + p.meter + '、一格 ' + p.unitMs + 'ms，算出来不是 ' + p.bpm + '）');
+  }
+  // 6/8 整条都成立，不只是首关：段内格长一收，BPM 要按附点四分跟着涨。
+  for (let lv = 501; lv <= 1000; lv += 37) {
+    const p = data.buildParamsAt(m, lv);
+    assert.strictEqual(p.meter, '6/8', '第 ' + lv + ' 关不再是 6/8 了，这条断言要重写');
+    assert.strictEqual(p.bpm, Math.round(60000 / (p.unitMs * 3)),
+      '第 ' + lv + ' 关（6/8）BPM 没按附点四分算：一格 ' + p.unitMs + 'ms 却报 ' + p.bpm);
+  }
+});
+
 check('节律判定：每一手的判定窗都不许吞掉下一个音符', function () {
   const m = data.getMethod('absorb');
   const mod = index.MODULES.tempo;

@@ -233,10 +233,14 @@ function create(ctx) {
   // 「评级 C + 收功」挤断，孤零零一个「秒」掉到第二行——一行大字末尾挂一个孤字，
   // 比不写还糟。小节号是大字（局内最该一眼看见的进度），拍速是小字（开打前记住一次就够）。
   //
-  // 一拍 = **两格**（格是八分音符，BPM = 60000 ÷ 2 × unitMs），跟档表的 bpm、
-  // 本门 tip 里的「早一点晚一点只算半拍」是同一套口径。写一格会跟这两个说法打架。
-  const beatSec = Math.round(s.unitMs / 5) / 100;
-  vm.speedText = '一拍 ' + beatSec + ' 秒';
+  // 写「**每格**几秒」，不写「一拍几秒」：一格恒等于八分音符，五个档位都成立；
+  // 「一拍」却随拍号变——4/4、2/4 一拍是四分音符（两格），6/8 一拍是附点四分（三格）。
+  // 同一个「一拍 0.96 秒」写在 6/8 段就是错的（那一段一拍是 1.5 秒）。
+  // 拍号也一并写出来：它就是「一小节几个格」的另一种说法（4/4 → 8 格、2/4 → 4 格、6/8 → 6 格），
+  // 提示轨撤掉之后，玩家靠它数小节。
+  const cellSec = Math.round(s.unitMs / 10) / 100;
+  const meterText = String(p.meter || '');
+  vm.speedText = (meterText ? meterText + ' · ' : '') + '每格 ' + cellSec + ' 秒';
   vm.timeText = '第 1 / ' + s.bars + ' 小节';
   vm.scoreText = '计 0 分';
   vm.goal = C.goalFor('C', band.sMin, '分');

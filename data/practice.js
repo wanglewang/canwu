@@ -710,7 +710,7 @@ const TEMPO_SCORES = [
     label: '双手 · 一与二', note: '左手一拍、右手两拍，相位相同',
   },
   {
-    key: 'full', meter: '6/8', bpm: 60, bar: 6, unitMs: 500, bars: 4,
+    key: 'full', meter: '6/8', bpm: 40, bar: 6, unitMs: 500, bars: 4,
     hands: 2, cue: 'none', pattern: [[0, 3], [0, 2, 4]], winMs: 200,
     label: '双手 · 二与三', note: '左手两拍对右手三拍，只有小节头尾对齐',
   },
@@ -754,13 +754,23 @@ function tempoShortest(q) {
   return isFinite(min) ? min : bar * unit;
 }
 
+// 拍号分母定「一拍值几分音符」：分母 4 → 一拍是四分音符 = 两个八分格；
+// 分母 8（6/8 这类复拍子）→ 一拍是**附点四分音符** = 三个八分格。
+// BPM 的「拍」按音乐惯例永远指拍号的那一拍，所以换算是 `60000 ÷ (一格 × 每拍几格)`，
+// 不是恒定的 ÷2。写成 ÷2 会让 6/8 段报出 60，而玩家拿附点四分对表只能对上 40。
+function tempoBpm(meter, unitMs) {
+  const den = Number(String(meter || '4/4').split('/')[1]) || 4;
+  const cellsPerBeat = den === 8 ? 3 : 2;
+  return Math.round(60000 / (Math.max(1, unitMs) * cellsPerBeat));
+}
+
 function tempoAt(out, level) {
   const f = levelData.progressOf(level);
   const lv = levelData.clampLevel(level);
   out.unitMs = Math.max(240, Math.round(out.unitMs * (1 - 0.12 * f) / 10) * 10);
-  // 速度跟着格长走（格 = 八分音符，一拍两个格）：章内格长一收，BPM 就真涨，
-  // 档表上那个 60 / 75 只是本段首关的数，不能留着不动。
-  out.bpm = Math.round(60000 / (out.unitMs * 2));
+  // 速度跟着格长走：章内格长一收，BPM 就真涨。
+  // 档表上那个 60 / 75 / 40 只是本段首关的数，不能留着不动。
+  out.bpm = tempoBpm(out.meter, out.unitMs);
   // 判定窗在生成端就落到「生效值」：玩法层还要乘本门的 ×1.45、再按四成间隔封顶，
   // 若这里只给「想要的宽」，被上限夹住的那几十关会报出「319 → 317 毫秒」而盘面一动不动。
   const cap = tempoShortest(out) * TEMPO_FLOOR.maxWinFrac / TEMPO_FLOOR.twistWin;
@@ -1458,6 +1468,7 @@ module.exports = {
   TEMPO_SCORES: TEMPO_SCORES,
   tempoScoreOf: tempoScoreOf,
   tempoAt: tempoAt,
+  tempoBpm: tempoBpm,
   LEVEL_STRUCT_KEYS: LEVEL_STRUCT_KEYS,
   stageSpec: stageSpec,
   TIME_LEVELS: TIME_LEVELS,
