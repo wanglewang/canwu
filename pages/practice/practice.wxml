@@ -129,12 +129,14 @@
         <text class="tiny">{{stageName}} · 第 {{level}} / {{levelTotal}} 关 · 耗灵力 {{qiCost}}</text>
       </view>
       <!-- 一关一格：关号由「走通了几关」定，只能往回翻找手感，不能往上挑。
-           往前走唯一的走法是走通当前这一关。 -->
+           往前走唯一的走法是走通当前这一关；点中间可直接跳到已到达的任意一关，
+           免得回打第 20 关要从第 500 关按四百多次箭头。 -->
       <view class="lv-row mt12">
         <view class="lv-step {{level > 1 ? '' : 'lv-step--off'}} pressable" hover-class="pressable--on" data-d="-1" bindtap="onLevel">‹</view>
-        <view class="lv-mid">
+        <view class="lv-mid pressable" hover-class="pressable--on" bindtap="onOpenLevelPicker">
           <text class="lv-num">第 {{level}} / {{levelTotal}} 关</text>
           <text class="lv-sub">{{levelSub}}</text>
+          <text wx:if="{{levelMax > 1}}" class="lv-open">点此选关</text>
         </view>
         <view class="lv-step {{level < levelMax ? '' : 'lv-step--off'}} pressable" hover-class="pressable--on" data-d="1" bindtap="onLevel">›</view>
       </view>
@@ -505,6 +507,33 @@
       </view>
       <view class="modal__actions">
         <button class="imm-btn--ghost imm-btn--block" bindtap="onToggleSwap">{{copy.actions.close}}</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 选关：只放开「已到达」的范围（1–levelMax），往上推仍只能靠走通。
+       按五段分栏，一次只铺一段，避免把一千关铺成一张没人看得完的图。 -->
+  <view class="mask" wx:if="{{pickerOpen}}" bindtap="onCloseLevelPicker">
+    <view class="modal lv-picker" catchtap="noop">
+      <text class="modal__title">选关</text>
+      <text class="modal__sub">只可选已到达的关 · 本门走到第 {{levelMax}} 关</text>
+      <view class="lv-segs">
+        <view wx:for="{{pickerSegs}}" wx:key="key"
+              class="lv-seg {{item.active ? 'lv-seg--on' : ''}} {{item.locked ? 'lv-seg--lock' : ''}}"
+              data-idx="{{index}}" bindtap="onPickSegment">
+          <text class="lv-seg__name">{{item.name}}</text>
+          <text class="lv-seg__sub">{{item.summary}}</text>
+        </view>
+      </view>
+      <scroll-view scroll-y class="lv-grid" scroll-into-view="{{pickerScrollTo}}">
+        <view class="lv-cells">
+          <view wx:for="{{pickerLevels}}" wx:key="v" id="lv-{{item.v}}"
+                class="lv-cell {{item.cur ? 'lv-cell--cur' : ''}}"
+                data-lv="{{item.v}}" bindtap="onPickLevel">{{item.v}}</view>
+        </view>
+      </scroll-view>
+      <view class="modal__actions">
+        <button class="imm-btn--ghost imm-btn--block" bindtap="onCloseLevelPicker">{{copy.actions.close}}</button>
       </view>
     </view>
   </view>

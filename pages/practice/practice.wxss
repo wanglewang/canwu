@@ -1649,6 +1649,61 @@
 }
 .lv-num { font-size: var(--fs-h3); color: var(--c-imm-gold); font-weight: 600; line-height: 1.1; }
 .lv-sub { font-size: var(--fs-caption); color: var(--c-imm-text-3); }
+/* 选关入口：中格第三行的小字，只作提示，不抢关卡号本身。 */
+.lv-open { font-size: var(--fs-caption); color: var(--c-imm-gold-dim); }
+
+/* ---------- 选关面板：五段分栏 + 段内关号网格 ----------
+   一千关不铺成一张图：先选段，再把这一段的关号摆成网格。段内只列已到达的关，
+   未走到的段压暗写「未至」——不给人「点了没反应」的空手。 */
+.lv-picker { max-height: 78vh; }
+.lv-segs {
+    display: flex;
+    gap: var(--sp-2);
+    margin-top: var(--sp-6);
+}
+.lv-seg {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2rpx;
+    padding: var(--sp-3) 0;
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-sm);
+    background: var(--c-imm-bg-2);
+}
+.lv-seg--on { border-color: var(--c-imm-gold); background: var(--c-imm-gold-soft); }
+.lv-seg--lock { opacity: 0.38; }
+.lv-seg__name { font-size: var(--fs-note); color: var(--c-imm-text-2); }
+.lv-seg--on .lv-seg__name { color: var(--c-imm-gold); }
+.lv-seg__sub { font-size: var(--fs-caption); color: var(--c-imm-text-3); }
+.lv-grid { margin-top: var(--sp-4); height: 46vh; }
+.lv-cells {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    padding: 2rpx;
+}
+.lv-cell {
+    box-sizing: border-box;
+    width: 92rpx;
+    height: 76rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--fs-note);
+    color: var(--c-imm-text-2);
+    border: 1rpx solid var(--c-imm-line);
+    border-radius: var(--r-sm);
+    background: var(--c-imm-bg-2);
+}
+.lv-cell--cur {
+    color: var(--c-imm-gold);
+    border-color: var(--c-imm-gold);
+    background: var(--c-imm-gold-soft);
+    font-weight: 600;
+}
 
 /* ---------- 难度档：五条并列的线 ----------
    五档不是「同一个盘的五个容差」，是五副盘。做成一行并列的按钮，

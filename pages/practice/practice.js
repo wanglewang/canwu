@@ -100,6 +100,11 @@ Page({
     stageIndex: 0,
     stageName: '未入门',
     levelSub: '',
+    // 选关面板：只列已到达的关（1–levelMax），按五段分栏，一次只铺一段。
+    pickerOpen: false,
+    pickerSegs: [],
+    pickerLevels: [],
+    pickerScrollTo: '',
     levelChange: '',
     stageChange: '',
     rankLabel: '黄阶',
@@ -1072,6 +1077,91 @@ Page({
     this.levelOverride = next;
     this.refresh();
     this.buildGame();
+  },
+
+  // 选关面板：只放开「已到达」的关（1–levelMax），按五段分栏、一次只铺一段。
+  // 往前推仍只有一条路——走通当前这一关；这里只是让回打旧关不用按几百次箭头。
+  onOpenLevelPicker: function () {
+    if (this.data.started || this.data.countdown > 0) return;
+    const idx = levelData.stageOfLevel(this.data.level);
+    const self = this;
+    this.setData({
+      pickerOpen: true,
+      pickerSegs: this.buildPickerSegs(idx),
+      pickerLevels: this.buildPickerLevels(idx),
+      // 先清空：同段重复打开时值若没变，scroll-into-view 不会重新定位。
+      pickerScrollTo: '',
+    });
+    // scroll-view 到这一帧才建出来，scroll-into-view 要等渲染后才吃得稳。
+    setTimeout(function () {
+      self.setData({ pickerScrollTo: 'lv-' + self.pickerAnchor(idx) });
+    }, 60);
+  },
+
+  buildPickerSegs: function (activeIdx) {
+    const levelMax = this.data.levelMax;
+    return practiceData.STAGES.map(function (d, i) {
+      const reached = levelMax >= d.from;
+      const end = Math.min(d.to, levelMax);
+      return {
+        key: d.key,
+        name: d.name,
+        active: i === activeIdx,
+        locked: !reached,
+        summary: !reached ? '未至'
+          : (levelMax >= d.to ? '已通' : (end - d.from + 1) + '/' + (d.to - d.from + 1)),
+      };
+    });
+  },
+
+  buildPickerLevels: function (idx) {
+    const d = practiceData.STAGES[idx];
+    const levelMax = this.data.levelMax;
+    const cur = this.data.level;
+    const out = [];
+    if (levelMax >= d.from) {
+      const end = Math.min(d.to, levelMax);
+      for (let lv = d.from; lv <= end; lv += 1) out.push({ v: lv, cur: lv === cur });
+    }
+    return out;
+  },
+
+  // 滚到当前关（在当前段内时），否则落段首——打开面板不该让人从头往下找。
+  pickerAnchor: function (idx) {
+    const d = practiceData.STAGES[idx];
+    const cur = this.data.level;
+    return (cur >= d.from && cur <= d.to && cur <= this.data.levelMax) ? cur : d.from;
+  },
+
+  onPickSegment: function (event) {
+    if (this.data.started || this.data.countdown > 0) return;
+    const idx = Number(event.currentTarget.dataset.idx);
+    if (!(idx >= 0 && idx < practiceData.STAGES.length)) return;
+    // 未到达的段不响应：不是「点了没反应」，段标签本来就压暗写着「未至」。
+    if (this.data.levelMax < practiceData.STAGES[idx].from) return;
+    const self = this;
+    this.setData({
+      pickerSegs: this.buildPickerSegs(idx),
+      pickerLevels: this.buildPickerLevels(idx),
+    });
+    setTimeout(function () {
+      self.setData({ pickerScrollTo: 'lv-' + self.pickerAnchor(idx) });
+    }, 30);
+  },
+
+  onPickLevel: function (event) {
+    if (this.data.started || this.data.countdown > 0) return;
+    const lv = Number(event.currentTarget.dataset.lv);
+    if (!(lv >= 1 && lv <= this.data.levelMax)) return;
+    this.setData({ pickerOpen: false });
+    if (lv === this.data.level) return;
+    this.levelOverride = lv;
+    this.refresh();
+    this.buildGame();
+  },
+
+  onCloseLevelPicker: function () {
+    this.setData({ pickerOpen: false });
   },
 
   // 回到「已通 + 1」：连打几局之后跳回进度线，不用一路点回去。
