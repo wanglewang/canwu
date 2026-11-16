@@ -21,7 +21,7 @@ _gitee-sync-plus-log.md
 # Obsidian 回收站目录
 .trash/
 
-# Obsidian 工作区布局（面板/标签状态，不跨设备同步）
-.obsidian/workspace.json
-.obsidian/workspace-mobile.json
-.obsidian/plugins/gitee-sync-plus/data.json
+# Obsidian 本地工作区（编辑器配置 + 第三方同步插件，不属小程序源码，不入库）
+# 整目录忽略：插件本体（gitee-sync-plus/main.js 六千行）进仓库会被 ESLint 扫到，
+# 也会让静态校验的项数随另一台机器的同步动作漂移。
+.obsidian/

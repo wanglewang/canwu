@@ -7,7 +7,8 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
-const SKIP_DIRS = new Set(['.git', '.workbuddy', 'node_modules', 'miniprogram_npm']);
+// .obsidian 是本地编辑器工作区（第三方插件），与 .workbuddy 同类，不进校验范围。
+const SKIP_DIRS = new Set(['.git', '.workbuddy', '.obsidian', 'node_modules', 'miniprogram_npm']);
 const errors = [];
 let checked = 0;
 
