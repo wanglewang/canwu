@@ -206,6 +206,8 @@ Page({
     this.settleTimers = [];
     this.burstId = 0;
     this.lastCombo = 0;
+    // 上一帧的拍号：换拍才播节拍音，同一拍不许重复响。
+    this.lastBeatKey = -1;
     // 收牌迸溅要读「上一帧每格是第几号纹」：牌一被收走 tone 就归零，
     // 等这一帧再读只剩 0，取不到颜色。所以页面自己留一份上一帧的快照。
     this.lastTones = [];
@@ -710,6 +712,13 @@ Page({
         }
         self.lastCombo = combo;
 
+        // 节律判定：拍子到了就响一声。它不改变玩法（光环照走），只把「数拍」
+        // 这件本来就靠耳朵的事交还给耳朵——音效关掉时这一门仍然能靠眼睛打。
+        if (vm.beatKey !== undefined && vm.beatKey !== self.lastBeatKey) {
+          self.lastBeatKey = vm.beatKey;
+          sfx.play('beat');
+        }
+
         // 迸溅要在 setData 之前算：它读的是上一帧的纹样快照。
         const sparks = self.sparksFrom(vm);
 
@@ -790,6 +799,8 @@ Page({
     const stage = visual.stageOf(this.theme.key);
     this.lastFxKey = 0;
     this.lastCombo = 0;
+    // 上一帧的拍号：换拍才播节拍音，同一拍不许重复响。
+    this.lastBeatKey = -1;
     this.roundClosed = false;
     this.setData({
       started: false,

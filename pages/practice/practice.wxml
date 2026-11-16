@@ -311,12 +311,16 @@
       </view>
 
       <view wx:if="{{vm.stage === 'ring' && vm.rings.length}}" class="ring-area {{vm.rings.length > 1 ? 'ring-area--dual' : ''}}">
-        <view wx:for="{{vm.rings}}" wx:key="id" class="ring-cell" data-index="{{index}}" bindtouchstart="onCellTap">
-          <view class="ring-orb ring-orb--{{item.tone}}" style="transform:scale({{item.scale}});border-color:{{index === 1 ? theme.ink : theme.accent}}">
-            <text style="color:{{index === 1 ? theme.accent : theme.ink}}">{{theme.glyph}}</text>
+        <!-- 环自己一层，绝对居中在玉台正中：提示轨与提示句是「台子上的字」，
+             它们铺在版流里会把环顶偏——环歪半个身位，判定点就跟着歪。 -->
+        <view class="ring-cells">
+          <view wx:for="{{vm.rings}}" wx:key="id" class="ring-cell" data-index="{{index}}" bindtouchstart="onCellTap">
+            <view class="ring-orb ring-orb--{{item.tone}}" style="transform:scale({{item.scale}});border-color:{{index === 1 ? theme.ink : theme.accent}}">
+              <text style="color:{{index === 1 ? theme.accent : theme.ink}}">{{theme.glyph}}</text>
+            </view>
+            <!-- 判定带画在光环之上：光环往里收的时候会整块盖住朱带，压在最上层才看得见要瞄的那条带。 -->
+            <view class="ring-judge ring-judge--{{item.tone}}" style="width:{{item.bandBox}}rpx;height:{{item.bandBox}}rpx;border-width:{{item.bandWidth}}rpx"></view>
           </view>
-          <!-- 判定带画在光环之上：光环往里收的时候会整块盖住朱带，压在最上层才看得见要瞄的那条带。 -->
-          <view class="ring-judge ring-judge--{{item.tone}}" style="width:{{item.bandBox}}rpx;height:{{item.bandBox}}rpx;border-width:{{item.bandWidth}}rpx"></view>
         </view>
         <!-- 提示轨：一小节的格位。四档提示是同一件事逐层往少走（全标 / 下一音 / 小节首 / 无），
              不是四个不同控件，所以这里只有一层，靠 cue.level 决定哪些格亮。 -->

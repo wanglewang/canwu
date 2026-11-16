@@ -487,10 +487,10 @@
    两环之间的沟就是「左右各守一条」这件事本身，不画线、不写汉字。 */
 .ring-area {
     position: relative;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
+    /* 三层各自定位，不靠 flex 流排版：
+       环绝对居中，提示轨与提示句绝对贴底。混在一个 flex 里换行时，
+       环会被下面的字挤偏半个身位——判定点跟着歪，玩家瞄的是错的圆心。 */
+    display: block;
     height: 500rpx;
     margin-top: 20rpx;
     border-radius: 20rpx;
@@ -500,8 +500,21 @@
         inset 0 8rpx 24rpx rgba(0, 0, 0, 0.44);
 }
 
+/* 环的定位层：横向撑满、纵向取正中，两个环并排时靠这一层的 flex 分左右。 */
+.ring-cells {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .ring-cell {
     position: relative;
+    flex: 0 0 auto;
     width: 240rpx;
     height: 240rpx;
 }
@@ -570,12 +583,14 @@
 /* 提示轨：一小节的格位，格心里那颗点就是「这一格有音符」。
    它只是提示，不是判定——撤掉之后环照样按谱走，所以整块可以整块隐藏（cue.level = none）。 */
 .cue-track {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 56rpx;
     display: flex;
     flex-direction: column;
-    width: 100%;
     padding: 0 40rpx;
     box-sizing: border-box;
-    margin-top: 6rpx;
 }
 
 .cue-row {

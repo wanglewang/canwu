@@ -1492,6 +1492,30 @@ check('选关面板铺满整段：未至的关也显示，只是不可选', func
     '点未至的段没有任何回应');
 });
 
+check('节律判定：写下拍速、响出拍子、环在正中', function () {
+  const tempo = read('minigames/tempo.js');
+  const pg = read('pages/practice/practice.js');
+  const sx = read('utils/sfx.js');
+  const wxml = read('pages/practice/practice.wxml');
+  const wxss = read('pages/practice/practice.wxss');
+  // 2026-11 真机反馈：局内只有「第 3 / 3 小节」，没写这一局多快，也没有任何声音。
+  // 拍速必须写出来——音效可以关，字关不掉。
+  assert.ok(/speedText/.test(tempo) && /一拍/.test(tempo),
+    '局内没写拍速，玩家只能靠耳朵猜这一局多快');
+  assert.ok(/vm\.beatKey/.test(tempo), '没暴露拍号，页面无从知道什么时候该响');
+  assert.ok(/sfx\.play\('beat'\)/.test(pg), '节律局没有节拍音');
+  assert.ok(/beat:\s*\{[^}]*tick\.wav/.test(sx), '音效表里没有节拍音');
+  // 节拍音不许进 VOICE 声道：进了就会掐掉紧随其后的判定音——
+  // 玩家踩在拍点上点击时，那一下反而没有声音。
+  assert.ok(!/VOICE\s*=\s*\[[^\]]*'beat'/.test(sx), '节拍音进了判定声道，会掐掉判定音');
+  // 环要绝对居中：混在版流里会被下面的提示轨顶偏半个身位，判定点跟着歪。
+  assert.ok(/position:\s*absolute/.test(wxss) && /\.ring-cells\s*\{[\s\S]{0,220}top:\s*50%/.test(wxss),
+    '环没脱离版流：提示轨会把它顶偏');
+  assert.ok(/class="ring-cells"/.test(wxml), '模板里没有环的定位层');
+  assert.ok(!/\.ring-area\s*\{[\s\S]{0,200}flex-wrap/.test(wxss),
+    'ring-area 又变回 flex 换行排版：环会被顶偏');
+});
+
 check('功法卡片紧凑单行：名字不竖排、按钮不抢宽度、阶段色走令牌', function () {
   const js = read('pages/skills/skills.js');
   const wxml = read('pages/skills/skills.wxml');

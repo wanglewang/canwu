@@ -24,6 +24,9 @@ const ASSETS = {
   miss: { file: 'miss.wav', volume: 0.3, pool: 1, gap: 170 },
   gold: { file: 'gold.wav', volume: 0.36, pool: 1, gap: 150 },
   tick: { file: 'tick.wav', volume: 0.26, pool: 1, gap: 120 },
+  // 节拍：节律判定每拍一下，比 tick 更轻、间隔更短（一拍最短 120ms）。
+  // 它不进 VOICE 组、也不占全局间隔——拍子要准，且不许把紧随其后的判定音掐掉。
+  beat: { file: 'tick.wav', volume: 0.15, pool: 1, gap: 100 },
   go: { file: 'go.wav', volume: 0.3, pool: 1, gap: 220 },
   clear: { file: 'clear.wav', volume: 0.34, pool: 1, gap: 400 },
   settle: { file: 'settle.wav', volume: 0.3, pool: 1, gap: 400 },
@@ -143,10 +146,14 @@ function play(name) {
   if (!isEnabled() || !supported()) return;
   const now = Date.now();
   if (lastAt[name] && now - lastAt[name] < ASSETS[name].gap) return;
-  const globalGap = name === 'tap' ? TAP_GAP : GLOBAL_GAP;
-  if (now - lastAnyAt < globalGap) return;
+  // 节拍音是「背景心跳」，两头都让路：既不吞紧接着的判定音，也不被它吞掉。
+  // 否则玩家踩在拍点上点击时，那一下反而没有声音。
+  if (name !== 'beat') {
+    const globalGap = name === 'tap' ? TAP_GAP : GLOBAL_GAP;
+    if (now - lastAnyAt < globalGap) return;
+    lastAnyAt = now;
+  }
   lastAt[name] = now;
-  lastAnyAt = now;
 
   if (VOICE.indexOf(name) >= 0) cutVoice(name);
   const pool = pools[name] || makePool(name);

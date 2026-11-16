@@ -219,7 +219,13 @@ function create(ctx) {
     return Math.max(1, Math.min(s.bars, Math.ceil(Math.max(1, ms) / s.barMs)));
   }
 
-  vm.timeText = '第 1 / ' + s.bars + ' 小节';
+  // 拍速写在时间行里：这一局多快是玩家唯一能提前知道的变量，
+  // 不写出来就只能靠耳朵猜——而音效可以关，字关不掉。
+  // 一拍 = 一格 = unitMs；这里用秒，不用 BPM（没人拿节拍器对表）。
+  const beatSec = Math.round(s.unitMs / 10) / 100;
+  const speedText = ' · 一拍 ' + beatSec + ' 秒';
+  vm.speedText = speedText;
+  vm.timeText = '第 1 / ' + s.bars + ' 小节' + speedText;
   vm.scoreText = '计 0 分';
   vm.goal = C.goalFor('C', band.sMin, '分');
   vm.hint = vm.costText;
@@ -261,8 +267,10 @@ function create(ctx) {
 
   function syncHud() {
     const ms = tick * TICK_MS;
-    vm.timeText = '第 ' + barNoAt(ms) + ' / ' + s.bars + ' 小节';
+    vm.timeText = '第 ' + barNoAt(ms) + ' / ' + s.bars + ' 小节' + speedText;
     vm.scoreText = '计 ' + fmt(points()) + ' 分';
+    // 第几拍：页面拿它跟上一帧比，变了就播一声——节律这一门没有声音等于让人空手数拍。
+    vm.beatKey = Math.floor(ms / s.unitMs);
     vm.progress = C.pct(Math.min(ms, s.endMs), s.endMs);
     vm.progressText = Math.round(Math.min(ms, s.endMs) / 1000) + ' / ' + Math.round(s.endMs / 1000) + ' 秒';
     vm.combo = combo;
