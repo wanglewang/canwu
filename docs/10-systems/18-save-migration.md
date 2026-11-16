@@ -6,18 +6,18 @@
 
 ## 1. 一句话
 
-存档是一个 `version: 7` 的普通对象，存在本机 `wx.storage` 里；可以导出成 `CANWU1:{...}` 的文本码，导入时强制走一遍迁移与规范化。
+存档是一个 `version: 8` 的普通对象，存在本机 `wx.storage` 里；可以导出成 `CANWU1:{...}` 的文本码，导入时强制走一遍迁移与规范化。
 
 ## 2. 存档结构
 
 | 字段 | 类型 | 含义 |
 | --- | --- | --- |
-| `version` | number | 存档版本（当前 7） |
+| `version` | number | 存档版本（当前 8） |
 | `worldId` | string | 世界（当前只有 `xian`） |
 | `roleName` | string | 道号（≤12 字） |
 | `portrait` | number | 道相编号 0–5 |
 | `realmIndex` | number | 境界下标 0–3 |
-| `skills` | object | 每门功法 `{ unlocked, prof, onboarded }` |
+| `skills` | object | 每门功法 `{ unlocked, prof, levels, onboarded }`；`levels` 是五档各已走通的关数（0–40） |
 | `resources` | object | `{ qi, stone }` |
 | `lastPractice` | object | `{ skillId, at }`，判「换门」与「挂机喂哪门」 |
 | `buff` | object | `{ multiplier, until }`，参悟后的闭关加速 |
@@ -46,13 +46,18 @@
 | v4 | 品阶改天地玄黄、难度改由熟练度解锁 | 只升版本号（字段未变） |
 | v5 | 每门连续 S 计数（`sStreak`） | `sStreak: {}` |
 | v6 | 三连 S 晋级退役，换连 S 叠倍率 | `sCombo: {}`，`delete sStreak` |
-| **v7** | 经济重做：参悟烧灵力、功法只收灵石、破境备灵石 | 灵力补到 `START_QI`（只补不削）、补 `daily.battleWins` |
+| v7 | 经济重做：参悟烧灵力、功法只收灵石、破境备灵石 | 灵力补到 `START_QI`（只补不削）、补 `daily.battleWins` |
+| **v8** | 难度与熟练度解耦：五档各 40 关、各记各的进度，走通本档开下一档 | 老档只有 `prof`，按 `levelFromProf()` 反推全书关号再拆成 `levels`：前面几档记满 40、当前档记「档内关号 − 1」、之后各档留 0 |
 
 ### 三个值得记住的迁移决策
 
 1. **v5 → v6 不换算旧计数**：`sStreak`（三连 S 的连数）与 `sCombo`（连 S 层数）语义不同，硬换算会给出一个凭空的层数。一律从 0 重数。
 2. **v6 → v7 只补不削**：旧档的灵力常常是 0（那时灵力只在买功法时被顺带扣），直接沿用会导致更新后**第一局都开不了**。补到 160 是最低要求。
 3. **v2 不占版本号**：下游 v3/v4/v5 都按「原始版本号」判断，v1 老档照旧一路升上来。少一个空版本，迁移链更短。
+4. **v7 → v8 是「把走过的路拆成五条线」**：老档里没有 `levels`，只有一条 `prof`。用旧规则 `levelFromProf()` 反推出全书关号，
+   再按章拆：前面几档记满 40、当前档记「档内关号 − 1」、之后各档留 0。
+   **这与第 1 条不矛盾**：这里没有语义换算（关号本来就是关号，只是换了个存放形状），一关都没多给、也没没收。
+   已经写过 `levels` 的档（新档、或迁移跑第二遍）一律不动——迁移必须幂等。
 
 ## 4. 规范化：所有入口的最后一道
 
@@ -124,6 +129,6 @@ importSaveCode(code)  → normalizeState(JSON.parse(...))
 - `utils/game.js` —— `SAVE_VERSION`、`createNewState()`、`migrateState()`、`normalizeState()`、`exportSaveCode()` / `importSaveCode()`
 - `utils/store.js` —— 本机读写、`pending` / `sync` / `sync_error` 键
 - `utils/cloud-save.js` —— 云端读写与版本
-- `tests/game.test.js` —— 存档码往返、迁移补值
+- `tests/game.test.js` —— 存档码往返、迁移补值、v7→v8 每条线都拆对
 - `tests/store.test.js` —— 本机/云端合并、冲突
-- `tests/rank.test.js` —— v3 存档升到 v7、灵力夹平
+- `tests/rank.test.js` —— 老档升到 v8、灵力夹平

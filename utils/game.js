@@ -18,7 +18,7 @@ const copy = require('../data/copy.js');
 const STORAGE_KEY = 'canwu_save_v1';
 const SAVE_PREFIX = 'CANWU1:';
 const BATTLE_PREFIX = 'CW1-';
-const SAVE_VERSION = 7;
+const SAVE_VERSION = 8;
 // 连 S 叠倍率：同一门功法连续完成 S，本局熟练度 = round(34 × 1.5^(层数-1))，10 层封顶。
 // 层数真源在 world.COMBO_MAX；每门各算各的，非 S / 走火 / 主动收功都归零，
 // 低档局不参与连 S（层数原样保留）。旧的「三连 S 直接晋级」已整体退役。
@@ -65,7 +65,10 @@ function createNewState() {
     const s = skillData.SKILLS[i];
     // onboarded：这门功法看过首局手把手没有。与 unlocked / prof 同级放，不新增顶层字段；
     // 老存档没有这个键，读出来就是 false，等于「还没看过」，会正常触发一次引导。
-    skills[s.id] = { unlocked: s.source.kind === 'start', prof: 0, onboarded: false };
+    // levels：五档各自的进度（已通到本档第几关，0–40）。难度由玩家自己挑、不再由
+    // 熟练度解锁，所以进度必须一档一份——「简单走到第 12 关」与「绝境走到第 3 关」
+    // 是两条独立的线，不能压成一个数。
+    skills[s.id] = { unlocked: s.source.kind === 'start', prof: 0, levels: {}, onboarded: false };
   }
   return {
     version: SAVE_VERSION,
@@ -146,6 +149,33 @@ function migrateState(raw) {
       daily: Object.assign({ count: 0, claimed: false, battleWins: 0 }, next.daily || {}),
     });
   }
+  if (v < 8) {
+    // v7 -> v8：难度改成「玩家自己挑 + 每档固定 40 关 + 各记各的进度」，
+    // 熟练度不再解锁难度。老档只有 prof，按旧规则反推全书关号，再拆成各档进度：
+    // 前面几档记满 40，当前档记「本档已通到第几关」（= 档内关号 − 1），之后各档留 0。
+    // 只认「已经走过的路」，一关都不没收——迁移不许让老玩家的进度倒退。
+    const skills = {};
+    const src = next.skills || {};
+    const ids = Object.keys(src);
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = ids[i];
+      const rec = Object.assign({}, src[id]);
+      if (!rec.levels || typeof rec.levels !== 'object') {
+        const gl = levelData.levelFromProf(num(rec.prof, 0));
+        const idx = levelData.chapterOf(gl);
+        const levels = {};
+        for (let j = 0; j < practiceData.DIFFICULTIES.length; j += 1) {
+          levels[practiceData.DIFFICULTIES[j].key] =
+            j < idx ? levelData.LEVELS_PER_DIFF : 0;
+        }
+        levels[practiceData.DIFFICULTIES[idx].key] =
+          Math.min(levelData.LEVELS_PER_DIFF, levelData.levelInChapter(gl) - 1);
+        rec.levels = levels;
+      }
+      skills[id] = rec;
+    }
+    next = Object.assign({}, next, { version: 8, skills: skills });
+  }
   return next;
 }
 
@@ -169,6 +199,8 @@ function normalizeState(input) {
       // 老玩家存档里还写着「没买」，读档不补这一刀，他会一辈子看不到这十门。
       unlocked: !!r.unlocked || s.source.kind === 'start',
       prof: Math.floor(num(r.prof, 0)),
+      // 五档进度补齐成完整对象（缺档按 0）：下游只读 key，不再到处判 undefined。
+      levels: practiceData.levelsOf(r),
       onboarded: !!r.onboarded,
       introed: !!r.introed,
     };
@@ -530,9 +562,8 @@ function checkDaily(state) {
 // 闭关的「预演」：只算不写。页面据此显示「已坐 N 分 · 灵力 +M」，
 // 冷启动的 settleOffline 与随手点的 meditate 都走这一份算法，三处不许各算一遍。
 //
-// **闭关只产灵力，一分熟练度都不给。** 熟练度是关卡的唯一刻度（levelFromProf），
-// 挂机能涨熟练度，等于挂着不玩也在推关卡——那「参悟才是提速」这句话就是假的，
-// 而且会把「练到哪一关」变成「挂了多久」。所以 world.idle 里没有 profPerHour 这个数。
+// **闭关只产灵力，一分熟练度都不给。** 挂机能涨熟练度，等于挂着不玩也在涨属性——
+// 那「参悟才是提速」这句话就是假的。所以 world.idle 里没有 profPerHour 这个数。
 function idlePending(state) {
   const now = Date.now();
   const w = worldData.getWorld(state.worldId);
@@ -746,18 +777,27 @@ function applyPractice(state, skillId, grade, options) {
   const opts = options || {};
   checkDaily(state);
   const rec = state.skills[skillId];
-  // 关卡由熟练度算出（levels.levelFromProf），所以这一局「打第几关」不是往上挑的，只能回关。
-  // 关卡决定这一局的参数与耗气档，也决定回关折减——「刷最低关」那条老最优解就是从这里堵掉的
+  // 关卡由「本档走通了几关」算，所以这一局「打第几关」不是往上挑的，只能回关。
+  // 关卡决定这一局的参数（全书关号）与回关折减——「刷最低关」那条老最优解就是从这里堵掉的
   // （见 practice.profByLevel）。熟练度本身仍只看评级与连 S，关卡不改变公式，只改变折减。
-  const curLevel = levelData.levelFromProf(rec.prof);
-  // opts.difficulty 是旧入口（只说章、不说关）：换算成该章首关，再由 level 统一裁决。
-  // 两处都在时以 level 为准——页面早就只传 level 了，留着这条是为了老调用与审计脚本不炸。
-  const hintIdx = opts.difficulty ? practiceData.diffKeyIndex(opts.difficulty) : -1;
-  // 它是「下限提示」而不是「回关指令」：老调用写 easy 只表示至少打第一章，不该把玩家拽回第 1 关。
-  const hintedLevel = hintIdx >= 0 ? Math.max(curLevel, levelData.chapterRange(hintIdx).from) : curLevel;
-  const wantLevel = Math.max(1, Math.round(num(opts.level, hintedLevel)));
-  const levelFellBack = wantLevel > curLevel;
-  const playedLevel = Math.min(curLevel, wantLevel);
+  // 五档是五条并列的线：玩家自己挑打哪一档，每档固定 40 关，各记各的进度。
+  // 熟练度不再决定能打哪一档，也不再决定关号——它只算段位、属性加成与连 S 倍率。
+  const lvMap = practiceData.levelsOf(rec);
+  const wantKey = opts.diffKey || opts.difficulty || '';
+  const wantIdx = wantKey ? practiceData.diffKeyIndex(wantKey) : practiceData.currentDiffIndex(rec);
+  // 本门当前档 = 第一个还没走通的档。没走通上一档就不许往下挑（越权参数也在这里夹住）。
+  const curDiffIdx = practiceData.currentDiffIndex(rec);
+  const diffIdx = Math.max(0, Math.min(wantIdx, curDiffIdx));
+  const diffKeyNow = practiceData.DIFFICULTIES[diffIdx].key;
+  const cleared = lvMap[diffKeyNow];
+  // 本档当前关 = 已通 + 1；满 40 就停在 40（重打不推进，也不越界）。
+  const curNo = Math.min(levelData.LEVELS_PER_DIFF, cleared + 1);
+  const wantNo = Math.max(1, Math.round(num(opts.level, curNo)));
+  // 只能往回打，不能往上挑：打的是哪一关由进度决定，不是由参数决定。
+  const levelFellBack = wantNo > curNo;
+  const playedNo = Math.min(curNo, wantNo);
+  // 参数层一律吃全书关号（1–200）：「第 41 关比第 40 关紧」要能跨档比较。
+  const playedLevel = levelData.globalLevelOf(diffIdx, playedNo);
   const beforeTier = tierIndex(rec.prof);
   const profBefore = rec.prof;
   // 战力是阶梯值：属性 = 功法条目 × 段位系数，段位不跳战力就不动。
@@ -806,17 +846,19 @@ function applyPractice(state, skillId, grade, options) {
     };
   }
 
-  // 章由关卡反推（章 = 档），不再有「选档」这件事：关能到哪，章就在哪。
-  // 越权挑关（例如改页面参数）在下面被夹回本门当前关，不会白送熟练度。
-  const diff = practiceData.DIFFICULTIES[levelData.chapterOf(playedLevel)];
-  // 回关折减现在只作用一处：基础熟练度按「本关 ÷ 当前关」连续折（见 practice.profByLevel）。
+  // 档位就是玩家挑的那一档，不再由关号反推——两者现在是一回事，diffIdx 是唯一入口。
+  const diff = practiceData.DIFFICULTIES[diffIdx];
+  // 回关折减只在本档内算：本档第 40 关回打第 1 关是 ×0.025（见 practice.profByLevel）。
   // 耗气不跟着折——回关本来就便宜（7 点起），再折会让「回关刷分」变成省气的聪明选择。
-  const lowFactor = practiceData.levelFactor(playedLevel, curLevel);
-  const belowCap = lowFactor < 1;
-  const diffGap = curLevel - playedLevel;
+  const lowFactor = practiceData.levelFactor(playedNo, curNo);
+  // 「回关」= 打的不是本档当前关。不叠连 S、基础分按关折。
+  const belowCap = playedNo < curNo;
+  // 打的是低档（不是本门当前档）：逐档折半。档位现在能自己挑，不折就等于
+  // 「回简单档刷满分」——这是把难度拆成可选之后必须一起补的那道口子。
+  const diffGap = curDiffIdx - diffIdx;
 
-  // 连 S 与回关完全解耦：只有本门当前关的 S 才叠层，本局按 34 × 1.5^(层数-1) 独立取整；
-  // 回关局不叠层、不砍连击收益、层数原样保留；走火（F）不分关一律断连。
+  // 连 S 与回关完全解耦：只有本门当前档当前关的 S 才叠层，本局按 34 × 1.5^(层数-1) 独立取整；
+  // 回关局 / 低档局不叠层、不砍连击收益、层数原样保留；走火（F）不分档一律断连。
   // 到 PROF_MAX 后熟练度封顶，但层数与纪录照常、灵力照扣：大圆满是数值毕业，不是不许再练。
   if (!state.sCombo) state.sCombo = {};
   const comboBefore = Math.min(worldData.COMBO_MAX, Math.floor(num(state.sCombo[skillId], 0)));
@@ -825,8 +867,12 @@ function applyPractice(state, skillId, grade, options) {
   let rawGain = 0;
   if (wiped) {
     comboNow = 0;
-  } else if (belowCap) {
-    rawGain = practiceData.profByLevel(worldData.PROF_BASE[grade] || 0, playedLevel, curLevel);
+  } else if (belowCap || diffGap > 0) {
+    // 回关或低档：只给基础分。先按档折半（逐档取整，低一档 ×1/2、低四档 ×1/16），
+    // 再按关折一次——两道折减分开取整，玩家能照着「34 → 17 → 8 → 4」复算。
+    rawGain = worldData.PROF_BASE[grade] || 0;
+    for (let k = 0; k < diffGap; k += 1) rawGain = Math.round(rawGain / 2);
+    if (belowCap) rawGain = practiceData.profByLevel(rawGain, playedNo, curNo);
   } else if (grade === 'S') {
     comboNow = Math.min(worldData.COMBO_MAX, comboBefore + 1);
     comboGainNow = worldData.comboGain(comboNow);
@@ -883,6 +929,14 @@ function applyPractice(state, skillId, grade, options) {
   // 三连 S 晋级已取消：段位不再被「补额」跳过，只由上面这一局的实得点数一格格涨。
   rec.prof += gain;
 
+  // 走通本档当前关才推进：走火不推、回关不推、本档满 40 不推。一局只推一关。
+  // 原来「一局 S 能跨四五关」是熟练度在算关号；现在关号由过关推进，跨关这件事不成立了。
+  const advanced = !wiped && playedNo === curNo && cleared < levelData.LEVELS_PER_DIFF;
+  if (advanced) {
+    rec.levels = lvMap;
+    rec.levels[diffKeyNow] = cleared + 1;
+  }
+
   // 运功的代价：灵力在起手时就烧掉了，走火也不退——这才是「走火」真正的分量。
   // 参悟不再产灵力灵石：灵力的来路是闭关、份例与灵石兑换，灵石的来路只有对战。这一局只换熟练度。
   state.resources.qi -= qiCost;
@@ -937,10 +991,14 @@ function applyPractice(state, skillId, grade, options) {
   return {
     ok: true,
     grade: grade,
-    // 打的是不是本门当前关。不再报「已通」——关只增不增、一局能跨三四关，
-    // 中间那些关玩家根本没打过，说「已通」是假话。
-    level: playedLevel,
-    levelWasCurrent: playedLevel >= curLevel,
+    // 对外一律报档内关号（1–40）：「简单第 12 关」。全书关号只留给参数层，
+    // 玩家不需要知道「简单第 12 关」在一条 200 关长轴上是第 52 位。
+    level: playedNo,
+    levelGlobal: playedLevel,
+    levelTotal: levelData.LEVELS_PER_DIFF,
+    levelWasCurrent: playedNo >= curNo,
+    // 本局是否真的往前走了一关：走火、回关、本档已满都是 false。
+    advanced: advanced,
     // 走火＝作废：页面据此把收益行显示成「无」，而不是一排 +0。
     wiped: wiped,
     gradeTitle: copy.GRADE_TITLE[grade] || '粗浅',
@@ -969,8 +1027,8 @@ function applyPractice(state, skillId, grade, options) {
     comboGain: comboGainNow,
     comboNextGain: worldData.comboGain(comboNow + 1),
     comboCapped: comboNow >= worldData.COMBO_MAX,
-    comboActive: !wiped && !belowCap && grade === 'S',
-    comboTransparent: !wiped && belowCap,
+    comboActive: !wiped && !belowCap && diffGap === 0 && grade === 'S',
+    comboTransparent: !wiped && (belowCap || diffGap > 0),
     profAfter: rec.prof,
     tierBefore: beforeTier,
     tierAfter: afterTier,
@@ -981,15 +1039,16 @@ function applyPractice(state, skillId, grade, options) {
     tierKey: tier.key,
     tierLabel: tier.label,
     tierColor: tier.color,
-    diffKey: diff.key,
+    diffKey: diffKeyNow,
     diffName: diff.name,
-    // 当前关与本局打的关：回关时基础熟练度按「本关 ÷ 当前关」折、本局不叠连 S，
-    // 结算要如实报出退了几关与系数。
-    curLevel: curLevel,
-    levelGap: diffGap,
+    // 本档当前关与本局打的关：回关时基础熟练度按「本关 ÷ 当前关」折、本局不叠连 S，
+    // 结算要如实报出退了几关与系数。diffGap 是档差（打的是低档就会 > 0，逐档折半）。
+    curLevel: curNo,
+    levelGap: curNo - playedNo,
     levelBelowCap: belowCap,
     levelBelowFactor: lowFactor,
     levelFellBack: levelFellBack,
+    diffGap: diffGap,
     // 境界超限只加耗气，不禁练：结算说的是「这局更贵」，不是「练不了」。
     realmOverCost: realmAbove ? economyData.REALM_OVER : 1,
     realmReady: realmReady,
@@ -1014,20 +1073,22 @@ function applyPractice(state, skillId, grade, options) {
 //
 // 参数是「这一局打第几关」，不是「哪一档」：关卡由熟练度算出，章 = 档，
 // 所以档位在函数里反推一次，页面不许自己先换算好再传（那正是两处一漂的入口）。
-function practiceCostOf(state, skillId, level) {
+// 本局耗气：只由「打哪一档」决定，与档内关号无关。档位现在是玩家挑的，
+// 所以必须显式传 diffKey——再靠「关号反推档」会让第 41 关（普通第 1 关）与
+// 第 40 关（简单第 40 关）被算成同一档，报价与实际扣款对不上。
+function practiceCostOf(state, skillId, diffKey) {
   const skill = skillData.getSkill(skillId);
   if (!skill) return 0;
   const rec = state.skills[skillId];
-  const method = practiceData.getMethod(skill.method);
   const tier = practiceData.tierOf(skill.tier);
   const realmNow = state.realmIndex + 1;
   const attrs = computeAttributes(state);
-  const curLevel = levelData.levelFromProf(rec ? rec.prof : 0);
-  const lv = Math.min(curLevel, levelData.clampLevel(level || curLevel));
+  // 没传档就按存档里「本门当前档」——默认值与页面默认选中的档一致，不会报出两个价。
+  const key = diffKey || practiceData.currentDiffKey(rec);
   return economyData.practiceQiCost({
-    diffIndex: levelData.chapterOf(lv),
+    diffIndex: practiceData.diffKeyIndex(key),
     tierKey: tier.key,
-    methodBase: method.base,
+    methodBase: practiceData.getMethod(skill.method).base,
     realmAbove: realmNow > tier.maxRealm,
     qiSave: effectValue(state, 'qiSave'),
     wu: attrs.wu || 0,
@@ -1750,7 +1811,7 @@ function getSkillList(state) {
     const info = tierInfo(rec.prof);
     const method = practiceData.getMethod(s.method);
     const tier = practiceData.tierOf(s.tier);
-    const diffNow = practiceData.difficultyOf(practiceData.bestDifficulty(rec.prof));
+    const diffNow = practiceData.difficultyOf(practiceData.currentDiffKey(rec));
     // 与 applyPractice 同一根尺子：门槛决定「能不能开练」，上限只决定「收益衰不衰减」。
     // 金丹期（3）看黄阶（上限 2）是「能练但更费气」，不是「练不了」。
     const realmReady = realmNow >= tier.needRealm;
@@ -1801,7 +1862,7 @@ function getSkillList(state) {
       needRealmName: realmNameOf(state, tier.needRealm),
       realmReady: realmReady,
       realmAbove: realmAbove,
-      // 难度档：只看本门熟练度，与品阶无关。
+      // 难度档：只看本档走通了几关（走通 40 关开下一档），与品阶、熟练度都无关。
       diffName: diffNow.name,
       // 难度档早就不给倍率了：这张卡片要说的是「最高能选哪档、那一档大概烧多少气」。
       diffQi: diffNow.qi,
@@ -1954,12 +2015,15 @@ function recommend(state) {
 
   const s = pick.skill;
   const gap = Math.max(0, s.nextThreshold - s.prof);
-  const idx = practiceData.diffIndexOf(s.prof);
-  const nextDiff = practiceData.DIFFICULTIES[idx + 1];
+  // 难度不再靠熟练度解锁，所以「下一档」的提示不能说「练到 300 分解锁」。
+  // 改成报本档还剩几关：那是玩家下一步真要做的事，而且他点上就能看见。
+  const recNow = state.skills[s.id] || {};
+  const lvNow = practiceData.levelsOf(recNow);
+  const curDiff = practiceData.DIFFICULTIES[practiceData.currentDiffIndex(recNow)];
+  const left = levelData.LEVELS_PER_DIFF - (lvNow[curDiff.key] || 0);
   let next;
   if (s.decayed) next = s.decayText + '，这门先放一放。';
-  else if (nextDiff && nextDiff.need - s.prof <= gap) next = '先到 ' + nextDiff.need + ' 熟练度解锁「' + nextDiff.name + '」档。';
-  else if (nextDiff) next = '本门现可选到「' + s.diffName + '」，往上一档是「' + nextDiff.name + '」。';
+  else if (left > 0) next = '「' + curDiff.name + '」还剩 ' + left + ' 关，走通就开下一档。';
   else next = '本门已开到最高一档，练的是手上的稳。';
 
   return {

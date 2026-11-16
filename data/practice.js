@@ -104,7 +104,7 @@ const PRACTICE_METHODS = [
     params: { pairs: 6, cols: 4, flipMs: 850, timeLimit: 70 },
   },
   // 下面三门是「一看就懂」的经典玩法，都挂黄阶：规则不绕，前期就买得起。
-  // 品阶只管收益与可修境界，难度仍由熟练度档位拧数值（dropMs / depth 等）。
+  // 品阶只管收益与可修境界；难度档位自己拧自己那 40 关的数值（dropMs / depth 等）。
   {
     id: 'linkpair', name: '牵灵引线', game: 'link', theme: 'linkpair', twist: 'linkpair',
     desc: '同纹灵石两两相契，牵一条不过两折的灵线把这一对收回来。',
@@ -261,8 +261,8 @@ function familyOf(type) {
 }
 
 // ---------------------------------------------------------------- 品阶：管战力、耗气与可修境界
-// 熟练度是「这一门练得多熟」，只由本局难度、评级与连 S 层数决定；
-// 让高级功法练得更快，等于把低阶功法从成长线上直接淘汰，也和「难度跟人走」自相矛盾。
+// 熟练度是「这一门练得多熟」，只由本局评级与连 S 层数决定（回关、降档另折）；
+// 让高级功法练得更快，等于把低阶功法从成长线上直接淘汰，也和「熟练度只认本事」自相矛盾。
 // 天地玄黄因此只决定三件事：运功耗气系数（qiCost，见 data/economy.js）、
 // 属性加成系数（attr）、可修境界上下限。
 // 高品阶更强，但练起来更费灵力，门槛靠获取方式与境界限制来制衡——不加速熟练度。
@@ -287,20 +287,27 @@ function tierIndexOf(key) {
   return t ? TIERS.indexOf(t) : 0;
 }
 
-// ---------------------------------------------------------------- 难度档：跟人走
-// 不随功法品阶变化，只看玩家在这门功法上的熟练度。档位越高，一局越贵（`qi` 是裸基数，
-// 实价还要乘时长系数、品阶、悟性等系数，见 data/economy.js 的 practiceQiCost），
-// 同时 pace 收紧、goal 抬高 —— 想拿全额熟练度与连 S 必须真打得过。
+// ---------------------------------------------------------------- 难度档：玩家自己挑
+// 不随功法品阶变化，也不再由熟练度解锁。五个档位是五条并列的线，每档固定 40 关，
+// 各自记自己的进度（存档 `skills[id].levels`），走通本档 40 关才开下一档。
+//
+// 为什么把「熟练度解锁难度」拆掉：原来一条熟练度轴同时管三件事——能打哪一档、
+// 当前第几关、段位与属性加成。玩家看到的「解锁普通难度」其实是「刷够 300 分」，
+// 于是他要么刷简单档刷到吐，要么以为难度是个可以挑的按钮却点不动。
+// 现在难度靠过关（本事），熟练度只管段位与加成（积累），两件事互不代偿。
+//
+// 档位越高，一局越贵（`qi` 是裸基数，实价还要乘时长系数、品阶、悟性等系数，
+// 见 data/economy.js 的 practiceQiCost），同时 pace 收紧、goal 抬高。
 //
 // 这里刻意没有「倍率」字段：熟练度不吃倍率（只由评级与连 S 决定），资源早已不在参悟里产出，
 // 留着 mult 只会让卡片上写一个算不出来的 ×1.70。
 
 const DIFFICULTIES = [
-  { key: 'easy', name: '简单', need: 0, qi: economyData.RUN_QI[0], pace: 1.18, goal: 0.85, gear: 'normal', depth: 0, desc: '节奏最缓、目标最宽，也最省灵力，宜先练稳本门火候。' },
-  { key: 'normal', name: '普通', need: 300, qi: economyData.RUN_QI[1], pace: 1.00, goal: 1.00, gear: 'normal', depth: 1, desc: '标准节奏与目标，入门之后方开。' },
-  { key: 'hard', name: '困难', need: 1500, qi: economyData.RUN_QI[2], pace: 0.88, goal: 1.12, gear: 'hard', depth: 2, desc: '节奏收紧、目标抬高，失误余地更小。' },
-  { key: 'expert', name: '极难', need: 6000, qi: economyData.RUN_QI[3], pace: 0.78, goal: 1.22, gear: 'hard', depth: 3, desc: '几乎没有容错，一乱即落。' },
-  { key: 'desperate', name: '绝境', need: 24000, qi: economyData.RUN_QI[4], pace: 0.70, goal: 1.32, gear: 'hard', depth: 4, desc: '给练到极处的人：最快节奏、最高目标，也最耗灵力。' },
+  { key: 'easy', name: '简单', open: '默认可选', qi: economyData.RUN_QI[0], pace: 1.18, goal: 0.85, gear: 'normal', depth: 0, desc: '节奏最缓、目标最宽，也最省灵力，宜先练稳本门火候。' },
+  { key: 'normal', name: '普通', open: '走通「简单」40 关', qi: economyData.RUN_QI[1], pace: 1.00, goal: 1.00, gear: 'normal', depth: 1, desc: '标准节奏与目标，本门第一副真盘面。' },
+  { key: 'hard', name: '困难', open: '走通「普通」40 关', qi: economyData.RUN_QI[2], pace: 0.88, goal: 1.12, gear: 'hard', depth: 2, desc: '节奏收紧、目标抬高，失误余地更小。' },
+  { key: 'expert', name: '极难', open: '走通「困难」40 关', qi: economyData.RUN_QI[3], pace: 0.78, goal: 1.22, gear: 'hard', depth: 3, desc: '几乎没有容错，一乱即落。' },
+  { key: 'desperate', name: '绝境', open: '走通「极难」40 关', qi: economyData.RUN_QI[4], pace: 0.70, goal: 1.32, gear: 'hard', depth: 4, desc: '给练到极处的人：最快节奏、最高目标，也最耗灵力。' },
 ];
 
 const DIFF_MAP = {};
@@ -315,36 +322,74 @@ function diffKeyIndex(key) {
   return d ? DIFFICULTIES.indexOf(d) : 0;
 }
 
-// 这门功法当前熟练度实际解锁到第几档。
-function diffIndexOf(prof) {
-  const p = Math.max(0, Number(prof) || 0);
-  let idx = 0;
+// 存档里的各档进度：{ easy: 12, normal: 40, ... }，值是「本档已通到第几关」（0–40）。
+// 缺省、越界、非数字一律当 0，读档不因为一个脏字段把整档判成已通。
+function levelsOf(rec) {
+  const out = {};
+  const src = (rec && rec.levels) || {};
   for (let i = 0; i < DIFFICULTIES.length; i += 1) {
-    if (p >= DIFFICULTIES[i].need) idx = i;
+    const k = DIFFICULTIES[i].key;
+    const v = Math.floor(Number(src[k]) || 0);
+    out[k] = Math.max(0, Math.min(levelData.LEVELS_PER_DIFF, v));
   }
-  return idx;
+  return out;
 }
 
-function bestDifficulty(prof) {
-  return DIFFICULTIES[diffIndexOf(prof)].key;
+// 解锁到第几档（含）。第一档永远开；之后每档要求上一档 40 关全走通。
+// 这条判据只读存档进度，不读熟练度——「熟练度够 300 就开普通」已经不是现在的规则。
+function unlockedDiffCount(rec) {
+  const lv = levelsOf(rec);
+  let n = 1;
+  for (let i = 0; i < DIFFICULTIES.length - 1; i += 1) {
+    if ((lv[DIFFICULTIES[i].key] || 0) >= levelData.LEVELS_PER_DIFF) n = i + 2;
+    else break;
+  }
+  return n;
+}
+
+function diffUnlocked(rec, key) {
+  return diffKeyIndex(key) < unlockedDiffCount(rec);
+}
+
+// 「本门当前在打哪一档」：第一个还没走通的档；全走通就是最后一档。
+// 它只用于默认选中与功法页摘要，不再是「熟练度解锁到哪」。
+function currentDiffIndex(rec) {
+  const lv = levelsOf(rec);
+  for (let i = 0; i < DIFFICULTIES.length; i += 1) {
+    if ((lv[DIFFICULTIES[i].key] || 0) < levelData.LEVELS_PER_DIFF) return i;
+  }
+  return DIFFICULTIES.length - 1;
+}
+
+function currentDiffKey(rec) {
+  return DIFFICULTIES[currentDiffIndex(rec)].key;
 }
 
 // ---------------------------------------------------------------- 回关折减
-// 关卡由熟练度算出（levels.levelFromProf），所以「打哪一关」就是「打多难」。
-// 回打低关按「本关 ÷ 当前关」连续折减：
+// 关卡只在档内数（1–40），所以「回关」= 在本档里回打更早的关。
 //
-//   当前第 40 关，回打第 40 关 → ×1.00
-//   当前第 40 关，回打第 30 关 → ×0.75
-//   当前第 40 关，回打第 1  关 → ×0.025
+//   本关 ÷ 40，唯独当前关 ×1
 //
-// 为什么不用「每档折半」：档只有五级，同一章内第 1 关与第 40 关的折减系数都是 1，
-// 而第 1 关的 S 率远高于第 40 关——**档内折减是空的**。老版最优点就是「在本章内刷第 1 关」，
-// 这比刷最低档严重得多，因为章内第 1 关和第 40 关的收益完全一样，难度却差一整章。
-// 按关折是连续的，也没有「一次退两档就 ×0.25」那种断崖。
+//   当前关（不管第几关）        → ×1.00
+//   满档时回打第 30 关          → 30/40 = 0.75
+//   回打第 1 关                 → 1/40  = 2.5%
+//
+// **分母是本档总关数，不是「当前关」。** 这一条是刷分的封条：
+// 分母若写成当前关，玩家只要不往前走，系数就钉在 1/当前关 不动——
+// 反复打第 1 关每局稳拿 17 点，比老实推进还省事。用总关数，第 1 关永远是 2.5%。
+//
+// 于是「当前关 → 回关」之间有一道明显的坎（当前第 21 关时，回打第 20 关从 ×1 掉到 ×0.5）。
+// 这是刻意的：往前打和回头刷之间必须有一个看得见的差，否则「回头刷最省事」永远成立。
+//
+// 为什么不用「每档折半」：档只有五级，同样「回打本档第 1 关」，在简单档与绝境档
+// 拿到的分一模一样——低档就成了最划算的练手场。按关折是连续的，也没有断崖。
 function levelFactor(level, curLevel) {
   const cur = Math.max(1, Math.round(Number(curLevel) || 1));
   const lv = Math.max(1, Math.min(cur, Math.round(Number(level) || 1)));
-  return lv / cur;
+  // 当前关永远 ×1：那是「往前打」，不该打折。
+  if (lv >= cur) return 1;
+  // 回关按「本关在本档里的位置」折：第 30 关 ×0.75、第 1 关 ×0.025。
+  return lv / levelData.LEVELS_PER_DIFF;
 }
 
 // 回关这一局的基础熟练度：四舍五入一次，不做逐档取整。
@@ -359,9 +404,9 @@ function retreatText(level, curLevel) {
   const cur = Math.max(1, Math.round(Number(curLevel) || 1));
   const lv = Math.max(1, Math.min(cur, Math.round(Number(level) || 1)));
   if (lv >= cur) return '';
-  return '回打第 ' + lv + ' 关（本门当前第 ' + cur + ' 关）：熟练度按 ×'
+  return '回打本档第 ' + lv + ' 关（本档已走到第 ' + cur + ' 关）：熟练度按 ×'
     + String(Math.round(levelFactor(lv, cur) * 1000) / 1000) + ' 计，本局不叠连 S。'
-    + '关只增不减，练到哪就在哪——回打只为找手感。';
+    + '关卡只进不退，回打只为找手感。';
 }
 
 // 小系数也要原样显示，toFixed(2) 会把 0.0625 写成 0.06 骗人。
@@ -814,7 +859,7 @@ function pseudoDiff(depthIndex) {
   if (idx <= 4) return DIFFICULTIES[Math.max(0, idx)];
   const base = DIFFICULTIES[4];
   return {
-    key: 'desperate+', name: '绝境末段', need: base.need, qi: base.qi,
+    key: 'desperate+', name: '绝境末段', open: base.open, qi: base.qi,
     pace: base.pace * 0.94, goal: base.goal * 1.06,
     gear: 'hard', depth: 4,
   };
@@ -1466,8 +1511,11 @@ module.exports = {
   tierIndexOf: tierIndexOf,
   difficultyOf: difficultyOf,
   diffKeyIndex: diffKeyIndex,
-  diffIndexOf: diffIndexOf,
-  bestDifficulty: bestDifficulty,
+  levelsOf: levelsOf,
+  unlockedDiffCount: unlockedDiffCount,
+  diffUnlocked: diffUnlocked,
+  currentDiffIndex: currentDiffIndex,
+  currentDiffKey: currentDiffKey,
   levelFactor: levelFactor,
   profByLevel: profByLevel,
   retreatText: retreatText,

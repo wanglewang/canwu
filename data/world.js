@@ -3,9 +3,11 @@
 // 《参悟》世界与全局数值配置
 // 所有可调数值集中在此文件与 skills.js / practice.js，加内容不改业务代码。
 
-// 熟练度：玩家在这门功法上的进度，决定能选哪几档难度（难度跟人走）。
+// 熟练度：玩家在这门功法上练得多深，决定属性加成倍率与本门新法开到第几条。
+// 它**不管**难度：五档难度各 40 关、互不相干，走通本档 40 关就开下一档（见 data/practice.js）。
 // 六段按「前密后疏」拉开，段间跨度约 ×4；大圆满取九数之极 99999，是熟练度硬顶。
-// 难度 need 取 TIERS 前五（0/300/1500/6000/24000），一段一档，不再有空级。
+// 阶段门槛取 0/300/1500/6000/24000/99999；关卡表 LEVEL_PROF_STEPS 与这六个锚同源，
+// 但那是给老存档（v7 及以前只存 prof）反推关号用的，新存档按 levels 逐档记。
 // 熟练度只由「本局评级 + 连 S 层数」决定：不乘品阶、不乘难度倍率、不乘境界、不乘属性。
 // 品阶 / 境界 / 悟性 / 触类旁通 / 心法省气这些系数全部只作用「一局烧多少灵力」
 // （见 data/economy.js 的 practiceQiCost），参悟本身不产任何资源。
@@ -46,12 +48,12 @@ const PROF_S_RUNS = (function () {
   return runs;
 }());
 const TIERS = [
-  { key: 'none', name: '未入门', threshold: 0, bonus: 0, color: '#9aa39a', desc: '只能参悟简单档，尚无加成' },
-  { key: 'basic', name: '入门', threshold: 300, bonus: 1, color: '#3d8c74', desc: '解锁「普通」难度与基础属性加成' },
-  { key: 'skilled', name: '小成', threshold: 1500, bonus: 1.8, color: '#2f6b5b', desc: '解锁「困难」难度' },
-  { key: 'master', name: '大成', threshold: 6000, bonus: 2.8, color: '#b8893b', desc: '解锁「极难」难度、功法特效与参悟便利' },
-  { key: 'grand', name: '圆满', threshold: 24000, bonus: 4, color: '#b4453c', desc: '解锁「绝境」难度与称号' },
-  { key: 'perfect', name: '大圆满', threshold: PROF_MAX, bonus: 5, color: '#8a5cb0', desc: '熟练度至此圆满，本门已练到头' },
+  { key: 'none', name: '未入门', threshold: 0, bonus: 0, color: '#9aa39a', desc: '尚无属性加成' },
+  { key: 'basic', name: '入门', threshold: 300, bonus: 1, color: '#3d8c74', desc: '属性加成 ×1' },
+  { key: 'skilled', name: '小成', threshold: 1500, bonus: 1.8, color: '#2f6b5b', desc: '属性加成 ×1.8' },
+  { key: 'master', name: '大成', threshold: 6000, bonus: 2.8, color: '#b8893b', desc: '属性加成 ×2.8，本门新法自此逐条开' },
+  { key: 'grand', name: '圆满', threshold: 24000, bonus: 4, color: '#b4453c', desc: '属性加成 ×4' },
+  { key: 'perfect', name: '大圆满', threshold: PROF_MAX, bonus: 5, color: '#8a5cb0', desc: '属性加成 ×5，本门新法开到最后一条' },
 ];
 
 // 评级倍率：只决定这一局的挂机加速与评级观感，既不进熟练度，也不进资源产出。
@@ -98,8 +100,8 @@ const WORLDS = [
       // 炼气 174 点约五个多小时坐满，所以「睡一晚回来只收一池」是设计，不是 bug：
       // 想让一趟存更多，去破境、去练真元，而不是把小程序挂在后台。
       qiPerMinute: 0.5,
-      // 闭关**不产熟练度**：熟练度是关卡的唯一刻度（levelFromProf），挂机能涨熟练度，
-      // 等于挂着不玩也在推关卡，「参悟才是提速」就成了假话。这里没有 profPerHour 这个键。
+      // 闭关**不产熟练度**：挂机能涨熟练度，等于挂着不玩也在涨属性，「参悟才是提速」就成了假话。
+      // 这里没有 profPerHour 这个键。
       // 离线最多累计 8 小时：这是「一次离开能算多久」的上限，与气海容量是两回事。
       // 两个都留着——气海管「存得下多少」，这条管「一次最多算多久」。
       capHours: 8,

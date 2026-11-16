@@ -110,24 +110,41 @@
     <block wx:if="{{showDifficulty}}">
       <view class="divider"></view>
       <view class="row--between">
-        <text class="section__title">关卡</text>
-        <!-- 关卡行只报三件事：第几关、在哪一章、这一局烧多少气。 -->
-        <text class="tiny">第 {{level}} / {{levelMax}} 关 · 耗灵力 {{qiCost}}</text>
+        <text class="section__title">难度</text>
+        <!-- 五档是并列的五条线：自己挑、每档 40 关、各记各的进度。
+             锁着的那几档把「怎么开」直接写在按钮上（走通上一档 40 关），
+             不写「熟练度不足」——难度已经不由熟练度管了。 -->
+        <text class="tiny">每档 40 关，走通本档开下一档</text>
       </view>
-      <!-- 一关一格：关号由熟练度算出，只能往回翻找手感，不能往上挑。
-           向上唯一的走法是把这一门练上去——练到哪，关就开到哪。 -->
+      <view class="diff-row mt12">
+        <view wx:for="{{diffs}}" wx:key="key"
+              class="diff-chip {{item.on ? 'diff-chip--on' : ''}} {{item.locked ? 'diff-chip--lock' : ''}} pressable"
+              hover-class="pressable--on" data-k="{{item.key}}" bindtap="onDiff">
+          <text class="diff-chip__name">{{item.name}}</text>
+          <text class="diff-chip__hint">{{item.hint}}</text>
+        </view>
+      </view>
+      <view class="divider"></view>
+      <view class="row--between">
+        <text class="section__title">关卡</text>
+        <!-- 关卡行只报三件事：哪一档、本档第几关、这一局烧多少气。
+             不再报「全书第几关」——五档是并列的线，折成一条长轴看不出在哪一档。 -->
+        <text class="tiny">{{diffName}} · 第 {{level}} / {{levelTotal}} 关 · 耗灵力 {{qiCost}}</text>
+      </view>
+      <!-- 一关一格：关号由本档进度决定，只能往回翻找手感，不能往上挑。
+           往前走唯一的走法是走通当前这一关。 -->
       <view class="lv-row mt12">
         <view class="lv-step {{level > 1 ? '' : 'lv-step--off'}} pressable" hover-class="pressable--on" data-d="-1" bindtap="onLevel">‹</view>
         <view class="lv-mid">
-          <text class="lv-num">第 {{level}} 关</text>
+          <text class="lv-num">第 {{level}} / {{levelTotal}} 关</text>
           <text class="lv-sub">{{levelSub}}</text>
         </view>
         <view class="lv-step {{level < levelMax ? '' : 'lv-step--off'}} pressable" hover-class="pressable--on" data-d="1" bindtap="onLevel">›</view>
       </view>
       <view wx:if="{{level < curLevel}}" class="mt8">
-        <text class="text-link tiny pressable" hover-class="pressable--on" bindtap="onLevelResume">回到本门当前第 {{curLevel}} 关</text>
+        <text class="text-link tiny pressable" hover-class="pressable--on" bindtap="onLevelResume">回到本档当前第 {{curLevel}} 关</text>
       </view>
-      <!-- 本章规格常驻：关号一局能跳好几关，换章那一关常被整个跨过去。 -->
+      <!-- 本档规格常驻：换档是玩家自己点出来的动作，但「这一档换了什么」仍要说清。 -->
       <text wx:if="{{chapterChange}}" class="chapter-note mt8">{{chapterChange}}</text>
       <!-- 一关一处小变化，写清楚变的是哪一项。 -->
       <text class="tiny diff-brief mt8">{{levelChange}}</text>
@@ -206,7 +223,9 @@
     <view wx:if="{{!sceneOn && !tutorial}}" class="hud">
       <view class="row--between hud__top">
         <view class="hud__id">
-          <text class="eyebrow hud__skill">{{title}}<text wx:if="{{diffName}}"> · {{diffName}}</text></text>
+          <!-- 局内报「哪一档 · 第几关」：档位与关号都是玩家挑出来/走出来的，
+               只写「普通」会让人以为自己还在一个叫「普通」的池子里。 -->
+          <text class="eyebrow hud__skill">{{title}}<text wx:if="{{diffName}}"> · {{diffName}} · 第 {{level}} 关</text></text>
           <text class="hud__time">{{vm.timeText || '正在参悟'}}</text>
         </view>
         <view class="hud__right">
@@ -239,7 +258,7 @@
     <view wx:elif="{{!tutorial}}" class="scene-hud">
       <view class="scene-hud__top">
         <view class="scene-hud__id">
-          <text class="scene-hud__name">{{title}} · {{diffName}}</text>
+          <text class="scene-hud__name">{{title}} · {{diffName}} · 第 {{level}} 关</text>
           <text class="scene-hud__incense">{{vm.progressText || vm.timeText}}</text>
         </view>
         <view class="scene-hud__right">

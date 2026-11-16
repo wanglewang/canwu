@@ -505,13 +505,15 @@ function practiceTopic(opts) {
             });
         }
 
-        const diffLines = ['五章只看本门的熟练度，品阶不决定关卡：'];
+        const diffLines = ['五档难度各 40 关、共 200 关，五档互不相干；走通本档 40 关才开下一档，'
+            + '与熟练度无关，品阶也不决定关卡：'];
         practiceData.DIFFICULTIES.forEach(function (d, i) {
-            diffLines.push(d.name + ' · 门槛 ' + d.need + ' · 基础耗气 ' + economyData.RUN_QI[i] + ' 点');
+            diffLines.push(d.name + ' · ' + d.open + ' · 基础耗气 ' + economyData.RUN_QI[i] + ' 点');
         });
-        diffLines.push('难度不靠挑：本门当前第几关由熟练度算出，练到哪就在哪，关只增不减。'
-            + '每章 40 关、共 200 关。节奏与时辰类每关都紧一点；'
-            + '盘面规格挂在本章上，点灯破阵 / 踏云连环 / 一眼摘魁 / 扫目逐数 / 万石成岳 / 吐纳周天 / 让主出阵'
+        diffLines.push('档要自己挑：默认落在还没走通的那一档，也可以点档位牌回已走通的档。'
+            + '档内第几关由本档进度算出，关只进不退——一局只推一关，走通它，下一关才开。'
+            + '节奏与时辰类每关都紧一点；'
+            + '盘面规格挂在本档上，点灯破阵 / 踏云连环 / 一眼摘魁 / 扫目逐数 / 万石成岳 / 吐纳周天 / 让主出阵'
             + '这七门隔几关才换一副盘，那一行会写「与上一关规格相同」，不是关卡坏了。');
         diffLines.push('一局实际耗气 = 档位基数 × 时长系数（本门盘面 15–70 秒，0.85–1.30）'
             + ' × 品阶（黄 1.00 / 玄 1.15 / 地 1.30 / 天 1.45）'
@@ -519,13 +521,20 @@ function practiceTopic(opts) {
             + ' ×（1 − 心法省气，最多 50%）'
             + ' ÷ 悟性（1 + 悟性/200，最多 ÷1.6）'
             + ' ×（换门 0.92）。结算卡会把这几项逐条写出来，可以照着自己复算。');
-        diffLines.push('想找手感可以回关：退回第几关，基础熟练度就按「这一关 ÷ 当前关」折一次、四舍五入，'
-            + '本局不叠连 S，但已有层数原样保留。');
+        diffLines.push('想找手感可以回关：退回本档第几关，基础熟练度就按「这一关 ÷ 本档 40 关」折一次、'
+            + '四舍五入（第 30 关 ×0.75、第 1 关 ×0.025），本局不叠连 S，但已有层数原样保留。');
         diffLines.push('耗气不跟着折：回关本来就便宜（7 点起）。以 S（' + worldData.PROF_BASE.S + ' 点）为例，'
-            + '当前第 40 关时回打 40 / 30 / 20 / 10 / 1 关依次是 '
+            + '本档走到第 40 关时回打 40 / 30 / 20 / 10 / 1 关依次是 '
             + [40, 30, 20, 10, 1].map(function (lv) {
                 return practiceData.profByLevel(worldData.PROF_BASE.S, lv, 40);
             }).join(' / ') + ' 点——退得越远越薄，第 1 关几乎为零，回关是练手不是刷分。');
+        diffLines.push('往下一档回也折：每低一档，这一局的熟练度先对半一次再四舍五入，连降四档的 S 只剩 '
+            + (function () {
+                let v = worldData.PROF_BASE.S;
+                for (let k = 0; k < 4; k += 1) v = Math.round(v / 2);
+                return v;
+            }()) + ' 点。'
+            + '往前打永远最划算，回旧档只为看盘面、找手感。');
         diffLines.push('单局基础：C ' + worldData.PROF_BASE.C + ' / B ' + worldData.PROF_BASE.B
             + ' / A ' + worldData.PROF_BASE.A + ' / S ' + worldData.PROF_BASE.S
             + ' 点，走火 F 是 0。只有连续的 S 才叠倍率，C / B / A 不叠层且会让连 S 归零。');

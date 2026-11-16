@@ -802,11 +802,26 @@ for (const s of skillMod.SKILLS) {
   if (!s.source || !s.source.kind) errors.push('功法缺获取方式: ' + s.id);
   else checked += 1;
 }
-for (let i = 1; i < practiceMod.DIFFICULTIES.length; i += 1) {
-  const prev = practiceMod.DIFFICULTIES[i - 1];
+// 难度不再由熟练度解锁：DIFFICULTIES 上的 need 已删，门槛改成「走通上一档 40 关」。
+// 这里守两件事——首档必须默认可选，其余各档都要写清「走通上一档的档名 + 40 关」；
+// 耗气仍要逐档递增，否则「越难越贵」这条定价就断了。
+const lvlMod = require(path.join(ROOT, 'data/levels.js'));
+for (let i = 0; i < practiceMod.DIFFICULTIES.length; i += 1) {
   const cur = practiceMod.DIFFICULTIES[i];
-  if (cur.need <= prev.need || cur.qi <= prev.qi) errors.push('难度档门槛或耗气未递增: ' + cur.key);
+  if (cur.need !== undefined) errors.push('难度档还留着 need（难度已不由熟练度解锁）: ' + cur.key);
   else checked += 1;
+  if (i === 0) {
+    if (!/默认/.test(cur.open || '')) errors.push('首档没写「默认可选」: ' + cur.key);
+    else checked += 1;
+  } else {
+    const prev = practiceMod.DIFFICULTIES[i - 1];
+    if (!cur.open || cur.open.indexOf(prev.name) < 0
+      || cur.open.indexOf(String(lvlMod.LEVELS_PER_DIFF)) < 0) {
+      errors.push('难度档没写「走通上一档」的开法: ' + cur.key + ' → ' + cur.open);
+    } else checked += 1;
+    if (cur.qi <= prev.qi) errors.push('难度档耗气未递增: ' + cur.key);
+    else checked += 1;
+  }
 }
 // 盘面尺寸只许按「显式规格表」变。规格阶梯写在 CLICK_LEVELS / MINES_LEVELS / MEMORY_LEVELS
 // （以及 lights / sudoku / klotski / LINK_LEVELS 各自那张表）里，玩法层真的读它，玩家在
@@ -1075,7 +1090,6 @@ if (!fs.existsSync(checklistPath)) {
   errors.push('缺少玩法设计自检清单：docs/checklist-puzzle.md');
 } else {
   const doc = fs.readFileSync(checklistPath, 'utf8');
-  const practiceData = require(path.join(ROOT, 'data/practice.js'));
   const copyData = require(path.join(ROOT, 'data/copy.js'));
 
   // 十二个维度一个都不能少。
@@ -1088,9 +1102,15 @@ if (!fs.existsSync(checklistPath)) {
   const gradeLine = Object.keys(copyData.GRADE_TITLE).join(' / ');
   if (doc.indexOf(gradeLine) < 0) errors.push('自检清单的评级档位与 copy.GRADE_TITLE 不一致（应为 ' + gradeLine + '）');
   else checked += 1;
-  const needLine = practiceData.DIFFICULTIES.map(function (d) { return d.need; }).join(' / ');
-  if (doc.indexOf(needLine) < 0) errors.push('自检清单的难度门槛与 DIFFICULTIES 不一致（应为 ' + needLine + '）');
+  // 难度不再由熟练度解锁：清单必须写「每档 40 关、走通本档才开下一档」，
+  // 且不许再留「熟练度到 X 解锁某档」的旧口径——那是这次改版特意拆掉的一层。
+  const levelMod = require(path.join(ROOT, 'data/levels.js'));
+  const perDiffLine = '每档 ' + levelMod.LEVELS_PER_DIFF + ' 关';
+  if (doc.indexOf(perDiffLine) < 0) errors.push('自检清单没写「' + perDiffLine + '」');
   else checked += 1;
+  if (/熟练度到 \d+ 才开/.test(doc) || /熟练度解锁难度/.test(doc)) {
+    errors.push('自检清单还留着「熟练度解锁难度」的旧口径');
+  } else checked += 1;
   // 经济口径：参悟从「产出资源」改成「消耗灵力」，清单必须写明唯一真源与各档耗气。
   // 旧版守的是资源总倍率 MAX_MULTIPLIER，那条常量已随资源产出一起退役。
   const economyData = require(path.join(ROOT, 'data/economy.js'));
@@ -1112,11 +1132,11 @@ if (!fs.existsSync(checklistPath)) {
   else checked += 1;
   if (/分步新手引导[^\n]*明确不做/.test(doc)) errors.push('自检清单还把新手引导写成「明确不做」');
   else checked += 1;
-  // 回关折减与「关卡由熟练度算出」是同一根尺子的两面：文档写成另一套口径，
+  // 回关折减与「关卡由走通推进」是同一根尺子的两面：文档写成另一套口径，
   // 以后照文档调数值，玩家看到的和代码算的就对不上。
   if (doc.indexOf('回关折减') < 0) errors.push('自检清单没写「回关折减」的口径');
   else checked += 1;
-  if (doc.indexOf('关卡由熟练度算出') < 0) errors.push('自检清单没写「关卡由熟练度算出」');
+  if (doc.indexOf('走通本档才开下一档') < 0) errors.push('自检清单没写「走通本档才开下一档」');
   else checked += 1;
   const gameSrc = fs.readFileSync(path.join(ROOT, 'utils/game.js'), 'utf8');
   if (!/practiceData\.profByLevel\(/.test(gameSrc)) errors.push('utils/game.js 没走 profByLevel() 按关折减');
@@ -1143,7 +1163,7 @@ if (!fs.existsSync(checklistPath)) {
     errors.push('utils/game.js 还留着三连 S 晋级的旧字段');
   } else checked += 1;
   const engineApi = require(path.join(ROOT, 'utils/game.js'));
-  if (engineApi.SAVE_VERSION !== 7) errors.push('存档版本没升到 v7（灵力与灵石换了收支方向）');
+  if (engineApi.SAVE_VERSION !== 8) errors.push('存档版本没升到 v8（难度改成五条并列的线，进度要按档存）');
   else checked += 1;
   // 参悟页的说明是按功法现拼的，不能塞进静态主题表（那里只放整页主题）。
   const navData = require(path.join(ROOT, 'data/navigation.js'));

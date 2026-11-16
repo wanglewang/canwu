@@ -1650,6 +1650,39 @@
 .lv-num { font-size: var(--fs-h3); color: var(--c-imm-gold); font-weight: 600; line-height: 1.1; }
 .lv-sub { font-size: var(--fs-caption); color: var(--c-imm-text-3); }
 
+/* ---------- 难度档：五条并列的线 ----------
+   五档不是「同一个盘的五个容差」，是五副盘。做成一行并列的按钮，
+   而不是一个「当前难度」标签 + 一串锁——标签读起来像系统替你选好的，
+   可它其实是玩家自己挑的。锁着的档只用暗色，不用 disabled 灰白：
+   深色底上一块浅灰会像坏掉的控件。 */
+.diff-row {
+    display: flex;
+    gap: var(--sp-1);
+}
+.diff-chip {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rpx;
+    padding: 10rpx 2rpx;
+    border: 1rpx solid var(--c-border);
+    border-radius: var(--r-sm);
+    background: var(--c-imm-bg-2);
+}
+.diff-chip__name { font-size: 24rpx; line-height: 1.2; color: var(--c-imm-text-2); }
+.diff-chip__hint { font-size: 18rpx; line-height: 1.2; color: var(--c-imm-text-3); }
+/* 当前档：旧金描边 + 金字。全站只有一个强调色，这里不另起一种。 */
+.diff-chip--on {
+    border-color: var(--c-imm-gold-dim);
+    background: var(--c-imm-gold-soft);
+}
+.diff-chip--on .diff-chip__name { color: var(--c-imm-gold); font-weight: 600; }
+.diff-chip--on .diff-chip__hint { color: var(--c-imm-gold-dim); }
+/* 未开：压暗到能读但明显不活跃。静态透明，不做入场动画。 */
+.diff-chip--lock { opacity: 0.42; }
+
 
 /* 盘面是纸、页面是墨：本页恒定深色，不再跟系统明暗翻转。
    纸面取的是注入的 --soft / --ink / --bg，因此格子里的字永远是深墨落在浅纸上；

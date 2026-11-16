@@ -5,16 +5,17 @@
 // 为什么从 999 关改成 200 关：999 关的真实分辨率本来就是 200。
 // 旧版「每 5 关一段、一章 40 段」，同段五关参数逐位相同——玩家看到「第 437 关」，
 // 实际是「第三章第 37 段第 2 关」，第 436 关与第 440 关完全一样。
-// 对外标 999、对内只有 200 种盘面，这是虚标；而且一局 S 能跨四五关，关号一直在跳，
-// 玩家反而没有「我到了」的实感。现在一段一关：200 关就是 200 种盘面。
+// 对外标 999、对内只有 200 种盘面，这是虚标。现在一段一关：200 关就是 200 种盘面。
 //
-// 关卡也不再由「打过多少关」累加，而由熟练度算出（levelFromProf）：
-// 熟练度是这套系统里唯一只增的数，关卡是它的另一个刻度。
-// 于是没有「跳关」这个动作，也没有「先把关号点高」的博弈——练到哪，就在哪。
-// 但连 S 倍率会让一局跨四五关，章首关（41/81/121/161）常被整步跨过去：
-// 「踏入新章」不能只挂在章首关上，见 practice.chapterSpec() 与 07-difficulty §9。
+// **关卡不由熟练度算。** 中间有一版是「关 = levelFromProf(熟练度)」，理由是「熟练度是唯一只增的数」；
+// 代价是「能打哪档 / 当前第几关 / 段位加成」三件事绑在一条轴上，熟练度一毕业就没内容可打。
+// 现在改成五档并列、各 40 关、各记各的进度，走通本档 40 关开下一档（见 practice.levelsOf）。
+// `levelFromProf()` 留着，只为 v7 及以前的老存档反推关号（见 utils/game.js migrateState）。
 //
-// 结构：五章 × 40 关（合计 200）。每章对应原来的一个难度档。
+// 两套关号：参数层吃全书 1–200（本文件 globalLevelOf / levelNoOf 是唯一换算处），
+// 玩家界面只写档内 1–40——简单第 30 关与绝境第 30 关不是一件事。
+//
+// 结构：五档 × 40 关（合计 200）。每档对应原来的一个难度档。
 // 章内 40 关对应原来的 40 段，一段一关。参数本该逐关不同——实测十二门做到了，
 // 七门做不到（点灯破阵 31 / 踏云连环 36 / 一眼摘魁 37 / 扫目逐数 52 / 万石成岳 108 /
 // 吐纳周天 123 / 让主出阵 166 级台阶），见 07-difficulty §7.1。
@@ -36,6 +37,10 @@ const LEVEL_PROF_STEPS = [0, 300, 1500, 6000, 24000, 99999];
 const LEVEL_MAX = 200;
 const STAGE_SPAN = 1;      // 一段一关：关号就是段号
 const STAGES_PER_CHAPTER = 40;
+// 每档固定 40 关。关卡只在档内数（简单第 12 关、绝境第 3 关），不再有「全书第 68 关」
+// 这个对外刻度——一条 1–200 的长轴会把「换档」这件事藏进数字里，玩家看到 68 与 69
+// 只差一个数，实际是两副完全不同的盘。对外只报档内关号，换档是玩家自己选的动作。
+const LEVELS_PER_DIFF = STAGES_PER_CHAPTER;
 
 const CHAPTERS = [
   { key: 'easy', name: '简单', label: '第一章', from: 1, to: 40, note: '规矩全露在外面，先把手感打热' },
@@ -79,6 +84,19 @@ function stageOf(level) {
 function levelInChapter(level) {
   const c = CHAPTERS[chapterOf(level)];
   return clampLevel(level) - c.from + 1;
+}
+
+// 档内关号 ↔ 全书关号。参数层（buildParamsAt / tuneParams / 文档里的台阶表）一律吃
+// 全书关号 1–200，因为「第 41 关比第 40 关紧」这件事要能跨档比较；而玩家看见的只有
+// 档内 1–40。两个口径靠这两个函数换，不许多写第三份。
+function globalLevelOf(diffIndex, levelNo) {
+  const c = chapterRange(diffIndex);
+  const n = Math.max(1, Math.min(LEVELS_PER_DIFF, Math.round(Number(levelNo) || 1)));
+  return c.from + n - 1;
+}
+
+function levelNoOf(globalLevel) {
+  return levelInChapter(clampLevel(globalLevel));
 }
 
 function chapterSize(index) {
@@ -189,6 +207,7 @@ module.exports = {
   LEVEL_MAX: LEVEL_MAX,
   STAGE_SPAN: STAGE_SPAN,
   STAGES_PER_CHAPTER: STAGES_PER_CHAPTER,
+  LEVELS_PER_DIFF: LEVELS_PER_DIFF,
   LEVEL_PROF_STEPS: LEVEL_PROF_STEPS,
   CHAPTERS: CHAPTERS,
   clampLevel: clampLevel,
@@ -198,6 +217,8 @@ module.exports = {
   chapterSize: chapterSize,
   stageOf: stageOf,
   levelInChapter: levelInChapter,
+  globalLevelOf: globalLevelOf,
+  levelNoOf: levelNoOf,
   progressOf: progressOf,
   levelOf: levelOf,
   levelFromProf: levelFromProf,
