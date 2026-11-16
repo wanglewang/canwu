@@ -24,9 +24,16 @@ const ASSETS = {
   miss: { file: 'miss.wav', volume: 0.3, pool: 1, gap: 170 },
   gold: { file: 'gold.wav', volume: 0.36, pool: 1, gap: 150 },
   tick: { file: 'tick.wav', volume: 0.26, pool: 1, gap: 120 },
-  // 节拍：节律判定每拍一下，比 tick 更轻、间隔更短（一拍最短 120ms）。
+  // 节拍：节律判定每一格一下。
+  // 音量不能按「比 tick 更轻」来给：tick.wav 峰值只有 0.52，再乘 0.15 再乘「轻」档 0.75
+  // 只剩 0.058——真机上等于没响，玩家报的就是这一条。节拍是这门唯一的输入通道，
+  // 它比判定音更需要被听见，给到与判定音同一档。
   // 它不进 VOICE 组、也不占全局间隔——拍子要准，且不许把紧随其后的判定音掐掉。
-  beat: { file: 'tick.wav', volume: 0.15, pool: 1, gap: 100 },
+  beat: { file: 'beat.wav', volume: 0.36, pool: 1, gap: 90 },
+  // 小节头那一格用重音。重音**不是靠音量**（播放音量上限 0.4，再压上去就是硬砸），
+  // 而是低八度的一记「咚」：一串哒声里没有高低，玩家数不出小节线在哪，
+  // 第三段起提示轨只剩小节头，那就没有东西可以锚定第几小节了。
+  beataccent: { file: 'beataccent.wav', volume: 0.38, pool: 1, gap: 90 },
   go: { file: 'go.wav', volume: 0.3, pool: 1, gap: 220 },
   clear: { file: 'clear.wav', volume: 0.34, pool: 1, gap: 400 },
   settle: { file: 'settle.wav', volume: 0.3, pool: 1, gap: 400 },
@@ -40,7 +47,10 @@ const GLOBAL_GAP = 60;
 const TAP_GAP = 28;
 
 // 常用音效先建好上下文，避免第一次落子要等实例化。
-const WARM = ['tap', 'hit', 'miss', 'gold', 'tick', 'go'];
+// beat / beataccent 必须在这里：它们是「开局第一拍就要响」的音，而新建 InnerAudioContext
+// 后立刻 play，在真机上首声经常直接丢掉（src 还没加载完）。节律这一门要是首拍就哑，
+// 玩家根本进不去节奏——这不是「偶尔少一声」，是整门玩法失效。
+const WARM = ['tap', 'hit', 'miss', 'gold', 'tick', 'go', 'beat', 'beataccent'];
 
 const TONE = { good: 'hit', bad: 'miss', gold: 'gold' };
 

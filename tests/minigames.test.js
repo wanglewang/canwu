@@ -3559,6 +3559,105 @@ check('节律判定：拍点落在固定网格上，点过之后继续收到底'
   } finally { restoreClock(); }
 });
 
+// 段首关 = 引导关：1 / 11 / 51 / 201 / 501。
+// 玩家原话是「第 1 关就应该是个引导关啊，就是有教程引导的，这个声音引导着怎么一点点」——
+// 这一门没法用文字教（规则就是「跟着声音点」），所以教程只能是**先听一小节**：
+// 预拍那一小节全曲唯一不用做任何事，盘面正中一个字「听」，拍子已经在响。
+// 五个段首各说本段新增的那一条（环入带 / 宁晚勿早 / 提示退到小节头 / 双手 / 无提示）。
+check('节律判定：五个段首关是引导关，其余关不许出现引导', function () {
+  installClock();
+  try {
+    const m = data.getMethod('absorb');
+    const HEADS = data.STAGES.map(function (s) { return s.from; });
+    assert.deepStrictEqual(HEADS, [1, 11, 51, 201, 501], '五段的段首关变了，引导表要跟着改');
+    for (let i = 0; i < HEADS.length; i += 1) {
+      const lv = HEADS[i];
+      const ctx = makeCtx(m, null, data.buildParamsAt(m, lv));
+      const vm = ctx.st.vm;
+      // 开局（tick = 0）就在预拍里：环还在最外圈，拍子还没走完一小节。
+      assert.strictEqual(vm.coachListen, true, '第 ' + lv + ' 关没进引导：开局该是「先听」');
+      assert.ok(/先听/.test(vm.beatText), '第 ' + lv + ' 关的小字行没写「先听」');
+      assert.ok(vm.ringTip && vm.ringTip !== '点按盘面 · 光环落进朱带时点击'
+        && vm.ringTip !== '左右各点各的 · 光环落进朱带时点击',
+        '第 ' + lv + ' 关的引导没说本段的新规矩，只摆了常规提示');
+      ctx.c.destroy();
+    }
+    // 五段的引导必须说的是五件事，不许五段同一句复制粘贴。
+    // 读的是**预拍之后那一句**（讲本段新规矩），预拍期的「只听着」本来就该长得一样。
+    const seen = {};
+    for (let i = 0; i < HEADS.length; i += 1) {
+      const prm = data.buildParamsAt(m, HEADS[i]);
+      const ctx = makeCtx(m, null, prm);
+      ctx.c.start();
+      // 走完预拍一小节、进第一小节但不点任何一手：这一句才不会因为「点中两音」被撤掉。
+      advance(prm.bar * prm.unitMs + 80);
+      const t = ctx.st.vm.ringTip;
+      assert.ok(!/只听着/.test(t), '第 ' + HEADS[i] + ' 关过了预拍还在写「只听着」');
+      assert.ok(!seen[t], '第 ' + HEADS[i] + ' 关的引导和第 ' + seen[t] + ' 关一模一样');
+      seen[t] = HEADS[i];
+      ctx.c.destroy();
+    }
+    // 非段首关一律不引导：段首是门口，摆在每一关就成了常驻提示。
+    for (const lv of [2, 12, 52, 202, 502, 350, 900, 1000]) {
+      const ctx = makeCtx(m, null, data.buildParamsAt(m, lv));
+      assert.strictEqual(!!ctx.st.vm.coachListen, false, '第 ' + lv + ' 关不是段首关，却在放引导');
+      assert.ok(!/先听/.test(ctx.st.vm.beatText), '第 ' + lv + ' 关不是段首关，却写了「先听」');
+      ctx.c.destroy();
+    }
+  } finally { restoreClock(); }
+});
+
+check('节律判定：引导只用预拍那一小节、点中两音就撤；小节头有重音', function () {
+  installClock();
+  try {
+    const m = data.getMethod('absorb');
+    const p = data.buildParamsAt(m, 1);
+    const ctx = makeCtx(m, null, p);
+    const bar = p.bar;
+    const unitMs = p.unitMs;
+    ctx.c.start();
+    // 预拍那一小节里点盘面不算：玩家跟着「先听」好奇碰一下，不该先吃一个「太早 · 空拍」，
+    // 更不该把连拍打断——引导就摆在那一小节上，这一步必须无代价。
+    ctx.c.tap(0);
+    assert.ok(/^计 0 分$/.test(ctx.st.vm.scoreText), '预拍里点了一下就被记成一个空拍');
+    assert.strictEqual(ctx.st.vm.rings[0].index, 0, '预拍里点了一下就把音符推走了');
+    // 预拍正好是一整小节：还没到就还在「听」，到了就该撤。
+    const leadFrames = Math.round(bar * unitMs / 40);
+    let accent = {};
+    for (let i = 0; i < 900; i += 1) {
+      advance(40);
+      const vm = ctx.st.vm;
+      if (vm.beatKey !== undefined && accent[vm.beatKey] === undefined) {
+        accent[vm.beatKey] = vm.beatAccent;
+      }
+      const r = vm.rings && vm.rings[0];
+      if (!r) continue;
+      // 走进判定带就点：这样引导会在点中第二个音符之后撤掉，不用等到整局跑完。
+      if (Math.abs(r.scale - r.judge) <= r.window * 0.5) {
+        const before = vm.scoreText;
+        ctx.c.tap(0);
+        if (vm.scoreText !== before) { /* 点中了 */ }
+      }
+      if (i === leadFrames - 2) {
+        assert.strictEqual(ctx.st.vm.coachListen, true,
+          '预拍还没走完，「听」就撤了：玩家少听了一截拍子');
+      }
+      if (i === leadFrames + 4) {
+        assert.strictEqual(ctx.st.vm.coachListen, false, '预拍过完了，「听」还挂在盘面正中');
+      }
+    }
+    // 点中两个音符之后，引导让位给常规提示（引导不是常驻提示）。
+    assert.ok(!/只听着/.test(ctx.st.vm.ringTip), '点中两个音符之后引导还没撤');
+    assert.ok(/光环落进朱带时点击/.test(ctx.st.vm.ringTip), '引导撤了，常规提示也没回来');
+    // 小节头重音：第 0、bar、2bar 格是重音，中间那几格不是。
+    // 没有强弱，一串哒声里数不出小节线，第三段起提示轨只剩小节头就等于什么都没剩。
+    assert.strictEqual(accent[0], true, '第一格不是重音');
+    assert.strictEqual(accent[bar], true, '第一个小节线没有重音');
+    assert.strictEqual(accent[1], false, '小节中间那一格不该是重音');
+    ctx.c.destroy();
+  } finally { restoreClock(); }
+});
+
 check('节律判定：B 线不与 A 线挤成一道缝', function () {
   const mod = index.MODULES.tempo;
   for (const total of [12, 16, 18, 20]) {

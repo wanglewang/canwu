@@ -1496,22 +1496,50 @@ check('节律判定：写下拍速、响出拍子、环在正中', function () {
   const tempo = read('minigames/tempo.js');
   const pg = read('pages/practice/practice.js');
   const sx = read('utils/sfx.js');
+  const gen = read('scripts/gen-sfx.js');
   const wxml = read('pages/practice/practice.wxml');
   const wxss = read('pages/practice/practice.wxss');
   // 2026-11 真机反馈：局内只有「第 3 / 3 小节」，没写这一局多快，也没有任何声音。
-  // 拍速必须写出来——音效可以关，字关不掉。
-  // 单位写「每格」不写「一拍」：一格恒是八分音符，一拍随拍号变（6/8 是附点四分 = 三格），
-  // 写成「一拍 0.96 秒」搬进 6/8 段就是错的。
-  assert.ok(/speedText/.test(tempo) && /每格/.test(tempo),
-    '局内没写拍速，玩家只能靠耳朵猜这一局多快');
-  assert.ok(!/'一拍 '\s*\+/.test(tempo),
-    'HUD 又按「一拍」写秒数了：一拍在 6/8 段是三格，这个数会错');
+  // 后来玩家又追一句：「你为啥要写每拍多少秒呢」——秒数确实是给节拍器对表用的，
+  // 这一门靠耳朵走，人玩游戏不读表。改成写**一小节响几下**：数得出来，对得上提示轨。
+  assert.ok(/vm\.beatText\s*=\s*'一小节 '\s*\+\s*s\.bar/.test(tempo),
+    '局内没写一小节几下：玩家数不出这一局一格多长');
+  assert.ok(!/speedText/.test(tempo), '拍速那套秒数文案又回来了：玩家不会拿它做判断');
+  assert.ok(!/每格\s*\d*\s*秒|每格 '?\s*\+/.test(tempo), 'HUD 又写「每格几秒」了');
   assert.ok(/vm\.beatKey/.test(tempo), '没暴露拍号，页面无从知道什么时候该响');
-  assert.ok(/sfx\.play\('beat'\)/.test(pg), '节律局没有节拍音');
-  assert.ok(/beat:\s*\{[^}]*tick\.wav/.test(sx), '音效表里没有节拍音');
+  // 小节头要有重音：一串同样轻重的哒声里，玩家数不出小节线在哪，
+  // 第三段起提示轨只剩小节头，那就没有东西可以锚定第几小节了。
+  assert.ok(/vm\.beatAccent\s*=/.test(tempo), '没标小节头，节拍音没有轻重');
+  assert.ok(/sfx\.play\(vm\.beatAccent \? 'beataccent' : 'beat'\)/.test(pg),
+    '节拍音没按重音分强弱');
+  assert.ok(/beat:\s*\{[^}]*beat\.wav/.test(sx), '音效表里没有节拍音');
+  assert.ok(/beataccent:\s*\{[^}]*beataccent\.wav/.test(sx), '音效表里没有小节头的重音');
+  // 重音靠低八度，不靠音量：播放音量已经顶在「不刺耳」的上限 0.4，再加就是拿响度硬砸。
+  assert.ok(/beataccent: function[\s\S]{0,220}freq:\s*196/.test(gen),
+    '小节头没有做成低八度：它会和普通格一样高，一串哒声里分不出小节线');
+  // 节拍音必须预热。新建 InnerAudioContext 后立刻 play，真机上首声经常直接丢掉——
+  // 而节律这一门是「第一拍就要响」，首拍哑掉等于整门进不去节奏。
+  assert.ok(/const WARM\s*=\s*\[[^\]]*'beat'/.test(sx), '节拍音没进预热表，开局第一拍会哑');
+  assert.ok(/const WARM\s*=\s*\[[^\]]*'beataccent'/.test(sx), '重音没进预热表');
+  // 音量按「比 tick 更轻」给过：0.15 × 轻档 0.75 × 峰值 0.52 ≈ 0.058，真机上等于没响。
+  const beatVol = Number((/beat:\s*\{[^}]*volume:\s*([\d.]+)/.exec(sx) || [])[1]);
+  assert.ok(beatVol >= 0.3, '节拍音音量只有 ' + beatVol + '，真机上听不见（tick.wav 峰值才 0.52）');
   // 节拍音不许进 VOICE 声道：进了就会掐掉紧随其后的判定音——
   // 玩家踩在拍点上点击时，那一下反而没有声音。
   assert.ok(!/VOICE\s*=\s*\[[^\]]*'beat'/.test(sx), '节拍音进了判定声道，会掐掉判定音');
+  // 段首关（1 / 11 / 51 / 201 / 501）是引导关：预拍那一小节盘面正中放一个「听」。
+  // 这一门没法用文字教，只能让人先听一小节——那一段不用做任何事的时间就是教程。
+  assert.ok(/class="ring-listen"[^>]*>听</.test(wxml), '模板里没有预拍那个「听」字');
+  assert.ok(/vm\.coachListen/.test(tempo) && /vm\.coachListen/.test(wxml),
+    '没把「现在只用听」这个状态下发/渲染出来');
+  assert.ok(/\.ring-listen\s*\{[\s\S]{0,420}pointer-events:\s*none/.test(wxss),
+    '「听」压在环心却没放行点击，玩家点正中会漏掉第一手');
+  assert.ok(/coachLv\s*===\s*L\.STAGES\[stageNo\]\.from/.test(tempo),
+    '段首关判定没了：引导会铺到每一关上，变成常驻提示');
+  // 预拍那一小节里点盘面不许判成「太早 · 空拍」：引导就摆在那一小节上，
+  // 玩家跟着「先听」好奇碰一下先吃一个零分，这一课就白上了。
+  assert.ok(/nowMs\s*<\s*s\.leadMs[\s\S]{0,160}C\.flash/.test(tempo),
+    '预拍里点一下会被记成空拍，引导那一小节不是无代价的');
   // 环要绝对居中：混在版流里会被下面的提示轨顶偏半个身位，判定点跟着歪。
   assert.ok(/position:\s*absolute/.test(wxss) && /\.ring-cells\s*\{[\s\S]{0,220}top:\s*50%/.test(wxss),
     '环没脱离版流：提示轨会把它顶偏');
@@ -1519,10 +1547,9 @@ check('节律判定：写下拍速、响出拍子、环在正中', function () {
   assert.ok(!/\.ring-area\s*\{[\s\S]{0,200}flex-wrap/.test(wxss),
     'ring-area 又变回 flex 换行排版：环会被顶偏');
   // 2026-11 真机第二轮：「这个还是不对」——字挤成两行、两环一大一小。
-  // ① 拍速不许跟在小节号后面一起写：右侧「评级 / 收功」一挤，行尾就剩一个孤字「秒」。
-  assert.ok(!/小节'\s*\+\s*speedText/.test(tempo), '拍速又挂回小节号那一行了，行尾会掉孤字');
+  // ① 小字不许跟在小节号后面一起写：右侧「评级 / 收功」一挤，行尾就剩一个孤字「秒」。
   assert.ok(/vm\.timeText\s*=[^\n]*小节'/.test(tempo), '小节号没有单独成句');
-  assert.ok(/class="hud__speed"/.test(wxml), '模板里没有拍速那一行');
+  assert.ok(/class="hud__speed"/.test(wxml), '模板里没有小字那一行');
   assert.ok(/\.hud__time\s*\{[\s\S]{0,400}white-space:\s*nowrap/.test(wxss),
     '小节号没锁单行：右侧读数一变宽它就会折行');
   // ② 环的尺寸只许玩法下发。wxss 自己写一个 200rpx，判定带按别的基准算，珠子扫过朱带的时刻就偏了。

@@ -666,6 +666,25 @@
     font-size: 24rpx;
 }
 
+/* 段首关预拍的「听」：环停在最外圈不动，拍子已经在响，这一小节不用做任何事。
+   放一个字在盘面正中，比写「请先听一小节」六个字更直接——它在，就是「现在别点」。
+   半透明暖白不抢盘面；pointer-events: none 是必须的，它压在环心，
+   否则玩家照着平时的习惯点正中，会点到这个字上而漏掉第一手。 */
+.ring-listen {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    text-align: center;
+    /* 衬线 + 大字距：这是「听」这个动作本身，不是一个标签，别做成角标。 */
+    font-family: "Songti SC", "STSong", serif;
+    font-size: 88rpx;
+    letter-spacing: 10rpx;
+    color: rgba(255, 243, 214, 0.46);
+    pointer-events: none;
+}
+
 /* ---------- 通用格子 ----------
    盘面是一方「玉局」：深墨玉台（--well，按功法所属那一族取色）托一片暖白玉牌。
    台与牌的明度差六七倍，牌才立得起来——之前是纸白底上摆纸白牌，只靠一圈白描边分格，

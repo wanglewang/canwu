@@ -232,8 +232,9 @@
                只写「普通」会让人以为自己还在一个叫「普通」的池子里。 -->
           <text class="eyebrow hud__skill">{{title}}<text wx:if="{{stageName}}"> · {{stageName}} · 第 {{level}} 关</text></text>
           <text class="hud__time">{{vm.timeText || '正在参悟'}}</text>
-          <!-- 拍速另起一行小字：跟在小节号后面会被右侧「评级 / 收功」挤断，孤字「秒」掉到第二行。 -->
-          <text wx:if="{{vm.speedText}}" class="hud__speed">{{vm.speedText}}</text>
+          <!-- 小字行不写秒数：这一门靠耳朵走，秒数是给节拍器对表用的。
+               写「一小节几下」——数得出来，也对得上下面的提示轨。 -->
+          <text wx:if="{{vm.beatText}}" class="hud__speed">{{vm.beatText}}</text>
         </view>
         <view class="hud__right">
           <text wx:if="{{vm.comboText}}" class="combo-chip">{{vm.comboText}}</text>
@@ -328,6 +329,9 @@
             <view class="ring-judge ring-judge--{{item.tone}}" style="width:{{item.bandBox}}rpx;height:{{item.bandBox}}rpx;border-width:{{item.bandWidth}}rpx"></view>
           </view>
         </view>
+        <!-- 段首关的预拍：环停在最外圈不动，拍子已经在响。盘面正中放一个字，
+             比任何说明都直接——这个字在，就是「现在只用听，不用点」。 -->
+        <text wx:if="{{vm.coachListen}}" class="ring-listen">听</text>
         <!-- 提示轨：一小节的格位。四档提示是同一件事逐层往少走（全标 / 下一音 / 小节首 / 无），
              不是四个不同控件，所以这里只有一层，靠 cue.level 决定哪些格亮。 -->
         <view wx:if="{{vm.cue.show}}" class="cue-track cue-track--{{vm.cue.level}}">

@@ -714,9 +714,11 @@ Page({
 
         // 节律判定：拍子到了就响一声。它不改变玩法（光环照走），只把「数拍」
         // 这件本来就靠耳朵的事交还给耳朵——音效关掉时这一门仍然能靠眼睛打。
+        // 小节头那一格给重音：没有强弱，一串哒声里数不出小节线在哪，
+        // 第三段起提示轨只剩小节头，玩家就没有任何东西可以锚定第几小节了。
         if (vm.beatKey !== undefined && vm.beatKey !== self.lastBeatKey) {
           self.lastBeatKey = vm.beatKey;
-          sfx.play('beat');
+          sfx.play(vm.beatAccent ? 'beataccent' : 'beat');
         }
 
         // 迸溅要在 setData 之前算：它读的是上一帧的纹样快照。

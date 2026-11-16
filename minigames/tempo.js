@@ -21,6 +21,8 @@
 const C = require('./common.js');
 // tick / 下限 / 本门机制倍数与参数生成端共用一份（data/practice.js 的 TEMPO_FLOOR）。
 const F = require('../data/practice.js').TEMPO_FLOOR;
+// 段的首关就是这一段的门口（1 / 11 / 51 / 201 / 501），只有这里算不准段界。
+const L = require('../data/levels.js');
 
 const START_SCALE = 1.75;
 const JUDGE_SCALE = 1.0;
@@ -47,6 +49,29 @@ const GOOD_EARLY = 2.2;
 const GOOD_LATE = 1.4;
 // 广义的宽容不超过该音符间隔的四成半，否则「太早」会撞上前一个音符。
 const GOOD_CAP_FRAC = 0.45;
+
+// ---------------------------------------------------------------- 段首关 = 引导关
+// 每一段的第一关（1 / 11 / 51 / 201 / 501）是这一段的门口：玩家在这里第一次
+// 撞见本段的新规矩。这一门本来就靠耳朵，所以引导不用弹窗、不用读三页，
+// 就藏在开局那一小节预拍里——**先听，再点**。
+//
+// 引导分两段，都用已有的层，不新造控件：
+//   ① 预拍那一小节：环停在最外圈不走，拍子已经在响。HUD 小字写「先听」，
+//      盘面底下写「一响一格」——全场唯一一段不用做任何事的时间，只管把拍子听进去。
+//   ② 第一音起：写本段新增的那一条规矩（不是复习上一段），点中两个音符后撤掉。
+//
+// 段首关的参数本来就是本段最松的一档，所以引导**不碰难度**：走的是真实关卡、
+// 真实评级，不是一段不计分的过场——第 1 关就是第 1 关。
+// 段首关每次进都引导（不是「看过一次就没了」）：它是这一关的属性，不是新手一次性教程。
+const COACH_DROP_AFTER = 2;   // 点中两个音符之后撤口令，引导不许长成常驻提示
+
+const COACH = [
+  { listen: '只听着 · 一响一格', rule: '环收到朱带就点 · 点中了它还会往底收，别松手等下一响' },
+  { listen: '只听着 · 一响一格', rule: '环走到自己那一格才点 · 早一点点都不算，宁晚勿早' },
+  { listen: '只听着 · 数一小节几下', rule: '提示只剩小节头那一下 · 中间几格靠耳朵数，重音就是小节线' },
+  { listen: '只听着 · 左右各一条', rule: '左手一条右手一条 · 各点各的，不用对齐，谁到点谁点' },
+  { listen: '只听着 · 一小节六格', rule: '提示全撤掉了 · 只听格点，落进朱带那一下才点' },
+];
 
 function fmt(n) {
   return String(Math.round(n * 10) / 10);
@@ -221,28 +246,32 @@ function create(ctx) {
     hands: cueCells(s.cue),
   };
   vm.extras.showCue = s.cue !== 'none';
-  vm.ringTip = s.tracks.length > 1
+  const baseRingTip = s.tracks.length > 1
     ? '左右各点各的 · 光环落进朱带时点击'
     : '点按盘面 · 光环落进朱带时点击';
+  vm.ringTip = baseRingTip;
+
+  // 段首关（1 / 11 / 51 / 201 / 501）走引导：预拍期写「先听」，第一音起写本段新规矩。
+  // 其余关一律不出现——引导是门口的东西，摆在每一关就变成常驻提示了。
+  //
+  // 注意 params.stage 不是段号，是**段内进度索引**（第 11 关 = 0、第 657 关 = 156）。
+  // 段号只能由关号反查：拿 stage 当段号用，五段的引导会全落到第一段上。
+  const coachLv = Math.round(Number(p.level) || 0);
+  const stageNo = L.stageOfLevel(coachLv);
+  const stageHead = coachLv > 0 && coachLv === L.STAGES[stageNo].from;
+  const coach = stageHead ? COACH[stageNo] : null;
 
   function barNoAt(ms) {
     return Math.max(1, Math.min(s.bars, Math.ceil(Math.max(1, ms) / s.barMs)));
   }
 
-  // 拍速单独成行。跟在小节号后面一起写时，「第 3 / 4 小节 · 一拍 0.48 秒」会被右侧
-  // 「评级 C + 收功」挤断，孤零零一个「秒」掉到第二行——一行大字末尾挂一个孤字，
-  // 比不写还糟。小节号是大字（局内最该一眼看见的进度），拍速是小字（开打前记住一次就够）。
-  //
-  // 写「**每格**几秒」，不写「一拍几秒」：一格恒等于八分音符，五个档位都成立；
-  // 「一拍」却随拍号变——4/4、2/4 一拍是四分音符（两格），6/8 一拍是附点四分（三格）。
-  // 同一个「一拍 0.96 秒」写在 6/8 段就是错的（那一段一拍是 1.5 秒）。
-  // 拍号也一并写出来：它就是「一小节几个格」的另一种说法（4/4 → 8 格、2/4 → 4 格、6/8 → 6 格），
-  // 提示轨撤掉之后，玩家靠它数小节。
-  const cellSec = Math.round(s.unitMs / 10) / 100;
-  const meterText = String(p.meter || '');
-  vm.speedText = (meterText ? meterText + ' · ' : '') + '每格 ' + cellSec + ' 秒';
+  // HUD 小字行**不写秒数**。
+  // 「4/4 · 每格 0.48 秒」是我自己写上去的，玩家一次也没有拿它做过判断：
+  // 这一门靠耳朵走，秒数是给节拍器对表用的，人玩游戏不会读表。
+  // 写一个能被「数」的量：一小节响几下。数得出来，才对得上下面的提示轨。
+  vm.beatText = '一小节 ' + s.bar + ' 下';
   vm.timeText = '第 1 / ' + s.bars + ' 小节';
-  vm.scoreText = '计 0 分';
+  vm.coachListen = false;  vm.scoreText = '计 0 分';
   vm.goal = C.goalFor('C', band.sMin, '分');
   vm.hint = vm.costText;
 
@@ -286,9 +315,12 @@ function create(ctx) {
     vm.timeText = '第 ' + barNoAt(ms) + ' / ' + s.bars + ' 小节';
     vm.scoreText = '计 ' + fmt(points()) + ' 分';
     // 第几格：页面拿它跟上一帧比，变了就播一声——节律这一门没有声音等于让人空手数拍。
-    // 响在**格**上而不是拍上：音符就落在格线上，一拍两下的细分比一拍一下更能帮玩家对位，
-    // HUD 写的是「一拍几秒」（两格），数的是一拍两响，不冲突。
-    vm.beatKey = Math.floor(ms / s.unitMs);
+    // 响在**格**上而不是拍上：音符就落在格线上，细分的格点比粗拍更能帮玩家对位。
+    const beatKey = Math.floor(ms / s.unitMs);
+    vm.beatKey = beatKey;
+    // 小节线那一格给重音。没有强弱，一串哒声里数不出「一小节从哪开始」，
+    // 提示轨撤掉之后（第三段起）玩家就没有任何东西可以锚定第几小节。
+    vm.beatAccent = ((beatKey % s.bar) + s.bar) % s.bar === 0;
     vm.progress = C.pct(Math.min(ms, s.endMs), s.endMs);
     vm.progressText = Math.round(Math.min(ms, s.endMs) / 1000) + ' / ' + Math.round(s.endMs / 1000) + ' 秒';
     vm.combo = combo;
@@ -296,6 +328,23 @@ function create(ctx) {
     vm.gradeNow = gradeNow();
     vm.goal = C.goalFor(vm.gradeNow, Math.max(0, Math.round((band.sMin - points()) * 10) / 10), '分');
     vm.cue.cursor = Math.floor(ms / s.unitMs) % s.bar;
+    updateCoach(ms);
+  }
+
+  // 段首关的引导：预拍期只写「听」，第一音起写本段新规矩，点中两音后交还给常规提示。
+  // 不新造控件——用的是本来就在的两处文字：HUD 小字行（多快）与盘面底下那句（怎么点）。
+  function updateCoach(ms) {
+    if (!coach) return;
+    if (ms < s.leadMs) {
+      // 预拍这一小节：环停在最外圈不走，拍子已经在响。全场唯一一段不用做任何事的时间。
+      vm.beatText = '先听 · 一小节 ' + s.bar + ' 下';
+      vm.ringTip = coach.listen;
+      vm.coachListen = true;
+      return;
+    }
+    vm.coachListen = false;
+    vm.beatText = '一小节 ' + s.bar + ' 下';
+    vm.ringTip = (perfect + good) < COACH_DROP_AFTER ? coach.rule : baseRingTip;
   }
 
   function finishOnce(grade, text) {
@@ -394,6 +443,14 @@ function create(ctx) {
     const t = s.tracks[h];
     const nt = noteOf(h);
     if (!nt || ptr[h].answered) return;
+    // 预拍那一小节里环还没开始走，点下去不算。不拦的话它会按「距离第一音还差一整拍」
+    // 判成太早 · 空拍——玩家跟着引导「先听」时好奇碰一下，先吃一个零分，连拍也没了。
+    // 段首关的引导就摆在这一小节上，这一步必须无代价。
+    const nowMs = tick * TICK_MS;
+    if (nowMs < s.leadMs) {
+      C.flash(vm, '还没到 · 先听一拍', 'good');
+      return;
+    }
     ptr[h].answered = true;
     const ms = tick * TICK_MS;
     // 正数是早了、负数是晚了：盘面上就是环在带外还是在带里。
