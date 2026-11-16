@@ -171,7 +171,7 @@ Node 测试里跑玩法不需要真机音效。
 | `onHide` | `sfx.stopAll()` 收声 + 清定时器 |
 | `onUnload` | 取消 `store.subscribe` + 清定时器 |
 | 定时器 | **先清再挂**（两次 `onShow` 之间没走 `onHide` 时会长出第二个） |
-| 局中切页 | 参悟页 `controller.destroy()`，本局作废 |
+| 局中切页 | 参悟页 `controller.destroy()`，本局作废、连 S 归零、记钟（`closeAbandonedRound`） |
 
 ## 7. 长按与多段手势
 

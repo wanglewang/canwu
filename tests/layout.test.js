@@ -1406,11 +1406,19 @@ check('已持玉简按最近练过的在前，藏经阁仍是兑换顺序', func
   assert.ok(/function touchSkill/.test(engine) && /touchSkill: touchSkill/.test(engine),
     '引擎没有 touchSkill：收功 / 返回这两条路没法记钟');
   const pg = read('pages/practice/practice.js');
-  assert.ok(/engine\.touchSkill\(s, self\.skillId\)/.test(pg),
-    '中途收功没记钟：收功一局回去，列表顺序不变（玩家会判定为「没生效」）');
-  assert.ok(/onHide:[\s\S]{0,600}this\.markTouched\(\)/.test(pg) &&
-    /onUnload:[\s\S]{0,400}this\.markTouched\(\)/.test(pg),
-    '局中离开没记钟：onHide 管切页/切后台，onUnload 管导航返回（返回只走后者）');
+  // 记钟只有一处实现（markTouched），收功 / 返回 / 切页都调它。
+  assert.ok(/markTouched: function[\s\S]{0,400}engine\.touchSkill\(s, skillId\)/.test(pg),
+    '记钟没走到 engine.touchSkill：收功一局回去列表顺序不变（玩家判定为「没生效」）');
+  assert.ok(/onAbandon:[\s\S]{0,1600}self\.closeAbandonedRound\(\)/.test(pg),
+    '中途收功没走统一结账：它会不会断连 S 取决于另一条路，早晚分叉');
+  assert.ok(/onHide:[\s\S]{0,600}this\.closeAbandonedRound\(\)/.test(pg) &&
+    /onUnload:[\s\S]{0,400}this\.closeAbandonedRound\(\)/.test(pg),
+    '局中离开没结账：onHide 管切页/切后台，onUnload 管导航返回（返回只走后者）');
+  // 结账只写一处：断连 S + 记钟都要在 closeAbandonedRound 里，
+  // 不许某条离开路径只记钟不断连击（那等于留了一条不花钱的保连击路子）。
+  assert.ok(/closeAbandonedRound[\s\S]{0,500}this\.markTouched\(\)/.test(pg) &&
+    /closeAbandonedRound[\s\S]{0,500}engine\.breakCombo/.test(pg),
+    '局中离开没同时做「记钟」与「断连 S」');
   // 主页「今日之课」仍只由 recommendScore 出，不许被列表顺序带过去。
   assert.ok(/function recommendScore/.test(engine) && /recommendScore: recommendScore/.test(engine),
     '推荐口径没有单一真源');
@@ -1418,6 +1426,28 @@ check('已持玉简按最近练过的在前，藏经阁仍是兑换顺序', func
   assert.ok(/pending\.sort\(/.test(js), '藏经阁分区没有自己的排序');
   assert.ok(!/pending\.sort\([\s\S]{0,240}recommendScore/.test(js),
     '藏经阁分区改用推荐排序了：换得起的会被换不起的顶到下面');
+});
+
+check('左上角返回与「收功」是同一件事：都先问一句', function () {
+  const pg = read('pages/practice/practice.js');
+  // 2026-11 真机反馈：右上角「收功」会弹确认，左上角返回静默丢盘，同一个页面两种脾气。
+  // 小程序没有 onBackPress，拦原生返回只有官方这一个口子：
+  // wx.enableAlertBeforeUnload —— 导航栏返回 / 安卓 back 键会先弹询问。
+  assert.ok(/wx\.enableAlertBeforeUnload\(/.test(pg),
+    '没挂返回询问：左上角返回仍然一句不问就把这一局丢掉');
+  assert.ok(/armLeaveGuard:[\s\S]{0,320}inRound\(\)/.test(pg),
+    '返回询问没按「在局中」判据挂：准备页、结算卡上也会弹');
+  // 撤守卫的点要够：出结算 / 留在终局那一屏 / 再来一局 / 返回 / 倒数中反悔 / 离开页面。
+  // 少一处就会在「这一局早打完了」的时候被问「本局作废」。
+  const disarms = (pg.match(/this\.disarmLeaveGuard\(\)/g) || []).length;
+  assert.ok(disarms >= 6, '撤返回询问的地方只有 ' + disarms + ' 处，打完一局还会挨弹窗');
+  // 两处文案同源：收功弹窗与返回询问要说同一句话，各写一份早晚改漏一处。
+  assert.ok(/content: this\.abandonText\(true\)/.test(pg) &&
+    /enableAlertBeforeUnload\(\{ message: this\.abandonText\(false\)/.test(pg),
+    '收功弹窗与返回询问各写了一套文案');
+  // 冲关局起手不扣灵力（布阵灵石结算才扣），不许沿用那句「起手耗去的灵力不退」。
+  assert.ok(/abandonText:[\s\S]{0,300}breakthrough[\s\S]{0,200}本局作废，冲关未成/.test(pg),
+    '冲关局套用了练习局的收功文案：它不扣灵力，却告诉玩家「灵力不退」');
 });
 
 check('功法卡片紧凑单行：名字不竖排、按钮不抢宽度、阶段色走令牌', function () {

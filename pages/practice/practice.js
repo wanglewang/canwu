@@ -264,16 +264,82 @@ Page({
     this.clearCountdown();
     this.clearSettleTimers();
     this.stopTeach();
+    // 切页 / 切后台同样算「局中离开」：先结账再拆 controller，顺序反了就读不到盘面进度。
+    this.closeAbandonedRound();
     if (this.controller) this.controller.destroy();
+    this.disarmLeaveGuard();
     sfx.stopAll();
     if (!this.data.showResult) {
-      this.markTouched();
       this.needsRebuild = true;
       this.setData({ started: false });
     } else if (this.data.sceneOn) {
       // 切出去再回来不该卡在演出中段，直接把按钮放出来。
       this.setData({ settlePhase: 4 });
     }
+  },
+
+  // 「这一局还在打吗」：在局内、没出结算，也不是「留在终局那一屏」。
+  // 收功、左上角返回、切页三种离开方式都按这一个判据，免得三处各写一套。
+  inRound: function () {
+    if (!this.controller || !this.data.started) return false;
+    if (this.data.showResult || this.data.boardHeld) return false;
+    if (this.data.tutorial) return false;
+    return true;
+  },
+
+  // 收功要说的话：冲关局起手不扣灵力（布阵灵石要到结算才扣），
+  // 所以那句「起手耗去的灵力不退」在冲关里是假话，得分开写。
+  abandonText: function (ask) {
+    const tail = ask ? '确定收功？' : '';
+    if (this.mode === 'breakthrough') return '本局作废，冲关未成不计所得。' + tail;
+    return '本局作废，不计所得；连 S 归零，起手耗去的灵力不退。' + tail;
+  },
+
+  // 左上角返回与「收功」必须是同一件事：区别只在按钮在哪儿（右上角那个带字，
+  // 左上角那个只有箭头），结果却一个是弹窗确认、一个是静默丢盘，玩家学不会。
+  // 小程序的 pages 没有 onBackPress 可以拦原生返回，官方唯一的入口是
+  // wx.enableAlertBeforeUnload——它会在导航栏返回 / 安卓 back 键上先弹一次询问。
+  // **它拦不住的两条写在这里，别指望它管全部**：iOS 侧滑手势官方明确不拦；
+  // 退出小程序也不拦。那两条只能靠 onHide / onUnload 事后补账。
+  armLeaveGuard: function () {
+    if (typeof wx.enableAlertBeforeUnload !== 'function') return;
+    if (!this.inRound()) return;
+    wx.enableAlertBeforeUnload({ message: this.abandonText(false), fail: function () {} });
+  },
+
+  // 出结算、留在终局那一屏、自己调 navigateBack 之前都要撤掉，
+  // 否则玩家在结算卡上点返回会被问一句「本局作废」——那一局早打完了。
+  disarmLeaveGuard: function () {
+    if (typeof wx.disableAlertBeforeUnload !== 'function') return;
+    wx.disableAlertBeforeUnload({ fail: function () {} });
+  },
+
+  // 一局没打完就离开（返回 / 收功 / 切页）＝这一局作废：
+  // **数值一笔不给**（熟练度、连 S 层数不动），但有两件账必须落地——
+  // ① 连 S 断掉。收功弹窗里写着「连 S 归零」，若只在点收功时兑现，
+  //    那「预感这把拿不到 S 就按返回」就成了一条不花钱的保连击路子。
+  // ② 记钟（markTouched）。玩家确实练了这一段，不给数值也该在列表里往前排。
+  // 已经结算过的局不走这里（showResult / boardHeld 时 inRound 为假）。
+  closeAbandonedRound: function () {
+    if (!this.inRound() || this.roundClosed) return;
+    this.roundClosed = true;
+    const skillId = this.skillId;
+    if (!skillId || this.mode === 'breakthrough') return;
+    // 记钟复用 markTouched（它自带「盘面真推进过没有」的判断），
+    // 断连 S 另起一笔：两件事都在同一处结账，别让某条离开路径漏掉其中一件。
+    this.markTouched();
+    store.commitCritical(function (s) { engine.breakCombo(s, skillId); });
+  },
+
+  // 盘面真的推进过没有。**判据不是「点过开始」**——进来瞄一眼规则就退的不该
+  // 把这一门顶到列表最前，那是噪声，不是「最近练过」。progress 全部由 0 起涨
+  // （计时型按已用时间、步数型按步数、收格型按格数），开局未动时为 0。
+  hasProgress: function () {
+    const vm = this.data.vm;
+    if (!vm) return false;
+    const score = Number(String(vm.scoreText || '').replace(/\D/g, '')) || 0;
+    const prog = typeof vm.progress === 'number' ? vm.progress : 0;
+    return score > 0 || prog > 0;
   },
 
   // 局中离开（返回 / 切后台）＝这一盘直接丢掉，不进结算、不写熟练度。
@@ -287,11 +353,7 @@ Page({
     if (!this.skillId || !this.data.started) return;
     // 已经出结算的局，钟早就在 applyPractice / 收功那一路写过了。
     if (this.data.showResult) return;
-    const vm = this.data.vm;
-    if (!vm) return;
-    const score = Number(String(vm.scoreText || '').replace(/\D/g, '')) || 0;
-    const prog = typeof vm.progress === 'number' ? vm.progress : 0;
-    if (score <= 0 && prog <= 0) return;
+    if (!this.hasProgress()) return;
     const skillId = this.skillId;
     store.commitCritical(function (s) { engine.touchSkill(s, skillId); });
   },
@@ -300,9 +362,10 @@ Page({
     this.pageAlive = false;
     this.clearCountdown();
     this.clearSettleTimers();
-    // 导航返回走的是 onUnload 而不是 onHide：不在这里也补一笔，
-    // 「打一段 → 返回 → 再打一段 → 返回」这种最自然的用法就永远记不上钟。
-    this.markTouched();
+    // 导航返回走的是 onUnload 而不是 onHide（微信里点左上角返回只触发这一个），
+    // 所以结账与撤守卫都要在这里再来一次；已经算过的局靠 roundClosed 挡住。
+    this.closeAbandonedRound();
+    this.disarmLeaveGuard();
     if (this.sparkTimer) { clearTimeout(this.sparkTimer); this.sparkTimer = null; }
     this.stopTeach();
     if (this.controller) this.controller.destroy();
@@ -722,6 +785,7 @@ Page({
     const stage = visual.stageOf(this.theme.key);
     this.lastFxKey = 0;
     this.lastCombo = 0;
+    this.roundClosed = false;
     this.setData({
       started: false,
       showResult: false,
@@ -989,6 +1053,8 @@ Page({
 
   onStart: function () {
     if (!this.controller || this.data.started || this.data.countdown > 0) return;
+    // 新一局开始：上一局的「已结账」标记要清掉，否则这一局的收功 / 返回不会被断连 S。
+    this.roundClosed = false;
     // 付不起就先拦：教学盘不结算也不扣气，可以照走；真局与冲关必须付得起。
     // 拦在起手，而不是打完再告诉玩家「其实你没气」——那时候盘的功夫已经白费了。
     if (!this.canTeach() && !this.data.canStart) { this.askCost(); return; }
@@ -1003,6 +1069,8 @@ Page({
         const n = self.data.countdown - 1;
         if (n <= 0) {
           self.setData({ countdown: 0, started: true });
+          // 盘面一活就挂上返回询问：从这一刻起按左上角返回与点收功都是「作废」。
+          self.armLeaveGuard();
           sfx.play('go');
           if (self.controller) self.controller.start();
           self.syncBar();
@@ -1025,6 +1093,7 @@ Page({
     if (this.controller) this.controller.start();
     sfx.play('go');
     this.setData({ started: true });
+    this.armLeaveGuard();
     this.syncBar();
     const self = this;
     setTimeout(function () { if (self.pageAlive) self.measureBoard(); }, 60);
@@ -1035,6 +1104,7 @@ Page({
   onCancelCountdown: function () {
     if (!this.pageAlive || this.data.countdown <= 0) return;
     this.clearCountdown();
+    this.disarmLeaveGuard();
     this.setData({ started: false });
     this.refresh();
     this.syncBar();
@@ -1435,23 +1505,19 @@ Page({
     const self = this;
     wx.showModal({
       title: '中途收功',
-      content: '本局作废，不计所得；连 S 归零，起手耗去的灵力不退。确定收功？',
+      content: this.abandonText(true),
       confirmText: '收功',
       confirmColor: '#b4453c',
       success: function (res) {
         if (res.confirm && self.controller) {
           // 先置位再收功：结算回来才知道这条 F 是玩家自己点的，而不是打崩的。
           self.aborting = true;
-          // 收功不进 applyPractice，但连 S 必须断——否则预感拿不到 S 就退出能把连击永久保住。
-          // 突破局（气机一乱）不是参悟，不动任何一门功法的连击。
-          if (self.mode !== 'breakthrough') {
-            store.commitCritical(function (s) {
-              engine.breakCombo(s, self.skillId);
-              // 顺序要记：「不计所得」管的是数值，不管玩家刚练过谁。
-              // 不写这一笔，收功回去列表纹丝不动（2026-11 真机反馈）。
-              engine.touchSkill(s, self.skillId);
-            });
-          }
+          self.disarmLeaveGuard();
+          // 结账只走这一处：断连 S + 记钟都在 closeAbandonedRound 里，
+          // 和「左上角返回 / 切页离开」完全同一套（三条出口一种账）。
+          // 收功不进 applyPractice，所以连 S 必须在这里显式断——
+          // 否则预感拿不到 S 就退出，能把连击永久保住。
+          self.closeAbandonedRound();
           self.controller.abandon();
         }
       },
@@ -1667,6 +1733,8 @@ Page({
         + (gain ? ' · ' + (gain === '已化境' ? '熟练度已化境' : gain + ' 熟练度') : '');
     }
     this.clearCountdown();
+    // 这一局已经打完：结算卡上的返回不该再被问「本局作废」。
+    this.disarmLeaveGuard();
     this.setData({ showResult: true, result: rv, recordBrief: recordBrief, started: false, boardHeld: false });
     this.syncBar();
     this.refresh();
@@ -1687,6 +1755,7 @@ Page({
   onStay: function () {
     if (!this.pageAlive) return;
     this.clearSettleTimers();
+    this.disarmLeaveGuard();
     if (this.controller) { this.controller.destroy(); this.controller = null; }
     this.setData({ showResult: false, started: true, boardHeld: true, settlePhase: 4 });
     this.refresh();
@@ -1698,6 +1767,8 @@ Page({
   onAgain: function () {
     if (!this.pageAlive) return;
     this.clearSettleTimers();
+    this.disarmLeaveGuard();
+    this.roundClosed = false;
     this.setData({ showResult: false, result: null, recordBrief: '', started: false, boardHeld: false });
     // 先重算再建局：上一局可能刚走通本档第 40 关、开了下一档，连刷也该打新档。
     this.refresh();
@@ -1717,6 +1788,7 @@ Page({
   onSecondary: function () {
     this.clearSettleTimers();
     if (this.mode === 'breakthrough') {
+      this.disarmLeaveGuard();
       wx.switchTab({ url: '/pages/skills/skills' });
       return;
     }
@@ -1745,6 +1817,9 @@ Page({
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },
 
   onBack: function () {
+    // 自己调 navigateBack 不是「用户按返回」，但有些机型会把询问一起带出来；
+    // 撤掉再走，免得结算卡上点「返回功法」又挨一次弹窗。
+    this.disarmLeaveGuard();
     const pages = getCurrentPages();
     if (pages.length > 1) wx.navigateBack();
     else wx.switchTab({ url: '/pages/index/index' });
