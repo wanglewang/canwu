@@ -1400,6 +1400,17 @@ check('已持玉简按最近练过的在前，藏经阁仍是兑换顺序', func
   // 排序会静默退化成「按门名」——看起来正常，其实「最近玩」根本没生效。
   assert.ok(/rec\.lastAt = Date\.now\(\)/.test(engine), '参悟结算没有写 rec.lastAt');
   assert.ok(/lastAt: Math\.floor\(num\(r\.lastAt, 0\)\)/.test(engine), '读档没给 lastAt 兜底');
+  // 「确实打了但不出结算」的两条路也必须记钟，否则玩家收功/返回十次，列表纹丝不动。
+  // 2026-11 真机反馈就是这么来的：applyPractice 里早写着「走火也记」，
+  // 可中途收功与局中返回根本不经过它。两头都守：函数在引擎，两处在页面调。
+  assert.ok(/function touchSkill/.test(engine) && /touchSkill: touchSkill/.test(engine),
+    '引擎没有 touchSkill：收功 / 返回这两条路没法记钟');
+  const pg = read('pages/practice/practice.js');
+  assert.ok(/engine\.touchSkill\(s, self\.skillId\)/.test(pg),
+    '中途收功没记钟：收功一局回去，列表顺序不变（玩家会判定为「没生效」）');
+  assert.ok(/onHide:[\s\S]{0,600}this\.markTouched\(\)/.test(pg) &&
+    /onUnload:[\s\S]{0,400}this\.markTouched\(\)/.test(pg),
+    '局中离开没记钟：onHide 管切页/切后台，onUnload 管导航返回（返回只走后者）');
   // 主页「今日之课」仍只由 recommendScore 出，不许被列表顺序带过去。
   assert.ok(/function recommendScore/.test(engine) && /recommendScore: recommendScore/.test(engine),
     '推荐口径没有单一真源');

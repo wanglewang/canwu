@@ -922,7 +922,7 @@ function applyPractice(state, skillId, grade, options) {
   // 「最近练过的在前」要的是每一门自己的钟，不能只记最后一次：
   // 只记 state.lastPractice 的话，换到第二门再换回来，第一门的时间就丢了。
   // 走火也记——玩家确实练了这一局，顺序上该往前排。
-  rec.lastAt = Date.now();
+  touchSkill(state, skillId);
   if (cross) state.stats.comboCount += 1;
 
   // 三连 S 晋级已取消：火候不再被「补额」跳过，只由上面这一局的实得点数一格格涨。
@@ -1799,6 +1799,20 @@ function realmNameOf(state, realmNo) {
   return realms[Math.min(realms.length - 1, Math.max(0, realmNo - 1))].name;
 }
 
+// 「这一门被碰过了」：只写 lastAt，一个数值都不动。
+//
+// 单独成一个函数，是因为**有一批确实打过的局不走 applyPractice**：
+// 中途收功（本局作废、不计所得）、局中切页或返回（那一盘直接丢掉）。
+// 2026-11 真机反馈就在这里翻车——玩家打完一局点了收功再回去，列表纹丝不动，
+// 因为那条路只断了连 S，没写钟；而 applyPractice 里的注释早写着「走火也记」。
+// **「不计所得」管的是数值，不管顺序**：认真打了一段就该往前排，跟给不给分是两件事。
+function touchSkill(state, skillId) {
+  const rec = state && state.skills ? state.skills[skillId] : null;
+  if (!rec) return false;
+  rec.lastAt = Date.now();
+  return true;
+}
+
 // 功法页「已持玉简」的顺序：最近练过的在前 → 熟练度降序 → 正名。
 //
 // **三级缺一不可，第二级是实战补的。** 第一版只有「时间 → 正名」两级，
@@ -2277,6 +2291,7 @@ module.exports = {
   getOverview: getOverview,
   getSkillList: getSkillList,
   orderLearned: orderLearned,
+  touchSkill: touchSkill,
   getSkillDetail: getSkillDetail,
   unlockInfo: unlockInfo,
   getFamilies: getFamilies,

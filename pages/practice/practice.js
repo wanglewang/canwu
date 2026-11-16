@@ -267,6 +267,7 @@ Page({
     if (this.controller) this.controller.destroy();
     sfx.stopAll();
     if (!this.data.showResult) {
+      this.markTouched();
       this.needsRebuild = true;
       this.setData({ started: false });
     } else if (this.data.sceneOn) {
@@ -275,10 +276,33 @@ Page({
     }
   },
 
+  // 局中离开（返回 / 切后台）＝这一盘直接丢掉，不进结算、不写熟练度。
+  // 但「我碰过这一门」要留下：那一路同样不走 applyPractice，不补这一笔，
+  // 玩家打一段就退、再打一段再退，回去看列表纹丝不动（2026-11 真机反馈）。
+  // **判据不是「点过开始」，而是「盘面真的推进过」**——进来瞄一眼就退的不该
+  // 把这一门顶到列表最前，那是噪声，不是「最近练过」。progress 全部由 0 起涨
+  // （计时型按已用时间、步数型按步数、收格型按格数），开局未动时为 0。
+  markTouched: function () {
+    if (this.mode === 'breakthrough' || this.data.tutorial) return;
+    if (!this.skillId || !this.data.started) return;
+    // 已经出结算的局，钟早就在 applyPractice / 收功那一路写过了。
+    if (this.data.showResult) return;
+    const vm = this.data.vm;
+    if (!vm) return;
+    const score = Number(String(vm.scoreText || '').replace(/\D/g, '')) || 0;
+    const prog = typeof vm.progress === 'number' ? vm.progress : 0;
+    if (score <= 0 && prog <= 0) return;
+    const skillId = this.skillId;
+    store.commitCritical(function (s) { engine.touchSkill(s, skillId); });
+  },
+
   onUnload: function () {
     this.pageAlive = false;
     this.clearCountdown();
     this.clearSettleTimers();
+    // 导航返回走的是 onUnload 而不是 onHide：不在这里也补一笔，
+    // 「打一段 → 返回 → 再打一段 → 返回」这种最自然的用法就永远记不上钟。
+    this.markTouched();
     if (this.sparkTimer) { clearTimeout(this.sparkTimer); this.sparkTimer = null; }
     this.stopTeach();
     if (this.controller) this.controller.destroy();
@@ -1421,7 +1445,12 @@ Page({
           // 收功不进 applyPractice，但连 S 必须断——否则预感拿不到 S 就退出能把连击永久保住。
           // 突破局（气机一乱）不是参悟，不动任何一门功法的连击。
           if (self.mode !== 'breakthrough') {
-            store.commitCritical(function (s) { return engine.breakCombo(s, self.skillId); });
+            store.commitCritical(function (s) {
+              engine.breakCombo(s, self.skillId);
+              // 顺序要记：「不计所得」管的是数值，不管玩家刚练过谁。
+              // 不写这一笔，收功回去列表纹丝不动（2026-11 真机反馈）。
+              engine.touchSkill(s, self.skillId);
+            });
           }
           self.controller.abandon();
         }
