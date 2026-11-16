@@ -1450,6 +1450,26 @@ check('左上角返回与「收功」是同一件事：都先问一句', functio
     '冲关局套用了练习局的收功文案：它不扣灵力，却告诉玩家「灵力不退」');
 });
 
+check('从静室返回落在这一门的详情上，不退回整张列表', function () {
+  const pg = read('pages/practice/practice.js');
+  const js = read('pages/skills/skills.js');
+  // 2026-11 真机反馈：从功法列表点一门进静室，点「返回」直接落回整张列表，
+  // 中间「这门功法的详情」被吃掉了——玩家判定为「多退回了一层」。
+  // tab 页收不了 query，只能用 globalData 递一句；递之前必须先认栈顶上一页是谁，
+  // 否则从主页「今日之课」进的局也会在返回时被塞一句，下次进功法页莫名弹出详情。
+  assert.ok(/pages\/skills\/skills/.test(pg) && /returnSkillId/.test(pg),
+    '返回时没告诉功法页「回哪一门」，落点只能是整张列表');
+  assert.ok(/v?prev[\s\S]{0,80}route === 'pages\/skills\/skills'/.test(pg),
+    '没先确认上一页就是功法页：从主页进的局也会塞回门标记');
+  assert.ok(/this\.mode === 'practice'[\s\S]{0,120}this\.skillId/.test(pg),
+    '冲关局没有功法，不该递「回哪一门」');
+  // 读完即清：留着它，下次正常切到功法 tab 也会莫名弹出上次那门的详情。
+  assert.ok(/returnSkillId[\s\S]{0,120}returnSkillId = ''/.test(js),
+    '功法页读完没清标记，下次进 tab 会重新弹上次的详情');
+  assert.ok(/onShow:[\s\S]{0,600}showDetailFor\(back\)/.test(js),
+    '功法页收到标记却没有停在这一门的详情上');
+});
+
 check('功法卡片紧凑单行：名字不竖排、按钮不抢宽度、阶段色走令牌', function () {
   const js = read('pages/skills/skills.js');
   const wxml = read('pages/skills/skills.wxml');

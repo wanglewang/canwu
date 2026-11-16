@@ -274,6 +274,13 @@ SETTLE.short = [0, 150, 350, 600, 900];     // B / C / F
 
 `buildGame` 与 `onAgain` 都要清 `boardHeld`。
 
+**「返回功法」的落点是这一门的详情，不是整张列表。** 静室是从功法页那一门点进来的（主页「今日之课」除外），
+`navigateBack` 只退一层，落回 tab 页会把中间那层吃掉，玩家读起来是「多退了一层」。
+tab 页收不了 query，所以 `onBack` 在**确认栈顶上一页就是 `pages/skills/skills`** 之后写 `globalData.returnSkillId`，
+功法页 `onShow` 读完即清并 `showDetailFor(id)`。
+先认栈再递话这条不能省：从主页进的局若也塞标记，下次正常切到功法 tab 会莫名弹出上次那门。
+冲关局没有功法，不递。
+
 ### 6.3 结算卡必须能说清「为什么」
 
 `result.notes` 至少两条，由玩法模块的 `notesOf()` 生成：

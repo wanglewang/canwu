@@ -59,13 +59,20 @@ Page({
   // tab 页不能带 query，这是 switchTab 唯一的传参办法；读完即清，免得下次再进还停在那儿。
   onShow: function () {
     const app = getApp();
+    // 从静室返回时，落点必须是「这一门」的详情，不是退回整张列表——
+    // 参悟页是从这门点进去的，直接丢掉这一层等于往回多退了一层。
+    // 和 skillsTab 一样是 tab 页收不了 query 的替代办法，读完即清。
+    const back = app.globalData.returnSkillId;
+    app.globalData.returnSkillId = '';
     const want = app.globalData.skillsTab;
     if (want === 'learned' || want === 'shop') {
       app.globalData.skillsTab = '';
       this.setData({ tab: want }, this.refresh.bind(this));
+      if (back) this.showDetailFor(back);
       return;
     }
     this.refresh();
+    if (back) this.showDetailFor(back);
   },
 
   onUnload: function () { store.unsubscribe(this.listener); },

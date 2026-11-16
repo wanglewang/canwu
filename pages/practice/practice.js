@@ -1821,7 +1821,18 @@ Page({
     // 撤掉再走，免得结算卡上点「返回功法」又挨一次弹窗。
     this.disarmLeaveGuard();
     const pages = getCurrentPages();
-    if (pages.length > 1) wx.navigateBack();
-    else wx.switchTab({ url: '/pages/index/index' });
+    if (pages.length > 1) {
+      // 回功法页时要停在这一门的详情上：玩家是从那一层点进来的，
+      // 直接落到整张列表等于把中间那层吃掉了。tab 页收不了 query，
+      // 只能借 globalData 递一句话，读完即清。
+      const prev = pages[pages.length - 2];
+      if (prev && prev.route === 'pages/skills/skills'
+        && this.mode === 'practice' && this.skillId) {
+        getApp().globalData.returnSkillId = this.skillId;
+      }
+      wx.navigateBack();
+      return;
+    }
+    wx.switchTab({ url: '/pages/index/index' });
   },
 });
