@@ -11,3 +11,17 @@ miniprogram_npm/
 # 临时校验脚本 / 日志
 .tmp-*
 *.log
+
+# Git 内部版本控制数据（永不入库 / 同步）
+.git
+
+# Gitee 同步插件诊断日志
+_gitee-sync-plus-log.md
+
+# Obsidian 回收站目录
+.trash/
+
+# Obsidian 工作区布局（面板/标签状态，不跨设备同步）
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/plugins/gitee-sync-plus/data.json
