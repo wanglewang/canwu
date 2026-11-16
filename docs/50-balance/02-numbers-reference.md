@@ -223,5 +223,5 @@ SPEED_KEY   = 'speed'   // 方向相反：除以 pace
 
 - `GRADE_FACTOR` 现在只用于判 `wiped`，但它的值（1.5 / 1.2 / 1.0 / 0.6 / 0）仍在代码里，很容易被误认为「还参与熟练度」。建议改名或在注释里写死。
 - `BASE_QI_REF = 36` 是「时长系数的基准」，15 门的 `base` 在 30–56 之间。**基准取 36 而不是中位数**，意味着偏长的门（56）耗气 ×1.56，偏短的（30）×0.83——这个选择的依据没有记录。
-- 上表 15 门是 `data/skills.js` 的 `SKILLS` 数组，但 `data/practice.js` 的 `PRACTICE_METHODS` 是另一份（含 `base` / `params` / `tip`）。**两处必须一一对应，`verify` 只核对了「玩法名与模块导出一致」，没有核对「15 门功法 id 与 19 个参悟方式 id 完全一致」**。
+- 上表 15 门是 `data/skills.js` 的 `SKILLS` 数组，但 `data/practice.js` 的 `PRACTICE_METHODS` 是另一份（含 `base` / `params` / `tip`）。**两处必须一一对应**，`verify` 8b-8 双向核了这件事：功法指向的 `method` 必须在 `PRACTICE_METHODS` 里，反过来每个参悟方式也必须至少有一门功法能玩到——两头漏一头都会让图鉴点进去白屏，或者做了玩法没人用。
 - `MINES_HEARTS = [3,3,3,2,2]` 前三个一样：它是区分度审计「第二个参数」的补丁，前三段只靠别的参数区分。

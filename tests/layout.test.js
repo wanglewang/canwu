@@ -1961,4 +1961,83 @@ check('26 格器纹 sprite：单份 base64、三处容器、PNG 尺寸与打包�
 
 });
 
+// 文档明细表与代码同源。这三类错在 2026-11 整批改门时全部真实发生过，而且静态校验全绿：
+//
+// ① 批量替换只改了数字的一半。「19 门 → 15 门」跑完，同一句里的「19 套玩法」还留着，
+//    文档于是写着「15 门功法 = 19 套互不复用的玩法」——自相矛盾，没有任何断言会报。
+// ② 文档抄了一份代码的值，代码改了文档没跟。effect 的门面词从「归位」改成「归阵」，
+//    `12-effect.md` 的表格仍写「归位：」。玩家在图鉴里读到的是另一个词。
+// ③ 删了门，举例还引用它。剑法已删，README 仍拿「剑法·截锋断岳诀」当例子讲规矩。
+//
+// 判据：凡是「文档里抄了一份代码的值」，就必须有断言把两份钉在一起——
+// 否则改代码的人不会知道还有第二处。
+check('文档明细表与代码同源：门数、effect 门面词、F 列', function () {
+  const skills = require(path.join(ROOT, 'data/skills.js'));
+  const practice = require(path.join(ROOT, 'data/practice.js'));
+  const n = skills.SKILLS.length;
+  const games = new Set(skills.SKILLS.map(function (k) { return k.method; }));
+
+  // 门数 = 玩法数（一门一套内核）。这两个数在任何一句里都必须同步，所以直接抓数字比。
+  assert.strictEqual(games.size, n, '有功法共用同一套玩法，「一门一套内核」不成立');
+  const numDocs = ['README.md',
+    'docs/00-foundation/01-product-vision.md',
+    'docs/00-foundation/02-design-principles.md',
+    'docs/40-engineering/04-testing.md',
+    'docs/checklist-puzzle.md'];
+  for (const f of numDocs) {
+    const s = read(f);
+    // 「N 套互不复用」「N 门功法对应 M 套」两种写法，抓到就跟真源比。
+    for (const m of s.matchAll(/(\d+)\s*套互不复用/g)) {
+      assert.strictEqual(Number(m[1]), n, f + ' 写「' + m[1] + ' 套互不复用的玩法」，实际 ' + n + ' 套');
+    }
+    for (const m of s.matchAll(/(\d+)\s*门功法对应\s*(\d+)\s*套/g)) {
+      assert.strictEqual(Number(m[1]), n, f + ' 的门数与真源不符');
+      assert.strictEqual(Number(m[2]), n, f + ' 的玩法数与真源不符');
+    }
+  }
+
+  // 12-effect 的表格第三列是代码里 effect.text 的原文。抄过去就得钉住。
+  const effectDoc = read('docs/10-systems/12-effect.md');
+  for (const k of skills.SKILLS) {
+    assert.ok(k.effect && k.effect.text, k.name + ' 没写 effect.text');
+    assert.ok(effectDoc.indexOf(k.effect.text) >= 0,
+      '12-effect 的表格里没有「' + k.effect.text + '」（' + k.name + '），文档停在旧门面词上');
+  }
+
+  // 05-grade 的 F 列：「—」表示这门没有失败态。要跟各玩法 lines().fail 实测对得上。
+  const gradeDoc = read('docs/10-systems/05-grade.md');
+  const noFailInDoc = [];
+  const hasFailInDoc = [];
+  for (const k of skills.SKILLS) {
+    const line = gradeDoc.split('\n').find(function (l) { return l.indexOf('| ' + k.name + ' |') === 0; });
+    assert.ok(line, '05-grade 的十五门对照表里没有 ' + k.name);
+    const cells = line.split('|').map(function (v) { return v.trim(); });
+    // | 功法 | 指标 | S | A | B | C | F | → cells[0] 与 [1] 是空串
+    const f = cells[cells.length - 2];
+    (f === '—' ? noFailInDoc : hasFailInDoc).push(k.name);
+  }
+  for (const k of skills.SKILLS) {
+    const m = practice.getMethod(k.method);
+    const mod = require(path.join(ROOT, 'minigames/' + m.game + '.js'));
+    const lines = mod.lines(practice.buildParamsAt(m, 1), {});
+    const hasFail = lines.fail !== undefined && lines.fail !== null && lines.fail !== '';
+    const docSaysNoFail = noFailInDoc.indexOf(k.name) >= 0;
+    assert.strictEqual(docSaysNoFail, !hasFail,
+      k.name + '：文档 F 列说' + (docSaysNoFail ? '「—」' : '有失败态') + '，而 lines().fail ' + (hasFail ? '有值' : '没给'));
+  }
+  assert.ok(noFailInDoc.length > 0 && hasFailInDoc.length > 0, 'F 列的解析没读到东西');
+
+  // 已删的门不许再当例子出现。历史叙述另算：讲「改版前」「旧名」「已删」的行必须能提它，
+  // 否则历史记录会变成假话——所以逐行看，命中历史语境就放过这一行。
+  for (const gone of ['剑法·截锋断岳诀', '水术·叠纹凝露诀', '身法·踏云连环步', '阵法·五灯相生诀']) {
+    for (const f of ['README.md', 'docs/00-foundation/01-product-vision.md', 'docs/40-engineering/04-testing.md']) {
+      read(f).split('\n').forEach(function (line, i) {
+        if (line.indexOf(gone) < 0) return;
+        if (/改版前|旧名|已删|退役|删掉/.test(line)) return;
+        assert.fail(f + ':' + (i + 1) + ' 还在引用已删的 ' + gone + '（不是历史叙述）');
+      });
+    }
+  }
+});
+
 console.log('\n布局断言全部通过：' + passed + ' 项');

@@ -785,7 +785,7 @@ for (const f of ['minigames/schulte.js', 'pages/practice/practice.wxss']) {
   else checked += 1;
 }
 
-// 8b-8. 十五门功法与十九种玩法是两张表，靠 skill.method ↔ PRACTICE_METHODS[].id 关联。
+// 8b-8. 十五门功法与十五种玩法是两张表，靠 skill.method ↔ PRACTICE_METHODS[].id 关联。
 // 漏一个的后果：功法在图鉴里显示「未习得」但点进去拿不到参数（白屏），或者反过来——
 // 玩法在表里、却没有一门功法能玩到它（做了没人用）。这类错 check 全绿也拦不住。
 {
