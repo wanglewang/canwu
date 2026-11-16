@@ -1716,7 +1716,33 @@ check('玩家可见文案不写「看详情 / 去看看」这类口语前缀', f
   assert.ok(/copy\.actions\.allAchievements/.test(read('pages/profile/profile.wxml')), '成就入口没走文案真源');
 });
 
-check('领奖只写「领取」，关弹层只写「知道了」', function () {
+check('页面引文案真源只允许写顶层导出：copy.actions 会把主页整张打白', function () {
+  // 2026-11-16 真机：主页全空白只剩「此处说明」。根因是一行 copy.actions.claim——
+  // UI 文案挂在 copy.UI 下，require 回来的 copy 是模块。这行抛的 TypeError 让
+  // setData 没跑，ov 一直是 null，模板里 viewState==='ready' && ov 整块不渲染。
+  // 从 copy.js 的实际导出自动推白名单，不许手维护一份会过期的键表。
+  const copyMod = require('../data/copy.js');
+  const top = new Set(Object.keys(copyMod));
+  const jsFiles = pageFiles('.js').map(function (x) { return x.rel; });
+  ['duel-result', 'term'].forEach(function (c) {
+    jsFiles.push('components/' + c + '/' + c + '.js');
+  });
+  const bad = [];
+  jsFiles.forEach(function (rel) {
+    const src = read(rel);
+    // 负向后顾排掉 require('../../data/copy.js') 路径里的 copy.js。
+    const re = /(?<![/\w$])copy\.([A-Za-z_$][\w$]*)/g;
+    let m;
+    while ((m = re.exec(src))) {
+      if (!top.has(m[1])) bad.push(rel + ' 写了 ' + m[0]);
+    }
+  });
+  assert.deepStrictEqual(bad, [], '文案真源的层级写错（会抛 TypeError 让整页空白）：' + bad.join('；'));
+  assert.ok(/copy\.UI\.actions\.claim/.test(read('pages/index/index.js')),
+    '主页领奖按钮没走 copy.UI.actions.claim');
+});
+
+check('领奖只写「领取」，关弹层只写「确定」', function () {
   const c = require('../data/copy.js');
   assert.ok(c.UI.actions.claim === '领取', '领奖按钮没写「领取」');
   assert.ok(c.UI.actions.confirm === '确定', '通用弹层按钮不是标准的「确定」');

@@ -695,9 +695,13 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   if (!guide || /不再扣息|少 3 息|按已收对数结算|剩余息数 ×4/.test(guide)) {
     errors.push('data/guides.js 的 link 段还写着旧代价句，说明页会照抄成假话');
   } else checked += 1;
-  const doc = fs.readFileSync(path.join(ROOT, 'docs/20-minigames/11-linkpair.md'), 'utf8');
+  // 玩法文档可以拆成「总览 + 五段」的目录（同批十来门正在改），也可以仍是单篇。
+  // 判据认内容不认文件名——只钉旧路径会让目录化的那一批一提交就静态崩在加载阶段。
+  const docPath = path.join(ROOT, 'docs/20-minigames/11-linkpair/总览.md');
+  const legacyPath = path.join(ROOT, 'docs/20-minigames/11-linkpair.md');
+  const doc = fs.readFileSync(fs.existsSync(docPath) ? docPath : legacyPath, 'utf8');
   if (!/收干净那一刻的剩余息/.test(doc) || !/44 关参数真变/.test(doc)) {
-    errors.push('11-linkpair.md 又是旧版：改了机制必须同批改那一篇');
+    errors.push('11-linkpair 的玩法文档又是旧版：改了机制必须同批改那一篇');
   } else checked += 1;
 }
 // 8b-7. 兑换只有一向。灵石买灵力是允许的，反过来永远不开——那是「挂机时长直接印钱」
