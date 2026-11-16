@@ -1799,6 +1799,24 @@ function realmNameOf(state, realmNo) {
   return realms[Math.min(realms.length - 1, Math.max(0, realmNo - 1))].name;
 }
 
+// 功法页「已持玉简」的顺序：最近练过的在前 → 熟练度降序 → 正名。
+//
+// **三级缺一不可，第二级是实战补的。** 第一版只有「时间 → 正名」两级，
+// 上线后真机截图里 14 门严格按码点排（4e00 / 4e07 / 4e09 / 4e5d / 540c …），
+// 因为那份存档的 `lastAt` 与 `records.at` 都是 0——两级排序每次都落到字典序。
+// 字典序是最没有信息量的顺序：玩家看到的结论是「你改了，但跟没改一样」。
+// 熟练度是存档里唯一还带着「我投入了多少」的量，拿它兜底最差也比字典序有道理。
+//
+// 放在引擎里而不是页面里，是为了能被断言直接跑：静态匹配只能证明「写了这一行」，
+// 证明不了「全 0 存档排出来的顺序不是字典序」。`tests/rank.test.js` 跑的就是后者。
+function orderLearned(a, b) {
+  if (a.lastAt !== b.lastAt) return b.lastAt - a.lastAt;
+  if (a.prof !== b.prof) return b.prof - a.prof;
+  const ka = a.name.split(skillData.NAME_RULE.sep)[1] || a.name;
+  const kb = b.name.split(skillData.NAME_RULE.sep)[1] || b.name;
+  return ka < kb ? -1 : (ka > kb ? 1 : 0);
+}
+
 function getSkillList(state) {
   const list = [];
   const realmNow = state.realmIndex + 1;
@@ -2258,6 +2276,7 @@ module.exports = {
   importSaveCode: importSaveCode,
   getOverview: getOverview,
   getSkillList: getSkillList,
+  orderLearned: orderLearned,
   getSkillDetail: getSkillDetail,
   unlockInfo: unlockInfo,
   getFamilies: getFamilies,

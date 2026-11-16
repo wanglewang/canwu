@@ -962,6 +962,43 @@ check('getSkillList 输出品阶、可修境界与难度档', function () {
   }
 });
 
+check('功法页顺序三级：无时间戳的老存档不许退成按门名', function () {
+  // 2026-11 真机翻车复现：那份存档有熟练度，但 lastAt 与 records.at 全是 0，
+  // 于是「时间 → 正名」两级排序每次都落到字典序，14 门按码点严格递增，
+  // 玩家看到的结论是「你改了，但跟没改一样」。这条按排序**结果**断言，不是静态匹配。
+  const s = freshState('', 0, 0);
+  const prof = { tuna: 11040, shumu: 1200, leifu: 1152, jian: 1140, lingqi: 1056, zeda: 69, shudu: 54 };
+  const ids = Object.keys(prof);
+  for (const id of ids) {
+    s.skills[id].unlocked = true;
+    s.skills[id].prof = prof[id];
+    s.skills[id].lastAt = 0;
+  }
+  s.records = {};
+  const learned = game.getSkillList(s).filter(function (x) { return x.unlocked; });
+  const order = learned.slice().sort(game.orderLearned).map(function (x) { return x.id; });
+  const nameOrder = learned.slice().sort(function (a, b) {
+    const ka = a.name.split(skills.NAME_RULE.sep)[1] || a.name;
+    const kb = b.name.split(skills.NAME_RULE.sep)[1] || b.name;
+    return ka < kb ? -1 : (ka > kb ? 1 : 0);
+  }).map(function (x) { return x.id; });
+  assert.notDeepStrictEqual(order, nameOrder, '全表无时间戳时顺序等于按门名：兜底那一级没了');
+  // 第二级必须是熟练度降序：练得最深的打头，而不是随便排。
+  const top = order.slice(0, ids.length);
+  const topProf = top.map(function (id) { return prof[id]; });
+  for (let i = 1; i < topProf.length; i += 1) {
+    assert.ok(topProf[i - 1] >= topProf[i], '熟练度兜底不是降序：' + topProf.join(' / '));
+  }
+
+  // 真的练过之后，时间戳压过熟练度——「最近玩的那门」永远打头，与深浅无关。
+  s.resources.qi = 100000;
+  game.applyPractice(s, 'shudu', 'C', { level: 1, score: 10 });
+  const after = game.getSkillList(s).filter(function (x) { return x.unlocked; })
+    .sort(game.orderLearned);
+  assert.strictEqual(after[0].id, 'shudu',
+    '刚练完的那门没排到第一位（它熟练度最低，正好检验时间戳压过熟练度）');
+});
+
 check('getFamilies 四档刻度齐全，缺变体的档位标空档', function () {
   const s = freshState('', 0, 0);
   const fams = game.getFamilies(s);

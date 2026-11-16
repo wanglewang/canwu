@@ -1385,10 +1385,17 @@ check('已持玉简按最近练过的在前，藏经阁仍是兑换顺序', func
   // 列表的职责是「我手上有什么」，顺序就该按「我刚碰过谁」。
   // 「离下一段最近」是主页「今日之课」的判据；搬到列表上只会让列表天天变，
   // 玩家找不到昨天在练的那门——2026-11 按实际反馈改成「最近练过的在前」。
-  assert.ok(/learned\.sort\([\s\S]{0,400}lastAt/.test(js),
+  assert.ok(/learned\.sort\(engine\.orderLearned\)/.test(js),
     '已持玉简没按 lastAt 排：最近练过的那门会沉下去');
   assert.ok(!/learned\.sort\([\s\S]{0,400}recommendScore/.test(js),
     '已持玉简又改回推荐排序了：列表会跟着推荐算法天天变');
+  // 第二级兜底必须是「熟练度降序」，不能直接落到正名。
+  // 2026-11 实测踩过：那份存档的 lastAt 与 records.at 全是 0，两级排序每次都落到
+  // 字典序（14 门按码点 4e00 / 4e07 / 4e09 / 4e5d … 严格递增），玩家看到的是
+  // 「改了但跟没改一样」。字典序是最没有信息量的顺序，兜底必须再带一层「投入」。
+  // 比较函数在引擎里（`orderLearned`），另一头有跑结果的断言（`rank.test`）。
+  assert.ok(/function orderLearned[\s\S]{0,600}a\.prof !== b\.prof/.test(engine),
+    '引擎里的 orderLearned 少了「熟练度降序」这一级：全表无时间戳时会退化成按门名');
   // 时间戳必须真的被写进去。只声明不写，全表 lastAt 恒 0，
   // 排序会静默退化成「按门名」——看起来正常，其实「最近玩」根本没生效。
   assert.ok(/rec\.lastAt = Date\.now\(\)/.test(engine), '参悟结算没有写 rec.lastAt');
