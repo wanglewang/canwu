@@ -808,7 +808,7 @@ function applyPractice(state, skillId, grade, options) {
   const factor = typeof rawFactor === 'number' ? rawFactor : 0.6;
   const wiped = factor === 0;
   const attrs = computeAttributes(state);
-  // 心法省的「气」：静心 / 勘禁 / 太虚 / 并蒂 / 九宫 / 让路六门累加，封顶一半。
+  // 心法省的「气」：澄心 / 勘禁 / 太虚 / 并蒂 / 九宫 / 让路六门累加，封顶一半。
   // 它不再是「参悟收益 +X%」——熟练度不许有倍率，收益位换成了成本位。
   const qiSave = effectValue(state, 'qiSave');
 

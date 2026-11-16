@@ -153,7 +153,7 @@ function tweakParams(method, out, level) {
     out.startLevel = Math.min(12, out.startLevel + Math.floor(st / 20));
     out.linesPerLevel = Math.max(4, out.linesPerLevel - Math.floor(st / 10));
   }
-  // 辨术·一眼摘魁诀：这一门只有「数多长、几批」两个离散量，给一条明写的时辰——
+  // 神识·摘星辨魁诀：这一门只有「数多长、几批」两个离散量，给一条明写的时辰——
   // 每一批认得快才来得及，慢下来就少认一批。玩法层本来就认 params.timeLimit。
   if (method.game === 'biggest') {
     out.timeLimit = Math.round(88 - 34 * t);

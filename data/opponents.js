@@ -54,7 +54,7 @@ const OPPONENTS = [
     id: 'xuanzhen', kind: 'npc', name: '峰主·玄真', title: '青云之巅',
     power: 520, desc: '据说他早已看见别的世界，只是不肯细说。',
     reward: { stone: 120 }, drop: 'taixu',
-    winLine: '玄真把太虚翻卦诀推过来：「练到大成，自己去看看。」',
+    winLine: '玄真把太虚照见诀推过来：「练到大成，自己去看看。」',
     loseLine: '玄真拂了拂袖：「再去参悟几回。」',
   },
 ];

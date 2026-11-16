@@ -495,7 +495,7 @@ check('关卡换算只剩老档迁移用：六锚与火候表同源、只增不�
 const STEP_FLOOR = { lights: 10 };
 
 check('一关一段：段内只往难走，每门规格台阶不少于本条门的下限', function () {
-  // 「规格台阶」= 相邻两关参数真的不同。规格类玩法（阵灯 3×3→5×5、摘魁 8→16 批）
+  // 「规格台阶」= 相邻两关参数真的不同。规格类玩法（阵灯 3×3→5×5、辨魁 8→16 批）
   // 的难度是盘面规格，规格是离散的，量化到关号刻度上本来就只有十几级台阶。
   // 这条断言守两件事：台阶数不许再掉、方向只许变难。
   for (const m of practice.PRACTICE_METHODS) {
@@ -845,20 +845,20 @@ check('换承重轴的两门：变的是复杂度与盘面，不是时间', func
   let prevLen = -1;
   for (const d of practice.STAGES) {
     const lv = practice.CLICK_LEVELS[d.depth];
-    assert.ok(lv.grid >= prevGrid, d.name + ' 开锋斩桩诀盘面反而变小');
-    assert.strictEqual(lv.cols * lv.cols, lv.grid, d.name + ' 开锋斩桩诀的 grid 与 cols 对不上');
-    assert.ok(lv.lenStep >= prevLen, d.name + ' 开锋斩桩诀刀路变短');
+    assert.ok(lv.grid >= prevGrid, d.name + ' 开锋破军诀盘面反而变小');
+    assert.strictEqual(lv.cols * lv.cols, lv.grid, d.name + ' 开锋破军诀的 grid 与 cols 对不上');
+    assert.ok(lv.lenStep >= prevLen, d.name + ' 开锋破军诀刀路变短');
     prevGrid = lv.grid;
     prevLen = lv.lenStep;
   }
   const c0 = practice.CLICK_LEVELS[0];
   const c4 = practice.CLICK_LEVELS[4];
   assert.ok(c4.grid / c0.grid >= 2.5,
-    '开锋斩桩诀盘面跨度只有 ' + (c4.grid / c0.grid).toFixed(2) + ' 倍，承重轴没立起来');
+    '开锋破军诀盘面跨度只有 ' + (c4.grid / c0.grid).toFixed(2) + ' 倍，承重轴没立起来');
   assert.ok((3 + c4.lenStep) / (3 + c0.lenStep) >= 2.5,
-    '开锋斩桩诀刀路跨度只有 ' + ((3 + c4.lenStep) / (3 + c0.lenStep)).toFixed(2) + ' 倍');
+    '开锋破军诀刀路跨度只有 ' + ((3 + c4.lenStep) / (3 + c0.lenStep)).toFixed(2) + ' 倍');
   // 简单档的刀路要短到「一眼扫得完」：3 桩是 3×3 小盘上的直线，读完不用二次思考。
-  assert.strictEqual(3 + c0.lenStep, 3, '开锋斩桩诀简单档刀路不是最短的 3 桩');
+  assert.strictEqual(3 + c0.lenStep, 3, '开锋破军诀简单档刀路不是最短的 3 桩');
 
   let prevCells = 0;
   let prevMines = 0;
@@ -1005,12 +1005,15 @@ check('getFamilies 四档刻度齐全，缺变体的档位标空档', function (
   assert.ok(fams.length >= 5);
   const dao = fams.find(function (f) { return f.type === '刀法'; });
   assert.ok(dao && dao.core, '新增的刀法族没进功法谱系');
-  // 剑法 / 水术 / 身法 / 丹道四族 2026-11 起暂无功法：chainsOf 不分组，谱系里就不该冒出空族。
-  for (const gone of ['剑法', '水术', '身法', '丹道']) {
+  // 剑法 / 水术 / 身法三族 2026-11 起暂无功法：chainsOf 不分组，谱系里就不该冒出空族。
+  for (const gone of ['剑法', '水术', '身法']) {
     assert.ok(!fams.some(function (f) { return f.type === gone; }),
       gone + '族已经一门不剩，谱系里还挂着空壳');
   }
-  // 心法族两门黄阶（吐纳周天诀 / 太虚翻卦诀）必须都看得见：同阶并列，不许盖掉后一门。
+  // 丹道 2026-11 起有门了（同源叠元诀）：空壳走了，真门要进得来。
+  assert.ok(fams.some(function (f) { return f.type === '丹道'; }),
+    '丹道已有功法，谱系里却没有这一族');
+  // 心法族两门黄阶（吐纳周天诀 / 太虚照见诀）必须都看得见：同阶并列，不许盖掉后一门。
   const heart = fams.find(function (f) { return f.type === '心法'; });
   assert.ok(heart, '心法族没进功法谱系');
   const heartHuang = heart.slots.find(function (x) { return x.tierKey === 'huang'; });
@@ -1076,7 +1079,7 @@ check('九套经典 + 循数勘禁诀默认已习得，藏经阁只留非经典'
     assert.strictEqual(s.source.kind, 'start', s.name + ' 还没改成入门即得');
   }
   const shop = skills.SKILLS.filter(function (x) { return x.source.kind === 'shop'; });
-  // 2026-11 删掉四门（含唯一一门玄阶以上的在售功法）之后，藏经阁只剩静心记诵诀一门。
+  // 2026-11 删掉四门（含唯一一门玄阶以上的在售功法）之后，藏经阁只剩澄心默诵诀一门。
   // 这是内容欠账不是设计，已记进 docs/04-open-issues.md；门槛先按现状写 1，
   // 补门时把这条抬回 2 —— 否则「阁里只有一门」会被断言替玩家认下来。
   assert.ok(shop.length >= 1, '藏经阁空了：非经典的功课至少要留一门');

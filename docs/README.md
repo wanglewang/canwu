@@ -45,8 +45,8 @@ docs/
 │
 ├── 20-minigames/                    玩法设计：一门功法一篇
 │   ├── README.md                    玩法总览矩阵与「不许重复」的判据
-│   ├── 01-forge-click.md            刀法·开锋斩桩诀 → 顺光扫斩
-│   ├── 03-recited-memory.md         心法·静心记诵诀 → 记序复现
+│   ├── 01-forge-click.md            刀法·开锋破军诀 → 顺光扫斩
+│   ├── 03-recited-memory.md         心法·澄心默诵诀 → 记序复现
 │   ├── 05-吐纳周天诀/               心法·吐纳周天诀 → 节律判定（总 + 五段各一篇）
 │   │   ├── 总览.md                  盘面骨架、规则骨架、设计依据、代码指路
 │   │   ├── 00-未入门.md             第一段 1–10 关
@@ -54,18 +54,18 @@ docs/
 │   │   ├── 02-小成.md               第三段 51–200 关
 │   │   ├── 03-大成.md               第四段 201–500 关
 │   │   └── 04-圆满.md               第五段 501–1000 关
-│   ├── 07-arrayeye-lights.md        阵法·点灯破阵诀 → 阵灯推演
+│   ├── 07-arrayeye-lights.md        阵法·星罗点灯诀 → 阵灯推演
 │   ├── 09-tanlei-mines.md           阵法·循数勘禁诀 → 数格辨禁
-│   ├── 10-seal-pairs.md             心法·太虚翻卦诀 → 成对翻牌
-│   ├── 11-linkpair.md               御灵·并蒂牵线引 → 灵纹连线
-│   ├── 12-stackstone-blocks.md      土术·万石成岳诀 → 落石垒基
+│   ├── 10-seal-pairs.md             心法·太虚照见诀 → 成对翻牌
+│   ├── 11-linkpair.md               御灵·并蒂连枝引 → 灵纹连线
+│   ├── 12-stackstone-blocks.md      土行·万石成岳诀 → 落石垒基
 │   ├── 13-harvest-match.md          灵植·三秀连收诀 → 三秀同收
-│   ├── 14-shudu-sudoku.md           术数·九宫排数诀 → 九宫填数
-│   ├── 15-heyuan-merge.md           合术·同数叠元诀 → 滑格相合
-│   ├── 16-shumu-schulte.md          目术·扫目逐数诀 → 顺序点格
-│   ├── 17-rongdao-klotski.md        机巧·让主出阵诀 → 滑块让路
-│   ├── 18-tuisuo-pushbox.md         挪移·石箱归位诀 → 推石入位
-│   ├── 19-zeda-biggest.md           辨术·一眼摘魁诀 → 数中取大
+│   ├── 14-shudu-sudoku.md           阵法·九宫补缺诀 → 九宫填数
+│   ├── 15-heyuan-merge.md           丹道·同源叠元诀 → 滑格相合
+│   ├── 16-shumu-schulte.md          神识·遍观毫厘诀 → 顺序点格
+│   ├── 17-rongdao-klotski.md        机关·移山开路诀 → 滑块让路
+│   ├── 18-tuisuo-pushbox.md         机关·移石归阵诀 → 推石入位
+│   ├── 19-zeda-biggest.md           神识·摘星辨魁诀 → 数中取大
 │   └── 20-charge-breakthrough.md    突破专用 → 蓄力停区
 │
 ├── 30-ui/                           界面与交互：从令牌到逐页
@@ -107,7 +107,7 @@ docs/
 
 ## 三条阅读路径
 
-**第一次接触这个项目** → `00-foundation/01` → `00-foundation/02` → `10-systems/01` → `10-systems/04` → `20-minigames/README.md`。读完这五篇，能回答「这是什么游戏、钱怎么转、练功在练什么、十九门有什么不一样」。
+**第一次接触这个项目** → `00-foundation/01` → `00-foundation/02` → `10-systems/01` → `10-systems/04` → `20-minigames/README.md`。读完这五篇，能回答「这是什么游戏、钱怎么转、练功在练什么、十五门有什么不一样」。
 
 **要加一门新功法** → `10-systems/11`（分类与命名）→ `10-systems/12`（特效）→ `20-minigames/README.md`（判重）→ `checklist-puzzle.md`（十二维自检）→ `40-engineering/02`（接口契约）→ `40-engineering/03`（校验链）。顺序不能反：先想清玩什么，再想清楚怎么被断言守住。
 

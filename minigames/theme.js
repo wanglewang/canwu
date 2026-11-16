@@ -14,7 +14,7 @@ const THEMES = {
     hit: '一刀斩中', miss: '劈空了', banner: '刀光乍起', praise: '刀随意走',
   },
   recite: {
-    key: 'recite', name: '静心', accent: '#3d8c74', soft: '#dff0e7', ink: '#225a4a',
+    key: 'recite', name: '澄心', accent: '#3d8c74', soft: '#dff0e7', ink: '#225a4a',
     bg: '#e4efe8', frame: '#f7fcf8', glyph: '诀', motif: '诵',
     hit: '口诀无误', miss: '记岔一字', banner: '心不浮，气自沉', praise: '倒背如流',
   },
@@ -43,7 +43,7 @@ const THEMES = {
   linkpair: {
     key: 'linkpair', name: '契纹', accent: '#3b7f8c', soft: '#dceef0', ink: '#20515c',
     bg: '#e4f0f2', frame: '#f7fcfd', glyph: '契', motif: '引',
-    hit: '灵契相合', miss: '纹不合', banner: '并蒂牵线', praise: '一纹不隔',
+    hit: '灵契相合', miss: '纹不合', banner: '并蒂连枝', praise: '一纹不隔',
   },
   stackstone: {
     key: 'stackstone', name: '垒石', accent: '#8a6a3c', soft: '#efe4cf', ink: '#5b4526',
@@ -66,9 +66,9 @@ const THEMES = {
     hit: '合上去了', miss: '推不动', banner: '同数待合', praise: '叠到极处',
   },
   shumu: {
-    key: 'shumu', name: '逐数', accent: '#2f7f7a', soft: '#dcefee', ink: '#1e514d',
+    key: 'shumu', name: '毫厘', accent: '#2f7f7a', soft: '#dcefee', ink: '#1e514d',
     bg: '#e4f1f0', frame: '#f7fcfb', glyph: '目', motif: '逐',
-    hit: '点对了', miss: '点错了', banner: '逐数而视', praise: '一眼到底',
+    hit: '点对了', miss: '点错了', banner: '毫厘而视', praise: '一眼到底',
   },
   rongdao: {
     key: 'rongdao', name: '让路', accent: '#96603c', soft: '#f3e4d8', ink: '#5f3a22',
@@ -81,7 +81,7 @@ const THEMES = {
     hit: '推了一格', miss: '推不动', banner: '石箱待位', praise: '处处入位',
   },
   zeda: {
-    key: 'zeda', name: '摘魁', accent: '#8a4560', soft: '#f2dee6', ink: '#5c2c40',
+    key: 'zeda', name: '辨魁', accent: '#8a4560', soft: '#f2dee6', ink: '#5c2c40',
     bg: '#f2e4ea', frame: '#fdf6f8', glyph: '辨', motif: '择',
     hit: '就是这个', miss: '不是最大', banner: '辨数择大', praise: '一眼取大',
   },

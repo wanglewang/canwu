@@ -15,14 +15,14 @@ const practiceData = require('./practice.js');
 // source.kind：start 初始 / shop 藏经阁 / battle 首胜掉落 / chance 机缘
 // source.cost：只收灵石。灵力是练功的燃料，不是通货——参悟本身就要烧它，
 //              再用它买功法等于让玩家「用油买油」，两种货币的分工当场糊掉。
-// kind：main 主修（心法，决定修炼速度）/ skill 技艺（刀法、剑法、阵法、身法、御灵、土术、灵植、
-//       水术、术数、合术、目术、机巧、挪移、辨术——丹道这一类暂时空着，留给真正炼丹的功课）
+// kind：main 主修（心法，决定修炼速度）/ skill 技艺（刀法、剑法、阵法、丹道、御灵、土行、灵植、
+//       神识、机关、水术、身法——空族留着，加回功法时直接用）
 // tier：huang 黄 / xuan 玄 / di 地 / tian 天 —— 只决定收益倍率、属性加成与可修境界上限，不决定难度。
 // 关卡与熟练度无关：一门 1000 关五段，走通段界关才进下一段（见 data/practice.js 的 STAGES）。
 
 // ---------------------------------------------------------------- 功法命名规范
 // 改版前这门那门「有的带前缀、有的不带；前缀还各写各的」：基础刀法 / 吐纳周天诀 没前缀，
-// 剑诀·断岳 的前缀是「剑诀」而类别是「剑法」，灵契·并蒂牵线引 的前缀是「灵契」而类别是「御灵」，
+// 剑诀·断岳 的前缀是「剑诀」而类别是「剑法」，灵契·并蒂连枝引 的前缀是「灵契」而类别是「御灵」，
 // 剩下的又分 阵法 / 心法 / 身法 / 丹道 / 土术 / 灵植 六种，长度也从 2 到 4 字不等。
 // （原「符箓」一族已撤：那一门从头到尾是格盘推理，与画符无关，见 leifu 条目。）
 // 规则定死成一条，新增功法照着填，scripts/verify.js 与 tests/layout.test.js 会逐门校验：
@@ -30,18 +30,27 @@ const practiceData = require('./practice.js');
 //   · 前缀严格取 type，一字不差，不再自造「剑诀 / 灵契」这类类别词；
 //   · 全表只用间隔号「·」，且只出现一次；
 //   · 正名四到六字，末字用体裁字（诀 / 步 / 引），按载体取，不按品阶取；
-//   · 正名走「物件 + 动作 + 体裁字」：前两字说盘上有什么，中间两字说手上做什么
-//     （三秀连收诀 = 三株灵苗 · 连成一线收取）；现有 15 门统一五字；
+//   · 正名走「意象 + 体裁字」：前几字给一个说得出口的意象或典故，末字是体裁字。
+//     盘上具体做什么，写在方法页与说明页，不写进名字——名字是门派里对这门功课的叫法，
+//     不是关卡目标。反例：移山开路诀（华容道的胜利条件）、移石归阵诀（推箱子的目标）、
+//     摘星辨魁诀（操作提示）——读完就知道怎么玩，反而不像功法；现有 15 门统一五字；
 //   · 正名不得与参悟方式名、玩法名重复（三层命名各管一件事）；
 //   · 不用「入门 / 基础 / 小」这类等级词，品阶由 tier 与卡片角标表达，不写进名字。
 // id 是存档主键，改名字一律不动 id。对白 / 行文里可用简称，正式名只认这里的 name。
 //
-// 为什么从三字改成五字：三字装不下一件东西加一个动作。旧名里「三秀」「叠元」「摘魁」
-// 各是一个查不到出处的生词——列表扫过去只看得见「这也是一门功课」，看不出盘上要做什么。
+// 为什么从三字改成五字：三字装不下一个意象加一个体裁字。旧名里「三秀」「叠元」「摘魁」
+// 各是一个查不到出处的生词——列表扫过去只看得见「这也是一门功课」。
 // 原先「三字」的理由是卡片宽度，实测五字仍是一行（`pages/skills/skills.wxss`
-// 的 `.sk-name` 单行截断，五字在 320px 上也放得下），于是把字数让给可读性：
-//   三秀连收诀 = 三株灵苗 · 连成一线收取；同数叠元诀 = 两枚同数 · 相叠成更高一元；
-//   一眼摘魁诀 = 一批数里 · 一眼挑出最大的那个。
+// 的 `.sk-name` 单行截断，五字在 320px 上也放得下），于是把字数让给意象：
+//
+// 2026-11 整批重归：这十五门原来的类别叫「术数 / 合术 / 目术 / 辨术 / 机巧 / 挪移 / 土术」，
+// 那是按「玩家在屏幕上做什么」分的（扫视 / 比较 / 合并 / 推箱），读着像《封神演义》里
+// 的左道旁门，跟现代玄幻修仙的门类对不上。现代玄幻按「修士靠什么手段修行」分：
+// 丹师炼丹、阵师布阵、剑修用剑、体修练肉身、炼神靠神识。于是重归成九类：
+// 心法 3 / 阵法 3 / 神识 2 / 机关 2 / 刀法 1 / 丹道 1 / 御灵 1 / 灵植 1 / 土行 1。
+// 十二类里十个只有一门 → 九个里五个只有一门，且留下那五个都是玩家认得的门类。
+//   三秀连收诀 = 三株灵苗 · 连成一线收取；同源叠元诀 = 两枚同数 · 相叠成更高一元；
+//   摘星辨魁诀 = 一批数里 · 一眼挑出最大的那个。
 // 旧三字名全部进 `scripts/verify.js` 的旧名黑名单，不许回来。
 const NAME_RULE = {
   sep: '·',
@@ -101,8 +110,8 @@ function validateNames() {
 const SKILLS = [
   {
     // id 沿用旧名（基础剑法），存档与纪录都按 id 索引，改名一律不动 id。
-    // 旧名「基础刀法」：无前缀且带等级词，按命名规范改为「刀法·开锋斩桩诀」（新刀开刃，入门第一课）。
-    id: 'jian', name: '刀法·开锋斩桩诀', type: '刀法', kind: 'skill', tier: 'huang', method: 'forge',
+    // 旧名「基础刀法」：无前缀且带等级词，按命名规范改为「刀法·开锋破军诀」（新刀开刃，入门第一课）。
+    id: 'jian', name: '刀法·开锋破军诀', type: '刀法', kind: 'skill', tier: 'huang', method: 'forge',
     desc: '外门人人会，练到极处的没几个。',
     flavor: '刀是死的，手腕是活的。',
     bonus: { shen: 3, ti: 1 },
@@ -113,7 +122,7 @@ const SKILLS = [
     // 阵灯推演是十五门里最费脑的一门，挂在黄阶会让「练得最苦、拿得最少」；
     // 提到地阶后运功耗气 ×1.30、属性 ×1.7、可修上限抬到元婴；代价是超出上限时再 ×1.5。
     // 名字去掉「入门」：地阶功法再叫入门，就是玩家一眼看得见的名实相斥。
-    id: 'zhen', name: '阵法·点灯破阵诀', type: '阵法', kind: 'skill', tier: 'di', method: 'arrayEye',
+    id: 'zhen', name: '阵法·星罗点灯诀', type: '阵法', kind: 'skill', tier: 'di', method: 'arrayEye',
     desc: '一灯明，四面翻；落子一处，自身与上下左右四格明暗相易，全阵齐明，阵破功成。',
     flavor: '一步推错，满盘皆要重来。',
     bonus: { ling: 3, wu: 1 },
@@ -128,24 +137,24 @@ const SKILLS = [
     flavor: '一日不练，自己知道。',
     bonus: { ling: 2, ti: 2 },
     // 心法管气海：三重心法合起来把池子挖深 25%（economy.QI_CAP_SKILL_MAX = 30% 封顶）。
-    // 它不再给「离线灵力 +10%」——恢复速度已由另外三门（五行 / 三秀 / 摘魁）管着，
+    // 它不再给「离线灵力 +10%」——恢复速度已由另外三门（五行 / 三秀 / 辨魁）管着，
     // 一门效果只管一件事，玩家才看得懂自己练的是哪一项。
     effect: { type: 'qiCap', value: 0.10, text: '周天：灵力上限 +10%' },
     source: { kind: 'start' },
   },
   {
-    id: 'jingxin', name: '心法·静心记诵诀', type: '心法', kind: 'main', tier: 'xuan', method: 'recite',
+    id: 'jingxin', name: '心法·澄心默诵诀', type: '心法', kind: 'main', tier: 'xuan', method: 'recite',
     desc: '心不浮，气才沉得下去。',
     flavor: '师兄说这口诀没用，他练了三年还在炼气。',
     bonus: { wu: 4 },
-    effect: { type: 'qiSave', value: 0.08, text: '静心：参悟耗灵力 −8%' },
+    effect: { type: 'qiSave', value: 0.08, text: '澄心：参悟耗灵力 −8%' },
     source: { kind: 'shop', cost: { stone: 70 } },
   },
   {
     // id 沿用旧名（引雷符），存档与纪录都按 id 索引，改名一律不动 id。
     // 原名「符箓·照影符」：这门功课从头到尾是「看数字推禁制位置」，没有一处是画符——
     // 符是纸上画出来的东西，跟格盘推理不相干，属于类别与玩法相斥。
-    // 归「阵法」才与玩法同源：黄阶勘禁（静态推理）→ 玄阶五行（动态连锁）→ 地阶燃灯（步数最省），
+    // 归「阵法」才与玩法同源：黄阶勘禁（静态推理）→ 玄阶五行（动态连锁）→ 地阶点灯（步数最省），
     // 一族三档正好补齐，族内也是「盘上推演」这一个共同点。
     // 难度低于另两门阵法，所以仍在黄阶；可修上限只到筑基，练到头该换地阶那门。
     id: 'leifu', name: '阵法·循数勘禁诀', type: '阵法', kind: 'skill', tier: 'huang', method: 'tanlei',
@@ -159,7 +168,7 @@ const SKILLS = [
     // 2026-11：天阶两门里「截锋断岳诀」已删、本门降阶，天阶不再有功法（校验已放宽）。
     // 心法族因此出现两门黄阶（吐纳 + 太虚）：谱系改为同族同阶可并列，不再按阶取槽丢门。
     // 气海上限 +15% 保留——它按 effect 值算，与 tier 无关；与吐纳 +10% 合计仍是 25%。
-    id: 'taixu', name: '心法·太虚翻卦诀', type: '心法', kind: 'main', tier: 'huang', method: 'seal',
+    id: 'taixu', name: '心法·太虚照见诀', type: '心法', kind: 'main', tier: 'huang', method: 'seal',
     desc: '青云界压箱底的功课，据说练到大成能看见别的世界。',
     flavor: '别的世界？大概是科幻和都市吧。',
     bonus: { wu: 5, ling: 3 },
@@ -168,10 +177,10 @@ const SKILLS = [
   },
   // 三套「看一眼就会玩」的经典玩法统一挂黄阶：品阶按功课难度定，不按新奇程度定。
   // 从「藏经阁卖」改成「入门即得」：玩家第一次打开游戏，最想玩的正是这几套，
-  // 摆一道灵石墙只会把人挡在门口。非经典的功课（静心 / 踏云）才留在藏经阁。
+  // 摆一道灵石墙只会把人挡在门口。非经典的功课（澄心 / 踏云）才留在藏经阁。
   {
-    // 旧名「灵契·并蒂引」：前缀「灵契」与类别「御灵」不符，统一成类别名；五字后作「并蒂牵线引」。
-    id: 'lingqi', name: '御灵·并蒂牵线引', type: '御灵', kind: 'skill', tier: 'huang', method: 'linkpair',
+    // 旧名「灵契·并蒂引」：前缀「灵契」与类别「御灵」不符，统一成类别名；五字后作「并蒂连枝引」。
+    id: 'lingqi', name: '御灵·并蒂连枝引', type: '御灵', kind: 'skill', tier: 'huang', method: 'linkpair',
     desc: '两枚同纹灵石本是一对，牵一条不过两折的灵线，把它们收回契中。',
     flavor: '师父说这叫并蒂，你觉得这叫连连看。',
     bonus: { ling: 3, shen: 2 },
@@ -179,7 +188,7 @@ const SKILLS = [
     source: { kind: 'start' },
   },
   {
-    id: 'leiyue', name: '土术·万石成岳诀', type: '土术', kind: 'skill', tier: 'huang', method: 'stackstone',
+    id: 'leiyue', name: '土行·万石成岳诀', type: '土行', kind: 'skill', tier: 'huang', method: 'stackstone',
     desc: '灵石按息坠落，垒满一层化去一层，根基就是这么一寸寸垫起来的。',
     flavor: '练之前以为要搬山，练之后发现自己只是在码石头。',
     bonus: { ti: 4, ling: 1 },
@@ -195,10 +204,11 @@ const SKILLS = [
     source: { kind: 'start' },
   },
   // 六门经典盘面：与上面三套一样是「看一眼就会玩」，统一黄阶、入门即得。
-  // 各占一门类（术数 / 合术 / 目术 / 机巧 / 挪移 / 辨术）：同类同阶只放一门，
+  // 六门经典盘面按「修士靠什么手段」归门：填数推演归阵法、同级合炼归丹道、
+  // 扫视与辨微归神识、滑块与推箱归机关。同族同阶可并列，谱系全列不取槽。
   // 撞了谱系按阶取槽会把后一门盖掉，tests/rank.test.js 守着这条。
   {
-    id: 'shudu', name: '术数·九宫排数诀', type: '术数', kind: 'skill', tier: 'huang', method: 'shudu',
+    id: 'shudu', name: '阵法·九宫补缺诀', type: '阵法', kind: 'skill', tier: 'huang', method: 'shudu',
     desc: '九宫盘上留着空格，每行、每列、每宫各要 1 到 9 一遍；填满且全对才算完。',
     flavor: '师父说这是数，不是算——算的是别人，数的是自己。',
     bonus: { wu: 4, ling: 1 },
@@ -206,7 +216,7 @@ const SKILLS = [
     source: { kind: 'start' },
   },
   {
-    id: 'heyuan', name: '合术·同数叠元诀', type: '合术', kind: 'skill', tier: 'huang', method: 'heyuan',
+    id: 'heyuan', name: '丹道·同源叠元诀', type: '丹道', kind: 'skill', tier: 'huang', method: 'heyuan',
     desc: '同数两块一撞就合成双倍，越往上越重；合出本档那一块即收功。',
     flavor: '一加一的道理，练到最后是 1024 加 1024。',
     bonus: { ling: 3, ti: 1 },
@@ -214,35 +224,35 @@ const SKILLS = [
     source: { kind: 'start' },
   },
   {
-    id: 'shumu', name: '目术·扫目逐数诀', type: '目术', kind: 'skill', tier: 'huang', method: 'shumu',
+    id: 'shumu', name: '神识·遍观毫厘诀', type: '神识', kind: 'skill', tier: 'huang', method: 'shumu',
     desc: '数散在盘上，从 1 顺着点到最后；练的是目光一路扫过去不乱。',
     flavor: '眼睛快的人，打架时也先看见对方的手。',
     bonus: { shen: 4 },
-    effect: { type: 'variance', value: 0.04, text: '逐数：对战波动下限提高' },
+    effect: { type: 'variance', value: 0.04, text: '遍观：对战波动下限提高' },
     source: { kind: 'start' },
   },
   {
-    id: 'rongdao', name: '机巧·让主出阵诀', type: '机巧', kind: 'skill', tier: 'huang', method: 'rongdao',
+    id: 'rongdao', name: '机关·移山开路诀', type: '机关', kind: 'skill', tier: 'huang', method: 'rongdao',
     desc: '滑块一次挪一格，把主块一路让到盘底出口；走的路越省越算功夫。',
     flavor: '让一步不是退，是给别人腾地方。',
     bonus: { wu: 3, shen: 2 },
-    effect: { type: 'qiSave', value: 0.08, text: '出阵：参悟耗灵力 −8%' },
+    effect: { type: 'qiSave', value: 0.08, text: '开路：参悟耗灵力 −8%' },
     source: { kind: 'start' },
   },
   {
-    id: 'tuisuo', name: '挪移·石箱归位诀', type: '挪移', kind: 'skill', tier: 'huang', method: 'tuisuo',
+    id: 'tuisuo', name: '机关·移石归阵诀', type: '机关', kind: 'skill', tier: 'huang', method: 'tuisuo',
     desc: '人走在石格上，石箱只推不拉；每块都要推到自己的阵位，一处不落。',
     flavor: '推错了退得回来，账退不回来——这话师父只说一遍。',
     bonus: { ti: 4 },
-    effect: { type: 'power', value: 0.04, text: '归位：对战战力 +4%' },
+    effect: { type: 'power', value: 0.04, text: '归阵：对战战力 +4%' },
     source: { kind: 'start' },
   },
   {
-    id: 'zeda', name: '辨术·一眼摘魁诀', type: '辨术', kind: 'skill', tier: 'huang', method: 'zeda',
+    id: 'zeda', name: '神识·摘星辨魁诀', type: '神识', kind: 'skill', tier: 'huang', method: 'zeda',
     desc: '一批数散在盘上，只挑最大的那一个；一批接一批，越往后数越长。',
     flavor: '一眼看出谁最强，剩下的就不必看了。',
     bonus: { shen: 3, wu: 1 },
-    effect: { type: 'offline', value: 0.10, text: '摘魁：灵力恢复 +10%' },
+    effect: { type: 'offline', value: 0.10, text: '辨魁：灵力恢复 +10%' },
     source: { kind: 'start' },
   },
 ];

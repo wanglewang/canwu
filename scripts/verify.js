@@ -356,13 +356,19 @@ for (const s of skillMod.SKILLS) {
 }
 // 旧命名口径黑名单：这些写法一回来，统一感就散了。
 // 黑名单字面量本身写在 scripts/verify.js 里，跳过自身，否则会自己把自己检出来。
-// 三字正名整批退役（2026-11）：三个字装不下一件东西加一个动作，十九门统一改五字，
+// 三字正名整批退役（2026-11）：三个字装不下一件东西加一个动作，十五门统一改五字，
 // 旧名全部留在这里——名字一旦回退，玩家在同一门功法上就会看到两个名字。
 const LEGACY_SKILL_NAMES = [
   '刀法·开锋诀', '阵法·燃灯诀', '心法·吐纳诀', '心法·静心诀', '身法·踏云步',
   '阵法·勘禁诀', '阵法·五行诀', '水术·凝露诀', '剑法·断岳诀', '心法·太虚诀',
   '御灵·并蒂引', '土术·垒岳诀', '灵植·三秀诀', '术数·九宫诀', '合术·叠元诀',
   '目术·逐数诀', '机巧·让路诀', '挪移·入位诀', '辨术·摘魁诀',
+  // 2026-11 第二次整批退役：类别从「玩家在屏幕上做什么」改成「修士靠什么手段修行」
+  // （术数→阵法、合术→丹道、目术 / 辨术→神识、机巧 / 挪移→机关、土术→土行），
+  // 正名同时从操作描述改成意象。旧名回退 = 玩家在同一门功课上看到两个名字。
+  '刀法·开锋斩桩诀', '阵法·点灯破阵诀', '心法·静心记诵诀', '心法·太虚翻卦诀',
+  '御灵·并蒂牵线引', '土术·万石成岳诀', '术数·九宫排数诀', '合术·同数叠元诀',
+  '目术·扫目逐数诀', '机巧·让主出阵诀', '挪移·石箱归位诀', '辨术·一眼摘魁诀',
   // 更早的一批（无前缀 / 类别错置），一并留着。
   '基础刀法', '吐纳诀', '剑诀·断岳', '灵契·并蒂引', '阵法·小五行阵', '丹道·凝露丹方', '丹道·凝露方',
 ];
@@ -718,7 +724,7 @@ for (const f of ['minigames/schulte.js', 'pages/practice/practice.wxss']) {
   else checked += 1;
 }
 
-// 8b-7. 逐数诀的五档必须「每换一档就换点东西」，而且换的东西要真的更难。
+// 8b-7. 遍观毫厘诀的五档必须「每换一档就换点东西」，而且换的东西要真的更难。
 // 旧版只守「格子不降 + 罚时不降 + 盘面不超 6×6」，于是 4/5/6/6/6 这张表全绿通过——
 // 后三档同一个 6×6、只差 1–3 秒 S 线，而同一尺寸换个布局本来就波动 3–5 秒，
 // 档差被方差吃掉，三档在体感上是同一局。这一条现在守四件事：
@@ -729,12 +735,12 @@ for (const f of ['minigames/schulte.js', 'pages/practice/practice.wxss']) {
 {
   const mod = gameMod.MODULES.schulte;
   const rows = mod.LEVELS || [];
-  if (rows.length !== 5) errors.push('逐数诀的档位表不是五档');
+  if (rows.length !== 5) errors.push('遍观毫厘诀的档位表不是五档');
   else checked += 1;
   const specs = {};
   for (let i = 0; i < rows.length; i += 1) {
     const r = rows[i];
-    const tag = '逐数诀第 ' + (i + 1) + ' 档';
+    const tag = '遍观毫厘诀第 ' + (i + 1) + ' 档';
     specs[r.size] = true;
     const n = r.size * r.size;
     if (!(r.s > 0 && r.a > r.s && r.b > r.a)) errors.push(tag + '的三条线没有递增');
@@ -772,14 +778,14 @@ for (const f of ['minigames/schulte.js', 'pages/practice/practice.wxss']) {
     } else checked += 1;
   }
   if (Object.keys(specs).length < 4) {
-    errors.push('逐数诀只有 ' + Object.keys(specs).length + ' 种盘面规格，撑不起五档阶梯');
+    errors.push('遍观毫厘诀只有 ' + Object.keys(specs).length + ' 种盘面规格，撑不起五档阶梯');
   } else checked += 1;
   // 尺寸上限：8×8 每格只剩 84rpx（22rpx 字号），两位数认不快就变成猜。
-  if (rows[rows.length - 1].size > 7) errors.push('逐数诀盘面超过 7×7：两位数在小屏上认不快，难度会变成猜');
+  if (rows[rows.length - 1].size > 7) errors.push('遍观毫厘诀盘面超过 7×7：两位数在小屏上认不快，难度会变成猜');
   else checked += 1;
 }
 
-// 8b-8. 十九门功法与十九种玩法是两张表，靠 skill.method ↔ PRACTICE_METHODS[].id 关联。
+// 8b-8. 十五门功法与十九种玩法是两张表，靠 skill.method ↔ PRACTICE_METHODS[].id 关联。
 // 漏一个的后果：功法在图鉴里显示「未习得」但点进去拿不到参数（白屏），或者反过来——
 // 玩法在表里、却没有一门功法能玩到它（做了没人用）。这类错 check 全绿也拦不住。
 {

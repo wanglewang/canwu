@@ -591,7 +591,7 @@ check('四个属性各有一件正事：真元换气海、悟性省灵力、身�
   const s = game.createNewState();
   const base = game.shenFloorBonus(s);
   assert.ok(base > 0, '基础身法没有换来波动下限');
-  s.skills.shumu = { unlocked: true, prof: 99999, onboarded: true };  // 目术 +身法，练满
+  s.skills.shumu = { unlocked: true, prof: 99999, onboarded: true };  // 神识 +身法，练满
   assert.ok(game.shenFloorBonus(s) > base, '身法涨了，波动下限没跟着涨');
   assert.ok(game.shenFloorBonus(s) <= 0.10 + 1e-9, '身法波动超过了 10% 的封顶');
 

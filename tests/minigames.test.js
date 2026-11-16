@@ -357,8 +357,9 @@ check('同类功法（刀法/阵法/心法）也各用各的玩法', function ()
     assert.strictEqual(new Set(byType[type]).size, byType[type].length, type + ' 里有两门功法共用玩法');
   }
   assert.strictEqual(new Set(byType['刀法']).size, 1, '刀法这一门只有一套内核');
-  // 阵法两档：黄阶勘禁（数格辨禁）、地阶燃灯（阵灯推演），两套内核互不复用。
-  assert.strictEqual(new Set(byType['阵法']).size, 2);
+  // 阵法三档：黄阶勘禁（数格辨禁）、黄阶九宫（填数推演）、地阶点灯（阵灯推演），
+  // 三套内核互不复用——同族不等于同玩法，这是「一门功法一套内核」在最挤的族里的验。
+  assert.strictEqual(new Set(byType['阵法']).size, 3);
 });
 
 check('每门玩法都给出本档 S/A/B/C 四条线，说明页与局内同源', function () {
@@ -379,7 +380,7 @@ check('每门玩法都给出本档 S/A/B/C 四条线，说明页与局内同源'
     // 也可能**降**线（三秀同收按本档可得分标定，7 色 52 息的 950 分比 5 色 68 息
     // 的 1900 分更难拿）。所以这里只验「五档写的是不是同一行」，不验谁大谁小；
     // 谁大谁小由 tests/rank.test.js 的 MATCH_LEVELS 专条守。
-    // 段数与步数类（步法 / 燃灯）本身不随档变，只能靠盘面规格变难，这里不强行要求。
+    // 段数与步数类（步法 / 点灯）本身不随档变，只能靠盘面规格变难，这里不强行要求。
     // gear（normal / hard）要跟着档走：剑法的时长、五行的目标都按它再收一次。
     const easy = mod.lines(data.buildParams(m, 'novice'), data.STAGES[data.stageIndexLike('novice')].gear);
     const hard = mod.lines(data.buildParams(m, 'full'), data.STAGES[data.stageIndexLike('full')].gear);
@@ -1510,8 +1511,8 @@ check('15 套玩法都有「怎么玩」说明，盘面符号讲得清', functio
     }
   }
   const click = guides.guideOf('click');
-  assert.ok(click.terms.some(function (t) { return /刀路/.test(t.name); }), '刀法·开锋斩桩诀没解释「刀路」');
-  assert.ok(click.terms.some(function (t) { return /重斩/.test(t.name); }), '刀法·开锋斩桩诀没解释「重斩」');
+  assert.ok(click.terms.some(function (t) { return /刀路/.test(t.name); }), '刀法·开锋破军诀没解释「刀路」');
+  assert.ok(click.terms.some(function (t) { return /重斩/.test(t.name); }), '刀法·开锋破军诀没解释「重斩」');
   assert.ok(/扫到靶心/.test(click.inline), '局内速记没说这一门是把刀扫到靶心');
   assert.ok(/重斩/.test(click.inline), '局内速记没写重斩');
 });
@@ -1992,7 +1993,7 @@ check('兵器轴：剑与刀在轨迹、判定、节奏、称谓上都可区分'
 
 check('刀法标 dao，buildParams 原样透传兵器字段', function () {
   const m = data.getMethod('forge');
-  assert.strictEqual(m.params.weapon, 'dao', '刀法·开锋斩桩诀没标兵器');
+  assert.strictEqual(m.params.weapon, 'dao', '刀法·开锋破军诀没标兵器');
   for (const k of ['novice', 'entry', 'minor', 'major', 'full']) {
     assert.strictEqual(data.buildParams(m, k).weapon, 'dao', k + ' 档把兵器字段弄丢了');
   }
@@ -2090,7 +2091,7 @@ check('阵灯推演：首局手把手两步走完就全亮，点错不推进', f
   installClock();
   try {
     const teach = index.MODULES.lights.teach;
-    assert.ok(teach, '点灯破阵诀没有教学脚本');
+    assert.ok(teach, '星罗点灯诀没有教学脚本');
     assert.deepStrictEqual(teach.steps, [4, 0], '教学步骤被改了（第一手必须先点正中）');
     const startBoard = teach.board();
     assert.strictEqual(startBoard.filter(Boolean).length, 5,
@@ -2128,7 +2129,7 @@ check('阵灯推演：首局手把手两步走完就全亮，点错不推进', f
 });
 
 check('首局手把手只给「自带脚本」的玩法，不是所有玩法硬塞过场', function () {
-  assert.strictEqual(index.hasTeach('lights'), true, '点灯破阵诀应该有教学脚本');
+  assert.strictEqual(index.hasTeach('lights'), true, '星罗点灯诀应该有教学脚本');
   assert.strictEqual(index.hasTeach('click'), false, '没写脚本的玩法不该被塞引导');
   assert.strictEqual(index.createTeach('click', {}), null, '没有脚本却返回了控制器');
 });
@@ -2179,7 +2180,7 @@ check('走火：有失败态的玩法判负给 F，没有失败态的玩法不�
   }
 });
 
-check('太虚翻卦诀：时辰到还没通完就是走火 F', function () {
+check('太虚照见诀：时辰到还没通完就是走火 F', function () {
   installClock();
   try {
     const method = data.getMethod('seal');
@@ -2841,7 +2842,7 @@ check('两门的评级说明都写清「反悔封顶」，玩家查得到', func
 
 check('五档各生成一局：15 门 × 5 档都能开局，盘面不出空值', function () {
   // 上面那条整局驱动只跑「本门基础参数」一档。难度是五档，参数差最大的一档
-  // （绝境：九宫 46 洞、逐数 6×6、入位 3 处阵位、合数目标 1024）恰恰最少被走到，
+  // （绝境：九宫 46 洞、毫厘 6×6、入位 3 处阵位、合数目标 1024）恰恰最少被走到，
   // 而「参数拼出一个不存在的盘面」这类错在低档看不出来。这里只建局、不跑完。
   installClock();
   try {

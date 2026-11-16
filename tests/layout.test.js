@@ -220,7 +220,7 @@ check('规则分层：准备页一行、局内两行、整篇在说明页', func
   const click = read('minigames/click.js');
   assert.ok(/edgeName: '金锋'/.test(read('data/weapons.js')), '预留剑 profile 的金色长招没叫金锋');
   assert.ok(/profile\.edgeName/.test(click), '金色长招名没走兵器轴，容易串回剑法');
-  assert.ok(/顺着每桩箭头把刀扫到靶心/.test(read('data/guides.js')), '刀法·开锋斩桩诀说明没讲清顺箭头扫到靶心');
+  assert.ok(/顺着每桩箭头把刀扫到靶心/.test(read('data/guides.js')), '刀法·开锋破军诀说明没讲清顺箭头扫到靶心');
 });
 
 check('顺光扫斩：透明触摸层 + 坐标插值还原划动轨迹', function () {
@@ -334,7 +334,7 @@ check('吸底条适配安全区且有高优先级底部留白', function () {
   assert.ok(/\.pg\.pg--with-bar \{/.test(css), '留白选择器优先级不足');
 });
 
-check('视觉标准落在唯一真源，样板阶段只对刀法·开锋斩桩诀开', function () {
+check('视觉标准落在唯一真源，样板阶段只对刀法·开锋破军诀开', function () {
   const v = require('../data/visual.js');
   assert.strictEqual(Object.keys(v.FAMILIES).length, 4, '四类主题色板不齐（兵刃 / 心法 / 丹道 / 阵法）');
   assert.deepStrictEqual(Object.keys(v.ENABLED), ['forge'], '样板阶段不该一次改十套');
@@ -421,7 +421,7 @@ check('兵器语言收在 data/weapons.js，玩法模块不硬编码招式名与
   assert.ok(/profile\.names/.test(click) && /words\./.test(click), '招式名与文案没走 profile');
   assert.ok(!/'平削'|'直刺'|'横劈'|'立劈'|'一剑中的'|'一刀斩中'/.test(click), '玩法模块里又硬编码了兵器称谓');
   assert.ok(/PROFILES = \{[\s\S]*sword:[\s\S]*dao:/.test(w), '兵器表没有剑 / 刀两套 profile');
-  assert.ok(/weapon: 'dao'/.test(read('data/practice.js')), '刀法·开锋斩桩诀没标兵器');
+  assert.ok(/weapon: 'dao'/.test(read('data/practice.js')), '刀法·开锋破军诀没标兵器');
   // 剑法·截锋断岳诀 2026-11 退役，practice 里已经没有剑法门；weapons.js 的 sword 一套
   // 留着待回填（它是兵器语言表，不是某一门的实现），所以这里只守「刀法标了兵器」。
 });
@@ -1072,9 +1072,9 @@ check('功法命名统一：类别·四到六字正名，前缀严格等于类�
   assert.strictEqual(skills.SKILLS.length, 15, '功法数变了，命名断言要同步');
   const names = skills.SKILLS.map(function (s) { return s.name; });
   assert.strictEqual(new Set(names).size, names.length, '功法名重复');
-  assert.ok(names.indexOf('刀法·开锋斩桩诀') >= 0, '刀法·开锋斩桩诀没按规范统一');
+  assert.ok(names.indexOf('刀法·开锋破军诀') >= 0, '刀法·开锋破军诀没按规范统一');
   // 旧三字名不许回表。
-  const legacy = ['阵法·燃灯诀', '灵植·三秀诀', '合术·叠元诀', '辨术·摘魁诀', '御灵·并蒂引'];
+  const legacy = ['阵法·点灯诀', '灵植·三秀诀', '合术·叠元诀', '辨术·辨魁诀', '御灵·并蒂引'];
   for (const old of legacy) {
     assert.ok(names.indexOf(old) < 0, '旧三字名又回到功法表：' + old);
   }
@@ -1096,7 +1096,7 @@ check('功法图鉴：未习得也能查全玩法、收益与习得路径', func
   assert.ok(!/skill-card--dim|opacity/.test(wxml + wxss), '未习得卡片又被压灰成不可点的样子');
   assert.ok(/\.codex__block/.test(wxss) && /\.codex__note/.test(wxss), '图鉴分区样式没落地');
   // 引擎层：锁定的掉落功法也必须返回完整说明与可执行的下一步。
-  // 2026-11 起唯一一门「切磋掉落」是太虚翻卦诀（天阶已无功法，但这条路径必须还在）。
+  // 2026-11 起唯一一门「切磋掉落」是太虚照见诀（天阶已无功法，但这条路径必须还在）。
   const s = game.createNewState();
   const d = game.getSkillDetail(s, 'taixu');
   assert.ok(!d.unlocked, '掉落功法初始不该是已习得');
@@ -1278,7 +1278,7 @@ check('阵灯推演：代价句按阶段出现，盘面只画图形不写汉字'
   assert.ok(/阵溃/.test(gd.scoring), '评级口径没写清阵溃');
 });
 
-check('点灯破阵诀：简介对齐熄灯谜题，死门误触有独立触感', function () {
+check('星罗点灯诀：简介对齐熄灯谜题，死门误触有独立触感', function () {
   const sk = require('../data/skills.js').SKILLS.filter(function (s) { return s.method === 'arrayEye'; })[0];
   assert.ok(/上下左右四格/.test(sk.desc), '功法简介没讲清翻转四格');
   assert.ok(/上下左右四格/.test(read('data/practice.js')), '准备页副标题没讲清翻转四格');
@@ -1632,7 +1632,7 @@ check('功法页两个分区叫「已持玉简 / 藏经阁」，不再另立一�
 
 check('藏经阁分区装全部未习得，不是只装能换的那几门', function () {
   const js = read('pages/skills/skills.js');
-  // 2026-11 删门之后：15 门里只剩 1 门（静心记诵诀）挂在藏经阁卖，1 门（太虚翻卦诀）靠切磋首胜，
+  // 2026-11 删门之后：15 门里只剩 1 门（澄心默诵诀）挂在藏经阁卖，1 门（太虚照见诀）靠切磋首胜，
   // 13 门初始赠送。若这一区只装 canBuy 的，那门掉落功法在没拿到之前就没有图鉴与路径可看——
   // 合并时最容易挨的一刀，正是「反正按钮只对能换的画，那就先滤一道」。
   assert.ok(js.indexOf('if (s.unlocked) learned.push(s);') >= 0,
@@ -1830,7 +1830,7 @@ check('首局手把手：盘上引导而不是全屏弹窗，跳过有入口、�
   assert.ok(/if \(this\.canTeach\(\)\) \{ this\.startTeach\(\); return; \}/.test(js), '开局没先走引导');
   assert.ok(/engine\.markOnboarded/.test(js), '走完引导没写存档');
   assert.ok(/engine\.hasOnboarded/.test(js), '没读存档判断是否已看过');
-  assert.strictEqual(index.hasTeach('lights'), true, '点灯破阵诀没有教学脚本');
+  assert.strictEqual(index.hasTeach('lights'), true, '星罗点灯诀没有教学脚本');
   assert.ok(game.markOnboarded && game.hasOnboarded, '引擎没有引导标记接口');
 
   // 教学盘不该出现评级、重置与收功：那是一局才有的压力。
