@@ -150,12 +150,35 @@ function findPair(board, cols, rows, avoid) {
   return null;
 }
 
-function makeBoard(n, kinds) {
-  const pairs = n / 2;
+// 段内布纹：同一副盘、同样多的纹种，但每种纹各有几对会随关号偏斜。
+// weave=0 是均匀铺开（段首），每往后一级就从最少的一种挪一对给最多的一种：
+// 6×4 / 4 种纹从 3/3/3/3 对走到 6/2/3/1 对，盘上就是「一种纹成堆、另一种只剩两枚」。
+// 这是段内唯一看得见的牌阵台阶：段首找同纹容易，段末得先分辨哪种纹已经稀了。
+// 不管哪一级，每种纹至少留一对——纹种数不能悄悄变，那是换段才动的事。
+function pairCounts(pairs, kinds, weave) {
+  const counts = [];
+  const base = Math.floor(pairs / kinds);
+  for (let i = 0; i < kinds; i += 1) counts.push(base);
+  for (let i = 0; i < pairs - base * kinds; i += 1) counts[i] += 1;
+  for (let step = 0; step < weave; step += 1) {
+    let lo = -1;
+    let hi = 0;
+    for (let i = 0; i < kinds; i += 1) {
+      if (counts[i] > 1 && counts[i] <= (lo < 0 ? Infinity : counts[lo])) lo = i;
+      if (counts[i] > counts[hi]) hi = i;
+    }
+    if (lo < 0 || lo === hi) break;
+    counts[lo] -= 1;
+    counts[hi] += 1;
+  }
+  return counts;
+}
+
+function makeBoard(n, kinds, weave) {
+  const counts = pairCounts(n / 2, kinds, weave || 0);
   const deck = [];
-  for (let i = 0; i < pairs; i += 1) {
-    const v = 1 + (i % kinds);
-    deck.push(v, v);
+  for (let i = 0; i < counts.length; i += 1) {
+    for (let k = 0; k < counts[i]; k += 1) deck.push(i + 1, i + 1);
   }
   C.shuffle(deck);
   return deck;
@@ -169,6 +192,9 @@ function create(ctx) {
   const rows = Math.max(3, p.rows || 4);
   const n = cols * rows;
   const kinds = Math.min(GLYPHS.length, Math.max(3, p.kinds || 6));
+  // 段内布纹：生成端在 data/practice.js，这里只消费。不写兜底默认值以外的换算，
+  // 否则「参数在动、盘面没动」会在这里被悄悄托住。
+  const weave = Math.max(0, Math.min(3, Math.round(p.weave || 0)));
   const stage = typeof perks.tier === 'number' ? perks.tier : 0;
   const duration = Math.max(20, p.duration || 55);
   // 照纹高亮多久与难度无关（它只是「看得见多久」），所以不进 PACE_KEYS / 章内收紧，
@@ -183,6 +209,7 @@ function create(ctx) {
   const vm = C.makeVm(cols, n, '点两枚同纹灵石，能连起来就收走一对', ctx.tip || '点两枚同纹，转折不超过两次');
   vm.timeText = C.mmss(duration);
   vm.scoreText = '得分 0';
+  vm.weave = weave;
   vm.extras.showHint = true;
   vm.extras.compact = true;
   // 评级只看「收干净时剩几息」，而倒计时一开始就是满的——摆一个「当前评级」必然是 S，
@@ -417,7 +444,7 @@ function create(ctx) {
     vm.status = '点两枚同纹灵石，能连起来就收走一对';
     vm.banner = theme.banner || '';
     for (let t = 0; t < 40; t += 1) {
-      board = makeBoard(n, kinds);
+      board = makeBoard(n, kinds, weave);
       if (findPair(board, cols, rows)) break;
     }
     paint();
@@ -461,6 +488,6 @@ function lines(p) {
 module.exports = {
   id: 'link',
   findPath: findPath, name: '灵纹连线', create: create, lines: lines,
-  canLink: canLink, findPair: findPair, GLYPHS: GLYPHS,
+  canLink: canLink, findPair: findPair, GLYPHS: GLYPHS, pairCounts: pairCounts,
   gradeByLeft: gradeByLeft, gradeLefts: gradeLefts,
 };

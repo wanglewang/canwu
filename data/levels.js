@@ -117,6 +117,7 @@ function totalProgressOf(level) {
 //   merge   起手给 4 的比例：越往后越少白送 4，凑同数就得多走几步；
 //   mines   S 线系数：盘面不变，S 线按段收紧，考的是推理不是手速；
 //   klotski 步数预算系数：滑块让路本来只有「最优几步」两档，靠预算才有连续量。
+//   link    段内布纹：盘面规格与纹种数不变，只改每种纹各有几对——段首均匀、段末偏斜。
 function tweakParams(method, out, level) {
   if (!method || !out) return out;
   const lv = clampLevel(level);
@@ -163,6 +164,13 @@ function tweakParams(method, out, level) {
     // 按全书关号算而不是按段内进度算：按段回卷会让下一段第 1 关比上一段末关更好辨。
     // 下限 2 是硬的：差 1 时两个数只差末位，等于把「看一眼」改成「读两遍」，C 带会被吃掉。
     out.nearGap = Math.max(2, Math.round(12 - 10 * (lv - 1) / (LEVEL_MAX - 1)));
+  }
+  // 御灵·并蒂连枝引：段内布纹。盘面规格与纹种数照旧挂段表，这里只改每种纹各有几对。
+  // 段首均匀铺开、段末一种纹占六对另一种只剩一对，玩家在盘上直接看得见牌阵换了。
+  // 按段内进度走：每一段的头关都从均匀起手，末关都是最偏的那一副，段差不被回卷吃掉。
+  // 数字只到 3：再偏就有纹种被挤掉，而纹种数是换段才动的事。
+  if (method.game === 'link') {
+    out.weave = Math.min(3, Math.floor(4 * progressOf(lv)));
   }
   return out;
 }

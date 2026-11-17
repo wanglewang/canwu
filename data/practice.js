@@ -468,20 +468,24 @@ const MINES_LEVELS = [
 // 旧的 MINES_HEARTS 仍然导出（测试与文档引用它），但改成从表里派生，只留一份真源。
 const MINES_HEARTS = MINES_LEVELS.map(function (lv) { return lv.hearts; });
 
-// 三秀同收的五段：盘面（花色）、时辰、三处罚息与评级线，一张表管全。
+// 三秀同收的五段：盘面规格、花色、时辰、三处罚息与评级线，一张表管全。
 // 旧版只有「S 线 620 + depth×150」在变，60 息 / 5 色 / 罚 2 息四档全写死——
 // 真控制器跑 12 局的结果：高手五段 12/12 全 S、常人绝境 10/12 S，等于同一局打五遍。
-// 现在每档只收紧一到两个数（对应十二原则第三节「递增曲线平缓，无断崖」）：
-//   简单→普通 收时辰与罚息；普通→困难 多一色；困难→极难 收时辰与罚息；极难→绝境 再多一色。
-// sLine 不是「越难越高」，而是按**本段实测可得分**标定：花色越多，随机盘面凑出三连的
-// 概率越低、连锁越短，同样的分数含金量不同。落点是「高手约 75–95% 拿得到、常人 5–25%」，
-// 由 scripts/difficulty-audit.js 与 tests/rank.test.js 一起守，不许再拍脑袋 +150。
+// 后来补了花色与罚息，但盘面仍是 6×6：换段只多一张果器纹、少几息，玩家一眼看不出来。
+// 现在换段先换盘——6×6 → 7×7 → 8×8 → 9×9 → 10×10，这是长线里唯一一次
+// 「不用读字就知道换段了」的台阶；花色、时辰、罚息继续各管一档的松紧。
+// 时辰没有跟着旧表继续大收，是因为盘变大后扫一圈要更久：68/66/64/62/60 递减，
+// 每格预算却从 1.89 息一路收到 0.60 息，主承重轴从「快」挪回「看得清」。
+// sLine 保持原五值：用同一套启发式玩家在旧盘与新盘各跑 15 局，快手得分比是
+// 0.99 / 1.17 / 1.06 / 0.97 / 0.94，常人 1.20 / 0.91 / 0.98 / 1.02 / 0.83，
+// 换盘没有改变可得分的量级，动分数线只会把已标定的档位打乱。
+// 标定口径仍是「高手约 75–95% 拿得到、常人 5–25%」，由 tests/rank.test.js 守。
 const MATCH_LEVELS = [
-  { kinds: 5, duration: 68, missCost: 1, shuffleCost: 2, hintCost: 1, sLine: 1900 },
-  { kinds: 5, duration: 60, missCost: 2, shuffleCost: 3, hintCost: 2, sLine: 1750 },
-  { kinds: 6, duration: 58, missCost: 2, shuffleCost: 3, hintCost: 2, sLine: 1400 },
-  { kinds: 6, duration: 55, missCost: 3, shuffleCost: 4, hintCost: 3, sLine: 1300 },
-  { kinds: 7, duration: 52, missCost: 3, shuffleCost: 4, hintCost: 3, sLine: 950 },
+  { cols: 6, rows: 6, kinds: 5, duration: 68, missCost: 1, shuffleCost: 2, hintCost: 1, sLine: 1900 },
+  { cols: 7, rows: 7, kinds: 5, duration: 66, missCost: 2, shuffleCost: 3, hintCost: 2, sLine: 1750 },
+  { cols: 8, rows: 8, kinds: 6, duration: 64, missCost: 2, shuffleCost: 3, hintCost: 2, sLine: 1400 },
+  { cols: 9, rows: 9, kinds: 6, duration: 62, missCost: 3, shuffleCost: 4, hintCost: 3, sLine: 1300 },
+  { cols: 10, rows: 10, kinds: 7, duration: 60, missCost: 3, shuffleCost: 4, hintCost: 3, sLine: 950 },
 ];
 
 function matchLevelOf(stageIndex) {
@@ -511,6 +515,14 @@ const LINK_LEVELS = [
 // 拿「每对」而不是「总秒数」当主承重：换章盘面变大，总秒数跟着变长是应该的，
 // 玩家比较难度的尺子只能是「一对平均给几息」。
 const LINK_BUDGET = [5.5, 2.75];
+
+// 段内布纹的名字。weave 由 levels.js 的 tweakParams 按段内进度生成（0–3），
+// 玩法层按它决定每种纹各有几对；这里只管怎么把同一件事说给玩家听。
+const WEAVE_NAMES = ['均匀', '微偏', '偏斜', '极偏'];
+
+function weaveNameOf(weave) {
+  return WEAVE_NAMES[Math.max(0, Math.min(WEAVE_NAMES.length - 1, Math.round(Number(weave) || 0)))];
+}
 
 // 这一关每对给几息：沿全书进度线性收，不按章回卷——「章内收三成、换章复位」
 // 正是倒挂的来源。
@@ -865,6 +877,9 @@ function rawParams(method, depthIndex) {
   // 这几个键不在 PACE / GOAL 缩放名单里，免得被 pace 又乘一遍（花色与罚息是整数）。
   if (method && method.game === 'match') {
     const lv = MATCH_LEVELS[d.depth];
+    // cols/rows 覆盖 method.params 里的 6×6 种子值：五段各一副盘，盘面规格从这里出。
+    out.cols = lv.cols;
+    out.rows = lv.rows;
     out.kinds = lv.kinds;
     out.duration = lv.duration;
     out.missCost = lv.missCost;
@@ -882,6 +897,9 @@ function rawParams(method, depthIndex) {
     out.rows = lv.rows;
     out.kinds = lv.kinds;
     out.duration = linkDurationAt(levelData.stageRange(d.depth).from);
+    // 段基准是「均匀布纹」，段内一级一级偏过去（tweakParams）。写在这里是为了
+    // buildParams(method, stage) 那些段级读者也有同一个起点，不会出现 undefined。
+    out.weave = 0;
   }
   // 阵灯推演按「比最优多走几步」评级，盘面规格、最优步数区间与步数余量由这一份表按档注入。
   if (method && method.game === 'lights') {
@@ -1078,6 +1096,127 @@ const LEVEL_STRUCT_KEYS = ['cols', 'rows', 'size', 'grid', 'kinds', 'holes', 'co
 // 沿全书关号连续收的结构旋钮不属于「本段换了哪一副盘」，换段时不与盘面规格抢那两条额度。
 const CONTINUOUS_STRUCT_KEYS = ['nearGap'];
 
+// 一关的「规格串」：只给第一关与最后一关用。
+// 这两关没有「上一关」可比（首关前面是空的，末关常常因为取整与上一关一字不差），
+// 旧版于是都落到页面那句「与上一关规格相同」——第一关读到这句，玩家会以为自己漏了前一关；
+// 第 1000 关读到这句，玩家读不出「到此为止」。
+// 挑的是进局第一眼就看得见的数，顺序永远是「盘面 → 规则 → 时辰」，不报毫秒。
+function levelSpecItems(method, q, limit) {
+  const out = [];
+  const num = function (v) { return typeof v === 'number'; };
+  if (num(q.cols) && num(q.rows)) out.push('盘面 ' + q.cols + '×' + q.rows);
+  else if (num(q.size)) out.push('盘面 ' + Math.round(q.size) + '×' + Math.round(q.size));
+  else if (num(q.grid)) out.push('盘面 ' + Math.round(q.grid) + ' 格');
+  else if (num(q.cols)) out.push('盘面 ' + q.cols + ' 列');
+  if (num(q.kinds)) out.push(labelOf(method, 'kinds') + ' ' + q.kinds + ' 种');
+  // 节律判定先报手数与谱面：它的盘面是谱，不是格子。
+  if (num(q.hands)) out.push(q.hands >= 2 ? '双手' : '单手');
+  if (q.meter) out.push('拍号 ' + q.meter);
+  if (num(q.bars)) out.push(Math.round(q.bars) + ' 小节');
+  if (num(q.beats)) out.push(q.beats + ' 息');
+  if (num(q.mines)) out.push('禁制 ' + q.mines);
+  if (num(q.holes)) out.push('待填 ' + q.holes + ' 格');
+  if (num(q.pairs)) out.push('气窍 ' + q.pairs + ' 对');
+  if (num(q.boxes)) out.push('石箱 ' + q.boxes);
+  if (num(q.walls) && q.walls > 0) out.push('壁垒 ' + q.walls);
+  if (num(q.startLevel)) out.push('起手第 ' + Math.round(q.startLevel) + ' 级');
+  if (num(q.linesPerLevel)) out.push('每级 ' + q.linesPerLevel + ' 层');
+  if (num(q.minSteps) && num(q.hiSteps)) out.push('最优 ' + q.minSteps + '–' + q.hiSteps + ' 步');
+  else if (num(q.minOpt) && num(q.maxOpt)) out.push('最优 ' + q.minOpt + '–' + q.maxOpt + ' 步');
+  if (num(q.startLen)) out.push('起始 ' + q.startLen + ' 字');
+  if (num(q.maxRound)) out.push('口诀 ' + q.maxRound + ' 轮');
+  if (num(q.target)) out.push('合出 ' + q.target);
+  if (num(q.startTiles)) out.push('起手 ' + q.startTiles + ' 块');
+  if (num(q.fourRate)) out.push('给 4 比例 ' + Math.round(q.fourRate * 100) + '%');
+  if (num(q.hearts)) out.push('心神 ' + q.hearts + ' 盏');
+  if (num(q.count)) out.push('每批 ' + q.count + ' 个');
+  if (num(q.rounds)) out.push(q.rounds + ' 批');
+  if (num(q.penaltySec)) out.push('点错罚 ' + q.penaltySec.toFixed(1) + ' 秒');
+  if (num(q.capFactor)) out.push(labelOf(method, 'capFactor') + ' ×' + q.capFactor.toFixed(2));
+  if (num(q.lenStep) && q.lenStep > 0) out.push('刀路多 ' + q.lenStep + ' 桩');
+  // 灵纹连线的总时辰换章时会被盘变大顶上去，能比的是「一对平均给几息」。
+  if (method && method.game === 'link' && num(q.duration) && num(q.cols) && num(q.rows)) {
+    out.push('每对 ' + (q.duration / (q.cols * q.rows / 2)).toFixed(2) + ' 息');
+  } else if (num(q.duration)) out.push('时辰 ' + Math.round(q.duration) + ' 秒');
+  else if (num(q.timeLimit)) out.push('时辰 ' + Math.round(q.timeLimit) + ' 秒');
+  return out.slice(0, limit || 3);
+}
+
+// 末关那一行：从起手关走到这里，累计变了哪几处。
+// 比的是「本关 vs 第一关」，不是「本关 vs 上一关」——末关要回答的是「一千关走下来变了什么」。
+function levelSpanItems(method, from, to, limit) {
+  const out = [];
+  const skip = {};
+  const cap = limit || 2;
+  const num = function (v) { return typeof v === 'number'; };
+  const add = function (s) { if (s && out.length < cap) out.push(s); };
+  const pair = function (k) {
+    if (!num(from[k]) || !num(to[k]) || from[k] === to[k]) return;
+    const a = levelFmt(k, from[k]);
+    const b = levelFmt(k, to[k]);
+    if (a === b) return;
+    add(labelOf(method, k) + ' ' + a + ' → ' + b);
+  };
+  // 时辰只报「变短」。九宫从 4×4 换 9×9 会多给时间，报出来等于说这一关变松了；
+  // 灵纹连线连总时辰也不报，报「一对平均给几息」——盘变大本来就该多给时间。
+  if (method && method.game === 'link' && num(from.duration) && num(to.duration)
+    && num(from.cols) && num(from.rows) && num(to.cols) && num(to.rows)) {
+    add('每对时辰 ' + (from.duration / (from.cols * from.rows / 2)).toFixed(2)
+      + ' → ' + (to.duration / (to.cols * to.rows / 2)).toFixed(2) + ' 息');
+    skip.duration = true;
+  } else if (num(from.duration) && num(to.duration) && to.duration < from.duration) {
+    pair('duration');
+    skip.duration = true;
+  } else if (num(from.timeLimit) && num(to.timeLimit) && to.timeLimit < from.timeLimit) {
+    pair('timeLimit');
+    skip.timeLimit = true;
+  }
+  // 盘面：能数格子就数格子（刀盘「9 格 → 25 格」比「3 列 → 5 列」直观），
+  // 其次方块边长，最后行列。
+  if (num(from.grid) && num(to.grid) && from.grid !== to.grid) {
+    add('盘面 ' + Math.round(from.grid) + ' 格 → ' + Math.round(to.grid) + ' 格');
+    skip.grid = true;
+  } else if (num(from.size) && num(to.size) && from.size !== to.size) {
+    add('盘面 ' + from.size + '×' + from.size + ' → ' + to.size + '×' + to.size);
+    skip.size = true;
+  } else if (num(from.cols) && num(from.rows) && num(to.cols) && num(to.rows)
+    && (from.cols !== to.cols || from.rows !== to.rows)) {
+    add('盘面 ' + from.cols + '×' + from.rows + ' → ' + to.cols + '×' + to.rows);
+    skip.cols = true;
+    skip.rows = true;
+  }
+  // 最优步数：下限与上限是一件事，分开报会读成「下限 2 → 6 · 上限 4 → 12」。
+  const optPairs = [['minOpt', 'maxOpt'], ['minSteps', 'hiSteps']];
+  for (let i = 0; i < optPairs.length; i += 1) {
+    const lo = optPairs[i][0];
+    const hi = optPairs[i][1];
+    if (num(from[lo]) && num(to[lo]) && num(from[hi]) && num(to[hi])
+      && (from[lo] !== to[lo] || from[hi] !== to[hi])) {
+      add('最优 ' + from[lo] + '–' + from[hi] + ' 步 → ' + to[lo] + '–' + to[hi] + ' 步');
+      skip[lo] = true;
+      skip[hi] = true;
+    }
+  }
+  for (let i = 0; i < LEVEL_STRUCT_KEYS.length && out.length < cap; i += 1) {
+    const k = LEVEL_STRUCT_KEYS[i];
+    if (skip[k] || CONTINUOUS_STRUCT_KEYS.indexOf(k) >= 0) continue;
+    // 这两句的标签自带量词，再套 levelFmt 会写成「起手块 2 块」「起手级数 第 1 级」。
+    if (k === 'startLevel' && num(from[k]) && num(to[k]) && from[k] !== to[k]) {
+      add('起手第 ' + Math.round(from[k]) + ' 级 → 第 ' + Math.round(to[k]) + ' 级');
+      continue;
+    }
+    if (k === 'startTiles' && num(from[k]) && num(to[k]) && from[k] !== to[k]) {
+      add('起手 ' + from[k] + ' 块 → ' + to[k] + ' 块');
+      continue;
+    }
+    pair(k);
+  }
+  // 罚时与预算不在结构键里，但它们是段差的真承重轴。
+  pair('penaltySec');
+  pair('capFactor');
+  return out;
+}
+
 // 这一关的「小变化」：拿上一关的参数逐项比，只报玩家看得懂的。
 // 比较基准一定是同一门、本关减一，而不是「与简单档比」——玩家看的是脚下这一步。
 //
@@ -1087,10 +1226,43 @@ const CONTINUOUS_STRUCT_KEYS = ['nearGap'];
 function levelDelta(method, level) {
   const lv = levelData.clampLevel(level);
   const prevLv = lv - 1;   // 一关一步：本关与上一关比
-  if (prevLv < 1) return [];
+  // 第一关没有上一关。旧版在这里直接返回空，准备页于是兜底写「与上一关规格相同」——
+  // 玩家在第一关读到这句，只会以为自己漏了前一关。据实报本关的起手规格。
+  if (prevLv < 1) {
+    const spec = levelSpecItems(method, buildParamsAt(method, lv), 3).join(' · ');
+    return [{ key: 'start', label: '起手', start: true,
+      text: '本门第一关' + (spec ? '：' + spec : '') }];
+  }
   const now = buildParamsAt(method, lv);
   const prev = buildParamsAt(method, prevLv);
-  // 灵纹连线只报三样玩家真看得见的东西：换盘、换纹种、每对时辰。
+  // 最后一关：999 → 1000 常常因为整秒取整一字未动，旧版落到「与上一关规格相同」，
+  // 玩家读不出「到此为止」。这里改说「比起手关累计变了什么」。
+  const isLast = lv >= levelData.LEVEL_MAX;
+  let first = null;
+  const finalLine = function (items) {
+    if (first === null) first = buildParamsAt(method, 1);
+    const list = items || levelSpanItems(method, first, now, 2);
+    return [{ key: 'final', label: '圆满', final: true,
+      text: '本门最后一关' + (list.length ? ' · 比起手关：' + list.join(' · ') : '') }];
+  };
+  // 末关统一收口：999 → 1000 常常因为整秒取整一字未动，不论上一关有没有变化，
+  // 最后一关都该说「到此为止」和「一千关走下来变了什么」。
+  // 节律判定的跨度是手数与谱型，不是毫秒。
+  if (isLast) {
+    if (method && method.game === 'tempo') {
+      const base = buildParamsAt(method, 1);
+      const items = [];
+      if (base.hands !== now.hands) {
+        items.push('手数 ' + (base.hands >= 2 ? '双手 → 单手' : '单手 → 双手'));
+      }
+      if (base.scoreLabel !== now.scoreLabel) {
+        items.push('谱型「' + base.scoreLabel + '」→「' + now.scoreLabel + '」');
+      }
+      return finalLine(items.length ? items : null);
+    }
+    return finalLine();
+  }
+  // 灵纹连线只报四样玩家真看得见的东西：换段、换盘、换纹种、布纹与每对时辰。
   // 总时辰在换章时会因盘变大而变长，直接报「时辰 46 → 54 息」等于说这一关变松了；
   // 玩家该看的是「一对平均给几息」，那个数永远只减不增。
   // 照纹高亮时长（hintMs）恒定，旧版的 flashMs 会报出一百多关「0.75 → 0.74 秒」——
@@ -1109,6 +1281,12 @@ function levelDelta(method, level) {
     }
     if (now.kinds !== prev.kinds) {
       out.push({ key: 'kinds', label: '灵纹', text: '灵纹 ' + prev.kinds + ' → ' + now.kinds + ' 种' });
+    }
+    // 布纹只在段内报：下一段首关会从「极偏」回到「均匀」，那是新段的起手牌阵，
+    // 不是这一关变松了。换段那关前三条额度留给换段 / 换盘 / 换纹种。
+    if (!chStart && now.weave !== prev.weave) {
+      out.push({ key: 'weave', label: '布纹',
+        text: '布纹 ' + weaveNameOf(prev.weave) + ' → ' + weaveNameOf(now.weave) });
     }
     const perPair = function (q) { return (q.duration / (q.cols * q.rows / 2)).toFixed(2); };
     const a = perPair(prev);
@@ -1215,6 +1393,9 @@ const LEVEL_LABELS = { fourRate: '起手给 4', lineScale: 'S 线', startLevel: 
 // 写错一边，第 3 关的「本关小变化」就会说「S 线 96% → 95%」，而实际连 A 线也收了。
 function lineLabelOf(method, key) {
   if (key === 'lineScale' && method && method.game === 'schulte') return '评级线';
+  // 同一个键在不同门里不是一回事：三秀的 kinds 是花色、灵纹连线的是纹种；
+  // 滑块让路的 capFactor 是步数预算、推石入位的是推数预算。局内与准备页要说同一句话。
+  if (key === 'kinds' || key === 'capFactor') return labelOf(method, key);
   return LEVEL_LABELS[key] || FIELD_LABELS[key] || key;
 }
 
@@ -1301,8 +1482,8 @@ function stageDetail(method, stageIndex) {
   let brief;
   if (method && method.game === 'match') {
     const lv = matchLevelOf(idx);
-    brief = lv.kinds + ' 色 · ' + lv.duration + ' 息 · 换不出少 ' + lv.missCost + ' 息'
-      + ' · 重排少 ' + lv.shuffleCost + ' 息 · S ' + lv.sLine + ' 分';
+    brief = lv.cols + '×' + lv.rows + ' 盘 · ' + lv.kinds + ' 色 · ' + lv.duration + ' 息'
+      + ' · 换不出少 ' + lv.missCost + ' 息 · 重排少 ' + lv.shuffleCost + ' 息 · S ' + lv.sLine + ' 分';
   } else if (method && method.game === 'lights') {
     const lv = lightsLevelOf(idx);
     brief = lv.size + '×' + lv.size + ' 盘 · 最优 ' + lv.min + '～' + lv.hi + ' 步'
@@ -1342,7 +1523,8 @@ function stageDetail(method, stageIndex) {
     // 0.08 息，准备页说 5.50、局内却是 5.42，玩家一眼就看得出是两张嘴。
     const pairs = now.cols * now.rows / 2;
     brief = now.cols + '×' + now.rows + ' 盘 · ' + pairs + ' 对 · ' + now.kinds + ' 种灵纹 · '
-      + now.duration + ' 息 · 每对 ' + (now.duration / pairs).toFixed(2) + ' 息';
+      + now.duration + ' 息 · 每对 ' + (now.duration / pairs).toFixed(2) + ' 息'
+      + ' · 布纹由均匀渐至极偏';
   } else if (method && method.game === 'tempo') {
     // 这一门的段差是「换了一副谱」，不是「快了几毫秒」：谱型 / 手数 / 提示三样写在一句里，
     // 准备页才不会写着「最快节奏」而玩家进局发现只是窗窄了一点。
@@ -1460,6 +1642,8 @@ module.exports = {
   matchLevelOf: matchLevelOf,
   LINK_LEVELS: LINK_LEVELS,
   LINK_BUDGET: LINK_BUDGET,
+  WEAVE_NAMES: WEAVE_NAMES,
+  weaveNameOf: weaveNameOf,
   linkPerPairAt: linkPerPairAt,
   linkDurationAt: linkDurationAt,
   tipFor: tipFor,

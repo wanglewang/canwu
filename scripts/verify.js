@@ -624,6 +624,15 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   if (/(p|params)[ ]*[.][ ]*flashMs(?![a-zA-Z])/.test(linkSrc)) {
     errors.push('minigames/link.js 还在读 flashMs：提示变短不是玩家本事要求变高');
   } else checked += 1;
+  // 段内布纹必须两头都有人管：levels.js 生成 weave，link.js 读走它去派牌。
+  // 只在一头写参数，就是 8b-5d 守的「生成了没生效 / 消费了没生成」假变化。
+  const levelsSrc = fs.readFileSync(path.join(ROOT, 'data/levels.js'), 'utf8');
+  if (!/game === 'link'[\s\S]{0,320}out\.weave\s*=/.test(levelsSrc)
+      || !/(p|params)[ ]*[.][ ]*weave(?![a-zA-Z])/.test(linkSrc)
+      || !/board\s*=\s*makeBoard\(n, kinds, weave\)/.test(linkSrc)
+      || typeof linkMod.pairCounts !== 'function') {
+    errors.push('linkpair 的段内布纹没接成：levels.js 没生成，或 link.js 读了没派牌');
+  } else checked += 1;
   let hintStable = true;
   let sourced = true;
   let perPairOk = true;
@@ -659,6 +668,44 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   if (!reportOk) errors.push('linkpair 的 levelDelta 又报毫秒假变化，或把变长的总时辰写成变难');
   else checked += 1;
   if (reported < 30) errors.push('linkpair 全书只有 ' + reported + ' 关有规格台阶，低于 30 级下限');
+  else checked += 1;
+
+  // 布纹：每一段都从「均匀」走到「极偏」，段内不许回卷；换段首关回到均匀是新段起手，
+  // levelDelta 在那一关不报布纹，否则玩家会读成「这一关变松了」。
+  const levelsMod = require(path.join(ROOT, 'data/levels.js'));
+  let weaveOk = true;
+  for (const s of levelsMod.STAGES) {
+    if (practiceMod.buildParamsAt(m, s.from).weave !== 0
+        || practiceMod.buildParamsAt(m, s.to).weave !== 3) weaveOk = false;
+    let last = 0;
+    for (let lv = s.from + 1; lv <= s.to; lv += 1) {
+      const w = practiceMod.buildParamsAt(m, lv).weave;
+      if (w < last || w > 3) weaveOk = false;
+      last = w;
+    }
+  }
+  let weaveReported = 0;
+  for (let lv = 2; lv <= linkMax; lv += 1) {
+    const d = practiceMod.levelDelta(m, lv);
+    const hasWeave = d.some(function (x) { return x.key === 'weave'; });
+    if (hasWeave) weaveReported += 1;
+    if (hasWeave && levelsMod.stageOfLevel(lv) !== levelsMod.stageOfLevel(lv - 1)) weaveOk = false;
+  }
+  if (!weaveOk) errors.push('linkpair 的布纹段内回卷了，或段首/段末不是均匀/极偏');
+  else checked += 1;
+  if (weaveReported !== 15) errors.push('linkpair 全书布纹变化 ' + weaveReported + ' 关，应为五段各三级');
+  else checked += 1;
+  // 派牌的总对数守恒，每种纹至少留一对——否则「纹种数不变」是句假话。
+  let countsOk = true;
+  for (const spec of [[12, 4], [12, 5], [12, 6], [14, 6], [16, 6]]) {
+    for (let w = 0; w <= 3; w += 1) {
+      const cs = linkMod.pairCounts(spec[0], spec[1], w);
+      if (cs.length !== spec[1] || cs.reduce(function (a, b) { return a + b; }, 0) !== spec[0]
+          || cs.some(function (x) { return x < 1; })) countsOk = false;
+      if (w === 3 && Math.max.apply(null, cs) - Math.min.apply(null, cs) < 3) countsOk = false;
+    }
+  }
+  if (!countsOk) errors.push('linkpair 的布纹派牌不守恒，或偏到把纹种挤没了');
   else checked += 1;
 
   // 评级四条线逐档可达，且 C 带非空；失败线必须单独给（C 与 F 是两个结论）。
@@ -699,8 +746,9 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   // 路径钉到中文正名，目录名被改回英文 stem 时这里会当场报错，不会静默读旧文件。
   const docPath = path.join(ROOT, 'docs/20-minigames/11-并蒂连枝引/总览.md');
   const doc = fs.readFileSync(docPath, 'utf8');
-  if (!/收干净那一刻的剩余息/.test(doc) || !/44 关参数真变/.test(doc)) {
-    errors.push('11-并蒂连枝引 的玩法文档又是旧版：改了机制必须同批改那一篇');
+  if (!/收干净那一刻的剩余息/.test(doc) || !/59 关有东西可报/.test(doc)
+      || !/布纹/.test(guide)) {
+    errors.push('11-并蒂连枝引 的玩法文档 / 说明页又是旧版：改了机制必须同批改那一篇');
   } else checked += 1;
 }
 // 8b-6b. 玩法文档目录名 = 编号 + 功法正名（照 05-吐纳周天诀），单门六篇齐全。
@@ -874,7 +922,9 @@ if (practiceMod.STAGES[practiceMod.STAGES.length - 1].to !== lvlMod.LEVEL_MAX) {
 // 准备页也看得到「本档几乘几」。不允许的是另一件事：让 pace / goal 那套通用缩放顺手把
 // grid / cols / rows 改掉——那是「调难度不小心改了盘面」，玩家会以为换了一门玩法。
 // 灵纹连线 6×4 → 8×4 是显式的 LINK_LEVELS 表，买的是搜索空间，不是「缩场地逼手速」。
-const BOARD_TABLE_GAMES = ['click', 'mines', 'lights', 'sudoku', 'klotski', 'pushbox', 'memory', 'link'];
+// match 也在表里了：MATCH_LEVELS 五段各给一副盘（6×6 → 10×10），换段是这一门
+// 唯一一眼看得见的台阶，不允许通用 pace / goal 缩放再顺手改它。
+const BOARD_TABLE_GAMES = ['click', 'mines', 'lights', 'sudoku', 'klotski', 'pushbox', 'memory', 'link', 'match'];
 let boardSafe = true;
 let boardStray = '';
 for (const m of practiceMod.PRACTICE_METHODS) {
@@ -892,6 +942,15 @@ for (const m of practiceMod.PRACTICE_METHODS) {
 }
 if (!boardSafe) errors.push('盘面尺寸在没有规格表的门里被缩放了: ' + boardStray);
 else checked += 1;
+
+// 三秀的 9 / 10 列绝不能落进落石那套 408rpx 窄槽：没有满宽覆写，10 列每格只有 20px，
+// 果器纹挤成一团，换段放大盘面反而变成「看不清」。样式守卫与数据层那张表一起走。
+const practiceWxss = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.wxss'), 'utf8');
+if (!/\.grid--c10\.grid--compact\s*\{[^}]*width:\s*100%/.test(practiceWxss)
+  || !/\.grid--c10\.grid--compact \.cell\s*\{/.test(practiceWxss)
+  || !/\.grid--c9\.grid--compact \.cell__crest/.test(practiceWxss)) {
+  errors.push('三秀 9/10 列缺满宽 / 图案缩放样式：10 列会退化成落石的 20px 窄格');
+} else checked += 1;
 
 // 9. 页面规范：设计令牌单一真源、明暗一致性、导航栏标题与暗色、页面样式不写裸色值
 const appWxss = fs.readFileSync(path.join(ROOT, 'app.wxss'), 'utf8');

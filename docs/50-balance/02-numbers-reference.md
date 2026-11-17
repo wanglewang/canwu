@@ -145,7 +145,7 @@ SPEED_KEY   = 'speed'   // 方向相反：除以 pace
 
 | 表 | 谁 | 内容 |
 | --- | --- | --- |
-| `MATCH_LEVELS` | 三秀同收 | kinds / duration / missCost / shuffleCost / hintCost / sLine |
+| `MATCH_LEVELS` | 三秀同收 | cols / rows（6×6→10×10，换段各换一副盘）/ kinds / duration / missCost / shuffleCost / hintCost / sLine |
 | `LIGHTS_LEVELS` | 阵灯推演 | size / min / hi / slack（最优步数区间 / 步数余量） |
 | `SUDOKU_LEVELS` | 九宫填数 | size / holes / timeLimit / tS / tA / tB |
 | `KLOTSKI_LEVELS` | 滑块让路 | minOpt / maxOpt |

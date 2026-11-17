@@ -584,9 +584,24 @@ Page({
       stageTotal: stageDef.to,
       levelChange: (function () {
         const d = practiceData.levelDelta(method, level);
+        // 换段 / 第一关 / 最后一关本来说的都是整件事，不是「比上一关变了哪一处」，
+        // 别再挂「本关变化：」——第一关没有上一关，末关说的是一千关的跨度。
+        const head = function (list) {
+          return (list[0].chapter || list[0].start || list[0].final) ? '' : '本关变化：';
+        };
+        const text = function (list) { return list.map(function (x) { return x.text; }).join(' · '); };
+        // 并蒂连枝引的布纹是段内唯一的牌阵台阶。就算这一关没换，也要写出本关是哪一副：
+        // 只写「与上一关相同」，玩家会以为这一段从头到尾都是同一张盘。
+        if (method && method.game === 'link') {
+          const weave = '本关布纹 ' + practiceData.weaveNameOf(
+            practiceData.buildParamsAt(method, level).weave);
+          if (!d.length) return weave + ' · 与上一关规格相同（盘面换段才换，段内只收时辰与布纹）';
+          if (d[0].start || d[0].final) return text(d);
+          return head(d) + text(d) + ' · ' + weave;
+        }
         // 兜底那句不再重复本段第几关：同一屏里已经说过两次，第三遍只会让这一行像噪音。
         if (!d.length) return '与上一关规格相同（盘面换段才换，段内只收时辰与评级线）';
-        return (d[0].chapter ? '' : '本关变化：') + d.map(function (x) { return x.text; }).join(' · ');
+        return head(d) + text(d);
       })(),
       // 段位条：五段一条，既报进度也是切段的入口——点已走到的段落到那一段已至的最高关。
       // 段的「锁」只问有没有走到：回打到早段时，进度所在的段仍可点回去，不能误锁。

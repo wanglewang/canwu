@@ -2021,6 +2021,30 @@
 /* 两百格的金线角花只会变成一片噪点；这一档撤掉。 */
 .grid--c10 .cell::before { display: none; }
 
+/* ---------- 三秀同收的 9 / 10 列：换段换盘，不是落石的标准场地 ----------
+   上面那套 .grid--c10 是给 10×20 长条用的 408rpx 窄槽（每格 20px）。
+   消消乐用同一列数但只有 9 / 10 行，必须满宽：每格约 74rpx（37px），
+   高度仍走 grid--compact 的 76rpx，近正方才认得出果器纹。
+   靠 .grid--compact 区分：落石不带这个类，两套 c10 规则互不串味。 */
+.grid--c10.grid--compact {
+  width: 100%;
+  max-width: none;
+}
+.grid--c10.grid--compact .cell {
+  width: 10%;
+  height: 76rpx;
+  font-size: 22rpx;
+  border-width: 3rpx;
+  border-radius: 8rpx;
+}
+/* c9 那套 74rpx 高 / 22rpx 字是给数独的；三秀盘上不写数字，
+   图案跟着收一档，别顶到牌边。 */
+.grid--c9.grid--compact .cell__crest,
+.grid--c10.grid--compact .cell__crest {
+  width: 52rpx;
+  height: 52rpx;
+}
+
 /* ---------- 落石垒基：暂存格与三块预告 ----------
    摆在盘面右侧，而不是方向键那一行：下方横带要留给拇指按方向。
    暂存格本身就是一个按键（点它换块），所以它与预告格同一副面子。 */

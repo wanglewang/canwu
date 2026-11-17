@@ -2634,6 +2634,45 @@ check('牵灵引线：连上的那一对真的画得出一条折线', function (
   assert.strictEqual(mod.findPath(near, cols, rows, 0, 2), null, '不同纹也给了路径');
 });
 
+check('牵灵引线：段内布纹真换了牌阵，纹种不减、开局仍可连', function () {
+  const mod = require('../minigames/link.js');
+  const m = data.getMethod('linkpair');
+  const sum = function (a) { return a.reduce(function (x, y) { return x + y; }, 0); };
+  for (const spec of [[12, 4], [12, 5], [12, 6], [14, 6], [16, 6]]) {
+    for (let w = 0; w <= 3; w += 1) {
+      const cs = mod.pairCounts(spec[0], spec[1], w);
+      assert.strictEqual(cs.length, spec[1], '布纹把纹种挤掉了');
+      assert.strictEqual(sum(cs), spec[0], '布纹改了总对数');
+      assert.ok(cs.every(function (x) { return x >= 1; }), '有一种纹被布纹挤没了');
+    }
+    const skew = mod.pairCounts(spec[0], spec[1], 3);
+    assert.ok(Math.max.apply(null, skew) - Math.min.apply(null, skew) >= 3, '极偏布纹看不出差别');
+  }
+  // 真开局：段首均匀、段末极偏，vm 必须报出本关是哪一副，牌堆枚数也要真的不同。
+  const freshAt = function (lv) {
+    const p = data.buildParamsAt(m, lv);
+    let vm = null;
+    const c = index.createGame('link', {
+      params: p, difficulty: 'novice', perks: { tier: 0 }, tip: m.tip, twist: m.twist,
+      theme: themes.themeOf(m.id, m.game),
+      render: function (v) { vm = v; }, finish: function () {},
+    });
+    c.start();
+    const counts = {};
+    vm.link.board.forEach(function (v) { if (v) counts[v] = (counts[v] || 0) + 1; });
+    assert.strictEqual(vm.weave, p.weave, '玩法层没读走本关布纹');
+    assert.ok(mod.findPair(vm.link.board, vm.link.cols, vm.link.rows), '偏斜牌堆开局无可连对');
+    c.destroy();
+    return Object.keys(counts).map(function (k) { return counts[k]; });
+  };
+  const head = freshAt(1);
+  const tail = freshAt(10);
+  assert.strictEqual(head.length, 4, '段首纹种少了');
+  assert.strictEqual(tail.length, 4, '段末纹种少了');
+  assert.ok(Math.max.apply(null, head) - Math.min.apply(null, head) <= 2, '段首牌阵不是均匀的');
+  assert.ok(Math.max.apply(null, tail) - Math.min.apply(null, tail) >= 8, '段首与段末看着还是差不多');
+});
+
 // 评级改看「收干净那一刻剩几息」之后，四档必须都能真打出来。旧版按分数评，
 // 最低完成分 1200 > A 线 1199，B 与 C 是死线；这里把剩余息分别压到四条线上再收干净。
 check('牵灵引线：S / A / B / C 四档都真的拿得到，未收干净才是 F', function () {

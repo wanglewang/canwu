@@ -569,6 +569,26 @@ check('换段要报出盘面规格，不许把结构变化藏在毫秒后面', f
   }
 });
 
+check('第一关与最后一关不许报「与上一关规格相同」', function () {
+  // 真机读准备页：第 1 关和第 1000 关读到的是同一句「与上一关规格相同」。
+  // 第一关根本没有上一关；末关的 999 → 1000 又常被整秒取整抹平。
+  // 两处必须据实报「起点是什么」和「一千关走下来变了什么」。
+  for (const m of practice.PRACTICE_METHODS) {
+    const first = practice.levelDelta(m, 1);
+    const last = practice.levelDelta(m, L.LEVEL_MAX);
+    assert.ok(first.some(function (x) { return x.key === 'start'; }),
+      m.id + ' 第一关没报起手规格');
+    assert.ok(last.some(function (x) { return x.key === 'final'; }),
+      m.id + ' 最后一关没报跨度');
+    const said = first.concat(last).map(function (x) { return x.text; }).join(' / ');
+    assert.ok(!/与上一关/.test(said), m.id + ' 首关或末关仍在说「与上一关」');
+    assert.ok(first[0].text.indexOf('本门第一关：') === 0
+      && first[0].text.length > '本门第一关：'.length + 2,
+    m.id + ' 第一关没报出起手规格：' + first[0].text);
+    assert.ok(/比起手关/.test(last[0].text), m.id + ' 末关没说清跨度：' + last[0].text);
+  }
+});
+
 check('段内结构副轴：数距沿全书只紧不松，换段不回卷', function () {
   // D7 待拍板方向之一：不靠收时间、不缩盘面，给离散门加一条盘面看得见的结构量。
   // 择大辨微的 nearGap 是「一批数里最大与次大差几」，按全书关号连续收，
@@ -782,7 +802,8 @@ check('难度档缩放不碰盘面尺寸，且各档参数确有区分', functio
   // 见下面的专条断言。它们的盘面「该变」，所以不在这条里被判。
   // link 的 6×4 → 8×4 是 LINK_LEVELS 显式表：连连看加列买的是搜索空间，
   // 与「缩场地把手感挤成手速」不是一回事。
-  const tableGames = ['lights', 'sudoku', 'klotski', 'click', 'mines', 'link'];
+  // match 也进表了：MATCH_LEVELS 五段各给一副盘，不经通用缩放。
+  const tableGames = ['lights', 'sudoku', 'klotski', 'click', 'mines', 'link', 'match'];
   // 档位表住在玩法模块里的四门（merge / schulte / pushbox / biggest）：params 只有 depth，
   // 「难度确实变了」要看它们的评级线随档收紧——线不变才是真没区分度。
   const internalGames = ['merge', 'schulte', 'pushbox', 'biggest'];
@@ -1107,6 +1128,12 @@ check('三秀同收：五档整表同管盘面、时辰、罚息与 S 线，不�
   for (let i = 1; i < lv.length; i += 1) {
     assert.ok(lv[i].kinds >= lv[i - 1].kinds, '第 ' + (i + 1) + ' 档花色反而少了');
     assert.ok(lv[i].duration < lv[i - 1].duration, '第 ' + (i + 1) + ' 档时辰没收紧');
+    // 换段先换盘：6×6 → 7×7 → 8×8 → 9×9 → 10×10，这是玩家一眼就看得见的台阶。
+    assert.strictEqual(lv[i].cols, lv[0].cols + i, '第 ' + (i + 1) + ' 档盘面列没换副');
+    assert.strictEqual(lv[i].rows, lv[0].rows + i, '第 ' + (i + 1) + ' 档盘面行没换副');
+    // 盘变大时总时辰给足了，但每一格的预算必须还是收紧的——不然盘面只是变大，没变难。
+    const budget = function (row) { return row.duration / (row.cols * row.rows); };
+    assert.ok(budget(lv[i]) < budget(lv[i - 1]), '第 ' + (i + 1) + ' 档每格预算反而松了');
     assert.ok(lv[i].missCost >= lv[i - 1].missCost, '第 ' + (i + 1) + ' 档罚息反而轻了');
     assert.ok(lv[i].hintCost >= lv[i - 1].hintCost && lv[i].shuffleCost >= lv[i - 1].shuffleCost,
       '第 ' + (i + 1) + ' 档辅助代价反而轻了');
@@ -1122,6 +1149,8 @@ check('三秀同收：五档整表同管盘面、时辰、罚息与 S 线，不�
     '功法表里的兜底代价句和简单档罚息分叉了');
   keys.forEach(function (k, i) {
     const p = practice.buildParams(method, k);
+    assert.strictEqual(p.cols, lv[i].cols, k + ' 的盘面列没送进玩法层');
+    assert.strictEqual(p.rows, lv[i].rows, k + ' 的盘面行没送进玩法层');
     assert.strictEqual(p.kinds, lv[i].kinds, k + ' 的花色没送进玩法层');
     assert.strictEqual(p.duration, lv[i].duration, k + ' 的时辰没送进玩法层');
     assert.strictEqual(p.missCost, lv[i].missCost, k + ' 的罚息没送进玩法层');
@@ -1236,9 +1265,11 @@ check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备�
       assert.ok(pp <= prevPP + 0.02, '第 ' + lv + ' 关换段时每对预算松了 ' + (pp - prevPP).toFixed(3) + ' 息');
     }
     if (q.duration !== prev.duration || q.cols !== prev.cols || q.rows !== prev.rows
-      || q.kinds !== prev.kinds) changed += 1;
+      || q.kinds !== prev.kinds || q.weave !== prev.weave) changed += 1;
     const ds = practice.levelDelta(m, lv);
-    if (ds.length) reported += 1;
+    // 「本门第一关」与「本门最后一关」回答的是起点/终点，不是「这一关比上一关变了什么」，
+    // 不进「逐关真变 = 界面可报」这本账；末关常常只是整秒取整，本就没变。
+    if (ds.some(function (x) { return x.key !== 'start' && x.key !== 'final'; })) reported += 1;
     assert.ok(ds.every(function (x) { return !/flashMs|hintMs|亮起时长/.test(x.text); }),
       '第 ' + lv + ' 关又报毫秒假变化');
     prev = q;
