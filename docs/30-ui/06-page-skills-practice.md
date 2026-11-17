@@ -303,10 +303,18 @@ SETTLE.short = [0, 150, 350, 600, 900];     // B / C / F
 
 三个入口（结算卡次按钮 `onSecondary`、终局底栏文字链、中途结束）统一收进 `onBackToSkill()`，
 再走 `onQuitToPrep()`：摘控制器、清 `aborting` 与 `roundClosed`、
-`started/boardHeld/showResult` 归零后 `refresh()`。两个标记必须一起清——`aborting` 留着，下一局的正常结算
+`started/boardHeld/showResult` 归零后 `refresh()` + **`buildGame()` 重造一副盘**。
+两个标记必须一起清——`aborting` 留着，下一局的正常结算
 仍会被当成「中途结束」；`roundClosed` 留着，下一局中途离开不记钟不断连 S。
 旧版只特判了 `result.kind === 'abandon'`，普通结算与「留在本页」之后的返回仍然 `navigateBack` 退到列表——
 漏的正是玩家用得最多的那一条。
+
+> **摘了控制器就必须重造一副**（2026-11-17 真机反馈）：旧版 `onQuitToPrep` 只摘不造，
+> 打完一局点「返回」回到准备屏，底栏那颗「开始参悟」就彻底没反应了——因为 `onStart` 的第一步是
+> `if (!this.controller) return`，它静默 return，玩家看到的是「按钮点了没反应」，只能退出页面重进
+> （重进能打，是因为 `onLoad` 里 refresh + buildGame 造过一副）。
+> 现在 `onQuitToPrep` 与 `onAgain` 走同一套（refresh → buildGame），`onStart` 另有一道
+> 「没有控制器就现造一副」的兜底。判据：**准备屏上随时都该有一副能起手的盘**。
 
 出口不叠在结算卡上：想离开页面走左上角原生返回，或准备屏底部的「退出」。
 上一版试过「回功法页再自动弹这门的详情」，是个浮层，玩家明确不要浮层要真页面，已撤。

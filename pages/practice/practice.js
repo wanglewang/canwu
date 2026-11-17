@@ -1105,7 +1105,11 @@ Page({
   },
 
   onStart: function () {
-    if (!this.controller || this.data.started || this.data.countdown > 0) return;
+    if (this.data.started || this.data.countdown > 0) return;
+    // 兜底：准备屏上必须有一副能起手的盘。会摘控制器的路径（回准备屏、切页回来）各自负责重建，
+    // 这里再守一道——漏了重建的后果是按钮点上去毫无反应，玩家只会以为卡死、退出去重进。
+    if (!this.controller) this.buildGame();
+    if (!this.controller) return;
     // 新一局开始：上一局的「已结账」标记要清掉，否则这一局的结束 / 返回不会被断连 S。
     this.roundClosed = false;
     // 付不起就先拦：教学盘不结算也不扣气，可以照走；真局与冲关必须付得起。
@@ -1894,6 +1898,7 @@ Page({
   onQuitToPrep: function () {
     if (!this.pageAlive) return;
     this.clearSettleTimers();
+    this.clearCountdown();
     this.disarmLeaveGuard();
     if (this.controller) { this.controller.destroy(); this.controller = null; }
     // 结束时置的两个标记要一起清：aborting 留着会让下一局的结算仍按「中途结束」处置，
@@ -1902,6 +1907,12 @@ Page({
     this.roundClosed = false;
     this.setData({ showResult: false, result: null, recordBrief: '', started: false, boardHeld: false });
     this.refresh();
+    // **摘了控制器就必须重造一副。** 准备屏底栏那颗「开始参悟」走 onStart，
+    // 而 onStart 的第一步是 `if (!this.controller) return`——旧版只摘不造，
+    // 打完一局点返回、回到准备屏再点开始，按钮就彻底没反应了；
+    // 从列表重新进来能打，是因为 onLoad 里 refresh + buildGame 造过一副。
+    // 这条路径与 onAgain 一致：先 refresh 再 buildGame，然后用同一副盘起手。
+    this.buildGame();
     this.syncBar();
   },
 

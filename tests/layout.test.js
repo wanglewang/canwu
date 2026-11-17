@@ -1490,6 +1490,13 @@ check('结算与终局底栏的「返回功法」都回本门静室，不是退�
     '回准备屏没清 aborting：下一局的正常结算仍被当成中途结束');
   assert.ok(/onQuitToPrep:[\s\S]{0,700}this\.roundClosed = false/.test(pg),
     '回准备屏没清 roundClosed：下一局中途离开不记钟、不断连 S');
+  // 2026-11-17 真机反馈：打完一局点「返回」回到准备屏，再点「开始参悟」毫无反应，
+  // 从列表重新进来却能打。根因是 onQuitToPrep 只摘控制器不重造，而 onStart 第一步就是
+  // `if (!this.controller) return`——准备屏那颗金按钮成了死键。
+  assert.ok(/onQuitToPrep:[\s\S]{0,1400}this\.buildGame\(\)/.test(pg),
+    '回准备屏没重造盘：「开始参悟」会点不动（摘了控制器就必须再造一副）');
+  assert.ok(/onStart:[\s\S]{0,400}if \(!this\.controller\) this\.buildGame\(\);/.test(pg),
+    'onStart 缺「没有控制器就现造一副」的兜底：静默 return 等于按钮失灵');
   // 「留在本页」是留刚打完那一屏，回准备屏是回开局前那一屏——两件事不能合成一个函数。
   assert.ok(/onStay:[\s\S]{0,400}boardHeld: true/.test(pg),
     '「留在本页」不再留终局那一屏');
