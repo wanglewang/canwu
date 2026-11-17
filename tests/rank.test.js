@@ -819,7 +819,7 @@ check('藏经阁按品阶拦境界：炼气买不了玄阶', function () {
 check('难度档缩放不碰盘面尺寸，且各档参数确有区分', function () {
   // 规格按档递增的几门由各自的档位表管（lights / sudoku / klotski / click / mines / link），
   // 见下面的专条断言。它们的盘面「该变」，所以不在这条里被判。
-  // link 的 6×4 → 8×4 是 LINK_LEVELS 显式表：连连看加列买的是搜索空间，
+  // link 的 6×4 → 7×5 → 8×6 是 LINK_LEVELS 显式表：连连看加行加列买的是搜索空间，
   // 与「缩场地把手感挤成手速」不是一回事。
   // match 也进表了：MATCH_LEVELS 五段各给一副盘，不经通用缩放。
   const tableGames = ['lights', 'sudoku', 'klotski', 'click', 'mines', 'link', 'match'];
@@ -1269,9 +1269,11 @@ check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备�
   assert.ok(ps[4].cols > ps[0].cols, '圆满段没加列：五段又是同一张 6×4');
   assert.ok(ps[2].kinds > ps[0].kinds, '小成段没加纹种');
   for (let i = 1; i < ps.length; i += 1) {
-    const before = ps[i - 1].duration / (ps[i - 1].cols * ps[i - 1].rows / 2);
-    const after = ps[i].duration / (ps[i].cols * ps[i].rows / 2);
-    assert.ok(after < before, keys[i] + ' 的每对预算反而宽了（' + before + ' → ' + after + '）');
+    // 分母必须走 linkPairsOf：盘形挖了空位，cols*rows/2 不是对数。
+    // 旧版自己算分母，奇数格盘（大成 7×5 留 3 空）会被误读成「每对预算放宽」。
+    const before = ps[i - 1].duration / practice.linkPairsOf(ps[i - 1]);
+    const after = ps[i].duration / practice.linkPairsOf(ps[i]);
+    assert.ok(after < before, keys[i] + ' 的每对预算反而宽了（' + before.toFixed(3) + ' → ' + after.toFixed(3) + '）');
   }
   // 时辰由 linkDurationAt(段首关号) 现算；准备页 brief 里的息数必须就是局内那个数，
   // 否则「每对 5.50 息」与倒计时会是两张嘴。
@@ -1337,14 +1339,14 @@ check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备�
   // 盘形每 4 关一副 → 1000 关里两百多条；纹样每 5 关一套 → 一百多条。
   // 改盘形周期 / 纹样周期 / 布纹档数，这里必须跟着改，不顺带改就是文档与代码各说一套。
   assert.deepStrictEqual(tally,
-    { chapter: 4, cols: 2, kinds: 2, layout: 246, theme: 195, weave: 15, perPair: 35 },
+    { chapter: 4, cols: 2, kinds: 2, layout: 246, theme: 195, weave: 15, perPair: 49 },
     '分项账本变了：总览 §5 的拆解要同批改');
-  // 七项合计 499 条 + 末关那条「圆满」= 500 条，落在 435 关上（有 64 关报了多条）。
-  // 关数、条数、拆解是三个不同的数，写成「加起来正好 435」就是一笔假账。
-  assert.strictEqual(Object.keys(tally).reduce(function (a, k) { return a + tally[k]; }, 0), 499,
-    '分项条目数变了（七项 499 + 末关 1 = 500 条）');
-  assert.strictEqual(reported, 434, '有东西可报的关数变了（末关那条「本门最后一关」是终点总结，不计入）');
-  assert.strictEqual(multi, 64, '一关报多条的次数变了（371 一条 / 63 两条 / 1 三条）');
+  // 七项合计 513 条 + 末关那条「圆满」= 514 条，落在 438 关上（有 73 关报了多条）。
+  // 关数、条数、拆解是三个不同的数，写成「加起来正好 438」就是一笔假账。
+  assert.strictEqual(Object.keys(tally).reduce(function (a, k) { return a + tally[k]; }, 0), 513,
+    '分项条目数变了（七项 513 + 末关 1 = 514 条）');
+  assert.strictEqual(reported, 438, '有东西可报的关数变了（末关那条「本门最后一关」是终点总结，不计入）');
+  assert.strictEqual(multi, 73, '一关报多条的次数变了（365 一条 / 71 两条 / 2 三条）');
   assert.ok(changed >= 30, '规格台阶掉到 ' + changed + ' 级');
   assert.strictEqual(m.tip, practice.tipFor(m, 'novice'), '功法表的兜底代价句与简单档分叉了');
   assert.ok(!/flashMs/.test(JSON.stringify(m.params)), '种子参数里还有 flashMs');

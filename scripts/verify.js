@@ -945,7 +945,7 @@ if (practiceMod.STAGES[practiceMod.STAGES.length - 1].to !== lvlMod.LEVEL_MAX) {
 // （以及 lights / sudoku / klotski / LINK_LEVELS 各自那张表）里，玩法层真的读它，玩家在
 // 准备页也看得到「本档几乘几」。不允许的是另一件事：让 pace / goal 那套通用缩放顺手把
 // grid / cols / rows 改掉——那是「调难度不小心改了盘面」，玩家会以为换了一门玩法。
-// 灵纹连线 6×4 → 8×4 是显式的 LINK_LEVELS 表，买的是搜索空间，不是「缩场地逼手速」。
+// 灵纹连线 6×4→7×5→8×6 是显式的 LINK_LEVELS 表（行数也随段长），买的是搜索空间，不是「缩场地逼手速」。
 // match 也在表里了：MATCH_LEVELS 五段各给一副盘（6×6 → 10×10），换段是这一门
 // 唯一一眼看得见的台阶，不允许通用 pace / goal 缩放再顺手改它。
 const BOARD_TABLE_GAMES = ['click', 'mines', 'lights', 'sudoku', 'klotski', 'pushbox', 'memory', 'link', 'match'];

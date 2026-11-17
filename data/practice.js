@@ -504,12 +504,17 @@ function matchLevelOf(stageIndex) {
 // 会让第 40 关（约 39 秒）比第 41 关（约 51 秒）还紧——界面上白纸黑字写着
 // 「时辰 39 秒 → 51 秒」，等于承认上一章更难。所以时辰改按「每对预算」沿关号
 // 连续收，见下面的 linkPerPairAt / linkDurationAt。
+// 五段规格：前三段 6×4（10 对），大成换盘高到 7×5（35 格 − 3 边沿空位 = 16 对），
+// 圆满 8×6（48 格 − 4 边沿空位 = 22 对）。行数不是摆设：业界连连看的简单 / 中等 /
+// 困难是 10×6 / 12×8 / 16×9，行列一起长；麻将接龙的 12 副布局从 60 张到 144 张。
+// 但「盘变大」不等于「变难」——难度只由每对预算这把尺子管，大盘只是玩家最先看见的变化。
+// 换盘时对数变了，时辰由 linkDurationAt 按本段对数现算，不许在表里写死总秒数。
 const LINK_LEVELS = [
   { cols: 6, rows: 4, kinds: 4 },   // 挖四格 = 20 格 · 10 对 · 4 种纹：段首多的一种 6 枚，路径好找
   { cols: 6, rows: 4, kinds: 5 },   // 10 对 · 5 种纹
   { cols: 6, rows: 4, kinds: 6 },   // 10 对 · 6 种纹：换段只换纹种，盘还是这一副
-  { cols: 7, rows: 4, kinds: 6 },   // 挖四格 = 24 格 · 12 对
-  { cols: 8, rows: 4, kinds: 6 },   // 挖四格 = 28 格 · 14 对
+  { cols: 7, rows: 5, kinds: 6 },   // 挖三格 = 32 格 · 16 对：大成第一次把盘长高
+  { cols: 8, rows: 6, kinds: 6 },   // 挖四格 = 44 格 · 22 对：圆满再大一圈
 ];
 // 每对预算（息）：第 1 关 5.5 → 第 200 关 2.75，正好 2 倍。
 // 拿「每对」而不是「总秒数」当主承重：换章盘面变大，总秒数跟着变长是应该的，
@@ -547,8 +552,22 @@ function linkPerPairAt(level) {
 // 3.86 息——界面上就会出现「每对时辰 3.83 → 3.86」这种往松走的假台阶。
 function linkDurationAt(level) {
   const lv = Math.max(1, Math.min(levelData.LEVEL_MAX, Math.round(level) || 1));
-  const board = LINK_LEVELS[levelData.stageOfLevel(lv)];
-  return Math.max(20, Math.floor(linkPerPairAt(lv) * linkPairsAt(lv, board.cols, board.rows)));
+  const stage = levelData.stageOfLevel(lv);
+  const board = LINK_LEVELS[stage];
+  const pairs = linkPairsAt(lv, board.cols, board.rows);
+  let out = Math.floor(linkPerPairAt(lv) * pairs);
+  if (stage > 0) {
+    // 换段封顶：新盘的对数变了，floor 的取整粒度也变了（10 对是 0.1 息、16 对是 0.0625）。
+    // 名义每对明明在降，实际每对却可能因为「这次少扣了一点零头」看起来松了 0.037 息——
+    // 这正是之前反复踩的假回弹。拿上一段末关的**实际**每对（不是名义值）封顶，
+    // 玩家看到的「每对几息」就永远只紧不松。封顶只作用在新盘，不改段内逐关收紧。
+    const prev = levelData.stageRange(stage - 1).to;
+    const prevBoard = LINK_LEVELS[stage - 1];
+    const prevPairs = linkPairsAt(prev, prevBoard.cols, prevBoard.rows);
+    const prevLeft = Math.floor(linkPerPairAt(prev) * prevPairs) / prevPairs;
+    out = Math.min(out, Math.floor(prevLeft * pairs));
+  }
+  return Math.max(20, out);
 }
 
 // 本关能接几对 = (格数 − 空位数) / 2。**这一门所有「每对」的分母都只从这一个函数出**

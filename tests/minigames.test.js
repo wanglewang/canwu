@@ -2842,7 +2842,7 @@ check('牵灵引线：局内不报「已入 S」，时辰到还剩对子才是�
     }
     assert.ok(!fin, '才收 9 对就结算了');
     assert.ok(!/已入 S/.test(vm.goal || ''), 'HUD 又在收完之前宣布 S，结算却会给 F');
-    // 还差几对从盘面自己数：这一门的对数是「(格数 − 盘形空位) / 2」，不是固定 12 对。
+    // 还差几对从盘面自己数：这一门的对数是「(格数 − 盘形空位) / 2」，不是固定的 10 / 16 / 22 对。
     const left = vm.link.pairs - 9;
     assert.ok(new RegExp('还差 ' + left + ' 对').test(vm.goal), 'HUD 没报还差几对');
     assert.ok(/S 线要剩/.test(vm.goal), 'HUD 没报 S 线要剩几息');
