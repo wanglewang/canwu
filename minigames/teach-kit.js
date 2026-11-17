@@ -33,6 +33,14 @@ function base(spec) {
   vm.teachTotal = spec.steps.length;
   vm.teachStep = 1;
   vm.teachText = (spec.steps[0] && spec.steps[0].text) || '';
+  // 每一步「正确的那一手」原样挂在 vm 上。页面不读它，测试与自查脚本读：
+  // 75 盘教学（15 门 × 5 段）不可能再一条条手写驱动序列，那样每加一段就要补五行，
+  // 而漏补的那一段恰恰没人跑过。tap 用 at，move 用 dir，swipe 用 answer（整条路径）。
+  vm.teachPlan = spec.steps.map(function (s) {
+    if (typeof s.swipe === 'function') return { k: 'swipe', at: s.at || [], answer: s.answer || [] };
+    if (s.dir !== undefined) return { k: 'move', at: s.at || [], dir: Array.isArray(s.dir) ? s.dir : [s.dir] };
+    return { k: 'tap', at: s.at || [] };
+  });
   vm.timeText = '教学 · 不计步';
   vm.scoreText = '教学中';
   if (spec.stage) vm.stage = spec.stage;

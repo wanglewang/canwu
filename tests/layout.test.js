@@ -1931,10 +1931,11 @@ check('首局手把手：盘上引导而不是全屏弹窗，跳过有入口、�
   assert.ok(wxml.indexOf('跳过指引') < 0, '引导文案被写死在 WXML 里');
 
   // 第一次开局先走教学，只对自带脚本的玩法生效；走完必须落存档，否则每次进来都弹。
+  // 存档标记按「段」记（一门五段各一次）：markTaught(state, skillId, stage)。
   assert.ok(/canTeach: function/.test(js) && /minigames\.hasTeach/.test(js), '页面没接教学判断');
   assert.ok(/if \(this\.canTeach\(\)\) \{ this\.startTeach\(\); return; \}/.test(js), '开局没先走引导');
-  assert.ok(/engine\.markOnboarded/.test(js), '走完引导没写存档');
-  assert.ok(/engine\.hasOnboarded/.test(js), '没读存档判断是否已看过');
+  assert.ok(/engine\.markTaught/.test(js), '走完引导没写存档');
+  assert.ok(/engine\.hasTaught/.test(js), '没读存档判断是否已看过');
   assert.strictEqual(index.hasTeach('lights'), true, '星罗点灯诀没有教学脚本');
   assert.ok(game.markOnboarded && game.hasOnboarded, '引擎没有引导标记接口');
 
@@ -2105,7 +2106,7 @@ check('灵纹牌按剪影族取，不按 sprite 序号取', function () {
   });
   teach.start();
   if (teach.destroy) teach.destroy();
-  assert.ok(/crestOf\(TEACH_BOARD\[i\]\)/.test(src), '教学盘没走族表映射');
+  assert.ok(/crestOf\(board\[i\], 0\)/.test(src), '教学盘没走族序映射（且没钉在第一套主题）');
 });
 
 check('26 格器纹 sprite：单份 base64、三处容器、PNG 尺寸与打包排除', function () {

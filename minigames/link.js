@@ -520,35 +520,63 @@ function lines(p) {
   };
 }
 
-// 首局手把手：两枚同纹摆在对角，只连这一对。
+// 引导按段走。首段用六枚的小盘：两枚同纹摆在对角，只连这一对。
 // 这一门与翻牌、消消乐的分水岭是「折线不超过两下、还能绕到盘外」，
 // 所以第二枚故意不挨着第一枚——就为了让那条折线在盘面上真的走一遍。
 //
-// 值域是族序号（1 圆润 / 2 方框 / 3 伞状 / 4 竖长 / 5 成簇），四枚干扰各占一族：
-// 教学盘的第一手不该花在读图上，唯一要学的是「折两下」。
+// 段界那四盘摆本段的真实盘面（24 / 24 / 28 / 32 枚、5 到 6 种纹）：
+// 这一段的难处是「同纹的候选变少了、盘变宽了」，讲不出来，只能在满盘上真连一次。
+// 值域是族序号（1 圆润 / 2 方框 / 3 伞状 / 4 竖长 / 5 成簇 / 6 带尖），
+// 教学盘按「i 对 kinds 取余」铺纹——同一段每次进来都一样，不现洗。
 const TEACH_BOARD = [1, 3, 2, 4, 5, 1];
 const TEACH_COLS = 3;
+const TEACH_STAGE = [
+  { cols: 3, rows: 2, kinds: 4 },
+  { cols: 6, rows: 4, kinds: 5 },
+  { cols: 6, rows: 4, kinds: 6 },
+  { cols: 7, rows: 4, kinds: 6 },
+  { cols: 8, rows: 4, kinds: 6 },
+];
+
+// 一段一副盘：同纹两枚取「第一枚」与「同纹里最远的那一枚」——折线要真的走一遍。
+function teachLayout(stage) {
+  if (stage === 0) {
+    return { board: TEACH_BOARD.slice(), cols: TEACH_COLS, rows: 2, kinds: 4, a: 0, b: 5 };
+  }
+  const spec = TEACH_STAGE[stage];
+  const n = spec.cols * spec.rows;
+  const board = [];
+  for (let i = 0; i < n; i += 1) board.push((i % spec.kinds) + 1);
+  let b = 0;
+  for (let i = 1; i < n; i += 1) {
+    if (board[i] === board[0]) b = i;
+  }
+  return { board: board, cols: spec.cols, rows: spec.rows, kinds: spec.kinds, a: 0, b: b };
+}
 
 function createTeach(ctx) {
-  const cells = K.blank(TEACH_COLS, TEACH_BOARD.length);
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
+  const lay = teachLayout(stage);
+  const board = lay.board;
+  const cells = K.blank(lay.cols, board.length);
   let first = -1;
   let linked = false;
   return K.run(ctx, {
-    cols: TEACH_COLS,
+    cols: lay.cols,
     cells: cells,
-    status: '教学 · 把同纹的两枚连起来',
+    status: stage === 0 ? '教学 · 把同纹的两枚连起来' : '教学 · 这一段 ' + board.length + ' 枚 · ' + lay.kinds + ' 种纹',
     steps: [
       {
-        at: [0],
+        at: [lay.a],
         text: '点第一枚 · 再点同纹的另一枚',
         take: function (i) {
           first = i;
-          return { text: '同纹只剩一枚 · 折两下就能到' };
+          return { text: '同纹只剩这几枚 · 折两下就能到' };
         },
       },
       {
-        at: [5],
-        text: '点对角那一枚 · 折线不超过两下',
+        at: [lay.b],
+        text: '点这一枚 · 折线不超过两下',
         take: function () {
           linked = true;
           first = -1;
@@ -559,16 +587,18 @@ function createTeach(ctx) {
     paint: function (vm) {
       for (let i = 0; i < cells.length; i += 1) {
         const c = cells[i];
-        c.crest = crestOf(TEACH_BOARD[i]);
-        c.tone = crestOf(TEACH_BOARD[i]);
+        c.crest = crestOf(board[i], 0);
+        c.tone = crestOf(board[i], 0);
         c.label = '';
         c.cls = 'cell cell--chip';
-        if (linked && (i === 0 || i === 5)) c.cls += ' cell--gone';
+        if (linked && (i === lay.a || i === lay.b)) c.cls += ' cell--gone';
         else if (i === first) c.cls += ' cell--sel';
       }
-      vm.link = { cols: TEACH_COLS, rows: 2 };
+      vm.link = { cols: lay.cols, rows: lay.rows };
     },
-    doneText: '一对收进契中',
+    doneText: stage === 0
+      ? '一对收进契中'
+      : '这一段 ' + board.length + ' 枚 · ' + lay.kinds + ' 种纹 · 同纹候选少了，得先扫一遍',
   });
 }
 

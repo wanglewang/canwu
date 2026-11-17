@@ -502,6 +502,47 @@ check('首局引导标记：与技能同级存，老档读出来是「没看过�
   assert.strictEqual(game.hasOnboarded(migrated, 'jian'), false);
 });
 
+check('引导按段记：一门五格各记各的，老档的 onboarded 只等价第 0 段', function () {
+  const s = game.createNewState();
+  assert.ok(Array.isArray(s.skills.jian.teachSeen), '新档该自带 teachSeen');
+  assert.strictEqual(s.skills.jian.teachSeen.length, 5, 'teachSeen 必须五格（一门五段）');
+  assert.ok(s.skills.jian.teachSeen.every(function (v) { return v === false; }), '新档不该有段被标成看过');
+
+  // 一段一格：标了第 2 段（第 51 关）不等于标了首段。
+  game.markTaught(s, 'jian', 2);
+  assert.strictEqual(game.hasTaught(s, 'jian', 2), true);
+  assert.strictEqual(game.hasTaught(s, 'jian', 0), false, '标了第 2 段却把第 0 段也算看过');
+  assert.strictEqual(game.hasTaught(s, 'jian', 1), false, '标了第 2 段却把第 1 段也算看过');
+  assert.strictEqual(game.hasOnboarded(s, 'jian'), false, 'onboarded 只该跟首段走');
+  assert.strictEqual(s.skills.jian.onboarded, false, '第 2 段不该写旧的 onboarded');
+
+  // 首段同时写旧字段：分享码与老断言还读 onboarded。
+  game.markTaught(s, 'jian', 0);
+  assert.strictEqual(s.skills.jian.onboarded, true, '首段看过没同步写 onboarded');
+  assert.strictEqual(game.hasOnboarded(s, 'jian'), true);
+  assert.strictEqual(game.hasTaught(s, 'jingxin', 0), false, '标记串到别的门去了');
+
+  // 存档回环：五格原样回来，不塌成一个布尔。
+  const back = game.normalizeState(JSON.parse(JSON.stringify(s)));
+  assert.deepStrictEqual(back.skills.jian.teachSeen, [true, false, true, false, false],
+    'teachSeen 过一遍 normalizeState 变形了');
+
+  // 越界段号夹到两端，不抛错也不写进第 6 格。
+  game.markTaught(back, 'jian', 9);
+  assert.strictEqual(back.skills.jian.teachSeen.length, 5, '段号越界把数组撑长了');
+  assert.strictEqual(game.hasTaught(back, 'jian', 9), true, '越界段号该夹到末段');
+
+  // 老档只有 onboarded 一个布尔：等号右边是「首段看过」，其余四段按没看过处理。
+  const old = game.createNewState();
+  delete old.skills.jian.teachSeen;
+  old.skills.jian.onboarded = true;
+  const mig = game.normalizeState(old);
+  assert.strictEqual(game.hasTaught(mig, 'jian', 0), true, '老档的 onboarded 没映射成首段');
+  assert.strictEqual(game.hasTaught(mig, 'jian', 1), false,
+    '老档被当成了「五段全看过」——升级上来的玩家就再也看不到段界引导了');
+  assert.strictEqual(mig.skills.jian.teachSeen.length, 5, '老档没补出五格');
+});
+
 check('气海：炼气 174 起，破境与真元都能把它拓深', function () {
   const economy = require('../data/economy.js');
   const w = require('../data/world.js');

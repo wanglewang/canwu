@@ -504,29 +504,36 @@ function lines(p) {
 const TEACH_COLS = 4;
 const TEACH_ROWS = 4;
 
+// 引导按段走。首段两下：先点主块，再按「下」——「一次只挪一格、要从盘底正中出去」
+// 这两条都在这一手里。段界那四盘只走一下，改讲「这一段最少要挪几步」：
+// 2 → 3 → 4 → 5 → 6 步，这不是能看出来的东西，只能写清楚它，再让他挪一格上手。
+const TEACH_MIN_OPT = [2, 3, 4, 5, 6];
+
 function createTeach(ctx) {
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
   const cells = K.blank(TEACH_COLS, 0);
   let moved = false;
+  const steps = [{
+    at: [0],
+    text: '先点主块 · 它要从盘底正中那一格出去',
+    take: function () { return { text: '选中了 · 一次只挪一格' }; },
+  }];
+  // 选中之后都要挪一下：段界那几盘也一样，不然「一次只挪一格」这条就没落到手上。
+  steps.push({
+    dir: ['down'],
+    wrongText: '这一步按「下」· 主块差一格就到正中',
+    text: '按「下」· 主块落到正中就通了',
+    take: function () {
+      moved = true;
+      return { text: '落到盘底正中 · 主块要从这一格出去' };
+    },
+  });
   return K.run(ctx, {
     cols: TEACH_COLS,
     cells: cells,
-    status: '教学 · 把主块让到盘底正中',
-    steps: [
-      {
-        at: [0],
-        text: '先点主块 · 它要从盘底正中那一格出去',
-        take: function () { return { text: '选中了 · 一次只挪一格' }; },
-      },
-      {
-        dir: ['down'],
-        wrongText: '这一步按「下」· 主块差一格就到正中',
-        text: '按「下」· 主块落到正中就通了',
-        take: function () {
-          moved = true;
-          return { text: '落到盘底正中 · 主块要从这一格出去' };
-        },
-      },
-    ],
+    status: stage === 0 ? '教学 · 把主块让到盘底正中'
+      : '教学 · 这一段最少 ' + TEACH_MIN_OPT[stage] + ' 步',
+    steps: steps,
     paint: function (vm) {
       vm.extras.showGrid = false;
       vm.extras.showPad = true;
@@ -558,7 +565,9 @@ function createTeach(ctx) {
         }],
       };
     },
-    doneText: '一次一格 · 主块从盘底正中出去',
+    doneText: stage === 0
+      ? '一次一格 · 主块从盘底正中出去'
+      : '这一段最少 ' + TEACH_MIN_OPT[stage] + ' 步 · 走错一步就得多绕，预算是最优的 2 倍出头',
   });
 }
 

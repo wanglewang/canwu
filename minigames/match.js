@@ -482,18 +482,63 @@ function lines(p) {
 const TEACH_BOARD = [1, 2, 1, 3, 1, 3, 2, 3, 2];
 const TEACH_COLS = 3;
 const TEACH_SWAP = [4, 5];
+// 五段的盘面与色数：与 data/practice 的 MATCH_LEVELS 同值。
+const TEACH_LEVELS = [
+  { cols: 6, rows: 6, kinds: 5, missCost: 1 },
+  { cols: 7, rows: 7, kinds: 5, missCost: 2 },
+  { cols: 8, rows: 8, kinds: 6, missCost: 2 },
+  { cols: 9, rows: 9, kinds: 6, missCost: 3 },
+  { cols: 10, rows: 10, kinds: 7, missCost: 3 },
+];
+
+// 段界那几盘按本段规格现铺：色按 (行+列) 取模铺开，再把底行三格摆成
+// 「A B A」——中间那株与右边一换，就是 A A A。写死这个形状而不是现抽，
+// 是为了同一段每次进来都是同一条路；现抽一局，教学就成了碰运气。
+function teachLayout(stage) {
+  if (stage === 0) {
+    return { board: TEACH_BOARD.slice(), cols: TEACH_COLS, rows: 3, swap: TEACH_SWAP.slice(), kinds: 3 };
+  }
+  const spec = TEACH_LEVELS[stage];
+  const n = spec.cols * spec.rows;
+  const board = [];
+  for (let i = 0; i < n; i += 1) {
+    const r = Math.floor(i / spec.cols);
+    const c = i % spec.cols;
+    board.push(((r + c) % spec.kinds) + 1);
+  }
+  // 底行：… A B A → 换 B 与 A，凑成 A A A。
+  const a = 1;
+  const b = 2;
+  const left = (a - 1 + spec.cols) % spec.cols;
+  const v = spec.kinds;
+  board[(spec.rows - 1) * spec.cols + left] = 1;
+  board[(spec.rows - 1) * spec.cols + a] = v;
+  board[(spec.rows - 1) * spec.cols + b] = 1;
+  // 右侧再留一格不同色，免得本来就三连。
+  const right = b + 1 < spec.cols ? b + 1 : 0;
+  board[(spec.rows - 1) * spec.cols + right] = 2;
+  return {
+    board: board, cols: spec.cols, rows: spec.rows,
+    swap: [(spec.rows - 1) * spec.cols + a, (spec.rows - 1) * spec.cols + b],
+    kinds: spec.kinds,
+  };
+}
 
 function createTeach(ctx) {
-  const board = TEACH_BOARD.slice();
-  const cells = K.blank(TEACH_COLS, board.length);
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
+  const lay = teachLayout(stage);
+  const board = lay.board;
+  const cells = K.blank(lay.cols, board.length);
   let sel = -1;
   return K.run(ctx, {
-    cols: TEACH_COLS,
+    cols: lay.cols,
     cells: cells,
-    status: '教学 · 换相邻两株，凑成三连',
+    status: stage === 0
+      ? '教学 · 换相邻两株，凑成三连'
+      : '教学 · 这一段 ' + lay.cols + '×' + lay.rows + ' · ' + lay.kinds + ' 色',
     steps: [
       {
-        at: [TEACH_SWAP[0]],
+        at: [lay.swap[0]],
         text: '点中间这一株 · 再点它右边',
         take: function (i) {
           sel = i;
@@ -501,12 +546,12 @@ function createTeach(ctx) {
         },
       },
       {
-        at: [TEACH_SWAP[1]],
+        at: [lay.swap[1]],
         text: '点右边那一株 · 换完要当场成三连',
         take: function () {
-          const keep = board[TEACH_SWAP[0]];
-          board[TEACH_SWAP[0]] = board[TEACH_SWAP[1]];
-          board[TEACH_SWAP[1]] = keep;
+          const keep = board[lay.swap[0]];
+          board[lay.swap[0]] = board[lay.swap[1]];
+          board[lay.swap[1]] = keep;
           sel = -1;
           return { text: '三株连成一线 · 不成三连的话整手都会弹回' };
         },
@@ -521,7 +566,10 @@ function createTeach(ctx) {
         c.cls = i === sel ? 'cell cell--chip cell--sel' : 'cell cell--chip';
       }
     },
-    doneText: '换位是唯一的手：换完要成三连',
+    doneText: stage === 0
+      ? '换位是唯一的手：换完要成三连'
+      : '这一段 ' + lay.cols + '×' + lay.rows + ' · ' + lay.kinds + ' 色 · 换不出三连少 '
+        + TEACH_LEVELS[stage].missCost + ' 息',
   });
 }
 

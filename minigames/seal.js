@@ -270,18 +270,33 @@ function lines(p) {
   };
 }
 
-// 首局手把手：四张牌、两对，只翻一对。
-// 要教的是「配对只看卦象，与位置无关」——所以两张同卦故意摆在对角。
-const TEACH_DECK = [1, 2, 2, 1];
+// 引导按段走。首段用四张牌两对：牌少才看得清「配对只看卦象，与位置无关」——
+// 两张同卦故意摆在对角，位置差得越远，这件事越显眼。
+// 段界那四盘直接摆本段的真实牌数（10 / 12 / 14 / 16 张），让玩家在满盘牌上翻那一对，
+// 自己看见「同卦的那张隔得更远了」，而不是听一句「这一段 7 对」。
+const TEACH_PAIRS = [5, 6, 7, 7, 8];
+
+// 一段一副牌：sign 1..pairs 各两张，同一卦固定落在 i 与 i+pairs。
+// 写死顺序而非现洗：教学盘得保证「呼吸的那一张」每局都在同一个位置。
+function teachDeck(stage) {
+  const pairs = TEACH_PAIRS[stage];
+  const deck = [];
+  for (let i = 0; i < pairs * 2; i += 1) deck.push((i % pairs) + 1);
+  return deck;
+}
 
 function createTeach(ctx) {
-  const cells = K.blank(4, TEACH_DECK.length);
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
+  // 首段用小盘（两对），段界用真盘（本段对数）。
+  const deck = stage === 0 ? [1, 2, 2, 1] : teachDeck(stage);
+  const far = stage === 0 ? 3 : 1 + TEACH_PAIRS[stage];
+  const cells = K.blank(4, deck.length);
   let flipped = -1;
   let matched = false;
   return K.run(ctx, {
     cols: 4,
     cells: cells,
-    status: '教学 · 翻开两张相同的卦',
+    status: stage === 0 ? '教学 · 翻开两张相同的卦' : '教学 · 这一段 ' + TEACH_PAIRS[stage] + ' 对',
     steps: [
       {
         at: [0],
@@ -292,8 +307,8 @@ function createTeach(ctx) {
         },
       },
       {
-        at: [3],
-        text: '再翻对角这一张 · 卦象一样就成对',
+        at: [far],
+        text: '再翻这一张 · 卦象一样就成对',
         take: function () {
           matched = true;
           return { text: '成对了 · 同卦就是一对，离多远都算' };
@@ -303,16 +318,19 @@ function createTeach(ctx) {
     paint: function () {
       for (let i = 0; i < cells.length; i += 1) {
         const c = cells[i];
-        const isPair = i === 0 || i === 3;
-        c.label = SIGNS[TEACH_DECK[i] - 1];
-        c.tone = TEACH_DECK[i];
-        c.emblem = TEACH_DECK[i];
+        const isPair = i === 0 || i === far;
+        c.label = SIGNS[deck[i] - 1];
+        c.tone = deck[i];
+        c.emblem = deck[i];
         c.cls = 'cell cell--card';
         if (matched && isPair) c.cls += ' cell--matched';
         else if (i === flipped) c.cls += ' cell--flipped';
       }
     },
-    doneText: '两处气窍一起通了',
+    doneText: stage === 0
+      ? '两处气窍一起通了 · 这一段一共 ' + TEACH_PAIRS[0] + ' 对'
+      : '这一段 ' + TEACH_PAIRS[stage] + ' 对 ' + (TEACH_PAIRS[stage] * 2)
+        + ' 张 · 同卦那张隔得更开，看牌的时间也更短',
   });
 }
 

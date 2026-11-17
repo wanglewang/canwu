@@ -2128,61 +2128,99 @@ check('阵灯推演：首局手把手两步走完就全亮，点错不推进', f
   } finally { restoreClock(); }
 });
 
-// 15 门参悟各有一盘教学盘。判据在 docs/30-ui/12-teach-boards.md：
+// 15 门参悟 × 5 段，每段的第 1 关各有一盘教学盘。判据在 docs/30-ui/12-teach-boards.md：
 // ① 每一步只有一处可操作，点别处不推进；② 不计步、不评档、无命灯；
-// ③ 走完停一拍再交棒，且只交棒一次。
-// 这不是「都塞同一段过场」：一眼就会的门只给 1 步（三秒热身），要教因果的才给 2 步。
-check('首局手把手：15 门参悟都有教学盘，只认一处操作，走完交棒一次', function () {
+// ③ 走完停一拍再交棒，且只交棒一次；④ 首段讲整门机制（≥2 步），段界只讲这一段变的那件事（≤3 步）。
+//
+// 驱动方式改了：不再为每门手写一串输入，而是让教学盘把自己的「正确那一手」报出来
+// （vm.teachPlan）。75 盘（15×5）不可能一条条手写，手写的那套每加一段就要补五行，
+// 而漏补的那一段恰恰没人跑过——正是这一轮要修的问题。
+check('引导：15 门 × 5 段各有教学盘，首段讲机制、段界讲变化，走完只交棒一次', function () {
   installClock();
   try {
-    const flows = {
-      click: function (c) { c.swipe([6, 6, 7, 8]); },
-      memory: function (c) { advance(1800); c.tap(4); c.tap(0); },
-      tempo: function (c) { advance(1240); c.tap(0); },
-      lights: function (c) { c.tap(4); c.tap(0); },
-      mines: function (c) { c.tap(4); },
-      seal: function (c) { c.tap(0); c.tap(3); },
-      link: function (c) { c.tap(0); c.tap(5); },
-      blocks: function (c) { c.move('drop'); },
-      match: function (c) { c.tap(4); c.tap(5); },
-      sudoku: function (c) { c.tap(3); c.move('4'); },
-      merge: function (c) { c.move('left'); },
-      schulte: function (c) { c.tap(4); },
-      klotski: function (c) { c.tap(0); c.move('down'); },
-      pushbox: function (c) { c.move('right'); c.move('right'); },
-      biggest: function (c) { c.tap(6); },
+    // 靠时间推进才能开始点的两门：记序复现要等闪完，节律判定要等环压到红圈。
+    const PREP = {
+      memory: function () { advance(6000); },
+      tempo: function () { /* 逐步等环到位，见下面的 wait */ },
     };
-    assert.deepStrictEqual(Object.keys(flows).sort(), index.PRACTICE_GAMES.slice().sort(),
-      '教学流程表与参悟玩法表对不上：新增一门必须同时补一盘教学');
+    const statuses = {};
 
     for (const id of index.PRACTICE_GAMES) {
-      let vm = null;
-      let done = 0;
-      const c = index.createTeach(id, {
-        theme: {},
-        render: function (v) { vm = v; },
-        done: function () { done += 1; },
-      });
-      assert.ok(c, id + ' 没有教学控制器');
-      assert.strictEqual(vm.tutorial, true, id + ' 教学 vm 没标 tutorial，页面会当成正式局');
-      assert.strictEqual(vm.extras.showGradeNow, false, id + ' 教学里不该报当前档位');
-      assert.strictEqual(vm.extras.showProgress, false, id + ' 教学里不该有进度条');
-      assert.ok(vm.teachTotal >= 1 && vm.teachText, id + ' 教学条没有第一步文案');
+      statuses[id] = [];
+      for (let stage = 0; stage < 5; stage += 1) {
+        let vm = null;
+        let done = 0;
+        const c = index.createTeach(id, {
+          stage: stage,
+          theme: {},
+          render: function (v) { vm = v; },
+          done: function () { done += 1; },
+        });
+        const tag = id + ' 第 ' + (stage + 1) + ' 段';
+        assert.ok(c, tag + ' 没有教学控制器');
+        assert.strictEqual(vm.tutorial, true, tag + ' 教学 vm 没标 tutorial，页面会当成正式局');
+        assert.strictEqual(vm.extras.showGradeNow, false, tag + ' 教学里不该报当前档位');
+        assert.strictEqual(vm.extras.showProgress, false, tag + ' 教学里不该有进度条');
+        assert.ok(vm.teachTotal >= 1 && vm.teachText, tag + ' 教学条没有第一步文案');
+        assert.ok(Array.isArray(vm.teachPlan) && vm.teachPlan.length === vm.teachTotal,
+          tag + ' 教学步骤与「正确那一手」对不上：' + vm.teachTotal + ' / '
+          + (vm.teachPlan ? vm.teachPlan.length : 'null'));
+        statuses[id].push(vm.status || '');
 
-      // 点错不推进、不记账：教学盘里没有失败，只有「还没点对」。
-      const before = vm.teachStep;
-      c.tap(99);
-      assert.strictEqual(vm.teachStep, before, id + ' 点错却推进了步骤');
+        // 首段要把整门机制讲完：一步过场只教得了「点一下」，教不了「这一门怎么算赢」。
+        if (stage === 0) {
+          assert.ok(vm.teachTotal >= 2, tag + ' 首段只有 1 步：讲不清整门机制');
+        } else {
+          // 段界只讲变化，三步封顶。记序复现是例外：它的「变化」就是记的音变多，
+          // 步数天然等于音数（点几个音就要点几下），压到三步等于把变化本身删掉。
+          const cap = id === 'memory' ? 5 : 3;
+          assert.ok(vm.teachTotal <= cap, tag + ' 段界教了 ' + vm.teachTotal + ' 步：段界只该讲变化');
+        }
 
-      flows[id](c);
-      assert.strictEqual(vm.teachStep, vm.teachTotal, id + ' 按步走完却没到最后一步');
+        // 点错不推进、不记账：教学盘里没有失败，只有「还没点对」。
+        const first = vm.teachPlan[0];
+        if (first.k === 'tap' && first.at.length) {
+          const wrong = first.at[0] === 0 ? 1 : 0;
+          c.tap(wrong);
+        } else if (first.k === 'move') {
+          c.move('none');
+        }
+        assert.strictEqual(vm.teachStep, 1, tag + ' 点错却推进了步骤');
 
-      // 走完停一拍再交棒：那一拍是给玩家看清「做对了是什么样」的。
-      advance(1000);
-      assert.strictEqual(done, 1, id + ' 走完没有交棒（或交了不止一次）');
-      c.destroy();
-      advance(1000);
-      assert.strictEqual(done, 1, id + ' 交棒之后又交了一次');
+        if (PREP[id]) PREP[id]();
+        // 按教学盘自己报的正确手一步步走。
+        for (let i = 0; i < vm.teachPlan.length; i += 1) {
+          const p = vm.teachPlan[i];
+          const before = vm.teachStep;
+          if (p.k === 'swipe') {
+            c.swipe(p.answer.slice());
+          } else if (p.k === 'move') {
+            c.move(p.dir[0]);
+          } else if (p.at.length) {
+            c.tap(p.at[0]);
+          } else {
+            // 只有节律判定是「没有指定格、只看时机」的：等环压到红圈再点。
+            let guard = 0;
+            while (vm.ring && vm.ring.tone !== 'good' && guard < 400) { advance(16); guard += 1; }
+            assert.ok(guard < 400, tag + ' 环一直没压到红圈');
+            c.tap(0);
+          }
+          assert.ok(vm.teachStep > before || i === vm.teachPlan.length - 1,
+            tag + ' 第 ' + (i + 1) + ' 步按正确手没推进');
+        }
+        assert.strictEqual(vm.teachStep, vm.teachTotal, tag + ' 按步走完却没到最后一步');
+
+        // 走完停一拍再交棒：那一拍是给玩家看清「做对了是什么样」的。
+        advance(1000);
+        assert.strictEqual(done, 1, tag + ' 走完没有交棒（或交了不止一次）');
+        c.destroy();
+        advance(1000);
+        assert.strictEqual(done, 1, tag + ' 交棒之后又交了一次');
+      }
+      // 五段不许是同一盘换个数字：段界要真的说另一件事。
+      const uniq = statuses[id].filter(function (v, i, arr) { return arr.indexOf(v) === i; });
+      assert.ok(uniq.length >= 3, id + ' 五段的教学条只有 ' + uniq.length + ' 种说法，段界没讲出变化');
+      assert.notStrictEqual(statuses[id][0], statuses[id][1], id + ' 第二段与首段的教学条一模一样');
     }
   } finally { restoreClock(); }
 });
@@ -2804,7 +2842,9 @@ check('牵灵引线：局内不报「已入 S」，时辰到还剩对子才是�
     }
     assert.ok(!fin, '才收 9 对就结算了');
     assert.ok(!/已入 S/.test(vm.goal || ''), 'HUD 又在收完之前宣布 S，结算却会给 F');
-    assert.ok(/还差 3 对/.test(vm.goal), 'HUD 没报还差几对');
+    // 还差几对从盘面自己数：这一门的对数是「(格数 − 盘形空位) / 2」，不是固定 12 对。
+    const left = vm.link.pairs - 9;
+    assert.ok(new RegExp('还差 ' + left + ' 对').test(vm.goal), 'HUD 没报还差几对');
     assert.ok(/S 线要剩/.test(vm.goal), 'HUD 没报 S 线要剩几息');
     assert.strictEqual(vm.extras.showGradeNow, false, '局内评级徽章又被打开了');
     advance(80000);

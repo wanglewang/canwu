@@ -100,7 +100,7 @@
 | 功法类别必须与玩法的动作同源 | 语义一致性：名字是玩家理解规则的第一个线索 | 反例：原「符箓·照影符」练的是数格辨禁（扫雷），符却是纸上画出来的东西。已改为「阵法·循数勘禁诀」，补齐阵法族黄阶；盘面术语「镇符→阵钉」、色板「符箓朱金→阵法青紫」同步。`tests/minigames.test.js` 断言同类功法的玩法内核互不复用，且阵法三段各一门 |
 | 规则分层：准备页一行、局内两行、整篇在说明页 | 希克定律 + 做中学：首屏只回答「这一局做什么、打多难」 | 准备页只有 `ruleText`（取自 `guides.goal`）一行 + 难度条；整篇（步骤 / 盘上符号 / 本门机制 / 品阶与一脉）由 `data/help.js` 的 `practiceTopic()` 按功法现拼成 `topic=practice` 的说明页；局内只留 tip（代价）与 inline（操作）两行。`tests/layout.test.js` 断言准备页不再出现 `guide.steps / guide.terms`，且说明入口走 `nav.practiceHelpUrl` |
 | 准备页不是唯一规则容器：局中切页即本局作废，长解释入口必须留在开局前 | 生命周期约束反过来决定信息架构 | `onHide` 会 `destroy()` 控制器并回到未开局；所以说明入口只能放在准备页右上角，打完「留在本页」→ 说明 → 返回，形成复看闭环 |
-| 首局引导不遮盘面、能跳过、只出现一次 | 做中学：解谜类的第一手必须亲手点，读规则替代不了 | `pages/practice/practice.wxml` 的 `.teach` 窄条挂在局内卡片里，不是结算那种 `mask`；`minigames/lights.js` 的 `teach.create()` 给一盘两步解的小阵；完成标记落 `state.skills[id].onboarded`；`tests/layout.test.js` 守着「不在遮罩里」「跳过有入口」「文案不写死」。**15 门里只有阵灯推演自带 `teach`**（`index.hasTeach` 实测 1/19）；其余十八门不写脚本是判断而非遗漏：规则一句话说得完、且第一手就能看见结果（点一下、翻一张、扫一刀），插一段引导反而把答案先演了。哪门要补，见 `20-minigames/README.md` 的「首局手把手覆盖表」 |
+| 引导不遮盘面、能跳过、每段的第 1 关各一次 | 做中学：解谜类的第一手必须亲手点，读规则替代不了；段界换了盘面规格，读一行「6×6 → 7×7」不算看见 | `pages/practice/practice.wxml` 的 `.teach` 窄条挂在局内卡片里，不是结算那种 `mask`；**15 门全部自带 `teach`**（`index.hasTeach` 实测 15/15），每门五盘：第 1 关讲机制（≥2 步），第 11 / 51 / 201 / 501 关讲这一段变了什么（1–3 步，且按本段真实规格摆盘）；完成标记落 `state.skills[id].teachSeen[5]`（`engine.hasTaught / markTaught`），跳过也算看过本段；`tests/layout.test.js` 守着「不在遮罩里」「跳过有入口」「文案不写死」「页面接的是 `hasTaught / markTaught`」；`tests/minigames.test.js` 逐门逐段驱动一遍。规范与逐门表见 `20-minigames/README.md` 的「引导覆盖表」与 `30-ui/12-teach-boards.md` |
 | 事件处理方法都有定义 | 工程一致性：避免点了没反应 | `tests/layout.test.js` 断言每个页面 `bindtap` / `catchtap` 的方法在 js 里存在 |
 
 ---

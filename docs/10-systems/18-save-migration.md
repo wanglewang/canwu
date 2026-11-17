@@ -17,7 +17,7 @@
 | `roleName` | string | 道号（≤12 字） |
 | `portrait` | number | 道相编号 0–5 |
 | `realmIndex` | number | 境界下标 0–3 |
-| `skills` | object | 每门功法 `{ unlocked, prof, cleared, onboarded }`；`cleared` 是本门已走通的关数（0–1000） |
+| `skills` | object | 每门功法 `{ unlocked, prof, cleared, onboarded, teachSeen }`；`cleared` 是本门已走通的关数（0–1000）；`teachSeen` 是五段引导各看过没有，`onboarded` 保留为「首段看过」的旧别名 |
 | `resources` | object | `{ qi, stone }` |
 | `lastPractice` | object | `{ skillId, at }`，判「换门」与「挂机喂哪门」 |
 | `buff` | object | `{ multiplier, until }`，参悟后的闭关加速 |
@@ -50,7 +50,7 @@
 | v8 | 难度与熟练度解耦：五段各 40 关、各记各的进度，走通本段开下一段 | 老档只有 `prof`，按 `legacyLevelFromProf()` 反推全书关号再拆成 `levels`：前面几档记满 40、当前档记「段内关号 − 1」、之后各段留 0 |
 | **v9** | 关卡收成一条 1–1000 的线、分五段；没有段位可选，段位只由已走通关数决定 | `levels` 五个数相加得老制的「已走通关数」（0–200），再 ×5 落成 0–1000；更老的档没有 `levels`，先按 `legacyLevelFromProf(prof) − 1` 反推再 ×5。最后 `delete levels` |
 
-### 三个值得记住的迁移决策
+### 值得记住的迁移决策
 
 1. **v5 → v6 不换算旧计数**：`sStreak`（三连 S 的连数）与 `sCombo`（连 S 层数）语义不同，硬换算会给出一个凭空的层数。一律从 0 重数。
 2. **v6 → v7 只补不削**：旧档的灵力常常是 0（那时灵力只在买功法时被顺带扣），直接沿用会导致更新后**第一局都开不了**。补到 160 是最低要求。
@@ -64,6 +64,10 @@
    （旧 40 关段 ↔ 新 5 段里的对应区间），玩家一关都没被没收，也没有白送。
    同理它也不是语义换算：`cleared` 与 `levels` 之和是同一个东西的两种存放形状。
    **幂等靠 `typeof rec.cleared !== 'number'` 判**：新档出厂就带 `cleared: 0`，迁移不会再跑第二遍。
+6. **引导标记扩成五格时不升版本号**（`onboarded` → `teachSeen[5]`）：这是**纯补值**，没有语义换算——
+   老档那个布尔本来就等于「首段看过引导」，直接映射成 `teachSeen[0] = onboarded`，其余四段留 `false`。
+   这么做还有个副作用是**故意的**：升级上来的老玩家会在第 11 / 51 / 201 / 501 关各看到一次段界引导。
+   给新版字段补默认值本来就该在 `normalizeState` 里做，占一个版本号只会让迁移链多一环。
 
 ## 4. 规范化：所有入口的最后一道
 

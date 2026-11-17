@@ -141,47 +141,60 @@ function solve(board, size, allowed) {
   return clicks;
 }
 
-// ---------------------------------------------------------------- 首局手把手
+// ---------------------------------------------------------------- 引导
 // 新手引导不做「先读三页再玩」的弹窗：直接把玩家放到一盘两步就能解的小阵上。
 // 第一手让他看见「点一格，自己和四邻一起翻」，第二手让他看见「刚翻暗的四邻又回来」——
 // 这两手就是这一门的全部规则，比任何一段解释都快。
 //
-// 教学盘与真实对局同构（同样 3×3、同样 ● / ○、同样点哪翻哪），所以手感能直接迁移；
-// 但它不计步、不结算、不进纪录、不进连 S——教学不是一局，输赢都不该写进存档。
-// 只有一门功法第一次开局会进，跳过或走完都算「看过」，之后不再出现。
-const TEACH_SIZE = 3;
-// 两步解：先点正中（真的翻五格），再点左上（角上只翻三格）。顺序不能反——
+// 段界的四盘按本段真实规格摆（3×3 → 4×4 → 5×5）：点法一模一样，变的是盘有多大。
+// 这件事写一句「这一段 5×5」没用，让他真的在一片 25 盏灯上点两下才作数。
+// 步数也照样只走两步——段界教的是「盘变了，手法不变」，不是把一整盘推完。
+//
+// 教学盘与真实对局同构（同样 ● / ○、同样点哪翻哪），所以手感能直接迁移；
+// 但它不计步、不结算、不进纪录、不进 S——教学不是一局，输赢都不该写进存档。
+const TEACH_SIZE = [3, 3, 4, 5, 5];
+
+// 一段两格：先正中（真的翻十字），再角上（角上只翻三格）。顺序不能反——
 // 第一手必须让玩家看见「五格同时变」，第二手顺手把「边角翻得少」也教了。
-// 初始盘 = 全亮反推这两手，正好只剩四盏灭（先点后点都一样，翻面是可交换的）。
-const TEACH_STEPS = [4, 0];
+// 初始盘 = 全亮反推这两手（翻面可交换，先点后点都一样）。
+function teachSteps(size) {
+  const center = Math.floor(size * size / 2);
+  return [center, 0];
+}
+
 const TEACH_TEXT = [
   '点亮正中这一格 · 它和上下左右五格一起翻面',
-  '再点左上 · 刚被翻暗的两邻一起回来',
+  '再点角上那一格 · 边上翻得比正中少',
 ];
 const TEACH_DONE = '五格与三格都翻过 · 全阵亮起即破阵';
 const TEACH_HOLD_MS = 900;   // 全亮后停一拍，让玩家看清结果再进正式局
 
-function teachBoard() {
-  const n = TEACH_SIZE * TEACH_SIZE;
+function teachBoard(size) {
+  const n = size * size;
   const b = new Array(n).fill(true);
-  toggleAt(b, TEACH_SIZE, TEACH_STEPS[0]);
-  toggleAt(b, TEACH_SIZE, TEACH_STEPS[1]);
+  const st = teachSteps(size);
+  toggleAt(b, size, st[0]);
+  toggleAt(b, size, st[1]);
   return b;
 }
 
 // 独立于对局的小控制器：接口与真局一致（start / tap / destroy），页面不必分两套写法。
 function createTeach(ctx) {
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
+  const size = TEACH_SIZE[stage];
+  const steps = teachSteps(size);
   const theme = ctx.theme || {};
-  const n = TEACH_SIZE * TEACH_SIZE;
-  const board = teachBoard();
+  const n = size * size;
+  const board = teachBoard(size);
   let step = 0;
   let done = false;
   let timer = null;
 
-  const vm = C.makeVm(TEACH_SIZE, n, '教学 · 让全阵亮起', '点一格会翻它和上下左右');
+  const vm = C.makeVm(size, n, '教学 · 让全阵亮起', '点一格会翻它和上下左右');
   vm.phase = 'playing';
   vm.tutorial = true;
-  vm.teachTotal = TEACH_STEPS.length;
+  vm.teachTotal = steps.length;
+  vm.teachPlan = steps.map(function (idx) { return { k: 'tap', at: [idx] }; });
   // 教学中没有「步数」，也不该出现评级徽章与进度条：那些是正式局才有的压力。
   vm.extras.showHint = false;
   vm.extras.showReset = false;
@@ -197,16 +210,16 @@ function createTeach(ctx) {
       vm.cells[i].emblem = board[i] ? 9 : 10;
     }
     // 该点的那一格自己会呼吸：不写「点这里」，也让玩家一眼知道下一手在哪。
-    if (!done) vm.cells[TEACH_STEPS[step]].cls += ' cell--teach-next';
+    if (!done) vm.cells[steps[step]].cls += ' cell--teach-next';
   }
 
   function sync() {
-    vm.teachStep = Math.min(step + 1, TEACH_STEPS.length);
+    vm.teachStep = Math.min(step + 1, steps.length);
     vm.teachText = done ? TEACH_DONE : TEACH_TEXT[step];
-    vm.goal = '教学 · 第 ' + vm.teachStep + ' / ' + TEACH_STEPS.length + ' 步';
+    vm.goal = '教学 · 第 ' + vm.teachStep + ' / ' + steps.length + ' 步';
     // 教学盘同样不报「已亮几盏」：正式局没有这个数，教学里先教玩家看它，
     // 等于教一个下一局就消失的判据。要看的只有翻转本身——哪几格一起变了。
-    vm.status = vm.teachText;
+    vm.status = stage === 0 ? vm.teachText : '这一段 ' + size + '×' + size + ' · ' + vm.teachText;
     vm.scoreText = '教学中';
     vm.banner = '';
   }
@@ -219,15 +232,15 @@ function createTeach(ctx) {
     start: function () { /* 教学盘开局即已摆好，不需要再起手 */ },
     tap: function (index) {
       if (done) return;
-      if (index !== TEACH_STEPS[step]) {
+      if (index !== steps[step]) {
         vm.teachText = '先点那一格 · 它正在呼吸';
         C.flash(vm, '先点发光的那一格', 'bad');
         ctx.render(vm);
         return;
       }
-      toggleAt(board, TEACH_SIZE, index);
+      toggleAt(board, size, index);
       step += 1;
-      if (step >= TEACH_STEPS.length) {
+      if (step >= steps.length) {
         done = true;
         paint();
         sync();
@@ -253,11 +266,11 @@ function createTeach(ctx) {
 }
 
 const teach = {
-  size: TEACH_SIZE,
-  steps: TEACH_STEPS.slice(),
+  size: TEACH_SIZE[0],
+  steps: teachSteps(TEACH_SIZE[0]),
   texts: TEACH_TEXT.slice(),
   doneText: TEACH_DONE,
-  board: teachBoard,
+  board: function () { return teachBoard(TEACH_SIZE[0]); },
   create: createTeach,
 };
 

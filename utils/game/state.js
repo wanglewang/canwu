@@ -13,14 +13,13 @@ function createNewState() {
   const skills = {};
   for (let i = 0; i < skillData.SKILLS.length; i += 1) {
     const s = skillData.SKILLS[i];
-    // onboarded：这门功法看过首局手把手没有。与 unlocked / prof 同级放，不新增顶层字段；
-    // 老存档没有这个键，读出来就是 false，等于「还没看过」，会正常触发一次引导。
-    // levels：五档各自的进度（已通到本档第几关，0–40）。难度由玩家自己挑、不再由
-    // 熟练度解锁，所以进度必须一档一份——「简单走到第 12 关」与「绝境走到第 3 关」
-    // 是两条独立的线，不能压成一个数。
-    // lastAt：这一门最后一次参悟的时间戳，只用来排「最近练过的在前」。
-    // 不参与任何数值——它不是冷却、不是衰减，只是列表顺序的依据。
-    skills[s.id] = { unlocked: s.source.kind === 'start', prof: 0, cleared: 0, onboarded: false, lastAt: 0 };
+    // onboarded：这门功法看过首段引导没有（旧字段，等价于 teachSeen[0]，分享码与老断言还在读）。
+    // teachSeen：五段各看过引导没有。一门有五段，每段第 1 关给一次引导：
+    //   首段讲整门机制，后面四次只讲这一段变在哪。老存档没有这两个键时都是「还没看过」。
+    skills[s.id] = {
+      unlocked: s.source.kind === 'start', prof: 0, cleared: 0,
+      onboarded: false, teachSeen: [false, false, false, false, false], lastAt: 0,
+    };
   }
   return {
     version: SAVE_VERSION,
@@ -160,6 +159,14 @@ function normalizeState(input) {
       // 不许拿 lastSeen 之类别的钟来顶——那是整份存档的时间，不是这一门的。
       lastAt: Math.floor(num(r.lastAt, 0)),
       onboarded: !!r.onboarded,
+      // 老存档只有 onboarded 一个布尔：它等于「首段看过」，其余四段按没看过处理，
+      // 于是升级上来的老玩家第一次进第 11 / 51 / 201 / 501 关时还能各看到一次段界引导。
+      teachSeen: (function () {
+        const src = Array.isArray(r.teachSeen) ? r.teachSeen : [];
+        const out = [];
+        for (let i = 0; i < 5; i += 1) out.push(!!src[i] || (i === 0 && !!r.onboarded));
+        return out;
+      })(),
       introed: !!r.introed,
     };
   }

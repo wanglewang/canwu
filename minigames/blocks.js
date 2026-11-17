@@ -585,23 +585,44 @@ function lines(p) {
 const TEACH_COLS = 10;
 const TEACH_ROWS = 20;
 const TEACH_GAP = 4;
+// 五段的起手速度与「几层进一级」：与 data/practice 的 BLOCK_LEVELS 同值。
+// 落得快慢讲不出来，只能让他自己按一次速降、看着它一格一格掉得更急。
+const TEACH_START_LEVEL = [1, 2, 4, 6, 8];
+const TEACH_PER_LEVEL = [10, 9, 8, 7, 6];
 
 function createTeach(ctx) {
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
   const cells = K.blank(TEACH_COLS, TEACH_COLS * TEACH_ROWS);
   let dropped = false;
+  let turned = false;
+  const steps = [{
+    dir: 'drop',
+    wrongText: '这一手按「速降」· 别的键先不用',
+    text: '按「速降」· 让它落到最底那一行的缺口上',
+    take: function () {
+      dropped = true;
+      return { text: '落到底了 · 这一行垒满，整行化去' };
+    },
+  }];
+  // 首段多一手「转石」：速降教的是落，转石教的是形状会变——两块都教到，才算认得这一门的键。
+  if (stage === 0) {
+    steps.push({
+      dir: 'rotate',
+      wrongText: '这一手按「转石」· 形状会转一个方向',
+      text: '再按「转石」· 同一块石头能转四个方向',
+      take: function () {
+        turned = true;
+        return { text: '形状转了 · 缺口对不上就转一下，别硬塞' };
+      },
+    });
+  }
   return K.run(ctx, {
     cols: TEACH_COLS,
     cells: cells,
-    status: '教学 · 垒满一整行就化去',
-    steps: [{
-      dir: 'drop',
-      wrongText: '这一手按「速降」· 别的键先不用',
-      text: '按「速降」· 让它落到最底那一行的缺口上',
-      take: function () {
-        dropped = true;
-        return { text: '落到底了 · 这一行垒满，整行化去' };
-      },
-    }],
+    status: stage === 0
+      ? '教学 · 垒满一整行就化去'
+      : '教学 · 这一段起手第 ' + TEACH_START_LEVEL[stage] + ' 级（落得更快）',
+    steps: steps,
     paint: function (vm) {
       for (let i = 0; i < cells.length; i += 1) {
         const row = Math.floor(i / TEACH_COLS);
@@ -620,6 +641,16 @@ function createTeach(ctx) {
           c.tone = 3;
         }
       }
+      // 转了之后，落点那一格上方横着摆两格：形状真的换了方向。
+      if (turned) {
+        const a = TEACH_GAP;
+        if (a > 0) {
+          cells[a - 1].cls = 'cell cell--lit cell--live';
+          cells[a - 1].tone = 3;
+        }
+        cells[a].cls = 'cell cell--lit cell--live';
+        cells[a].tone = 3;
+      }
       vm.pad = {
         keys: [
           { id: 0, dir: 'left', icon: 'left', glyph: '左移' },
@@ -630,7 +661,10 @@ function createTeach(ctx) {
       };
       vm.extras.showPad = true;
     },
-    doneText: '一行垒满就整行化去 · 堆到顶才是结束',
+    doneText: stage === 0
+      ? '一行垒满就整行化去 · 堆到顶才是结束'
+      : '这一段起手第 ' + TEACH_START_LEVEL[stage] + ' 级 · 每 ' + TEACH_PER_LEVEL[stage]
+        + ' 层再快一级，落石一格一格掉得更急',
   });
 }
 

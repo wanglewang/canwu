@@ -309,28 +309,70 @@ function lines(p) {
   };
 }
 
-// 首局手把手：只走一步——把「1」点掉。
-// 这一门唯一要讲的是「顺序是死的」，让手先走一遍，比写一句「从 1 点到 N」有用。
-const TEACH_ORDER = [7, 2, 12, 5, 1, 14, 9, 16, 4, 11, 6, 13, 8, 15, 3, 10];
+// 引导按段走。首段那盘走两步（点 1、再点 2）——「顺序是死的」这件事，
+// 走一步看不出来，走两步才看得出「跳号不算」是在跟谁较劲。
+// 段界那四盘只走一步，盘面按本段规格（SIZES）摆：5×5 就真的摆 25 个数，
+// 让玩家自己看见「格子变多了」，而不是听一句「5×5」。
+//
+// 数固定排布，不现抽：同一尺寸每次进来都是同一条路，别让「下一步点哪」变成碰运气。
+// i×step+5 mod n 是一个全排列（step 与 n 互质），既保证 1..N 各出现一次，
+// 又不按行排——按行排的话「1 在左上」这种位置会被记成规则。
+function teachDeal(size) {
+  const n = size * size;
+  // 与 n 互质的步长：4×4 用 7、5×5 用 11、6×6 与 7×7 用 13，都是全排列。
+  const k = size === 4 ? 7 : size === 5 ? 11 : 13;
+  const out = [];
+  for (let i = 0; i < n; i += 1) out.push(((i * k + 5) % n) + 1);
+  return out;
+}
 
 function createTeach(ctx) {
-  const cells = K.blank(4, TEACH_ORDER.length);
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
+  const size = SIZES[stage];
+  const fade = FADE[stage];
+  const penalty = PENALTIES[stage];
+  const board = teachDeal(size);
+  const cells = K.blank(size, board.length);
+  let next = 1;
+  const steps = [];
+  // 首段两步，其余一段一步。
+  const count = stage === 0 ? 2 : 1;
+  for (let i = 0; i < count; i += 1) {
+    steps.push({
+      at: [board.indexOf(i + 1)],
+      text: i === 0
+        ? '先点 1 · 之后按 2、3 一路点下去'
+        : '再点 2 · 跳号不算，得按顺序来',
+      take: (function (v) {
+        return function () {
+          next = v + 1;
+          return {
+            text: v === 1
+              ? '1 点掉了 · 这一格' + (fade ? '退场了' : '还在，得自己记住点到哪') 
+              : '2 也点掉了 · 顺序是死的',
+          };
+        };
+      })(i + 1),
+    });
+  }
   return K.run(ctx, {
-    cols: 4,
+    cols: size,
     cells: cells,
-    status: '教学 · 从 1 点到 16',
-    steps: [{
-      at: [TEACH_ORDER.indexOf(1)],
-      text: '先点 1 · 之后按 2、3 一路点到 16',
-      take: function () { return { text: '1 点掉了 · 跳号不算，得按顺序来' }; },
-    }],
-    paint: function () {
+    status: stage === 0 ? '教学 · 从 1 点到 ' + board.length : '教学 · 这一段 ' + size + '×' + size,
+    steps: steps,
+    paint: function (vm) {
       for (let i = 0; i < cells.length; i += 1) {
-        cells[i].cls = 'cell cell--num';
-        cells[i].label = String(TEACH_ORDER[i]);
+        const gone = fade && board[i] < next;
+        cells[i].cls = gone ? 'cell cell--gone' : 'cell cell--num';
+        cells[i].label = gone ? '' : String(board[i]);
       }
+      vm.schulte = { cols: size, order: board.slice(), next: next };
     },
-    doneText: '顺序是死的：1 之后是 2',
+    doneText: stage === 0
+      ? '顺序是死的：1 之后是 2 · 点错罚 ' + penalty + ' 秒'
+      : '这一段 ' + size + '×' + size + ' · '
+        + (fade ? '点过的格会退场' : '点过的格不再退场，得自己记')
+        + ' · 点错罚 ' + penalty + ' 秒',
   });
 }
 

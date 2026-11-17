@@ -802,57 +802,100 @@ function lines(p) {
 // 首局手把手：一排三桩，顺箭头划过去。
 // 这一门唯一要讲的是「一刀＝顺着箭头走完的整条」——倒着划、跳桩、只点一格都不算。
 // 教学里就一条路：从起手划到靶心。划反了不罚，只把方向再说一遍。
-const TEACH_FORM = [6, 7, 8];
-const TEACH_COLS = 3;
+// 引导按段走。首段走两刀：先一条三桩的直路（起手 → 靶心），再一条四桩的折路
+// （走到行末再往下拐一格）。一刀只能教「顺着箭头划」，两刀才教得出「箭头拐弯，刀也得拐」。
+// 段界那四盘按本段真实盘面摆（3×3 → 4×4 → 5×5），刀路也真的更长（5 / 6 / 8 桩）——
+// 「这一段刀路长了」讲不出来，让他划一条长到拐两次的刀才算数。
+const TEACH_GRID = [3, 3, 4, 4, 5];
+const TEACH_LEN = [3, 4, 5, 6, 8];
+
+// 一条「先横后竖」的折线：先把第一行走满，再从最后一列往下走。
+// 桩位固定不随机——教学盘要求同一段每次进来都是同一条路。
+function teachForm(cols, len) {
+  const p = [];
+  for (let c = 0; c < cols && p.length < len; c += 1) p.push(c);
+  for (let r = 1; p.length < len; r += 1) p.push(r * cols + (cols - 1));
+  return p;
+}
+
+// 一条划痕算不算数：起点在前、靶心在后，中间的桩一个都不能漏。
+function hitsForm(form, path) {
+  const line = [];
+  for (let i = 0; i < (path || []).length; i += 1) {
+    const v = path[i];
+    if (line.length && line[line.length - 1] === v) continue;
+    if (line.indexOf(v) < 0) line.push(v);
+  }
+  for (let i = 0; i < form.length; i += 1) {
+    const at = line.indexOf(form[i]);
+    if (at < 0) return false;
+    if (i > 0 && at < line.indexOf(form[i - 1])) return false;
+  }
+  return true;
+}
 
 function createTeach(ctx) {
-  const cells = K.blank(TEACH_COLS, 9);
-  let cut = false;
-  return K.run(ctx, {
-    cols: TEACH_COLS,
-    cells: cells,
-    status: '教学 · 顺着箭头一刀划过去',
-    // 盘面上箭头本身就是指引，再压暗反而看不清路，所以这一门不压。
-    dim: false,
-    steps: [{
-      at: [TEACH_FORM[0]],
-      text: '从最左这一格起手，顺着箭头划到最右的靶心',
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
+  const cols = TEACH_GRID[stage];
+  const cells = K.blank(cols, cols * cols);
+  // 首段两刀（3 桩 → 4 桩折路），段界一刀（本段长度的折路）。
+  const forms = stage === 0
+    ? [teachForm(3, 3), teachForm(3, 4)]
+    : [teachForm(cols, TEACH_LEN[stage])];
+  let cut = 0;
+  const steps = forms.map(function (form, i) {
+    return {
+      at: [form[0]],
+      answer: form.slice(),
+      text: i === 0
+        ? '从起手这一格划到靶心 · 顺着箭头走，中间的桩不能漏'
+        : '再来一条 · 箭头拐弯，刀也跟着拐',
       // 划刀不是点击：at 只用来标起手那一格，真正的判定在 swipe 里。
       swipe: function (path) {
-        const line = [];
-        for (let i = 0; i < (path || []).length; i += 1) {
-          const v = path[i];
-          if (line.length && line[line.length - 1] === v) continue;
-          if (line.indexOf(v) < 0) line.push(v);
-        }
-        const a = line.indexOf(TEACH_FORM[0]);
-        const b = line.indexOf(TEACH_FORM[2]);
-        if (a < 0 || b < 0 || a > b || line.indexOf(TEACH_FORM[1]) < 0) return null;
-        cut = true;
-        return { text: '这一刀成了 · 起手在前、靶心在后，走的是箭头' };
+        if (!hitsForm(form, path)) return null;
+        cut = i + 1;
+        return {
+          text: i === 0
+            ? '这一刀成了 · 起手在前、靶心在后，走的是箭头'
+            : '折路也成了 · 拐弯的桩一样要经过',
+        };
       },
       swipeWrongText: '顺着箭头划 · 从起手划到靶心，别倒着来',
-    }],
+    };
+  });
+  return K.run(ctx, {
+    cols: cols,
+    cells: cells,
+    status: stage === 0 ? '教学 · 顺着箭头一刀划过去' : '教学 · 这一段 ' + cols + '×' + cols,
+    // 盘面上箭头本身就是指引，再压暗反而看不清路，所以这一门不压。
+    dim: false,
+    steps: steps,
     paint: function (vm) {
-      for (let i = 0; i < 9; i += 1) {
+      for (let i = 0; i < cells.length; i += 1) {
         const c = cells[i];
         c.cls = 'cell';
         c.arrow = -1;
         c.end = false;
         c.label = '';
       }
-      for (let i = 0; i < TEACH_FORM.length; i += 1) {
-        const idx = TEACH_FORM[i];
-        cells[idx].cls = 'cell ' + (cut ? 'cell--cut' : 'cell--path');
-        cells[idx].end = i === TEACH_FORM.length - 1;
-        if (i < TEACH_FORM.length - 1) {
-          cells[idx].arrow = dirAngle(TEACH_FORM[i], TEACH_FORM[i + 1], TEACH_COLS, DEFAULT_ASPECT);
+      // 只画当前这一刀：两道刀路是套着的（第二刀把第一刀包在里面），
+      // 两刀一起画会让先画的那条箭头被后画的覆盖，看起来像有一条走不通。
+      const form = forms[Math.min(cut, forms.length - 1)];
+      const doneForm = cut >= forms.length;
+      for (let i = 0; i < form.length; i += 1) {
+        const idx = form[i];
+        cells[idx].cls = 'cell ' + (doneForm ? 'cell--cut' : 'cell--path');
+        cells[idx].end = i === form.length - 1;
+        if (i < form.length - 1) {
+          cells[idx].arrow = dirAngle(form[i], form[i + 1], cols, DEFAULT_ASPECT);
         }
       }
       // 划刀靠透明层接管触摸：不开这一层，教学盘上的箭头是画给空气看的。
       vm.extras.showSwipe = true;
     },
-    doneText: '一刀＝顺着箭头走完的那一条',
+    doneText: stage === 0
+      ? '一刀＝顺着箭头走完的那一条 · 起手与靶心缺一不可'
+      : '这一段 ' + cols + '×' + cols + ' · 刀路 ' + TEACH_LEN[stage] + ' 桩，拐弯也要经过',
   });
 }
 

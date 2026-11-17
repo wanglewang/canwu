@@ -803,64 +803,102 @@ function lines(p) {
   };
 }
 
-// 首局手把手：一箱一位，人正好站在箱子左边。
-// 要教的是「只能推、不能拉」——所以第一下是走一步站到箱子背后，第二下才推上阵位。
-// 这张盘不随机、也不从 LEVELS 里取：教学的话术要对得上图，图就不能变。
-const TEACH_COLS = 6;
-const TEACH_ROWS = 5;
-const TEACH_MAP = [
-  '######',
-  '#....#',
-  '#bp.o#',
-  '#....#',
-  '######',
+// 引导按段走。首局一箱一位，人正好站在箱子左边：要教的是「只能推、不能拉」，
+// 所以第一下是走一步站到箱子背后，第二下才推上阵位。
+//
+// 段界那四盘按本段规格现铺（内盘 4 → 5、阵位 1 → 2 → 3）：多出来的箱子与阵位就摆在
+// 旁边，玩家一眼看得见「这一段要推的不止一块」。他只推第一块——段界教的是
+// 「一处变几处」，不是把三块全推完（那要十几步，教学条装不下）。
+const TEACH_SPEC = [
+  { inner: 4, boxes: 1, walls: 0 },
+  { inner: 4, boxes: 1, walls: 1 },
+  { inner: 4, boxes: 2, walls: 1 },
+  { inner: 5, boxes: 2, walls: 2 },
+  { inner: 5, boxes: 3, walls: 2 },
 ];
-// 人 (2,1)、箱 (2,2)、阵位 (2,4)；往右两下，箱子正好进阵位。
-const TEACH_START = { player: 1, box: 2 };
-const TEACH_GOAL = 4;
+
+// 一段一张盘：内盘多大就铺多大，箱子与阵位成对摆，人恒在左上角。
+// 教学盘不随机、也不从生成器里取：话术要对得上图，图就不能变。
+function teachMap(spec) {
+  const cols = spec.inner + 2;
+  const rows = spec.inner + 1;
+  const lines = [];
+  for (let r = 0; r < rows; r += 1) {
+    let line = '';
+    for (let c = 0; c < cols; c += 1) {
+      const edge = r === 0 || r === rows - 1 || c === 0 || c === cols - 1;
+      line += edge ? '#' : '.';
+    }
+    lines.push(line);
+  }
+  // 内墙摆在最下面那行内侧，不挡第一块的行车线。
+  const wallRow = rows - 2;
+  const walls = [];
+  for (let k = 0; k < spec.walls; k += 1) walls.push(wallRow * cols + (2 + k * 2));
+  // 箱子与阵位：第 k 块在第 k 行（从第 1 行起），人恒在 (1,1)。
+  const boxes = [];
+  const goals = [];
+  for (let k = 0; k < spec.boxes; k += 1) {
+    const row = 1 + k;
+    boxes.push(row * cols + 2);
+    goals.push(row * cols + (cols - 2));
+  }
+  const grid = [];
+  for (let i = 0; i < cols * rows; i += 1) grid.push('.');
+  for (let i = 0; i < cols * rows; i += 1) {
+    const r = Math.floor(i / cols);
+    const c = i % cols;
+    const edge = r === 0 || r === rows - 1 || c === 0 || c === cols - 1;
+    grid[i] = edge ? '#' : '.';
+  }
+  for (let k = 0; k < walls.length; k += 1) grid[walls[k]] = '#';
+  return { cols: cols, rows: rows, lines: lines, grid: grid, boxes: boxes, goals: goals };
+}
 
 function createTeach(ctx) {
-  const cells = K.blank(TEACH_COLS, TEACH_COLS * TEACH_ROWS);
-  const pos = { player: TEACH_START.player, box: TEACH_START.box };
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
+  const spec = TEACH_SPEC[stage];
+  const map = teachMap(spec);
+  const cells = K.blank(map.cols, map.cols * map.rows);
+  // pos.box 只跟第一块走；其余箱子留在原位当「这一段有几处阵位」的证据。
+  const pos = { player: map.cols + 1, box: map.boxes[0] };
   function paintCell(i) {
-    const r = Math.floor(i / TEACH_COLS);
-    const c = i % TEACH_COLS;
-    const ch = TEACH_MAP[r].charAt(c);
     const cell = cells[i];
     cell.label = '';
     cell.emblem = 0;
     cell.tone = 0;
-    if (ch === '#') { cell.cls = 'cell cell--wall'; return; }
+    if (map.grid[i] === '#') { cell.cls = 'cell cell--wall'; return; }
     cell.cls = 'cell cell--floor';
-    if (c === TEACH_GOAL) {
+    if (map.goals.indexOf(i) >= 0) {
       cell.cls = 'cell cell--goal';
       cell.label = '○';
       cell.emblem = 14;
     }
-    if (c === pos.box) {
-      const onGoal = c === TEACH_GOAL;
+    if (i === pos.box || (map.boxes.indexOf(i) >= 0 && map.boxes.indexOf(i) > 0)) {
+      const onGoal = map.goals.indexOf(i) >= 0;
       cell.cls = onGoal ? 'cell cell--boxed cell--on-goal' : 'cell cell--boxed';
       cell.label = onGoal ? '▩' : '▣';
       cell.emblem = 13;
       return;
     }
-    if (c === pos.player) {
+    if (i === pos.player) {
       cell.cls = 'cell cell--man';
       cell.label = '☉';
       cell.emblem = 15;
     }
   }
   return K.run(ctx, {
-    cols: TEACH_COLS,
+    cols: map.cols,
     cells: cells,
-    status: '教学 · 只能推，不能拉',
+    status: stage === 0 ? '教学 · 只能推，不能拉'
+      : '教学 · 这一段 ' + spec.boxes + ' 处阵位 · 内盘 ' + spec.inner,
     steps: [
       {
         dir: ['right'],
         wrongText: '先按「右」走到箱子背后 · 人站错边推不动',
         text: '先按「右」走到箱子背后 · 人站错边就推不动',
         take: function () {
-          pos.player = 2;
+          pos.player = map.boxes[0] + 1;
           return { text: '站到背后了 · 再按同一个方向才是推' };
         },
       },
@@ -869,8 +907,8 @@ function createTeach(ctx) {
         wrongText: '再按一次「右」· 站在背后推才推得动',
         text: '再按一次「右」· 把箱子推上阵位',
         take: function () {
-          pos.player = 3;
-          pos.box = TEACH_GOAL;
+          pos.player = map.goals[0] + 1;
+          pos.box = map.goals[0];
           return { text: '箱子进阵位了 · 推出去就拉不回来，所以先想好顺序' };
         },
       },
@@ -888,16 +926,18 @@ function createTeach(ctx) {
         ],
       };
       vm.pushbox = {
-        cols: TEACH_COLS,
-        rows: TEACH_ROWS,
-        boxes: [pos.box],
-        goals: [TEACH_GOAL],
+        cols: map.cols,
+        rows: map.rows,
+        boxes: [pos.box].concat(map.boxes.slice(1)),
+        goals: map.goals.slice(),
         player: pos.player,
         dead: false,
-        layout: TEACH_MAP.slice(),
+        layout: map.lines.slice(),
       };
     },
-    doneText: '只能推、不能拉 · 每块都要进自己的阵位',
+    doneText: stage === 0
+      ? '只能推、不能拉 · 每块都要进自己的阵位'
+      : '这一段 ' + spec.boxes + ' 处阵位 · 一块挡一块，先想好谁先走',
   });
 }
 

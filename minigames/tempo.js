@@ -512,34 +512,49 @@ function lines(p) {
   };
 }
 
-// 首局手把手：一只环、一拍，环压到红圈上点一下。
-// 这一门没有「怎么点」的问题，只有「什么时候点」的问题，所以教学不打折：
+// 引导按段走。这一门没有「怎么点」的问题，只有「什么时候点」的问题，所以教学不打折：
 // 环照真速度收，早了晚了都不算数，原地重来即可——教学里没有失败。
+//
+// 段界的变化是「红圈变窄」，这件事讲不出来，只能让红圈真的变窄。所以每一盘的
+// 判定带宽度按本段的 winMs 折算：270ms 是 0.075，138ms 就只有 0.038，
+// 玩家一眼看得出「这一段容错的余量只剩一半」。段四、段五多出来的那只手，
+// 画在上面的拍点行里（两行手），一眼看得见，不用写一句「这一段是双手」。
 const TEACH_TO_JUDGE_MS = 1200;
 const TEACH_TO_FLOOR_MS = 1750;
-const TEACH_WIN = 0.075;
+// 与 data/practice 逐段同值：教学盘的余量必须等于本段真的余量。
+const TEACH_WIN_MS = [270, 138, 110, 220, 200];
 
 function createTeach(ctx) {
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
+  const win = TEACH_WIN_MS[stage] / TEACH_TO_JUDGE_MS * (START_SCALE - JUDGE_SCALE);
+  const hands = stage >= 3 ? 2 : 1;
   const cells = K.blank(0, 0);
+  const steps = [];
+  // 首段两拍：一拍只能证明「点得中」，两拍才看得出「拍与拍之间要等」。
+  const beats = stage === 0 ? 2 : 1;
+  for (let i = 0; i < beats; i += 1) {
+    steps.push({ text: i === 0 ? '等光环缩到红圈上，点一下盘面' : '再等下一拍 · 每一拍都是这一下', at: [] });
+  }
   const vm = K.base({
     cols: 0,
     cells: cells,
     stage: 'ring',
-    status: '教学 · 环压到红圈上时点一下',
-    steps: [{ text: '等光环缩到红圈上，点一下盘面' }],
+    status: stage === 0 ? '教学 · 环压到红圈上时点一下' : '教学 · 这一段红圈只有 ' + TEACH_WIN_MS[stage] + ' 毫秒',
+    steps: steps,
   });
+  vm.teachPlan = steps.map(function () { return { k: 'tap', at: [] }; });
   vm.extras.showRing = true;
   vm.extras.showGrid = false;
   vm.ringGeom = { orb: ORB_RPX, track: TRACK_RPX };
-  const bandBox = 2 * Math.round(ORB_RPX / 2 + ORB_RPX / 2 * TEACH_WIN);
-  const bandWidth = Math.round(ORB_RPX / 2 + ORB_RPX / 2 * TEACH_WIN)
-    - Math.round(ORB_RPX / 2 - ORB_RPX / 2 * TEACH_WIN);
+  const bandBox = 2 * Math.round(ORB_RPX / 2 + ORB_RPX / 2 * win);
+  const bandWidth = Math.round(ORB_RPX / 2 + ORB_RPX / 2 * win)
+    - Math.round(ORB_RPX / 2 - ORB_RPX / 2 * win);
   const ring = {
     id: 'r0',
     hand: 0,
     scale: START_SCALE,
     judge: JUDGE_SCALE,
-    window: TEACH_WIN,
+    window: win,
     bandBox: bandBox,
     bandWidth: bandWidth,
     tone: 'idle',
@@ -550,19 +565,24 @@ function createTeach(ctx) {
   };
   vm.rings = [ring];
   vm.ring = ring;
-  vm.cue = {
-    show: true,
-    level: 'all',
-    bar: 4,
-    cursor: 0,
-    hands: [{ h: 0, cells: [{ i: 0, on: true }, { i: 1, on: false }, { i: 2, on: false }, { i: 3, on: false }] }],
-  };
+  const cueHands = [];
+  for (let h = 0; h < hands; h += 1) {
+    cueHands.push({
+      h: h,
+      cells: [
+        { i: 0, on: h === 0 }, { i: 1, on: false },
+        { i: 2, on: h === 1 }, { i: 3, on: false },
+      ],
+    });
+  }
+  vm.cue = { show: true, level: 'all', bar: 4, cursor: 0, hands: cueHands };
   vm.ringTip = '点按盘面 · 环压到红圈时点';
   vm.timeText = '教学 · 不计步';
 
   let elapsed = 0;
   let timer = null;
   let over = false;
+  let beat = 0;
 
   function scaleAt(ms) {
     if (ms <= TEACH_TO_JUDGE_MS) {
@@ -594,7 +614,7 @@ function createTeach(ctx) {
       return;
     }
     ring.scale = scaleAt(elapsed);
-    ring.tone = Math.abs(ring.scale - JUDGE_SCALE) <= TEACH_WIN ? 'good' : 'idle';
+    ring.tone = Math.abs(ring.scale - JUDGE_SCALE) <= win ? 'good' : 'idle';
     ctx.render(vm);
     timer = setTimeout(tick, TICK_MS);
   }
@@ -608,9 +628,19 @@ function createTeach(ctx) {
     tap: function () {
       if (over) return;
       const d = Math.abs(ring.scale - JUDGE_SCALE);
-      if (d <= TEACH_WIN) {
+      if (d <= win) {
+        beat += 1;
+        if (beat < steps.length) {
+          vm.teachStep = beat + 1;
+          vm.teachText = steps[beat].text;
+          ring.beat = beat + 1;
+          C.flash(vm, '合拍', 'good');
+          restart(null);
+          return;
+        }
         over = true;
         if (timer) { clearTimeout(timer); timer = null; }
+        vm.teachStep = steps.length;
         vm.teachText = '就是这一下 · 环压到红圈才是这一拍';
         C.flash(vm, '合拍', 'gold');
         ctx.render(vm);

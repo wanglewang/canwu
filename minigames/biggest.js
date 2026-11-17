@@ -220,31 +220,61 @@ function lines(p) {
   };
 }
 
-// 首局手把手：摊一板数，只让人点一次——点出最大的那个。
-// 这一门的规则只有一句「每批只有一个答案：最大的」，让手先走一遍比讲一句强。
-const TEACH_VALUES = [7, 12, 4, 9, 15, 3, 21, 6, 8, 11, 5, 2];
-const TEACH_MAX = 21;
+// 引导按段走。首段那盘走两轮：一轮只会让你认一次「最大的」，两轮才看得出
+// 「一批接一批、每批只挑一个」这件事。段界那四盘只走一轮，盘面按本段的真实规格摆
+// （COUNTS / ROUNDS 就是玩法层读的那张表），让玩家在 13 个数里找一次，而不是听一句「变多了」。
+//
+// 数字写死，不现抽：教学盘要求「同一段每次进来都是同一条路」。现抽一批会让呼吸的那一格
+// 每局换位置，玩家学到的就不是「怎么比大小」，而是「上一局点的是第几格」。
+// 每批里的数互不相同，最大的那个唯一——两个一样大时「最大的」就没有唯一答案了。
+const TEACH_ROUNDS = [
+  [[7, 12, 4, 9, 15, 3, 21, 6, 8], [26, 19, 8, 14, 16, 3, 11, 7, 5]],
+  [[6, 24, 13, 9, 31, 5, 18, 27, 11, 7, 35]],
+  [[8, 29, 17, 5, 41, 23, 12, 36, 9, 19, 44, 27, 14]],
+  [[7, 33, 19, 5, 48, 26, 14, 39, 11, 22, 51, 30, 17, 44, 9]],
+  [[9, 33, 19, 5, 48, 26, 14, 39, 11, 22, 51, 30, 17, 44, 7, 25]],
+];
 
 function createTeach(ctx) {
-  const cells = K.blank(COLS, TEACH_VALUES.length);
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
+  const rounds = TEACH_ROUNDS[stage];
+  const count = rounds[0].length;
+  const cells = K.blank(COLS, count);
+  let round = 0;
+  const steps = rounds.map(function (vals, i) {
+    const max = Math.max.apply(null, vals);
+    const last = i === rounds.length - 1;
+    return {
+      at: [vals.indexOf(max)],
+      text: i === 0
+        ? '点这一批里最大的数 · 每批只有一个答案'
+        : '这一批换过了 · 再点最大的那个',
+      take: function () {
+        round = Math.min(rounds.length - 1, i + 1);
+        return {
+          text: max + ' 最大 · 先比位数，位数相同再比大小'
+            + (last ? '' : ' · 点对了就换下一批'),
+        };
+      },
+    };
+  });
   return K.run(ctx, {
     cols: COLS,
     cells: cells,
-    status: '教学 · 只挑最大的一个',
-    steps: [{
-      at: [TEACH_VALUES.indexOf(TEACH_MAX)],
-      text: '点这一批里最大的数 · 每批只有一个',
-      take: function () { return { text: '21 最大 · 先比位数，位数相同再比大小' }; },
-    }],
+    status: stage === 0 ? '教学 · 只挑最大的一个' : '教学 · 这一批 ' + count + ' 个数',
+    steps: steps,
     paint: function (vm) {
+      const vals = rounds[round];
       for (let i = 0; i < cells.length; i += 1) {
         cells[i].cls = 'cell cell--num';
-        cells[i].label = String(TEACH_VALUES[i]);
+        cells[i].label = String(vals[i]);
         cells[i].tone = 2;
       }
-      vm.biggest = { cols: COLS, values: TEACH_VALUES.slice(), max: TEACH_MAX };
+      vm.biggest = { cols: COLS, values: vals.slice(), max: Math.max.apply(null, vals) };
     },
-    doneText: '每批只挑一个：最大的那个',
+    doneText: stage === 0
+      ? '每批只挑一个 · 一局 ' + ROUNDS[0] + ' 轮，错一个就判负'
+      : '这一段一批 ' + count + ' 个、一局 ' + ROUNDS[stage] + ' 轮 · 比的是扫得快',
   });
 }
 

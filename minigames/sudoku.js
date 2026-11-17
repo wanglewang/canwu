@@ -453,38 +453,67 @@ function solveGrid(grid, size) {
   return board;
 }
 
-// 首局手把手：4×4、只挖一格。
-// 先点空位选中，再按数字键填——两下就是这一门的全部操作；
+// 引导按段走。首段 4×4、只挖一格：先点空位选中，再按数字键填——两下就是这一门的全部操作；
 // 填的那个数由「这一行只差它」推出来，规则自己会说话。
-const TEACH_GRID = [1, 2, 3, 4, 3, 4, 1, 2, 2, 1, 4, 3, 4, 3, 2, 1];
-const TEACH_HOLE = 3;
-const TEACH_SIZE = 4;
-const TEACH_ANSWER = 4;
+//
+// 段界那三盘换成 6×6（宫 2×3）与 9×9（宫 3×3）：宫的形状变了，这件事只能让他看见。
+// 6×6 那一盘正好用得上「宫不是正方形」——照着 4×4 的方宫去填，第二宫就会撞。
+const TEACH_SIZE = [4, 6, 9, 9, 9];
+const TEACH_BOX = [{ r: 2, c: 2 }, { r: 2, c: 3 }, { r: 3, c: 3 }, { r: 3, c: 3 }, { r: 3, c: 3 }];
+
+// 一个恒定合法的解：v = (行×宫宽 + 行所在的宫带 + 列) mod 边长。
+// 构造出来的盘每次进来都一样，教学盘才保证「呼吸的那一格」不动。
+function teachGrid(size, box) {
+  const out = [];
+  for (let r = 0; r < size; r += 1) {
+    for (let c = 0; c < size; c += 1) {
+      out.push((r * box.c + Math.floor(r / box.r) + c) % size + 1);
+    }
+  }
+  return out;
+}
 
 function createTeach(ctx) {
-  const cells = K.blank(TEACH_SIZE, TEACH_GRID.length);
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
+  const size = TEACH_SIZE[stage];
+  const box = TEACH_BOX[stage];
+  const grid = teachGrid(size, box);
+  // 挖哪一格：首段沿用「右上角那一格」，其余挖正中——都是能从行里一眼推出的位置。
+  const hole = stage === 0 ? 3 : Math.floor(size * size / 2);
+  const answer = grid[hole];
+  // 段四、段五的 9×9 与段三同盘面，变的是挖得多空（32 → 40 → 46 格）。
+  // 这件事只有「盘上真的空一大片」才看得出来，所以教学盘也照这个密度挖：
+  // 玩家点开的那一格只是其中一格，剩下的空格还摊在那里。
+  const extraBlanks = stage >= 3 ? (stage === 3 ? 6 : 10) : 0;
+  const blanks = [hole];
+  for (let k = 1; k <= extraBlanks; k += 1) {
+    const idx = (hole + k * 7 + 3) % grid.length;
+    if (blanks.indexOf(idx) < 0) blanks.push(idx);
+  }
+  const cells = K.blank(size, grid.length);
   const keys = [];
   let selected = false;
   let filled = false;
-  for (let v = 1; v <= TEACH_SIZE; v += 1) {
+  for (let v = 1; v <= size; v += 1) {
     keys.push({ id: 'k' + v, dir: String(v), glyph: String(v), seen: false });
   }
   keys.push({ id: 'kx', dir: '0', glyph: '✕', seen: false });
+  const range = size === 4 ? '1..4' : size === 6 ? '1..6' : '1..9';
   return K.run(ctx, {
-    cols: TEACH_SIZE,
+    cols: size,
     cells: cells,
-    status: '教学 · 每行每列每宫各填 1..4 一遍',
+    status: stage === 0 ? '教学 · 每行每列每宫各填 1..4 一遍' : '教学 · 这一段 ' + size + '×' + size + ' · 宫 ' + box.r + '×' + box.c,
     steps: [
       {
-        at: [TEACH_HOLE],
-        text: '点这一格空位 · 每行每列每宫各要 1..4 一遍',
+        at: [hole],
+        text: '点这一格空位 · 每行每列每宫各要 ' + range + ' 一遍',
         take: function () {
           selected = true;
           return { text: '选中了 · 这一行只差一个数' };
         },
       },
       {
-        dir: [String(TEACH_ANSWER)],
+        dir: [String(answer)],
         text: '按这一行缺的那个数',
         take: function () {
           filled = true;
@@ -493,18 +522,21 @@ function createTeach(ctx) {
       },
     ],
     paint: function (vm) {
-      for (let i = 0; i < TEACH_GRID.length; i += 1) {
+      for (let i = 0; i < grid.length; i += 1) {
         const c = cells[i];
-        const given = i !== TEACH_HOLE || filled;
-        c.label = given ? String(TEACH_GRID[i]) : '';
+        const blank = blanks.indexOf(i) >= 0;
+        const given = !blank || (i === hole && filled);
+        c.label = given ? String(grid[i]) : '';
         c.cls = 'cell ' + (given ? 'cell--given' : 'cell--open');
-        if (i === TEACH_HOLE && selected && !filled) c.cls += ' cell--sel';
+        if (i === hole && selected && !filled) c.cls += ' cell--sel';
         c.tone = 0;
       }
       vm.pad = { keys: keys, digits: true };
       vm.extras.showPad = true;
     },
-    doneText: '这一格填完，整盘就通了',
+    doneText: stage === 0
+      ? '这一格填完，整盘就通了'
+      : '这一段 ' + size + '×' + size + ' · 宫 ' + box.r + '×' + box.c + ' · 空格更多，推的链更长',
   });
 }
 

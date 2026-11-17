@@ -393,26 +393,40 @@ function lines(p) {
   };
 }
 
-// 首局手把手：只两个字，依次闪一遍、点回来。
-// 要教的是「顺序是答案」——不是「哪些格亮过」。所以两格都会亮过一次，
-// 只有按先后点回去才算对；点反了不罚，只把句子再说一遍、重来一次。
-const TEACH_SEQ = [4, 0];
-const TEACH_FLASH_MS = 620;
-const TEACH_GAP_MS = 220;
+// 引导按段走。要教的是「顺序是答案」——不是「哪些格亮过」，所以每一盘里所有格
+// 都会亮过一次，只有按先后点回去才算对；点反了不罚，只把句子再说一遍、重来一次。
+//
+// 首段两个音，段界按本段真的变长：段二到段四各加一个音（记的长度真的变长），
+// 段五起手就是三个（startLen 也是这一档才从 2 变 3）。闪的时长同步压短——
+// 「更快」这件事讲不出来，只能让它真的更快。
+const TEACH_SEQ = [
+  [4, 0],
+  [4, 0, 8],
+  [2, 6, 0],
+  [6, 2, 8, 4],
+  [0, 4, 8, 2, 6],
+];
+const TEACH_FLASH_MS = [620, 556, 492, 436, 392];
+const TEACH_GAP_MS = [220, 210, 200, 190, 176];
 
 function createTeach(ctx) {
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
+  const seq = TEACH_SEQ[stage];
+  const flashMs = TEACH_FLASH_MS[stage];
+  const gapMs = TEACH_GAP_MS[stage];
   const theme = ctx.theme || {};
   const glyph = theme.glyph || '诀';
   const cells = K.blank(3, 9);
   const vm = K.base({
     cols: 3,
     cells: cells,
-    status: '教学 · 记住亮的先后',
-    steps: [
-      { text: '看这两格依次亮一次 · 记住先后' },
-      { text: '按刚才的先后点回去' },
-    ],
+    status: stage === 0 ? '教学 · 记住亮的先后' : '教学 · 这一段 ' + seq.length + ' 个音',
+    steps: seq.map(function (idx, i) {
+      return { text: i === 0 ? '看这几格依次亮一次 · 顺序就是答案' : '按刚才的先后点回去', at: [idx] };
+    }),
   });
+  // 自定义脚本不走 K.run，正确手要自己报给测试（页面不读它）。
+  vm.teachPlan = seq.map(function (idx) { return { k: 'tap', at: [idx] }; });
   const timers = [];
   const ok = [];
   let step = 0;
@@ -445,18 +459,18 @@ function createTeach(ctx) {
 
   function show(idx) {
     if (over) return;
-    lit = TEACH_SEQ[idx];
+    lit = seq[idx];
     draw();
     later(function () {
       lit = -1;
       draw();
-      if (idx + 1 < TEACH_SEQ.length) later(function () { show(idx + 1); }, TEACH_GAP_MS);
+      if (idx + 1 < seq.length) later(function () { show(idx + 1); }, gapMs);
       else later(function () {
         input = true;
         vm.teachText = '按刚才的先后点回去 · 先亮的先点';
         draw();
-      }, TEACH_GAP_MS);
-    }, TEACH_FLASH_MS);
+      }, gapMs);
+    }, flashMs);
   }
 
   show(0);
@@ -465,15 +479,15 @@ function createTeach(ctx) {
     start: function () { /* 摆好就开始闪 */ },
     tap: function (index) {
       if (!input || over) return;
-      if (index !== TEACH_SEQ[step]) {
+      if (index !== seq[step]) {
         C.flash(vm, step === 0 ? '不是这一格 · 先亮的是正中' : '反了 · 先亮的那一格先点', 'bad');
         draw();
         return;
       }
       ok.push(index);
       step += 1;
-      vm.teachStep = Math.min(step + 1, TEACH_SEQ.length);
-      if (step >= TEACH_SEQ.length) {
+      vm.teachStep = Math.min(step + 1, seq.length);
+      if (step >= seq.length) {
         over = true;
         vm.teachText = '顺序对了 · 闪的先后就是答案';
         C.flash(vm, '顺序对了', 'gold');

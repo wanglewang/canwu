@@ -323,33 +323,60 @@ function lines(p) {
 const TEACH_COLS = 4;
 const TEACH_ROWS = 4;
 const TEACH_BASE = (TEACH_ROWS - 1) * TEACH_COLS;
+// 起手几块由 TARGETS 那一段决定：段越高盘上先摆的块越多，地越少。
+// 教学盘把这件事直接摆出来——起手 4 块的盘就真的先摆 4 块，玩家看得见空地少。
+const TEACH_START = [2, 2, 3, 3, 4];
 
+// 一段一根推的方向：首段两步要换轴（往左 → 往上），这一步换来的是「四个方向都通」，
+// 段界那四盘只推一次，重点是「起手几块、目标多大」。
 function createTeach(ctx) {
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
+  const target = TARGETS[stage];
+  const tiles = TEACH_START[stage];
   const board = [];
   for (let i = 0; i < TEACH_COLS * TEACH_ROWS; i += 1) board.push(0);
+  // 底行靠右摆两块 2，其余按「起手几块」补在上一行左侧。
   board[TEACH_BASE] = 2;
   board[TEACH_BASE + 1] = 2;
+  if (tiles >= 3) board[TEACH_BASE - TEACH_COLS] = 4;
+  if (tiles >= 4) board[TEACH_BASE - TEACH_COLS + 1] = 4;
   const cells = K.blank(TEACH_COLS, board.length);
+  let merged = false;
+
   function tone(v) {
     let t = 1;
     let x = v;
     while (x > 2 && t < 8) { x /= 2; t += 1; }
     return t;
   }
+
+  const steps = [{
+    dir: ['left'],
+    wrongText: '这一手往左推 · 两块 2 才撞得到一起',
+    text: '往左推 · 两块 2 撞在一起',
+    take: function () {
+      merged = true;
+      board[TEACH_BASE] = 4;
+      board[TEACH_BASE + 1] = 0;
+      return { text: '2 撞 2 合成 4 · 一次推盘每块只合一次' };
+    },
+  }];
+  if (stage === 0) {
+    steps.push({
+      dir: ['up'],
+      wrongText: '换一边推：按「上」· 同一个数换个轴也能撞',
+      text: '再往上一推 · 四个方向都一样合',
+      take: function () {
+        return { text: '换轴也合 · 四个方向随你推，一次只合一层' };
+      },
+    });
+  }
+
   return K.run(ctx, {
     cols: TEACH_COLS,
     cells: cells,
-    status: '教学 · 同数相撞才翻倍',
-    steps: [{
-      dir: ['left'],
-      wrongText: '这一手往左推 · 两块 2 才撞得到一起',
-      text: '往左推 · 两块 2 撞在一起',
-      take: function () {
-        board[TEACH_BASE] = 4;
-        board[TEACH_BASE + 1] = 0;
-        return { text: '2 撞 2 合成 4 · 一次推盘每块只合一次' };
-      },
-    }],
+    status: stage === 0 ? '教学 · 同数相撞才翻倍' : '教学 · 这一段目标 ' + target,
+    steps: steps,
     paint: function (vm) {
       for (let i = 0; i < board.length; i += 1) {
         const c = cells[i];
@@ -359,9 +386,14 @@ function createTeach(ctx) {
       }
       // 推盘靠透明层收手势：不开这一层，往左划是划给空气看的。
       vm.extras.swipeMove = true;
-      vm.merge = { board: board.slice(), cols: TEACH_COLS, rows: TEACH_ROWS, target: 4, best: 4 };
+      vm.merge = {
+        board: board.slice(), cols: TEACH_COLS, rows: TEACH_ROWS,
+        target: stage === 0 ? 4 : target, best: Math.max(4, merged ? 8 : 4),
+      };
     },
-    doneText: '同数才翻倍 · 一路往上合',
+    doneText: stage === 0
+      ? '同数才翻倍 · 一路往上合到 ' + TARGETS[0]
+      : '这一段目标 ' + target + ' · 起手 ' + tiles + ' 块，空地少了就得提前留路',
   });
 }
 

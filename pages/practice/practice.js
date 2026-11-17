@@ -162,7 +162,7 @@ Page({
     // 本局已终但盘面留着看（结算里点「留在本页」）：started 仍为 true，
     // 因为屏幕上是那一局打完的样子，不是准备页；区别是控制器已摘掉、底栏换成终局三项。
     boardHeld: false,
-    // 首局手把手：true 时页面渲染教学卡与教学盘，不渲染真局 HUD，也不结算。
+    // 每段第 1 关的引导：true 时页面渲染教学卡与教学盘，不渲染真局 HUD，也不结算。
     tutorial: false,
     showResult: false,
     result: null,
@@ -435,6 +435,9 @@ Page({
     }
     const skill = skillData.getSkill(this.skillId);
     const method = practiceData.getMethod(skill.method);
+    // 教学盘要按「这一关的规格」摆，得拿到本关的真实参数（盘面尺寸、禁制数、要点几个…）。
+    // 与正式局同一个 buildParamsAt，不看第二份表：两处各算一套就会像段位那行一样对不上。
+    this.method = method;
     const rec = state.skills[this.skillId];
     const info = engine.tierInfo(rec.prof);
     const theme = themes.themeOf(method.id, method.game);
@@ -1030,21 +1033,41 @@ Page({
     });
   },
 
-  // 首局手把手：这门功法第一次开局，先进一盘不计步的小阵，而不是 3-2-1 直接上。
+  // 引导按段走：一门五段，每段的第 1 关给一次。
+  // 首段那次讲整门机制（怎么玩、赢在哪、输在哪），后四次只讲这一段新变的那件事——
+  // 段界本来就是「规则换了一道」，玩家走到第 11 / 51 / 201 / 501 关时最该知道的正是它。
+  // 只看「是不是段的第一关」与「这一段教过没有」，不看熟练度、不看回打：
+  // 回打到某个没教过的段，照样补一次（那时候他确实还没见过这一段的盘）。
+  teachStage: function () {
+    const level = Math.round(this.data.level) || 0;
+    if (level <= 0) return -1;
+    if (levelData.levelInStage(level) !== 1) return -1;
+    const idx = levelData.stageOfLevel(level);
+    return idx >= 0 && idx < practiceData.STAGES.length ? idx : -1;
+  },
+
   // 只对「模块自带 teach 脚本」的玩法生效；没脚本的玩法照旧开局，不硬塞过场。
   canTeach: function () {
     if (this.mode !== 'practice' || !this.skillId) return false;
-    if (engine.hasOnboarded(store.get(), this.skillId)) return false;
-    return !!(this.gameId && minigames.hasTeach(this.gameId));
+    if (!this.gameId || !minigames.hasTeach(this.gameId)) return false;
+    const stage = this.teachStage();
+    if (stage < 0) return false;
+    return !engine.hasTaught(store.get(), this.skillId, stage);
   },
 
   startTeach: function () {
     const self = this;
+    const stage = this.teachStage();
+    this.teachStageIdx = stage < 0 ? 0 : stage;
     this.clearCountdown();
     this.stopTeach();
     if (this.controller) { this.controller.destroy(); this.controller = null; }
     this.teachController = minigames.createTeach(this.gameId, {
       theme: this.theme,
+      // 段界教学与首段教学不是同一盘：段界那几盘按「本段规格」摆，
+      // 让玩家在真的变大的盘、变多的禁制上做那一手，而不是听一句话。
+      stage: this.teachStageIdx,
+      params: this.method ? practiceData.buildParamsAt(this.method, this.data.level) : {},
       render: function (vm) {
         if (!self.pageAlive) return;
         // 教学盘也要有声音：学习闭环的一半是「做对了立刻有回应」，
@@ -1079,12 +1102,13 @@ Page({
     if (this.data.tutorial) this.setData({ tutorial: false });
   },
 
-  // 跳过与走完同一条路：记下「这门看过引导」，回准备页重建真局再起手。
+  // 跳过与走完同一条路：记下「这一段看过引导」，回准备页重建真局再起手。
   // 跳过不做二次确认——它本来就不是门槛，玩家说看懂了就该放他走。
   finishTeach: function (skipped) {
     const self = this;
+    const stage = typeof this.teachStageIdx === 'number' ? this.teachStageIdx : 0;
     this.stopTeach();
-    store.commitCritical(function (s) { return engine.markOnboarded(s, self.skillId); });
+    store.commitCritical(function (s) { return engine.markTaught(s, self.skillId, stage); });
     this.setData({ tutorial: false, started: false, vm: null, burstList: [], sparkList: [] });
     this.buildGame();
     if (skipped) sfx.play('tap');

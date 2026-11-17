@@ -189,20 +189,48 @@ function twistsOff(state, skillId) {
   return Array.isArray(list) ? list : [];
 }
 
-// 首局引导：只跟「这门功法」走，不跟玩法走。一门功法只有第一次开局会进引导，
-// 之后哪怕是隔了几个月回来练，也不再弹——引导是入门那一次的事，不是每次的门槛。
-function hasOnboarded(state, skillId) {
+// 引导按「段」记，不按「门」记：一门有五段，每段的第 1 关各给一次。
+// 首段那一次讲整门机制（2 步），后面四次只讲这一段新变的那件事（1–3 步；记序复现按音数走，最多 5）。
+// 记在 rec.teachSeen 这个五格数组上，与 unlocked / prof 同级，不新增顶层字段。
+const TEACH_STAGES = 5;
+
+function teachStageIndex(stage) {
+  const n = Math.round(Number(stage) || 0);
+  return Math.max(0, Math.min(TEACH_STAGES - 1, n));
+}
+
+function hasTaught(state, skillId, stage) {
   const rec = state && state.skills && state.skills[skillId];
-  return !!(rec && rec.onboarded);
+  if (!rec) return false;
+  const i = teachStageIndex(stage);
+  if (Array.isArray(rec.teachSeen)) return !!rec.teachSeen[i];
+  // 老档只有 onboarded 一个布尔值——它本来就是「第一次开局看过引导」，等于第 0 段。
+  return i === 0 && !!rec.onboarded;
+}
+
+function markTaught(state, skillId, stage) {
+  const rec = state && state.skills && state.skills[skillId];
+  if (!rec) return false;
+  const i = teachStageIndex(stage);
+  if (!Array.isArray(rec.teachSeen)) rec.teachSeen = [false, false, false, false, false];
+  rec.teachSeen[i] = true;
+  // 第 0 段同时写旧字段：分享码、老断言与「这门看过引导」的旧口径都读 onboarded。
+  if (i === 0) rec.onboarded = true;
+  return true;
+}
+
+// 旧接口保留：语义收窄成「首段看过没有」。调用点只有页面与旧断言，别再往它上面加意思。
+function hasOnboarded(state, skillId) {
+  return hasTaught(state, skillId, 0);
 }
 
 function markOnboarded(state, skillId) {
+  markTaught(state, skillId, 0);
   const rec = state && state.skills && state.skills[skillId];
-  if (rec) rec.onboarded = true;
   return !!(rec && rec.onboarded);
 }
 
-// 入门卡与教学盘是两件事：教学盘是「跟着走一遍」（只有一门有），
+// 入门卡与教学盘是两件事：教学盘是「跟着走一遍」（十五门都有，每门五段各一盘），
 // 入门卡是「进这一门先读三句」（十五门都有）。所以分开记，看过卡片不影响教学盘。
 function markIntroed(state, skillId) {
   const rec = state && state.skills && state.skills[skillId];
@@ -266,8 +294,10 @@ module.exports = {
   effectScaleOf: effectScaleOf,
   effectValue: effectValue,
   hasOnboarded: hasOnboarded,
+  hasTaught: hasTaught,
   markIntroed: markIntroed,
   markOnboarded: markOnboarded,
+  markTaught: markTaught,
   nextPowerStep: nextPowerStep,
   powerDetail: powerDetail,
   qiCap: qiCap,

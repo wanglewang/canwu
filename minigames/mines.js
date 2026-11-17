@@ -488,49 +488,124 @@ function lines(p) {
   };
 }
 
-// 首局手把手：三格见方、只有一颗禁制，摆在角上。
-// 让玩家点开正中，盘上露出一个「1」——那一个数就是这一门全部规则的种子：
-// 数字＝它周围八格里的禁制数。剩下的推理玩家自己会接上。
-const TEACH_MINE = 0;
-const TEACH_OPEN = 4;
-const TEACH_NUM = (function () {
-  const n = [];
-  for (let i = 0; i < 9; i += 1) n.push(0);
-  for (let i = 0; i < 9; i += 1) {
-    if (i === TEACH_MINE) continue;
-    const dr = Math.abs(Math.floor(i / 3) - Math.floor(TEACH_MINE / 3));
-    const dc = Math.abs((i % 3) - (TEACH_MINE % 3));
-    if (dr <= 1 && dc <= 1) n[i] += 1;
+// 引导按段走。首段三格见方、只有一颗禁制，摆在角上：让玩家点开正中，
+// 盘上露出一个「1」——那一个数就是这一门全部规则的种子：数字＝周围八格里的禁制数。
+// 第二步再点开一格，让两片数字连起来：一个 1 只能说明一颗，两片连起来才能推。
+//
+// 段界那四盘按本段真实规格摆（6×6 到 9×9、禁制 5 到 12 颗）：盘变大这件事讲不出来，
+// 只能让他真的在一片 9×9 上找那颗 1。禁制位置固定不随机——教学盘要求同一段每次一样。
+const TEACH_LEVELS = [
+  { cols: 6, rows: 6, mines: 5, hearts: 3 },
+  { cols: 6, rows: 6, mines: 6, hearts: 3 },
+  { cols: 7, rows: 7, mines: 8, hearts: 3 },
+  { cols: 8, rows: 8, mines: 10, hearts: 2 },
+  { cols: 9, rows: 9, mines: 12, hearts: 2 },
+];
+
+// 固定撒点：步长与格数互质，取前 K 个不重复的格。与 Math.random 无关，
+// 同一段每次进来禁制都在同一个位置——否则「呼吸的那一格」每局换地方，教学就成了碰运气。
+function teachField(spec) {
+  const n = spec.cols * spec.rows;
+  const mines = [];
+  const seen = {};
+  for (let k = 0; mines.length < spec.mines && k < n * 4; k += 1) {
+    const idx = (k * 7 + 3) % n;
+    if (seen[idx]) continue;
+    seen[idx] = true;
+    mines.push(idx);
   }
-  return n;
-})();
+  const isMine = [];
+  for (let i = 0; i < n; i += 1) isMine.push(mines.indexOf(i) >= 0);
+  const nums = [];
+  for (let i = 0; i < n; i += 1) {
+    if (isMine[i]) { nums.push(0); continue; }
+    let c = 0;
+    const r = Math.floor(i / spec.cols);
+    const q = i % spec.cols;
+    for (let dr = -1; dr <= 1; dr += 1) {
+      for (let dc = -1; dc <= 1; dc += 1) {
+        if (!dr && !dc) continue;
+        const rr = r + dr;
+        const cc = q + dc;
+        if (rr < 0 || cc < 0 || rr >= spec.rows || cc >= spec.cols) continue;
+        if (isMine[rr * spec.cols + cc]) c += 1;
+      }
+    }
+    nums.push(c);
+  }
+  return { isMine: isMine, nums: nums };
+}
+
+// 挑两个「该点开的格」：第一格取数字最小的安全格（数字越小越好讲），
+// 第二格取离它最近的另一个安全格。两格都一定不是禁制。
+function pickOpens(spec, field) {
+  const first = [];
+  for (let i = 0; i < field.nums.length; i += 1) {
+    if (!field.isMine[i] && field.nums[i] > 0) first.push(i);
+  }
+  first.sort(function (a, b) {
+    if (field.nums[a] !== field.nums[b]) return field.nums[a] - field.nums[b];
+    return a - b;
+  });
+  const a = first[0];
+  let b = -1;
+  for (let i = 0; i < first.length; i += 1) {
+    if (first[i] !== a) { b = first[i]; break; }
+  }
+  return [a, b];
+}
 
 function createTeach(ctx) {
-  const cells = K.blank(3, 9);
-  let opened = false;
+  const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
+  // 首段用 3×3 的小盘：一颗禁制、一个 1，规则干净得能一眼看完。
+  const spec = stage === 0 ? { cols: 3, rows: 3, mines: 1, hearts: 3 } : TEACH_LEVELS[stage];
+  const field = teachField(spec);
+  const opens = stage === 0 ? [4, 0] : pickOpens(spec, field);
+  const n = spec.cols * spec.rows;
+  const cells = K.blank(spec.cols, n);
+  const opened = [];
+  const steps = [];
+  const count = stage === 0 ? 2 : 1;
+  for (let i = 0; i < count; i += 1) {
+    steps.push({
+      at: [opens[i]],
+      text: i === 0
+        ? '点开这一格 · 首点不会踩到禁制'
+        : '再点开它旁边这一格 · 两片数字连起来才推得出',
+      take: (function (idx) {
+        return function () {
+          opened.push(idx);
+          const num = field.nums[idx];
+          return {
+            text: num
+              ? '这一格是 ' + num + ' · 它周围八格里有 ' + num + ' 颗禁制'
+              : '这一格是空的 · 八格里一颗禁制都没有',
+          };
+        };
+      })(opens[i]),
+    });
+  }
   return K.run(ctx, {
-    cols: 3,
+    cols: spec.cols,
     cells: cells,
-    status: '教学 · 数出禁制在哪一格',
-    steps: [{
-      at: [TEACH_OPEN],
-      text: '点正中这一格 · 首点不会踩到禁制',
-      take: function () {
-        opened = true;
-        return { text: '翻开一片 · 格上的数字是周围八格的禁制数' };
-      },
-    }],
-    paint: function () {
-      for (let i = 0; i < 9; i += 1) {
+    status: stage === 0
+      ? '教学 · 数出禁制在哪一格'
+      : '教学 · 这一段 ' + spec.cols + '×' + spec.rows + ' · ' + spec.mines + ' 颗禁制',
+    steps: steps,
+    paint: function (vm) {
+      for (let i = 0; i < n; i += 1) {
         const c = cells[i];
-        const open = opened && i !== TEACH_MINE;
+        const open = opened.indexOf(i) >= 0 && !field.isMine[i];
         c.cls = open ? 'cell cell--open' : 'cell cell--hidden';
-        c.label = open && TEACH_NUM[i] ? String(TEACH_NUM[i]) : '';
-        c.tone = open ? Math.min(3, TEACH_NUM[i]) : 0;
+        c.label = open && field.nums[i] ? String(field.nums[i]) : '';
+        c.tone = open ? Math.min(3, field.nums[i]) : 0;
         c.emblem = 0;
       }
     },
-    doneText: '中心的 1 说明八格里有一颗禁制 · 就压在角上',
+    doneText: stage === 0
+      ? '中心那个 1 说明八格里只有一颗禁制 · 就压在角上'
+      : '这一段 ' + spec.cols + '×' + spec.rows + ' · ' + spec.mines + ' 颗禁制 · '
+        + spec.hearts + ' 盏心神，踩一次少一盏',
   });
 }
 
