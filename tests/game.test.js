@@ -724,4 +724,60 @@ check('兑换面板的报价与真正执行同源：写着能换就一定换得�
   assert.ok(/先练一局/.test(q2.hint), '换不了时的说明没给下一步：' + q2.hint);
 });
 
+check('今日机缘：同一天同条、跨天换条，且不碰存档不产资源', function () {
+  const world = require('../data/world.js');
+  const list = world.DAILY_CHANCES;
+  assert.ok(list.length >= 2, '今日机缘的文案不足两条，跨天换不起来');
+  // 每条都指向一个已有动作，且文案是现代白话 + 修仙名词，不许是空壳。
+  for (const c of list) {
+    assert.ok(c.key && c.text && c.action, '机缘条目缺字段：' + JSON.stringify(c));
+    assert.ok(!/暂且|另择|方才|尚未|无从/.test(c.text), '机缘文案出现仿古句：' + c.text);
+  }
+  // 确定性：同一天的两次调用必须同条（刷新页面不许换一句话）。
+  const day = new Date(2026, 0, 15, 8, 0, 0).getTime();
+  const a = game.dailyChance(day);
+  const b = game.dailyChance(day + 3600000);
+  assert.deepStrictEqual(a, b, '同一天两次调用给出了不同的机缘');
+  assert.ok(list.some(function (c) { return c.key === a.key; }), '机缘返回了真源里没有的条目');
+  // 跨天：七条里至少能取到两条不同的（hash 对连续日期不会恒定）。
+  const seen = {};
+  for (let d = 1; d <= 20; d += 1) {
+    seen[game.dailyChance(day + d * 86400000).key] = true;
+  }
+  assert.ok(Object.keys(seen).length >= 2, '连着二十天机缘都是同一条');
+  // 纯函数：调用前后存档一个字节都不动（它不许变成签到领奖系统）。
+  const s = game.createNewState();
+  const before = JSON.stringify(s);
+  game.dailyChance(day);
+  assert.strictEqual(JSON.stringify(s), before, '读一次今日机缘就改了存档');
+});
+
+check('晋段会记进日志并排在最新一条：打一局的进境可回看', function () {
+  const s = game.createNewState();
+  const id = 'jian';
+  s.skills[id].unlocked = true;
+  s.skills[id].cleared = 9; // 第 10 关走通即入「入门」
+  const r = game.applyPractice(s, id, 'S', { level: 10, score: 100 });
+  assert.strictEqual(r.promoted, true, '走通段末关却没报晋段');
+  assert.strictEqual(r.stageAfterName, '入门', '晋段后的段名不对');
+  assert.ok(s.log.length > 0 && s.log[0].kind === 'stage', '晋段没排到日志最上面');
+  assert.ok(/走通本段，入「入门」/.test(s.log[0].text), '晋段日志没写新段名：' + s.log[0].text);
+  assert.ok(s.log[0].at > 0, '晋段日志没带时间戳');
+});
+
+check('道牒数据：从 state 现算的字段与人物页同源，且不缺项', function () {
+  const card = require('../utils/card.js');
+  const s = game.createNewState();
+  const d = card.dataOf(s, game);
+  for (const k of ['worldLabel', 'worldName', 'roleName', 'equippedTitleName', 'realmName',
+    'power', 'attrsLine', 'statsLine', 'myCode']) {
+    assert.ok(d[k] !== undefined && d[k] !== '', '道牒缺字段 ' + k);
+  }
+  assert.strictEqual(d.realmName, '炼气', '道牒境界与新档不符');
+  assert.strictEqual(d.topSkills.length, 3, '道牒代表功法不是三门');
+  assert.ok(/习得 13 \/ 15 门/.test(d.statsLine), '道牒的习得数与图鉴不符：' + d.statsLine);
+  // getTopSkills 的第一个参数是 state（不是 skillList）——曾经猜错过，这里钉住。
+  assert.ok(d.topSkills[0].name && d.topSkills[0].tierName, '代表功法没有正名或火候');
+});
+
 console.log('\ngame.test: ' + passed + ' assertions passed');

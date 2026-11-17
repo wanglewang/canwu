@@ -89,6 +89,7 @@ module.exports = {
   getFamilies: M.getFamilies,
   recommend: M.recommend,
   recommendScore: M.recommendScore,
+  dailyChance: M.dailyChance,
   starsOf: M.starsTextOf, // 别名
   getChallengeList: M.getChallengeList,
   getTitleList: M.getTitleList,

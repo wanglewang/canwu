@@ -1584,6 +1584,23 @@
 /* ---------- 结算 ---------- */
 .modal--reveal { animation: modalReveal 0.42s ease-out; }
 
+/* 本局进境：这一局让修士真的变了的事。它是正面信息，不是脚注，
+   所以靠字重与藤黄文字色从 notes 里挑出来；只有真发生了才渲染这一块。 */
+.settle__milestones {
+    display: flex;
+    flex-direction: column;
+    gap: 6rpx;
+    margin: 14rpx 0;
+}
+
+.settle__milestone {
+    display: block;
+    color: var(--c-imm-gold-text);
+    font-size: var(--fs-body);
+    font-weight: 600;
+    line-height: 1.5;
+}
+
 .res-line {
     display: flex;
     align-items: center;
@@ -2703,4 +2720,13 @@
     margin: -17% 0 0 -17%;
     border-radius: 50%;
     border: 4rpx solid rgba(255, 253, 247, 0.85);
+}
+
+/* 道牒图画布：藏在屏幕外，只供导出，不占结算卡的布局。样式与人物页一致。 */
+.share-canvas {
+    position: fixed;
+    top: -3000px;
+    left: 0;
+    width: 600px;
+    height: 880px;
 }

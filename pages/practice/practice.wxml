@@ -564,6 +564,10 @@
       <block wx:if="{{settlePhase >= 2}}">
         <text class="settle__title">{{result.headline}}</text>
         <text class="settle__sub">{{result.gradeTitle}} · {{result.subline}}</text>
+        <!-- 本局进境：打一局让修士真的变了的事，没有就不显示这一块。 -->
+        <view wx:if="{{result.milestones.length > 0}}" class="settle__milestones">
+          <text wx:for="{{result.milestones}}" wx:key="*this" class="settle__milestone">◆ {{item}}</text>
+        </view>
         <view class="settle__gain">
           <text class="settle__gain-num">{{settleGain}}</text>
           <text class="settle__gain-label">熟练度</text>
@@ -584,6 +588,7 @@
         <button class="btn btn--primary" catchtap="onPrimary">{{result.primary}}</button>
       </view>
       <text wx:if="{{settlePhase >= 4 && result.canStay}}" class="text-link text-link--muted settle__again pressable" hover-class="pressable--on" catchtap="onStay">{{copy.actions.stay}} ›</text>
+      <text wx:if="{{settlePhase >= 4}}" class="text-link text-link--muted settle__again pressable" hover-class="pressable--on" catchtap="onMakeCard">{{copy.actions.makeCard}} ›</text>
     </view>
     <text wx:if="{{settlePhase < 4}}" class="settle__skip">点任意处跳过演出</text>
   </view>
@@ -593,6 +598,10 @@
       <view class="grade" style="background:{{result.gradeColor}}">{{result.grade}}</view>
       <text class="modal__title mt16">{{result.headline}}</text>
       <text class="modal__sub">{{result.gradeTitle}} · {{result.subline}}</text>
+
+      <view wx:if="{{result.milestones.length > 0}}" class="modal__body settle__milestones">
+        <text wx:for="{{result.milestones}}" wx:key="*this" class="settle__milestone">◆ {{item}}</text>
+      </view>
 
       <view class="modal__body" wx:if="{{result.lines.length > 0}}">
         <view class="res-line" wx:for="{{result.lines}}" wx:key="k">
@@ -619,7 +628,11 @@
         <button class="btn btn--primary" bindtap="onPrimary">{{result.primary}}</button>
       </view>
       <text wx:if="{{result.canStay}}" class="text-link text-link--muted modal__again pressable" hover-class="pressable--on" bindtap="onStay">{{copy.actions.stay}} ›</text>
+      <text class="text-link text-link--muted modal__again pressable" hover-class="pressable--on" bindtap="onMakeCard">{{copy.actions.makeCard}} ›</text>
     </view>
   </view>
+
+  <!-- 道牒图画布：藏在屏幕外，只供 wx.canvasToTempFilePath 导出，不占布局。 -->
+  <canvas type="2d" id="shareCanvas" class="share-canvas"></canvas>
 
 </view>

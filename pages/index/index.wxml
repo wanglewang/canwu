@@ -54,6 +54,16 @@
       <text class="grow">{{hintText}}</text>
     </view>
 
+    <!-- 今日机缘：每天一桩可顺手做的修仙小事。它是叙事钩子，不给资源、不惩罚错过，
+         所以常驻显示、没有倒计时也没有红点。点下去落到已有页面，动作由引擎给。 -->
+    <view wx:if="{{chance}}" class="imm-row imm-row--on pressable" hover-class="pressable--on" bindtap="onChance">
+      <view class="imm-row__body">
+        <text class="imm-row__name">今日机缘</text>
+        <text class="imm-row__sub">{{chance.text}}</text>
+      </view>
+      <text class="imm-row__value">去 看 看 ›</text>
+    </view>
+
     <view wx:if="{{idleReady}}" class="imm-list">
       <view class="imm-row pressable" hover-class="pressable--on" bindtap="onMeditate">
         <view class="imm-row__body">

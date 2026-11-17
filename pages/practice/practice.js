@@ -17,6 +17,7 @@ const swipeInput = require('../../utils/swipe.js');
 const copy = require('../../data/copy.js');
 const nav = require('../../data/navigation.js');
 const share = require('../../utils/share.js');
+const card = require('../../utils/card.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -1745,6 +1746,20 @@ Page({
       if (!btAfter.maxed) {
         lines.push({ k: '距离「' + btAfter.nextName + '」', v: '还差 ' + Math.max(0, btAfter.need - r.powerAfter) + ' 战力' });
       }
+      // 本局进境：打一局和「修仙变强」之间那根看得见的因果。
+      // 只收「真的变了」的事，没变就一行都不显示——每局都摆一句等于没有信息。
+      // 事件全部来自本局结算的 r 字段，不新造数值、不改评级线。
+      const milestones = [];
+      // shown 记下已经上正面的事件，notes 里相同的那条就不必再说一遍。
+      const shown = {};
+      if (!r.wiped) {
+        if (r.promoted) { milestones.push('踏入「' + r.stageAfterName + '」，盘面换新、耗气跟着涨'); shown.promoted = true; }
+        if (r.tierUp) { milestones.push('【' + r.skillName + '】火候至「' + r.tierName + '」，属性加成提高'); shown.tierUp = true; }
+        if (r.newRecord) { milestones.push('本门新纪录 ' + (res.score || 0) + ' 分'); shown.newRecord = true; }
+        if (r.fortune) { milestones.push(r.fortune.text); shown.fortune = true; }
+        if (r.newTitles && r.newTitles.length) milestones.push('得名号：' + r.newTitles.map(function (t) { return t.name; }).join('、'));
+      }
+
       // 玩法层可以带自己的评级依据（星罗点灯诀写「走了几步 / 最优几步 / 为什么不是 S」）。
       // 它排在最前：玩家最先想知道的是这一局本身，而不是连 S 进度。
       const notes = Array.isArray(res.notes) ? res.notes.slice() : [];
@@ -1779,8 +1794,8 @@ Page({
       } else if (!r.wiped && r.levelWasCurrent && r.level >= r.levelTotal) {
         notes.push('本门 ' + r.levelTotal + ' 关已全部走通：' + r.stageAfterName + '。');
       }
-      // 跨段是 1000 关里玩家最该知道的一刻：盘面换了、耗气涨了、段名变了。
-      if (r.promoted) notes.push('踏入「' + r.stageAfterName + '」：这一段换了盘面，一局耗气也跟着涨。');
+      // 晋段若已在正面报过，notes 不再重复（shown 由 milestones 那一节标记）。
+      if (r.promoted && !shown.promoted) notes.push('踏入「' + r.stageAfterName + '」：这一段换了盘面，一局耗气也跟着涨。');
       // 连 S 回执：本局叠了几层、下一局值多少点，数字全部由 world.comboGain 同源给。
       if (r.comboActive) {
         notes.push('连 S ' + r.comboNow + ' / ' + r.comboMax + '：本局 34 × 1.5^'
@@ -1791,19 +1806,19 @@ Page({
       } else if (grade !== 'F') {
         notes.push('非 S，连 S 归零；下一局 S 重新从 34 点起算。');
       }
-      if (r.tierUp) notes.push('【' + r.skillName + '】火候至「' + r.tierName + '」，属性加成提高。');
+      if (r.tierUp && !shown.tierUp) notes.push('【' + r.skillName + '】火候至「' + r.tierName + '」，属性加成提高。');
       if (r.cross) notes.push('触类旁通：换了门功法，本局运功更顺，耗气少 8%。');
       if (r.levelFellBack) notes.push('所选关超出本门当前进度，已按第 ' + r.curLevel + ' 关结算。');
       if (r.realmAbove) {
         notes.push('人物境界已超本门可修上限「' + r.maxRealmName + '」：照样能练，但本局耗气 ×'
           + r.realmOverCost.toFixed(1) + '；熟练度照给，该换更高阶的功法了。');
       }
-      if (r.newRecord) {
+      if (r.newRecord && !shown.newRecord) {
         notes.push(r.prevBest > 0
           ? '破了本门纪录：' + (res.score || 0) + ' 分，此前最佳 ' + r.prevBest + ' 分。'
           : '立下本门首个纪录：' + (res.score || 0) + ' 分。');
-      } else if (r.bestScore > 0) notes.push('本门最佳 ' + r.bestScore + ' 分，这回 ' + (res.score || 0) + ' 分。');
-      if (r.fortune) notes.push(r.fortune.text);
+      } else if (!r.newRecord && r.bestScore > 0) notes.push('本门最佳 ' + r.bestScore + ' 分，这回 ' + (res.score || 0) + ' 分。');
+      if (r.fortune && !shown.fortune) notes.push(r.fortune.text);
       if (r.dailyReady) notes.push('今日参悟已满，回洞府可领份例。');
       rv = {
         kind: 'practice',
@@ -1818,6 +1833,7 @@ Page({
         subline: r.methodName + ' · ' + res.summary,
         summary: res.summary,
         lines: lines,
+        milestones: milestones,
         notes: notes,
         titles: (r.newTitles || []).map(function (t) { return t.name; }),
         // 一局打完，十有八九还想再来一局——它才该是那颗金按钮。
@@ -1956,11 +1972,24 @@ Page({
     return share.pageTimeline(this.shareText(), 'skillId=' + this.skillId);
   },
 
-  // 标题骨架在 copy.SHARE.practice，功法和玩法名由本页填。
+  // 标题骨架在 copy.SHARE.practice，功法正名与本页填，身份（境界/战力）用引擎现算。
+  // 不在视图层另存 realm/power：那会在分享文案与真实进度之间留一个漂移源。
   shareText: function () {
+    const ov = engine.getOverview(store.get());
     return copy.SHARE.practice
       .replace('{skill}', this.data.title)
-      .replace('{game}', this.data.gameName);
+      .replace('{realm}', ov.realmName)
+      .replace('{power}', ov.power);
+  },
+
+  // 结算卡上生成道牒：与人物页共用 utils/card.js 的同一张图。
+  // 此刻 store 里的进度已经结算完，dataOf 现算出来的就是刚打完这一局后的身份。
+  onMakeCard: function () {
+    const data = card.dataOf(store.get(), engine);
+    if (!data) { wx.showToast({ title: '当前环境不支持生成图片', icon: 'none' }); return; }
+    card.makeCard('shareCanvas', data, function () {
+      wx.showToast({ title: '生成图片失败，可长按卡片截图', icon: 'none' });
+    });
   },
 
   onGoGuide: function () { wx.navigateTo({ url: '/pages/guide/guide' }); },

@@ -4,6 +4,7 @@
 // 由 utils/game.js 按关注点拆出；跨文件只用 require，不持有任何模块级可变状态。
 
 const { copy, economyData, guideData, levelData, opponentData, practiceData, skillData, titleData, worldData } = require('./base.js');
+const { hashString, todayKey } = require('./base.js');
 const { moveBoard } = require('./battle.js');
 const { buffInfo } = require('./idle.js');
 const { computeAttributes, computeMetrics, computePower, effectScaleOf, powerDetail, qiCap, shenFloorBonus, skillPowerGain, tierIndex, tierInfo } = require('./profs.js');
@@ -11,6 +12,19 @@ const { breakthroughInfo } = require('./realm.js');
 const { checkDaily, num } = require('./state.js');
 
 // ---------------------------------------------------------------- 视图数据
+
+// 今日机缘：按日期从 DAILY_CHANCES 里确定一条，同一天全局一致、跨天自动换。
+// 纯函数、不写状态、不产资源——它是给回访一个叙事理由，不是一个签到领奖系统。
+// 用 hashString(日期) 而不是 Math.random：同一天不同页面、不同设备看到同一条，
+// 不会刷新一下就换一句话（那是 bug）；也不占存档字段（不碰 daily 日历）。
+// now 可注入，便于断言「同一天同条、隔天换条」。
+function dailyChance(now) {
+  const list = worldData.DAILY_CHANCES || [];
+  if (!list.length) return null;
+  const key = todayKey(typeof now === 'number' ? now : Date.now());
+  const pick = list[hashString(key) % list.length];
+  return { key: pick.key, text: pick.text, action: pick.action, date: key };
+}
 
 // 功法图鉴的「如何习得」：把获取方式写成可执行的一条路径，而不是一句黑话。
 // 列表卡片与详情弹窗共用这一份，避免两处各自拼文案。
@@ -620,6 +634,7 @@ module.exports = {
   bonusText: bonusText,
   breakCombo: breakCombo,
   comboOf: comboOf,
+  dailyChance: dailyChance,
   effectNoteOf: effectNoteOf,
   gainLinesOf: gainLinesOf,
   getChallengeList: getChallengeList,

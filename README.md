@@ -282,7 +282,7 @@
 │   └── login/                          登录页（仅 signed-out 时才跳）
 │
 ├── scripts/
-│   ├── verify.js                       零依赖静态校验（1647 项，含三页 IA / 说明真源 / 页面规范 / 功法命名与图鉴 / 令牌一致性 / 组件四件套 / 文案术语 / 发布兜底 / 玩法自检清单与真源一致性）
+│   ├── verify.js                       零依赖静态校验（1690 项，含三页 IA / 说明真源 / 页面规范 / 功法命名与图鉴 / 令牌一致性 / 组件四件套 / 文案术语 / 发布兜底 / 玩法自检清单与真源一致性 / 外部资料引用白名单 / 约束分层框架）
 │   ├── difficulty-audit.js           五段区分度审计（只读，npm run audit:diff）
 │   ├── simulate.js                     收益曲线模拟（五组策略 + 17 条检查）
 │   ├── gen-crest.js                    零依赖画灵纹牌（新画三套主题 × 六族骨架，接在老果器八格之后）并重出 crest.wxss
@@ -424,7 +424,7 @@
 
 **尺度与反馈。** 页面左右留白 `--page-x`(28rpx)，卡片内距 28rpx、卡片间距 24rpx、区块间距 40rpx；正文 28rpx、辅助 24rpx、角标下限 22rpx；主操作热区 88rpx、次操作 76rpx、卡片内紧凑操作 68rpx；层级只用 0 / 40 / 80 / 90 / 100；所有吸底条与页面底部带 `env(safe-area-inset-bottom)`。加载 / 空 / 错误统一 `.state` 占位（主页、功法、仙门切磋、人物都接了），不再白屏或各用普通卡片；可点 `view` 统一 `class="… pressable" hover-class="pressable--on"`，危险操作只有一支 `.imm-btn--danger`。
 
-**白名单例外。** `styles/scene.wxss` 与 `pages/practice/practice.wxss` 的**盘面**色板由 `minigames/theme.js` / `data/visual.js` 按功法注入（`--acc / --soft / --ink / --glow / --well / --deep`），必须固定、不随明暗漂移。参悟页的边界是「**墨玉台、暖玉牌**」：可以摸、可以划的那块（`.grid / .klotski / .ring-area / .orbit / .pad`）是一方玉局 —— 台取按功法族注入的 `--well`，牌取 15 门共用的 `--jade` 一副；其余全部（HUD、判定横幅、结算弹层、段位）是墨；**准备页不在舞台里**，它与全站一样是宣纸彩墨，取 `.pg--imm` 那套。舞台内的 `--c-imm-*` 由 `styles/scene.wxss` 的 `.pg--scene` 局部重定义为「夜里的那一支」（纸墨带进夜底会变成白底黑字的 HUD），`.pg--scene` 必须排在 `immortal.wxss` 之后才生效。所以 `practice.wxss` 的 `.pg` 把整组 `--c-*` 映到 `--c-imm-*`（准备页因此与全站同肤色）；一旦挂上 `.pg--scene` 整页转深色。**舞台与夜皮肤共用同一份 `--night-*`**：选「夜晚」时准备页本身就是深色，与舞台没有色差；选「白天」时那一次「纸→夜」的过渡由倒数三秒的遮罩接住。`scripts/verify.js` 与 `tests/layout.test.js` 用 1647 项静态检查、103 项布局断言守住上述约定。
+**白名单例外。** `styles/scene.wxss` 与 `pages/practice/practice.wxss` 的**盘面**色板由 `minigames/theme.js` / `data/visual.js` 按功法注入（`--acc / --soft / --ink / --glow / --well / --deep`），必须固定、不随明暗漂移。参悟页的边界是「**墨玉台、暖玉牌**」：可以摸、可以划的那块（`.grid / .klotski / .ring-area / .orbit / .pad`）是一方玉局 —— 台取按功法族注入的 `--well`，牌取 15 门共用的 `--jade` 一副；其余全部（HUD、判定横幅、结算弹层、段位）是墨；**准备页不在舞台里**，它与全站一样是宣纸彩墨，取 `.pg--imm` 那套。舞台内的 `--c-imm-*` 由 `styles/scene.wxss` 的 `.pg--scene` 局部重定义为「夜里的那一支」（纸墨带进夜底会变成白底黑字的 HUD），`.pg--scene` 必须排在 `immortal.wxss` 之后才生效。所以 `practice.wxss` 的 `.pg` 把整组 `--c-*` 映到 `--c-imm-*`（准备页因此与全站同肤色）；一旦挂上 `.pg--scene` 整页转深色。**舞台与夜皮肤共用同一份 `--night-*`**：选「夜晚」时准备页本身就是深色，与舞台没有色差；选「白天」时那一次「纸→夜」的过渡由倒数三秒的遮罩接住。`scripts/verify.js` 与 `tests/layout.test.js` 用 1690 项静态检查、103 项布局断言守住上述约定。
 
 ## 文案规范与信息架构
 
@@ -676,7 +676,7 @@ npm run icons     # 重新生成 tabBar 图标（零依赖）
 | **五段区分度与评级线重标定** | 首轮审计 15 门里 9 门只有一个可见参数在变，现补到 0 门；三秀同收换 `MATCH_LEVELS` 整表（5→7 色、68→52 息、罚息 1→3、S 线 1900→950 按本段实测标定），限时玩法共用 `TIME_LEVELS`，四门各补一个玩法层真读的段位参数；照畦 / 重排改为「少扣 1 息但仍要付」，连锁加成从第 3 层起 | `npm run audit:diff` 报 0 门欠账；`tests/rank.test.js` 逐门复算可见参数与评级线种类、断言整表单调与同源；`tests/layout.test.js` 守准备页代价句按段生成 |
 | **灵纹连线难度与评级重做** | 旧版按分数评级：A 线上限 1199、最低完成分 1200 ⇒ B/C 是死线，HUD 还会在剩 3 对时报「已入 S」再结算 F。改按**收干净时剩余息**评级（S ≥32% / A ≥16% / B ≥4% / C 其余 / 未收干净 F），关掉局内评级徽章；五段换 `LINK_LEVELS`（6×4/4 种 → 8×4/6 种），时辰改按「每对预算 5.50→2.75 息 × 本段对数」沿 200 关连收，修掉章末 39 息 ← 下章首关 53 息的倒挂；`levelDelta` 只报换章 / 换盘 / 换纹种 / 每对时辰，实测 39 关真变、160 关沿用上一段（不再靠 `flashMs` 凑「199 关」），准备页补常驻「本章规格」；`flashMs` 退役为恒定 `hintMs`；死局重排不罚运气（只断连收），照纹 2 息 → 大成 1 息仍要付，大圆满「双照」一次照见两对 | 评级四线逐段可达 + C 带非空 + HUD 不谎报 S + 章界每对预算只减不增 + 五段换规格 + `levelDelta` 不报毫秒假变化 + `hintMs` 生成端与消费端双向守卫；`npm run check` 与 `audit:diff` 全绿 |
 | **15 门盘面图案化** | 果器纹 8 格 + 卦象器物纹 26 格两张 sprite，替掉盘面汉字与 dingbat；数字 / 形状盘不换内容，补四角纸纹与一次性命中金圈；五行图案与元素语义逐格对齐，深色底上的图案翻白 | `tests/layout.test.js` 两条新断言：WXML 三层渲染链 + 逐门运行时探针（汉字 `label` 必须有 `emblem` 盖住）；26 格齐 / 单份 base64 / PNG 尺寸 / 打包排除 / 五行语义映射 |
-| 回归 | `npm run check` 全绿 | 1647 项静态 + 347 项 Node 断言 + 收支曲线 + ESLint |
+| 回归 | `npm run check` 全绿 | 1690 项静态 + 347 项 Node 断言 + 收支曲线 + ESLint |
 
 **未交付 / 必须真机验收**
 

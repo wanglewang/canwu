@@ -21,6 +21,9 @@ Page({
     tiles: nav.TILES,
     breakPercent: 0,
     hintText: '',
+    // 今日机缘：每天一桩可顺手做的修仙小事，纯叙事入口，不给资源。
+    // 与「今日之课」分开：那条管练哪门，这条管今天还有什么可做。
+    chance: null,
     quickSkillId: '',
     quickLabel: '去参悟',
     dailyReady: false,
@@ -194,6 +197,7 @@ Page({
       syncTone: syncTone,
       breakPercent: breakPercent,
       hintText: hintText,
+      chance: engine.dailyChance(),
       dailyReady: dailyReady,
       dailyCount: ov.daily.count,
       dailyTarget: ov.daily.target,
@@ -258,6 +262,17 @@ Page({
   onTile: function (event) {
     const key = event.currentTarget.dataset.key;
     const tile = nav.TILES.filter(function (t) { return t.key === key; })[0];
+    if (tile) nav.openTile(getApp(), tile);
+  },
+
+  // 今日机缘的落点：复用宫格那张路径表，不另写一份映射（改一处忘一处是本项目反复踩的坑）。
+  // skills 是 tab，得 switchTab；其余按 navigateTo。home 指首屏的闭关行，滚一下就到，
+  // 不跳页——那件事本来就在这一屏，跳走反而远了。
+  onChance: function () {
+    const action = this.data.chance && this.data.chance.action;
+    if (!action || action === 'home') return;
+    if (action === 'skills') { wx.switchTab({ url: '/pages/skills/skills' }); return; }
+    const tile = nav.TILES.filter(function (t) { return t.key === action; })[0];
     if (tile) nav.openTile(getApp(), tile);
   },
 

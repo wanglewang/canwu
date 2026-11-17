@@ -12,6 +12,7 @@ const copy = require('../../data/copy.js');
 const skillsData = require('../../data/skills.js');
 const privacy = require('../../utils/privacy.js');
 const nav = require('../../data/navigation.js');
+const card = require('../../utils/card.js');
 
 const SFX_LABEL = { low: '轻', mid: '中', off: '关' };
 
@@ -356,109 +357,12 @@ Page({
   },
 
   onMakeCard: function () {
-    const W = 600;
-    const H = 880;
-    const ov = this.data.ov;
-    if (!ov) return;
-    const topSkills = this.data.topSkills;
-    const attrsLine = this.data.attrsLine;
-    const statsLine = this.data.statsLine;
-    const myCode = this.data.myCode;
-    const query = wx.createSelectorQuery();
-    query.select('#shareCanvas').fields({ node: true, size: true }).exec(function (res) {
-      if (!res || !res[0] || !res[0].node) {
-        toast('当前环境不支持生成图片，可长按卡片截图');
-        return;
-      }
-      try {
-        const canvas = res[0].node;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) { toast('画布不可用，可长按卡片截图'); return; }
-        let dpr = 2;
-        try {
-          const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
-          dpr = win.pixelRatio || 2;
-        } catch (e) { dpr = 2; }
-
-        canvas.width = W * dpr;
-        canvas.height = H * dpr;
-        ctx.scale(dpr, dpr);
-
-        ctx.fillStyle = '#f2eee4';
-        ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = '#2f4a41';
-        ctx.fillRect(24, 24, W - 48, H - 48);
-        ctx.strokeStyle = '#b8893b';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(42, 42, W - 84, H - 84);
-
-        ctx.fillStyle = '#d8b775';
-        ctx.font = '24px sans-serif';
-        ctx.fillText('参 悟 · ' + ov.worldLabel + ' · ' + ov.worldName, 76, 106);
-
-        ctx.fillStyle = '#fffdf7';
-        ctx.font = 'bold 48px serif';
-        ctx.fillText(ov.roleName, 76, 178);
-        ctx.fillStyle = '#c9d6cd';
-        ctx.font = '24px sans-serif';
-        ctx.fillText(ov.equippedTitleName + ' / ' + ov.realmName, 76, 220);
-
-        ctx.fillStyle = '#d8b775';
-        ctx.font = '20px sans-serif';
-        ctx.fillText('战 力', 76, 288);
-        ctx.fillStyle = '#fffdf7';
-        ctx.font = 'bold 92px serif';
-        ctx.fillText(String(ov.power), 72, 380);
-
-        ctx.strokeStyle = 'rgba(255,253,247,0.22)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(76, 412);
-        ctx.lineTo(W - 76, 412);
-        ctx.stroke();
-
-        ctx.fillStyle = '#c9d6cd';
-        ctx.font = '22px sans-serif';
-        ctx.fillText(attrsLine, 76, 458);
-
-        ctx.fillStyle = '#d8b775';
-        ctx.font = '22px sans-serif';
-        ctx.fillText('代 表 功 法', 76, 518);
-        ctx.font = '26px sans-serif';
-        for (let i = 0; i < topSkills.length; i += 1) {
-          ctx.fillStyle = '#fffdf7';
-          ctx.fillText(topSkills[i].name, 76, 566 + i * 48);
-          ctx.fillStyle = '#d8b775';
-          ctx.fillText(topSkills[i].tierName + '  ' + topSkills[i].prof, 300, 566 + i * 48);
-        }
-
-        ctx.fillStyle = '#c9d6cd';
-        ctx.font = '22px sans-serif';
-        ctx.fillText(statsLine, 76, 724);
-        ctx.fillStyle = '#9fb3a7';
-        ctx.font = '20px sans-serif';
-        ctx.fillText('战力码 ' + myCode, 76, 770);
-        ctx.fillText(copy.BRAND.slogan, 76, 816);
-
-        wx.canvasToTempFilePath({
-          canvas: canvas,
-          x: 0, y: 0, width: W, height: H,
-          destWidth: W * dpr, destHeight: H * dpr,
-          success: function (r) {
-            const preview = function () {
-              wx.previewImage({ urls: [r.tempFilePath], current: r.tempFilePath });
-            };
-            if (wx.showShareImageMenu) {
-              wx.showShareImageMenu({ path: r.tempFilePath, fail: preview });
-            } else {
-              preview();
-            }
-          },
-          fail: function () { toast('生成图片失败，可长按卡片截图'); },
-        });
-      } catch (e) {
-        toast('生成图片失败，可长按卡片截图');
-      }
+    // 绘制与导出收在 utils/card.js，与静室页结算卡共用同一张图。
+    // 数据从 store 现算，不取 this.data 的第二份，免得两处漂移。
+    const data = card.dataOf(store.get(), engine);
+    if (!data) { toast('当前环境不支持生成图片'); return; }
+    card.makeCard('shareCanvas', data, function () {
+      toast('生成图片失败，可长按卡片截图');
     });
   },
 

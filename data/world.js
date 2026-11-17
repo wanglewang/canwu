@@ -137,6 +137,22 @@ const WORLDS = [
   },
 ];
 
+// 今日机缘：每天一件「今天可做的修仙小事」，给回访一个叙事理由，不给任何资源。
+// 与「机缘」（参悟 1.2% 拾残卷）、「份例」（练 3 局领 60 灵力）、「今日之课」（recommend 推荐）
+// 三件事都不同：那三件分别管偶遇、补给、练哪门，这件只管「今天有一桩什么可顺手做」。
+// 每条指向一个已有动作（切磋/闭关/换门/功法/日志），点下去落到对应页面，不新造玩法。
+// 文案是现代白话 + 修仙名词，不写仿古句（见 04-voice-and-copy.md）。
+// action 是导航键，页面据此跳已有页面；引擎不认识具体路径，保持内核不碰 wx API。
+const DAILY_CHANCES = [
+  { key: 'cross', text: '今日气机活络，换一门没连着练的功法，这一局能省 8% 灵力。', action: 'skills' },
+  { key: 'duel', text: '同门今日多在论道，去切磋一场，赢得的灵石能添些布阵本钱。', action: 'battle' },
+  { key: 'idle', text: '灵脉渐满，先去闭关收一池灵力，参悟才接得上。', action: 'home' },
+  { key: 'secret', text: '秘境今日风平，探一处，首过也有一笔灵石。', action: 'secret' },
+  { key: 'log', text: '翻翻修行日志，看看这些天的进境走到了哪一步。', action: 'log' },
+  { key: 'guide', text: '说明页记着各门的新法，去看看有没有该用上的。', action: 'guide' },
+  { key: 'titles', text: '称号簿里还有没拿到的名号，去看看差哪一步。', action: 'titles' },
+];
+
 function getWorld(id) {
   for (let i = 0; i < WORLDS.length; i += 1) {
     if (WORLDS[i].id === id) return WORLDS[i];
@@ -160,4 +176,5 @@ module.exports = {
   GRADE_COLOR: GRADE_COLOR,
   WORLDS: WORLDS,
   getWorld: getWorld,
+  DAILY_CHANCES: DAILY_CHANCES,
 };

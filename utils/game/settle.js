@@ -200,6 +200,14 @@ function applyPractice(state, skillId, grade, options) {
   } else {
     addLog(state, '参悟 ' + skill.name + '，熟练度 +' + gain + '（灵力 −' + qiCost + '）', 'practice');
   }
+  // 晋段最后记，让它排在日志最上面：这是这一局最该被看见的一刻
+  //（盘面换了、耗气涨了、段名变了）。以前它只在结算 notes 里一闪而过、日志里没有，
+  // 玩家过后翻不到「我什么时候进的小成」。放在熟练度记录之后才不会被那行压下去。
+  if (promoted && levelData.STAGES[stageAfter]) {
+    // 走通第 1000 关时 stageAfter 会指到不存在的第六段（满级没有下一段），
+    // 这里只记真正存在的段名，避免写「入 undefined」。promoted 的既有语义不动。
+    addLog(state, skill.name + ' 走通本段，入「' + levelData.STAGES[stageAfter].name + '」', 'stage');
+  }
 
   // 机缘：只在石阶上拾得残卷，**不给灵力也不给灵石**。
   // 参悟是纯支出——灵力只从闭关与份例来、灵石只从切磋与秘境来。参悟里再冒出一笔资源，

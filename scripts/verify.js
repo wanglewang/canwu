@@ -147,6 +147,21 @@ if (!/pages\/practice\/practice\?skillId=/.test(practiceShare)) {
   errors.push('参悟页分享没带 skillId：点开的人不知道自己要看哪一门');
 } else checked += 1;
 
+// 分享文案是「让人进来」的钩子：外人看不懂门内黑话就不会点。
+// 参悟那句必须带身份占位（境界 / 战力）且由页面用引擎现值填，不许退回「所修的是 X」那种自说自话。
+const shareCopy = require(path.join(ROOT, 'data/copy.js')).SHARE;
+const practiceShareCopy = shareCopy.practice || '';
+if (!/\{skill\}/.test(practiceShareCopy) || !/\{realm\}/.test(practiceShareCopy) || !/\{power\}/.test(practiceShareCopy)) {
+  errors.push('参悟分享文案缺身份占位（{skill}/{realm}/{power}）：好友看不出这是修仙战报');
+} else checked += 1;
+if (/\{game\}/.test(practiceShareCopy) || /所修的是/.test(practiceShareCopy)) {
+  errors.push('参悟分享文案又写回了门内黑话（玩法名 / 所修的是）');
+} else checked += 1;
+if (!/\.replace\('\{realm\}',\s*ov\.realmName\)/.test(practiceShare)
+  || !/\.replace\('\{power\}',\s*ov\.power\)/.test(practiceShare)) {
+  errors.push('参悟页分享没填境界与战力：文案里的占位会原样发给好友');
+} else checked += 1;
+
 // 说明页的分享必须带回参悟那册的三个参数：topic=practice 的内容是按功法与本档
 // 难度现拼的，缺 method / game / diff 就退化成一份不带功法名与门槛的泛稿。
 const helpShare = fs.readFileSync(path.join(ROOT, 'pages/help/help.js'), 'utf8');
@@ -344,14 +359,120 @@ else checked += 1;
     errors.push('所有心法的扩容加起来超过了封顶：' + capSum + ' > ' + economyMod.QI_CAP_SKILL_MAX);
   } else checked += 1;
   // 旧名「灵气」不许再出现在玩家看得见的文字里（含 README 的当前事实段）。
+  // 例外只有一类：外部资料的逐字摘录（docs/00-foundation/05-external-research.md）。
+  // 它引用的是别家原文，改字就不是摘录了。但只放行 `>` 引用行——同一文件里的
+  // 叙述段仍然不许写旧名，否则下一个人会把它当成我们的现行口径抄出去。
+  const EXTERNAL_QUOTE_DOCS = new Set(['docs/00-foundation/05-external-research.md']);
   for (const f of files.filter(function (x) {
     return /\.(js|wxml|wxss|json|md)$/.test(x) && rel(x) !== 'scripts/verify.js';
   })) {
     const src = fs.readFileSync(f, 'utf8');
-    if (src.indexOf('灵气') >= 0) errors.push(rel(f) + ' 还写着旧资源名「灵气」');
+    const quoteOnly = EXTERNAL_QUOTE_DOCS.has(rel(f));
+    const badLines = src.split(/\r?\n/).filter(function (line) {
+      return line.indexOf('灵气') >= 0 && !(quoteOnly && /^\s*>/.test(line));
+    });
+    if (badLines.length) errors.push(rel(f) + ' 还写着旧资源名「灵气」（外部摘录的引用行除外）');
+    else checked += 1;
+  }
+  // 反证守卫：白名单文件必须真的存在且确有引用行。否则删掉那篇文档后，
+  // 上一段的例外就成了没人用的空口子，将来任何 md 都可能被顺手加进来。
+  for (const doc of EXTERNAL_QUOTE_DOCS) {
+    const p = path.join(ROOT, doc);
+    if (!fs.existsSync(p)) { errors.push('外部摘录白名单文件不存在：' + doc); continue; }
+    const lines = fs.readFileSync(p, 'utf8').split(/\r?\n/);
+    const inQuote = lines.filter(function (line) {
+      return /^\s*>/.test(line) && line.indexOf('灵气') >= 0;
+    }).length;
+    if (!inQuote) errors.push(doc + ' 没有含原文旧名的引用行：放行口子已失效，应从白名单移除');
     else checked += 1;
   }
 }
+
+// 8a-2. 约束分层框架：文档里的「不做」是默认值，不是硬约束。
+// 2026-11 踩过一次：拿「体验目标第 5 条白纸黑字」否决业界回访手段，把产品判断当成了物理定律。
+// 这里只钉框架的存在与口径，不钉具体结论——结论本来就该能翻案（§5.2 的浅色主题就是先例）。
+// 少任何一处，下一个人就又会拿旧文档当硬约束。
+const visionDoc = fs.readFileSync(path.join(ROOT, 'docs/00-foundation/01-product-vision.md'), 'utf8');
+const LAYER_MARKS = [
+  ['## 5. 约束分层：哪层真不能动，哪层只是默认值', '产品愿景丢了三层约束框架'],
+  ['| **一 · 定义** |', '三层约束缺了「定义」层（修仙 + 功法即小游戏）'],
+  ['| **二 · 一致性** |', '三层约束缺了「一致性」层（守恒 / 资质 / 评级线）'],
+  ['| **三 · 默认值** |', '三层约束缺了「默认值」层'],
+  ['**第一、二层才是硬约束**，第三层是产品判断', '产品愿景没写清哪两层才是硬约束'],
+  ['**怎么分二、三层**', '产品愿景缺了「加内容 vs 换守恒」的判据'],
+  ['### 5.1 默认值松绑时要连带重算什么', '缺了松绑时的连带重算表'],
+  ['### 5.2 明确不做（默认值清单，按需可调整）', '「不做」清单没降级为可调整默认值'],
+  ['**这是第三层默认值，不是硬约束**（判定见 §5）', '§3 的「参悟不产资源」咬合点没标注为默认值'],
+  ['第 5 条属于第三层默认值（判定见 §5）', '§4 的「不惩罚离开」没标注为默认值'],
+];
+for (const [mark, msg] of LAYER_MARKS) {
+  if (visionDoc.indexOf(mark) < 0) errors.push(msg);
+  else checked += 1;
+}
+// 口径反证：不许把第三层默认值的「不惩罚离开」重新写成不可动的硬约束。
+if (/第\s*5\s*条[^。\n]{0,24}硬约束/.test(visionDoc)) {
+  errors.push('产品愿景又把「不惩罚离开」写成了硬约束（第三层默认值可被松绑）');
+} else checked += 1;
+
+// 8a-3. 今日机缘接线：纯叙事钩子，不许长成签到领奖系统。
+// 真源 → 引擎 → 主页 → 说明页，四处都要在；少一处就是「文档写了但玩家看不到」。
+const chanceSrc = fs.readFileSync(path.join(ROOT, 'data/world.js'), 'utf8');
+if (!/DAILY_CHANCES/.test(chanceSrc)) errors.push('world.js 没有今日机缘真源 DAILY_CHANCES');
+else checked += 1;
+const chanceEngine = engineSrc();
+if (!/function dailyChance\s*\(/.test(chanceEngine)) errors.push('内核没有 dailyChance()：今日机缘无法按日期选条');
+else checked += 1;
+const chanceIndexJs = fs.readFileSync(path.join(ROOT, 'pages/index/index.js'), 'utf8');
+const chanceIndexWxml = fs.readFileSync(path.join(ROOT, 'pages/index/index.wxml'), 'utf8');
+if (!/chance:\s*engine\.dailyChance\(\)/.test(chanceIndexJs)) errors.push('主页没接 dailyChance：今日机缘不会随日期更新');
+else checked += 1;
+if (!/onChance/.test(chanceIndexJs) || !/bindtap="onChance"/.test(chanceIndexWxml)) {
+  errors.push('今日机缘没有点击入口（onChance 或 wxml 绑定缺失）');
+} else checked += 1;
+const helpSrcForChance = fs.readFileSync(path.join(ROOT, 'data/help.js'), 'utf8');
+if (!/title: '今日机缘'/.test(helpSrcForChance)) errors.push('说明页没有今日机缘一节：玩家不知道这是什么');
+else checked += 1;
+// 反证：真源里的每条机缘都必须指向已有导航键，不许出现「领奖 / 签到 / 补签」这类
+// 会把纯钩子变成任务系统的动作词。
+const chanceDefs = chanceSrc.match(/\{ key: '[^']+', text: '[^']+', action: '[^']+' \}/g) || [];
+if (chanceDefs.length < 2) errors.push('今日机缘真源不足两条，跨天换不起来');
+else checked += 1;
+for (const def of chanceDefs) {
+  if (/签到|领奖|补签|连续登录/.test(def)) errors.push('今日机缘出现签到/领奖语义：' + def);
+  else checked += 1;
+}
+
+// 8a-4. 道牒图两页共用：人物页与静室页结算卡必须走同一份绘制，
+// 且各自要有 canvas 节点。复制一份画布代码 = 两个入口迟早出两张不同的图。
+const cardMod = require(path.join(ROOT, 'utils/card.js'));
+if (typeof cardMod.drawCard === 'function' && typeof cardMod.dataOf === 'function') checked += 1;
+else errors.push('utils/card.js 没导出 drawCard / dataOf：两页没法共用一张道牒');
+for (const pg of ['pages/profile/profile.js', 'pages/practice/practice.js']) {
+  const src = fs.readFileSync(path.join(ROOT, pg), 'utf8');
+  if (!/card\.dataOf\(/.test(src) || !/card\.makeCard\(/.test(src)) {
+    errors.push(pg + ' 没走共用的道牒绘制（card.dataOf / card.makeCard）');
+  } else checked += 1;
+  const wxml = fs.readFileSync(path.join(ROOT, pg.replace('.js', '.wxml')), 'utf8');
+  if (!/id="shareCanvas"/.test(wxml)) errors.push(pg + ' 缺 shareCanvas 节点：道牒导出取不到画布');
+  else checked += 1;
+}
+if (!/makeCard: '生成道牒'/.test(fs.readFileSync(path.join(ROOT, 'data/copy.js'), 'utf8'))) {
+  errors.push('道牒入口文案没进 copy.js 真源');
+} else checked += 1;
+
+// 8a-5. 本局进境：结算卡正面必须把「这一局让修士变了的事」显示出来。
+// 两套结算 UI（舞台演出 / 普通弹层）都要有，少一套就有一门看不到。
+const settleSrc = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.js'), 'utf8');
+const settleWxml = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.wxml'), 'utf8');
+if (!/milestones:\s*milestones/.test(settleSrc) || !/const milestones = \[\]/.test(settleSrc)) {
+  errors.push('结算没构造本局进境（milestones）：打一局与修仙变强之间没有可见因果');
+} else checked += 1;
+if ((settleWxml.match(/result\.milestones\.length > 0/g) || []).length < 2) {
+  errors.push('本局进境没有在两套结算 UI 都显示（舞台演出 / 普通弹层缺一处）');
+} else checked += 1;
+if (!/走通本段，入「/.test(engineSrc())) {
+  errors.push('晋段没记进修行日志：玩家回看不到「我什么时候进的小成」');
+} else checked += 1;
 
 // 8b. 功法命名规范：前缀 = 类别、分隔符唯一、正名四到六字且用体裁字、不写等级词。
 // 规则写在 data/skills.js，这里只做兜底，避免有人直接改 name 绕过校验函数。
