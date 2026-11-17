@@ -1002,6 +1002,30 @@ check('getSkillList 输出品阶、可修境界与难度档', function () {
   }
 });
 
+check('getTopSkills 与 getSkillList 报同一套段位与关数（人物页照抄的字段不许缺）', function () {
+  // 2026-11 真机：人物页那行读的是 stageName / stageLevel / levelTotal，
+  // 而 getTopSkills 当时只回 name / prof / tierName，整行直接变成
+  // 「吐纳周天诀 · undefined · 已走通 undefined / undefined 关」。
+  // 同一件事两处各算一套，字段名对不上时没有任何断言会红——所以这条按**两处相等**断言。
+  const s = freshState('', 0, 0);
+  s.skills.jian.unlocked = true; s.skills.jian.prof = 1200; s.skills.jian.cleared = 37;
+  s.skills.zhen.unlocked = true; s.skills.zhen.prof = 300; s.skills.zhen.cleared = 5;
+  const list = game.getSkillList(s);
+  const top = game.getTopSkills(s, 3);
+  assert.strictEqual(top.length, 3, '主修只该给三门');
+  for (const item of top) {
+    assert.strictEqual(typeof item.stageName, 'string', item.name + ' 没报段名');
+    assert.ok(item.stageName.length > 0, item.name + ' 段名是空的');
+    assert.strictEqual(typeof item.stageLevel, 'number', item.name + ' 没报已走通关数');
+    assert.strictEqual(typeof item.levelTotal, 'number', item.name + ' 没报关数上限');
+    const same = list.find(function (x) { return x.id === item.id; });
+    assert.ok(same, item.name + ' 在功法列表里找不到同 id，两个数据源对不上');
+    assert.strictEqual(item.stageName, same.stageName, item.name + ' 段名与功法列表不一致');
+    assert.strictEqual(item.stageLevel, same.stageLevel, item.name + ' 关数与功法列表不一致');
+    assert.strictEqual(item.levelTotal, same.levelTotal, item.name + ' 关数上限与功法列表不一致');
+  }
+});
+
 check('功法页顺序三级：无时间戳的老存档不许退成按门名', function () {
   // 2026-11 真机翻车复现：那份存档有熟练度，但 lastAt 与 records.at 全是 0，
   // 于是「时间 → 正名」两级排序每次都落到字典序，14 门按码点严格递增，

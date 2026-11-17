@@ -192,6 +192,17 @@ function orderLearned(a, b) {
   return ka < kb ? -1 : (ka > kb ? 1 : 0);
 }
 
+// 「这一门走到哪一段、走通了几关」只有这一个算法，功法列表与人物页共用。
+// 两处各算一套的后果 2026-11 真机见过一次：getTopSkills 只回 name/prof/tierName，
+// 人物页照着功法列表的字段名去读，整行变成「吐纳周天诀 · undefined · 已走通 undefined / undefined 关」。
+function stageOfRec(rec) {
+  const cleared = practiceData.clearedOf(rec);
+  const stage = practiceData.STAGES[
+    Math.min(practiceData.STAGES.length - 1, levelData.stageIndexOfCleared(cleared))
+  ];
+  return { cleared: cleared, stage: stage, total: levelData.LEVEL_MAX };
+}
+
 function getSkillList(state) {
   const list = [];
   const realmNow = state.realmIndex + 1;
@@ -201,10 +212,9 @@ function getSkillList(state) {
     const info = tierInfo(rec.prof);
     const method = practiceData.getMethod(s.method);
     const tier = practiceData.tierOf(s.tier);
-    const clearedNow = practiceData.clearedOf(rec);
-    const stageNow = practiceData.STAGES[
-      Math.min(practiceData.STAGES.length - 1, levelData.stageIndexOfCleared(clearedNow))
-    ];
+    const stage = stageOfRec(rec);
+    const clearedNow = stage.cleared;
+    const stageNow = stage.stage;
     // 与 applyPractice 同一根尺子：门槛决定「能不能开练」，上限只决定「收益衰不衰减」。
     // 金丹期（3）看黄阶（上限 2）是「能练但更费气」，不是「练不了」。
     const realmReady = realmNow >= tier.needRealm;
@@ -567,6 +577,8 @@ function getTitleList(state) {
   });
 }
 
+// 人物页「主修」那张卡要报段位与走通关数，所以这里必须带上 stage* 三件套——
+// 与 getSkillList 同名字段、同一个 stageOfRec()，页面才能在两个数据源之间复制同一行。
 function getTopSkills(state, count) {
   const n = count || 3;
   const arr = [];
@@ -574,7 +586,18 @@ function getTopSkills(state, count) {
     const s = skillData.SKILLS[i];
     const rec = state.skills[s.id];
     if (!rec || !rec.unlocked) continue;
-    arr.push({ name: s.name, type: s.type, prof: rec.prof, tierName: worldData.TIERS[tierIndex(rec.prof)].name, color: worldData.TIERS[tierIndex(rec.prof)].color });
+    const stage = stageOfRec(rec);
+    arr.push({
+      id: s.id,
+      name: s.name,
+      type: s.type,
+      prof: rec.prof,
+      tierName: worldData.TIERS[tierIndex(rec.prof)].name,
+      color: worldData.TIERS[tierIndex(rec.prof)].color,
+      stageName: stage.stage.name,
+      stageLevel: stage.cleared,
+      levelTotal: stage.total,
+    });
   }
   arr.sort(function (a, b) { return b.prof - a.prof; });
   return arr.slice(0, n);
