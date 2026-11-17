@@ -2046,6 +2046,68 @@ check('15 门盘面图案化：果器纹 / 卦象器物纹 / 数字纸纹三层�
   assert.ok(!/infinite/.test(etch), '金圈变成了常驻循环动画，动效预算会爆');
 });
 
+check('灵纹牌按剪影族取，不按 sprite 序号取', function () {
+  const L = require('../minigames/link.js');
+  const fam = L.CREST_FAMILY;
+  const src = read('minigames/link.js');
+
+  // 一、族表本身：每族只许一种，sprite 索引不许撞。
+  assert.ok(Array.isArray(fam) && fam.length >= 6, '族表不足六种，kinds 到不了 6');
+  const famNames = fam.map(function (c) { return c.family; });
+  const crestIds = fam.map(function (c) { return c.crest; });
+  assert.strictEqual(new Set(famNames).size, famNames.length,
+    '族表里有两个同族并列：' + famNames.join('/') + ' —— 分族就白分了');
+  assert.strictEqual(new Set(crestIds).size, crestIds.length, '族表里有两格指向同一张 sprite');
+  for (const id of crestIds) {
+    assert.ok(Number.isInteger(id) && id >= 1 && id <= 8, 'sprite 只有八格，索引越界：' + id);
+  }
+  assert.strictEqual(new Set(fam.map(function (c) { return c.name; })).size, fam.length,
+    '族表里有两个同名纹样');
+
+  // 二、纹种数封顶只能读族表长度。写死 6 与写死门槛是同一个毛病：
+  //     以后往 sprite 里补了器物，得改这里才知道。
+  assert.ok(/kinds = Math\.min\(CREST_FAMILY\.length/.test(src),
+    'kinds 的封顶没有读族表长度');
+  assert.ok(!/Math\.min\(GLYPHS\.length/.test(src), 'kinds 又按字符表长度封顶了');
+
+  // 三、防回归：按序号取是这条规则最容易复发的地方。
+  //     旧写法 cell.crest = v 让「第几族」直接等于「第几张图」，族表就成了摆设。
+  assert.ok(!/cell\.crest = v\b/.test(src), 'paint 又按序号直接取 sprite 了');
+  assert.ok(!/cell\.tone = v\b/.test(src), 'tone 又按序号直接取色了，迸溅色会跟着串族');
+
+  // 四、运行时：开局那一帧上场的 crest 必须整份来自族表，且一盘之内不重族。
+  const pd = require('../data/practice.js');
+  const method = pd.PRACTICE_METHODS.filter(function (m) { return m.game === 'link'; })[0];
+  assert.ok(method, '找不到并蒂引这一门');
+  for (const diff of ['novice', 'full']) {
+    const params = pd.buildParams(method, diff);
+    let vm = null;
+    const c = L.create({
+      params: params, perks: { tier: 0 }, theme: {},
+      tip: method.tip, render: function (v) { vm = v; }, finish: function () { },
+    });
+    c.start();
+    c.destroy();
+    const onBoard = new Set();
+    for (const cell of vm.cells || []) if (cell.crest) onBoard.add(cell.crest);
+    assert.ok(onBoard.size > 0, diff + ' 档开局盘上一张牌都没有');
+    assert.strictEqual(onBoard.size, Math.min(fam.length, Math.max(3, params.kinds || 6)),
+      diff + ' 档上场的纹种数与参数不符');
+    for (const id of onBoard) {
+      assert.ok(crestIds.indexOf(id) >= 0, diff + ' 档盘上出现了族表之外的 sprite：' + id);
+    }
+  }
+
+  // 五、教学盘走同一条映射：教学校里写 sprite 序号会绕过族表，
+  //     改族那天教学盘会悄悄换一整套图，而且没有任何断言会报红。
+  const teach = L.teach.create({
+    render: function () { }, finish: function () { }, params: {},
+  });
+  teach.start();
+  if (teach.destroy) teach.destroy();
+  assert.ok(/crestOf\(TEACH_BOARD\[i\]\)/.test(src), '教学盘没走族表映射');
+});
+
 check('26 格器纹 sprite：单份 base64、三处容器、PNG 尺寸与打包排除', function () {
   const css = read('styles/emblems.wxss');
   const png = fs.readFileSync(path.join(ROOT, 'assets/emblems.png'));

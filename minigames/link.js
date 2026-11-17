@@ -14,8 +14,39 @@
 const C = require('./common.js');
 const K = require('./teach-kit.js');
 
-const GLYPHS = ['✦', '◆', '●', '▲', '■', '✿'];
+// 上场的纹样按「剪影族」排，不按 sprite 序号取。
+//
+// sprite 八格是：1 灵果 2 灵梨 3 灵珠（葡萄）4 灵桃 5 灵橘 6 茶盏 7 灵葫 8 灵芝（蘑菇）。
+// 旧写法 `kinds = min(6, p.kinds)` 再按序号取前 N —— 前六格是五果一器，最简档（4 种）
+// 干脆是一整盘水果：同族挤满、异族一个都没有。
+//
+// 配对类盘面的第一条硬规则是「先看剪影，后看颜色」：去色成单色、眯眼仍要分得清，
+// 业内叫 silhouette / squint test。麻将在这件事上是极端样本（144 张、34 种面），
+// 反复被读混的对子（二索 vs 三索、六筒 vs 八筒）全是同族内细差，解法不是给细节
+// 加描边，而是先按花色分组 —— 族间差异要粗，族内差异才轮到细。
+//
+// 所以这里按族挑，由易到难，六种六个族，单色下互不重叠：
+//   圆润（灵果）→ 方框（茶盏）→ 伞状（灵芝）→ 竖长（灵梨）→ 成簇（灵珠）→ 心形（灵桃）
+// 灵橘（5）与灵葫（7）不上场：灵橘与灵果同为「圆 + 瓣」，灵葫与灵梨同为「上窄下宽
+// 竖长」，正好是同族里最容易被读混的两对。难度仍随 kinds 上升，但涨的是「候选变多、
+// 同纹变少」，不是「越来越像」—— 难度不该建立在看不清上。
+const CREST_FAMILY = [
+  { crest: 1, name: '灵果', family: '圆润' },
+  { crest: 6, name: '茶盏', family: '方框' },
+  { crest: 8, name: '灵芝', family: '伞状' },
+  { crest: 2, name: '灵梨', family: '竖长' },
+  { crest: 3, name: '灵珠', family: '成簇' },
+  { crest: 4, name: '灵桃', family: '心形' },
+];
+// label 只是数据里的可读代号（不上屏，上屏的是 crest 位图），顺序与族表一一对应。
+const GLYPHS = ['✦', '◆', '✿', '▲', '●', '❤'];
 const DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+// board 里存的是族序号（1..kinds），不是 sprite 序号 —— 这样换纹样只动这张表。
+function crestOf(v) {
+  const c = CREST_FAMILY[v - 1];
+  return c ? c.crest : 0;
+}
 
 // 评级只认一件事：收干净那一刻还剩几息。
 //
@@ -192,7 +223,7 @@ function create(ctx) {
   const cols = Math.max(3, p.cols || 6);
   const rows = Math.max(3, p.rows || 4);
   const n = cols * rows;
-  const kinds = Math.min(GLYPHS.length, Math.max(3, p.kinds || 6));
+  const kinds = Math.min(CREST_FAMILY.length, Math.max(3, p.kinds || 6));
   // 段内布纹：生成端在 data/practice.js，这里只消费。不写兜底默认值以外的换算，
   // 否则「参数在动、盘面没动」会在这里被悄悄托住。
   const weave = Math.max(0, Math.min(3, Math.round(p.weave || 0)));
@@ -287,10 +318,13 @@ function create(ctx) {
       cell.cls = 'cell cell--lit cell--chip'
         + (i === selected ? ' cell--sel' : '')
         + (marked(i) ? ' cell--hintpair' : '');
-      cell.label = GLYPHS[v - 1];
       // 上屏的是纹样不是字形：crest 交给 wxss 画，label 只在数据里留个可读的代号。
-      cell.crest = v;
-      cell.tone = v;
+      // crest 与 tone 都写 sprite 序号（不是族序号）：迸溅色按 tone 查 CREST_HUE，
+      // 只能跟着那张图走，跟着族序号走会把茶的色溅到果上。
+      const crest = crestOf(v);
+      cell.crest = crest;
+      cell.tone = crest;
+      cell.label = GLYPHS[v - 1];
     }
     vm.link = { first: selected, board: board.slice(), cols: cols, rows: rows, pairs: pairs };
   }
@@ -489,6 +523,9 @@ function lines(p) {
 // 首局手把手：两枚同纹摆在对角，只连这一对。
 // 这一门与翻牌、消消乐的分水岭是「折线不超过两下、还能绕到盘外」，
 // 所以第二枚故意不挨着第一枚——就为了让那条折线在盘面上真的走一遍。
+//
+// 值域是族序号（1 圆润 / 2 方框 / 3 伞状 / 4 竖长 / 5 成簇），四枚干扰各占一族：
+// 教学盘的第一手不该花在读图上，唯一要学的是「折两下」。
 const TEACH_BOARD = [1, 3, 2, 4, 5, 1];
 const TEACH_COLS = 3;
 
@@ -522,8 +559,8 @@ function createTeach(ctx) {
     paint: function (vm) {
       for (let i = 0; i < cells.length; i += 1) {
         const c = cells[i];
-        c.crest = TEACH_BOARD[i];
-        c.tone = TEACH_BOARD[i];
+        c.crest = crestOf(TEACH_BOARD[i]);
+        c.tone = crestOf(TEACH_BOARD[i]);
         c.label = '';
         c.cls = 'cell cell--chip';
         if (linked && (i === 0 || i === 5)) c.cls += ' cell--gone';
@@ -541,5 +578,6 @@ module.exports = {
   id: 'link',
   findPath: findPath, name: '灵纹连线', create: create, lines: lines, teach: teach,
   canLink: canLink, findPair: findPair, GLYPHS: GLYPHS, pairCounts: pairCounts,
+  CREST_FAMILY: CREST_FAMILY, crestOf: crestOf,
   gradeByLeft: gradeByLeft, gradeLefts: gradeLefts,
 };
