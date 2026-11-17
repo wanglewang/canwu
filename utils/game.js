@@ -20,7 +20,7 @@ const SAVE_PREFIX = 'CANWU1:';
 const BATTLE_PREFIX = 'CW1-';
 const SAVE_VERSION = 9;
 // 连 S 叠倍率：同一门功法连续完成 S，本局熟练度 = round(34 × 1.5^(层数-1))，10 层封顶。
-// 层数真源在 world.COMBO_MAX；每门各算各的，非 S / 走火 / 主动收功都归零，
+// 层数真源在 world.COMBO_MAX；每门各算各的，非 S / 失败 / 主动结束都归零，
 // 低档局不参与连 S（层数原样保留）。旧的「三连 S 直接晋级」已整体退役。
 
 function readStorage(key) {
@@ -648,7 +648,7 @@ function settleOffline(state) {
 // 气海满了也要明说：这时候回一句「还没攒够」是错的——坐了很久，只是装不下。
 function meditate(state) {
   const pending = idlePending(state);
-  const tooSoon = '还没攒够一点。再坐两分钟，回来就能收。';
+  const tooSoon = '还没攒够一点，再坐两分钟。';
   // 满池没有第二条产出可收（闭关不涨熟练度），所以这里是「收不到」而不是「只涨熟练度」。
   // 话要说在「满了」上，否则玩家会以为自己坐得不够久。
   if (pending.full) {
@@ -779,7 +779,7 @@ function exchangeQuote(state) {
 function applyPractice(state, skillId, grade, options) {
   const skill = skillData.getSkill(skillId);
   if (!skill || !state.skills[skillId] || !state.skills[skillId].unlocked) {
-    return { ok: false, msg: '尚未习得这门功法' };
+    return { ok: false, msg: '暂未习得这门功法' };
   }
   const method = practiceData.getMethod(skill.method);
   const opts = options || {};
@@ -802,7 +802,7 @@ function applyPractice(state, skillId, grade, options) {
   // 先记下开场值，结算时才能如实说「这一局涨了没有」，而不是含糊带过。
   const powerBefore = powerDetail(state).total;
 
-  // 走火（F）是「这一局作废」，不是「最低一档」：倍率 0，整局不给任何东西。
+  // 失败（F）是「这一局作废」，不是「最低一档」：倍率 0，整局不给任何东西。
   // 注意倍率为 0 时不能用 `||` 兜底——0 会被当成「没配」，静默落回 0.6。
   const rawFactor = worldData.GRADE_FACTOR[grade];
   const factor = typeof rawFactor === 'number' ? rawFactor : 0.6;
@@ -854,7 +854,7 @@ function applyPractice(state, skillId, grade, options) {
   const belowCap = playedNo < curNo;
 
   // 连 S 与回关完全解耦：只有本门当前关的 S 才叠层，本局按 34 × 1.5^(层数-1) 独立取整；
-  // 回关局不叠层、不砍连击收益、层数原样保留；走火（F）一律断连。
+  // 回关局不叠层、不砍连击收益、层数原样保留；失败（F）一律断连。
   // 到 PROF_MAX 后熟练度封顶，但层数与纪录照常、灵力照扣：火候封顶是数值毕业，不是不许再练。
   if (!state.sCombo) state.sCombo = {};
   const comboBefore = Math.min(worldData.COMBO_MAX, Math.floor(num(state.sCombo[skillId], 0)));
@@ -911,8 +911,8 @@ function applyPractice(state, skillId, grade, options) {
   const score = Math.max(0, Math.floor(num(opts.score, 0)));
   const prev = state.records[skillId];
   const prevBest = prev ? Math.floor(num(prev.score, 0)) : 0;
-  // 走火这一局不立纪录：没走完的成绩不构成「本门最佳」，
-  // 否则第一局崩掉就会在准备页留下「本门最佳 0 分 · 走火」，玩家会以为这就是他的水平。
+  // 失败这一局不立纪录：没走完的成绩不构成「本门最佳」，
+  // 否则第一局崩掉就会在准备页留下「本门最佳 0 分 · 失败」，玩家会以为这就是他的水平。
   const newRecord = score > prevBest && grade !== 'F';
   if (newRecord) state.records[skillId] = { score: score, grade: grade, at: Date.now() };
   else if (!prev && grade !== 'F') state.records[skillId] = { score: 0, grade: grade, at: Date.now() };
@@ -921,21 +921,21 @@ function applyPractice(state, skillId, grade, options) {
   state.lastPractice = { skillId: skillId, at: Date.now() };
   // 「最近练过的在前」要的是每一门自己的钟，不能只记最后一次：
   // 只记 state.lastPractice 的话，换到第二门再换回来，第一门的时间就丢了。
-  // 走火也记——玩家确实练了这一局，顺序上该往前排。
+  // 失败也记——玩家确实练了这一局，顺序上该往前排。
   touchSkill(state, skillId);
   if (cross) state.stats.comboCount += 1;
 
   // 三连 S 晋级已取消：火候不再被「补额」跳过，只由上面这一局的实得点数一格格涨。
   rec.prof += gain;
 
-  // 走通本门当前关才推进：走火不推、回关不推、走完 1000 关不推。一局只推一关。
+  // 走通本门当前关才推进：失败不推、回关不推、走完 1000 关不推。一局只推一关。
   const advanced = !wiped && playedNo === curNo && cleared < levelData.LEVEL_MAX;
   if (advanced) rec.cleared = cleared + 1;
   const stageBefore = levelData.stageIndexOfCleared(cleared);
   const stageAfter = levelData.stageIndexOfCleared(cleared + (advanced ? 1 : 0));
   const promoted = stageAfter > stageBefore;
 
-  // 运功的代价：灵力在起手时就烧掉了，走火也不退——这才是「走火」真正的分量。
+  // 运功的代价：灵力在起手时就烧掉了，失败也不退——这才是「失败」真正的分量。
   // 参悟不再产灵力灵石：灵力的来路是闭关、份例与灵石兑换，灵石的来路只有对战。这一局只换熟练度。
   state.resources.qi -= qiCost;
 
@@ -959,7 +959,7 @@ function applyPractice(state, skillId, grade, options) {
     addLog(state, skill.name + ' 参悟至「' + worldData.TIERS[afterTier].name + '」', 'tier');
   } else if (wiped) {
     // 不能说「熟练度 +0」：玩家会以为是自己眼睛看错了，而不是这一局作废。
-    addLog(state, '参悟 ' + skill.name + ' 走火，本局无所得', 'practice');
+    addLog(state, '参悟 ' + skill.name + ' 失败，本局无所得', 'practice');
   } else if (gain === 0 && rec.prof >= worldData.PROF_MAX) {
     // 到顶后不许写「熟练度 +0」，那读起来像 bug。
     addLog(state, '参悟 ' + skill.name + '，熟练度已圆满，本局只记战绩', 'practice');
@@ -970,7 +970,7 @@ function applyPractice(state, skillId, grade, options) {
   // 机缘：只在石阶上拾得残卷，**不给灵力也不给灵石**。
   // 参悟是纯支出——灵力只从闭关与份例来、灵石只从切磋与秘境来。参悟里再冒出一笔资源，
   // 等于给「练功」开了第二条印钞线，玩家又会回到「一直练、资源自己涨」的老路上。
-  // 走火不触发：整局作废还能拾到残卷，等于零收益只是句空话。
+  // 失败不触发：整局作废还能拾到残卷，等于零收益只是句空话。
   let fortune = null;
   if (!wiped) {
     const locked = [];
@@ -993,7 +993,7 @@ function applyPractice(state, skillId, grade, options) {
     level: playedNo,
     levelTotal: levelData.LEVEL_MAX,
     levelWasCurrent: playedNo >= curNo,
-    // 本局是否真的往前走了一关：走火、回关、1000 关走完都是 false。
+    // 本局是否真的往前走了一关：失败、回关、1000 关走完都是 false。
     advanced: advanced,
     // 这一局有没有跨段（走通段界关）。段位由已走通关数算，玩家看得见的那一刻就是它。
     // 跨段：走通段界关那一刻由 false 变 true。stageName 报的是「刚打的那一关属于哪一段」，
@@ -1001,14 +1001,14 @@ function applyPractice(state, skillId, grade, options) {
     promoted: promoted,
     stageAfterName: levelData.stageNameOfCleared(cleared + (advanced ? 1 : 0)),
     stageBeforeName: levelData.stageNameOfCleared(cleared),
-    // 走火＝作废：页面据此把收益行显示成「无」，而不是一排 +0。
+    // 失败＝作废：页面据此把收益行显示成「无」，而不是一排 +0。
     wiped: wiped,
     gradeTitle: copy.GRADE_TITLE[grade] || '粗浅',
     gradeColor: worldData.GRADE_COLOR[grade] || '#8a8f83',
     skillName: skill.name,
     methodName: method.name,
     gain: gain,
-    // 这一局烧掉的灵力：走火也照扣（起手就烧了），所以它和 gain 是两条独立的数。
+    // 这一局烧掉的灵力：失败也照扣（起手就烧了），所以它和 gain 是两条独立的数。
     qiCost: qiCost,
     qiBefore: state.resources.qi + qiCost,
     qiAfter: state.resources.qi,
@@ -1449,7 +1449,7 @@ function breakthroughInfo(state) {
 
 function applyBreakthrough(state, grade) {
   const info = breakthroughInfo(state);
-  if (info.maxed || !info.available) return { ok: false, msg: '尚未到突破之时' };
+  if (info.maxed || !info.available) return { ok: false, msg: '现在还不到突破的时候' };
   const w = worldData.getWorld(state.worldId);
   // 布阵要备灵石：筑基 60 / 金丹 120 / 元婴 240。
   // 突破花的是「阵材、丹药、护法」这些修仙界真正要买的东西——
@@ -1473,7 +1473,7 @@ function applyBreakthrough(state, grade) {
     return {
       ok: false,
       hit: false,
-      msg: '气机一乱，未能突破。布阵的灵石散了 ' + lost + ' 枚，余下的还在。',
+      msg: '突破失败。布阵的灵石散了 ' + lost + ' 枚，其余的还在。',
       stoneCost: lost,
       stoneRefund: refund,
       stoneAfter: state.resources.stone,
@@ -1517,7 +1517,7 @@ function buySkill(state, skillId) {
   if (state.realmIndex + 1 < tier.needRealm) {
     const realms = worldData.getWorld(state.worldId).realms;
     const needName = realms[Math.min(realms.length - 1, tier.needRealm - 1)].name;
-    return { ok: false, msg: '需「' + needName + '」境界方能修习' + tier.label + '功法' };
+    return { ok: false, msg: '需「' + needName + '」境界才能修炼' + tier.label + '功法' };
   }
   const cost = s.source.cost;
   // 功法只收灵石。灵力是练功的燃料，用它买功法等于「用油买油」，
@@ -1533,7 +1533,7 @@ function buySkill(state, skillId) {
 }
 
 function equipTitle(state, id) {
-  if (state.titles.indexOf(id) < 0) return { ok: false, msg: '尚未解锁这个称号' };
+  if (state.titles.indexOf(id) < 0) return { ok: false, msg: '这个称号暂未解锁' };
   state.equippedTitle = state.equippedTitle === id ? '' : id;
   return { ok: true, equipped: state.equippedTitle };
 }
@@ -1675,7 +1675,7 @@ function unlockInfo(state, skill) {
       label: '藏经阁兑换',
       text: '灵石 ' + need,
       hint: !realmReady
-        ? '需「' + realmNameOfNo(tier.needRealm) + '」境界方能修习'
+        ? '需「' + realmNameOfNo(tier.needRealm) + '」境界才能修炼'
         : (lack.length ? '还差 ' + lack.join('、') : '灵石已足，随时可换'),
       action: !realmReady || lack.length ? 'home' : 'buy',
       actionText: !realmReady || lack.length ? '去攒灵石' : '兑换',
@@ -1802,9 +1802,9 @@ function realmNameOf(state, realmNo) {
 // 「这一门被碰过了」：只写 lastAt，一个数值都不动。
 //
 // 单独成一个函数，是因为**有一批确实打过的局不走 applyPractice**：
-// 中途收功（本局作废、不计所得）、局中切页或返回（那一盘直接丢掉）。
-// 2026-11 真机反馈就在这里翻车——玩家打完一局点了收功再回去，列表纹丝不动，
-// 因为那条路只断了连 S，没写钟；而 applyPractice 里的注释早写着「走火也记」。
+// 中途结束（本局作废、不计所得）、局中切页或返回（那一盘直接丢掉）。
+// 2026-11 真机反馈就在这里翻车——玩家打完一局点了结束再回去，列表纹丝不动，
+// 因为那条路只断了连 S，没写钟；而 applyPractice 里的注释早写着「失败也记」。
 // **「不计所得」管的是数值，不管顺序**：认真打了一段就该往前排，跟给不给分是两件事。
 function touchSkill(state, skillId) {
   const rec = state && state.skills ? state.skills[skillId] : null;
@@ -2162,7 +2162,7 @@ function getChallengeList(state, moveIds) {
     if (power >= c.power * 1.2) hint = '胜算在握';
     else if (power >= c.power * 1.05) hint = '略占上风';
     else if (power >= c.power * 0.95) hint = '势均力敌';
-    else if (power < c.power * 0.7) hint = '尚需苦修';
+    else if (power < c.power * 0.7) hint = '还需苦练';
     else hint = '略有不及';
     out.push({
       id: c.id,
@@ -2223,8 +2223,8 @@ function comboOf(state, id) {
   return Math.min(worldData.COMBO_MAX, Math.floor(num(state.sCombo && state.sCombo[id], 0)));
 }
 
-// 主动收功：这一局不进 applyPractice（不作数），但连 S 必须归零，
-// 否则「预感这局拿不到 S 就中途收功」能把连击永久保住，断连惩罚形同虚设。
+// 主动结束：这一局不进 applyPractice（不作数），但连 S 必须归零，
+// 否则「预感这局拿不到 S 就中途结束」能把连击永久保住，断连惩罚形同虚设。
 // 突破局的「气机一乱」不是参悟，页面不会调这里，不会误伤别的门。
 function breakCombo(state, skillId) {
   if (!state.sCombo) state.sCombo = {};

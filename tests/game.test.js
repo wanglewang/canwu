@@ -264,7 +264,7 @@ check('第 3 连取 77 而不是 76，第 4 连不拿上局整数接着乘', fun
   assert.notStrictEqual(world.comboGain(4), Math.round(77 * 1.5));
 });
 
-check('非 S、走火、主动收功都归零，下一局 S 重新从 34 点起', function () {
+check('非 S、失败、主动结束都归零，下一局 S 重新从 34 点起', function () {
   const world = require('../data/world.js');
   const s = game.createNewState();
   s.resources.qi = 100000;   // 参悟要先付灵力，这些断言测公式、不测钱包
@@ -277,12 +277,12 @@ check('非 S、走火、主动收功都归零，下一局 S 重新从 34 点起'
   assert.strictEqual(one.comboNow, 1);
   assert.strictEqual(one.gain, 34, '断连后没从第 1 连重起');
   const f = game.applyPractice(s, 'jian', 'F', { score: 0 });
-  assert.strictEqual(f.comboNow, 0, '走火没有断连');
+  assert.strictEqual(f.comboNow, 0, '失败没有断连');
   assert.strictEqual(f.gain, 0);
   game.applyPractice(s, 'jian', 'S', { score: 0 });
-  const br = game.breakCombo(s, 'jian');   // 主动收功：不进结算，只断连
+  const br = game.breakCombo(s, 'jian');   // 主动结束：不进结算，只断连
   assert.strictEqual(br.ok, true);
-  assert.strictEqual(s.sCombo.jian, 0, '收功没断连，能靠中途退出保住连击');
+  assert.strictEqual(s.sCombo.jian, 0, '结束没断连，能靠中途退出保住连击');
   const restart = game.applyPractice(s, 'jian', 'S', { score: 0 });
   assert.strictEqual(restart.comboNow, 1);
   assert.strictEqual(restart.gain, 34);
@@ -298,7 +298,7 @@ check('连 S 按功法各算各的，换一门不会蹭到别人的层数', func
   assert.strictEqual(r.comboNow, 1);
   assert.strictEqual(r.gain, 34, '跨功法凑连击把第一局抬成了第 3 连');
   game.breakCombo(s, 'jian');
-  assert.strictEqual(s.sCombo.tuna, 1, '收功把别的门的连击也清了');
+  assert.strictEqual(s.sCombo.tuna, 1, '结束把别的门的连击也清了');
 });
 
 check('回关局与连 S 无关：不叠层、不砍连击收益、层数原样保留', function () {

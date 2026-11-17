@@ -552,7 +552,7 @@ function create(ctx) {
   return C.fillController({
     start: start,
     move: move,
-    abandon: function () { finishOnce('F', '中途收功'); },
+    abandon: function () { finishOnce('F', '中途结束'); },
     destroy: function () { clearLockTimer(); bag.clear(); },
   });
 }

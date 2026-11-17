@@ -5,7 +5,8 @@ const copy = require('../../data/copy.js');
 const share = require('../../utils/share.js');
 
 // 分享查询串的唯一出口：onShareAppMessage 用带 ? 的路径，onShareTimeline 只要 `k=v&k=v`。
-// 参悟页的说明按功法与本档难度现拼，三个参数缺一个，对方看到的就不是同一册。
+// 参悟页的说明按功法与本段现拼：method/game 定是哪一门，stage 定这一段的具体评级线。
+// 以前这里漏了 stage，从准备页点进说明看到的却是第一段的数字，转发出去也一样错。
 function shareQuery(page) {
     const parts = [];
     if (page.topicKey) parts.push('topic=' + page.topicKey);
@@ -14,6 +15,7 @@ function shareQuery(page) {
         if (t.method) parts.push('method=' + t.method);
         if (t.game) parts.push('game=' + t.game);
         if (t.diff) parts.push('diff=' + t.diff);
+        if (t.stage) parts.push('stage=' + t.stage);
     }
     return parts.join('&');
 }
@@ -33,15 +35,22 @@ Page({
         const q = query || {};
         // 分享要落回同一册：主题 key 记在实例上（不放进 data，WXML 用不到）。
         this.topicKey = q.topic || '';
-        // 参悟页的说明是「一门一册」，里面按功法名与本档难度列出 S/A/B/C 门槛。
-        // 这三个参数必须记下来一起转发，否则对方点开只剩一份不带功法名的泛稿。
+        // 参悟页的说明是「一门一册」，里面按功法名与本段列出 S/A/B/C 门槛。
+        // 这四个参数必须记下来一起转发，否则对方点开只剩一份不带功法名、
+        // 或者带着第一段门槛的旧稿——后一种更坏，因为数字看着像真的。
         this.topicQuery = {
             method: q.method || '',
             game: q.game || '',
             diff: q.diff || '',
+            stage: q.stage || '',
         };
         const topic = q.topic === 'practice'
-            ? helpData.practiceTopic({ method: q.method, game: q.game, diff: q.diff })
+            ? helpData.practiceTopic({
+                method: q.method,
+                game: q.game,
+                diff: q.diff,
+                stage: q.stage,
+            })
             : helpData.topicOf(q.topic);
         // 「说明」页是共用容器，导航栏留空会把「你现在看的是哪一页」丢掉，
         // 所以标题按主题动态给出「人物 · 说明」——这一层就够了，页内不再画第二个标题。

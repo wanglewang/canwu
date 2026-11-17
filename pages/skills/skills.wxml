@@ -114,7 +114,7 @@
             <view class="imm-bar__fill" style="width:{{detail.unlock.percent}}%"></view>
           </view>
           <!-- 门槛只挡「还没到」：已到门槛但超了收益上限的（金丹练黄阶），照样能修习，只是收益打折。 -->
-          <text wx:if="{{!detail.realmReady}}" class="codex__note codex__warn">需「{{detail.needRealmName}}」境界方能修习</text>
+          <text wx:if="{{!detail.realmReady}}" class="codex__note codex__warn">需「{{detail.needRealmName}}」境界才能修炼</text>
         </block>
         <block wx:else>
           <view class="codex__kv">
@@ -139,6 +139,6 @@
   </view>
 
   <view class="pg__foot">
-    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">此处说明 ›</text>
+    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">本页说明 ›</text>
   </view>
 </view>

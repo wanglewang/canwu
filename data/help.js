@@ -30,7 +30,7 @@ const ODDS_LINES = [
     '略占上风：你比他高一点，赢面大，但还要看波动。',
     '势均力敌：两边战力几乎持平，胜负各半。',
     '略有不及：他比你高一点，翻车概率明显，攒点战力再来。',
-    '尚需苦修：他高出你三成以上，现在打基本是送。',
+    '还需苦练：他高出你三成以上，现在打基本是送。',
 ];
 
 const TOPICS = {
@@ -49,7 +49,7 @@ const TOPICS = {
                     '多学一门最见效：藏经阁能换就换，切磋首胜与机缘也会给功法。',
                     '突破境界给全体属性加成：筑基 +6% / 金丹 +14% / 元婴 +24%。',
                     '功法特效按火候逐级兑现：初窥 25%、渐熟 50%、精纯 75%、通玄起满额；品阶只影响属性、运功耗气与可修境界，不加速熟练度。',
-                    '战力只影响切磋与突破门槛，不参与参悟所得。另择一门修习另有触类旁通（耗气更省），同一门连练也不减所得。',
+                    '战力只影响切磋与突破门槛，不参与参悟所得。换一门修习另有触类旁通（耗气更省），同一门连练也不减所得。',
                 ],
             },
             {
@@ -269,7 +269,7 @@ const TOPICS = {
                 key: 'rank',
                 title: '名次怎么来',
                 lines: [
-                    '按战力从高到低排，榜单只显示前十，自己不在前十就标「尚未上榜」。',
+                    '按战力从高到低排，榜单只显示前十，自己不在前十就标「暂未上榜」。',
                     '每次进榜都会把自己的战绩写一次，写着「我」的那行就是自己。',
                 ],
             },
@@ -531,13 +531,13 @@ function practiceTopic(opts) {
             }).join(' / ') + ' 点——退得越远越薄，第 1 关几乎为零，回关是练手不是刷分。');
         diffLines.push('单局基础：C ' + worldData.PROF_BASE.C + ' / B ' + worldData.PROF_BASE.B
             + ' / A ' + worldData.PROF_BASE.A + ' / S ' + worldData.PROF_BASE.S
-            + ' 点，走火 F 是 0。只有连续的 S 才叠倍率，C / B / A 不叠层且会让连 S 归零。');
+            + ' 点，失败 F 是 0。只有连续的 S 才叠倍率，C / B / A 不叠层且会让连 S 归零。');
         diffLines.push('第 1～' + worldData.COMBO_MAX + ' 连 S 每局依次是 '
             + worldData.COMBO_TABLE.join(' / ') + ' 点：每局独立算 34 × 1.5^(连数-1) 后四舍五入，'
             + '不拿上一局的整数接着乘。第 ' + (worldData.COMBO_MAX + 1) + ' 连起锁死 '
             + worldData.COMBO_CAP_GAIN + ' 点，一轮十连共 ' + worldData.COMBO_ROUND + ' 点。');
         diffLines.push('全程不断 S、都打本门当前关，' + worldData.PROF_S_RUNS + ' 局熟练度到顶；全 C 则是 '
-            + (worldData.PROF_C_RUNS + 1) + ' 局。走火、主动收功与非 S 都会让连 S 归零；'
+            + (worldData.PROF_C_RUNS + 1) + ' 局。失败、主动结束与非 S 都会让连 S 归零；'
             + '换一门各算各的，不互蹭；回关局既不叠也不清。');
         sections.push({ key: 'difficulty', title: '段位 · 关卡 · 耗气', lines: diffLines });
 

@@ -7,7 +7,7 @@
 // 与「辨伪择真」的区别：剑法是「认准一个真招」，这里是「按序把一整个盘走完」。
 //
 // 一局一盘：N×N 格上打乱写着 1 到 N²，按序点过去，点完即完成。
-// 点错不换格，罚时并重记一次错；时辰到还没点完是走火 F。
+// 点错不换格，罚时并重记一次错；时辰到还没点完是失败 F。
 // 评级只看用时（含罚时），三条线与时辰由本模块的 LEVELS 逐档给死。
 //
 // 盘面上**不标「下一个在哪」**：HUD 报的是「下一个几」，位置得自己扫出来。
@@ -49,7 +49,7 @@ const PENALTIES = LEVELS.map(function (l) { return l.penalty; });
 const FADE = LEVELS.map(function (l) { return l.fade; });
 
 // 时辰与 B 线之间至少留这么多秒：章内时辰按 30% 收紧，收到底之后如果压到 B 线以下，
-// 「点完了但慢」这一档就整个消失——玩家会看到「明明过了 B 线却是走火」。
+// 「点完了但慢」这一档就整个消失——玩家会看到「明明过了 B 线却是失败」。
 const C_WINDOW = 8;
 // 档位越界（第 5 章末段的伪档）时兜底到最后一档，别让 size 变成 undefined。
 const LEVEL_MAX = LEVELS.length - 1;
@@ -237,7 +237,7 @@ function create(ctx) {
     bag.every(function () {
       if (done) return;
       elapsed += 1;
-      // 走火只看「实际经过」：罚时改写评级，不改这一局能不能走完。
+      // 失败只看「实际经过」：罚时改写评级，不改这一局能不能走完。
       // 以前这里比的是「实际 + 罚时」，于是绝境档连错四次就能把一局本来打得不错的人判成 F——
       // 与「点错只是纪录变差」的说法正好相反，也和「本门只奖不罚」的调性相反。
       if (elapsed >= timeLimit) {
@@ -282,7 +282,7 @@ function create(ctx) {
       C.flash(vm, String(next - 1) + ' 点过了', 'good');
       render();
     },
-    abandon: function () { finishOnce('F', '中途收功'); },
+    abandon: function () { finishOnce('F', '中途结束'); },
     destroy: function () { bag.clear(); },
   });
 }
@@ -304,7 +304,7 @@ function lines(p) {
       'B：' + l.b + ' 秒内',
       'C：超过 ' + l.b + ' 秒才点完',
     ],
-    fail: '时辰到还没点完 → 走火 F，这一局没有收益',
+    fail: '时辰到还没点完 → 失败 F，这一局没有收益',
   };
 }
 

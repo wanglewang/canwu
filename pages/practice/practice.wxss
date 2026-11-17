@@ -228,7 +228,7 @@
     margin-top: 2rpx;
     color: var(--c-imm-text);
     /* 计时是这一屏最该有「器物感」的数字：衬线 + 等宽，读起来像香炷而不是标题。
-       40rpx 是「第 3 / 4 小节」在右侧评级与收功占位之后仍能单行站住的字号。 */
+       40rpx 是「第 3 / 4 小节」在右侧评级与结束按钮占位之后仍能单行站住的字号。 */
     font-family: "Songti SC", "STSong", serif;
     font-size: 40rpx;
     line-height: 1.15;
@@ -254,7 +254,7 @@
     padding-top: 4rpx;
 }
 
-/* 收功：留在屏幕上方，离拇指热区远一点，误触代价太大 */
+/* 结束按钮：留在屏幕上方，离拇指热区远一点，误触代价太大 */
 .hud__quit {
     display: flex;
     align-items: center;
@@ -271,6 +271,14 @@
 
 .hud__goal {
     line-height: 1.5;
+}
+
+/* 本段盘面短版：局内也要看得见「这一段紧在哪」，不能只在开局前说一次。 */
+.hud__spec,
+.scene-hud__spec {
+    display: block;
+    margin-top: var(--sp-2);
+    line-height: 1.4;
 }
 
 .pr-hint {

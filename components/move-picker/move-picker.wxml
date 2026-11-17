@@ -39,6 +39,6 @@
       </view>
       <text class="mp__mark">{{item.on ? '已运' : '＋'}}</text>
     </view>
-    <text class="mp__empty" wx:if="{{poolView.length === 0}}">还没有能运出去的式：先参悟到入门，这一式才成形。</text>
+    <text class="mp__empty" wx:if="{{poolView.length === 0}}">暂无可运出的式：先参悟到入门，这一式才成形。</text>
   </view>
 </view>

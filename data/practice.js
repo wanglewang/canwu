@@ -64,14 +64,14 @@ const PRACTICE_METHODS = [
   {
     id: 'tanlei', name: '勘位辨禁', game: 'mines', theme: 'tanlei', twist: 'tanlei',
     desc: '石格下埋着禁制，能看到只有周围露出的数字。按数字把禁位一格格勘出来，钉住再连开。',
-    tip: '误触折 1 盏心神，耗尽即收功',
+    tip: '误触折 1 盏心神，耗尽即失败',
     base: 50,
     params: { cols: 6, rows: 6, mines: 6 },
   },
   {
     id: 'seal', name: '内视观窍', game: 'seal', theme: 'seal', twist: 'seal',
-    desc: '十二处气窍阖着，两两相合才通一层。入定深了，会先照见一对。',
-    tip: '翻错只是阖上，但多记一次翻牌、白费时',
+    desc: '十二处气窍都合着，两两相合才通一层。入定深了，会先照见一对。',
+    tip: '翻错只是合上，但多记一次翻牌、白费时间',
     base: 56,
     params: { pairs: 6, cols: 4, flipMs: 850, timeLimit: 70 },
   },
@@ -80,7 +80,7 @@ const PRACTICE_METHODS = [
   {
     id: 'linkpair', name: '牵灵引线', game: 'link', theme: 'linkpair', twist: 'linkpair',
     desc: '同纹灵石两两相契，牵一条不过两折的灵线把这一对收回来。',
-    tip: '错配或连不上都少 2 息，时辰到没收干净是走火',
+    tip: '错配或连不上都少 2 息，时辰到还没收干净就是失败',
     base: 34,
     // cols / rows / kinds 由 LINK_LEVELS 按档整表覆盖，这里只是简单档的种子。
     // duration 不写种子：它由 linkDurationAt(关号) 现算，写一个没人读的 55 只会
@@ -92,7 +92,7 @@ const PRACTICE_METHODS = [
   {
     id: 'stackstone', name: '垒石筑基', game: 'blocks', theme: 'stackstone', twist: 'stackstone',
     desc: '灵石按息坠落，挪石转石把一层垒满，整层化去才算筑稳一分根基。',
-    tip: '堆到顶立刻收功；垒满一层才化去',
+    tip: '堆到顶立刻结束；垒满一层才化去',
     base: 36,
     // 盘面是标准场地 10×20，写在玩法层（minigames/blocks.js）里而不是这里——
     // 行数不是难度旋钮，改了这一门就不成立了。难度只拧两个数：
@@ -113,7 +113,7 @@ const PRACTICE_METHODS = [
   {
     id: 'shudu', name: '推填九宫', game: 'sudoku', theme: 'shudu', twist: 'shudu',
     desc: '九宫盘上留着空格，每行、每列、每宫都要把 1 到 9 各填一遍；填错一格会被记下。',
-    tip: '填错一格罚 10 秒，时辰到没填完即收功',
+    tip: '填错一格罚 10 秒，时辰到还没填完就是失败',
     base: 38,
     // 盘面规格 / 挖洞数 / 时限与三条时间线由 SUDOKU_LEVELS 按难度档注入，这里不写死 4×4。
     params: {},
@@ -121,7 +121,7 @@ const PRACTICE_METHODS = [
   {
     id: 'heyuan', name: '同数相合', game: 'merge', theme: 'heyuan', twist: 'heyuan',
     desc: '整行整列往一个方向挤，同数相撞就合成双倍；空出来的格子里再补一块新的。',
-    tip: '盘满又相邻无同数即走火，合出本段目标块就收功',
+    tip: '盘满又相邻无同数即失败，合出本段目标块就完成',
     base: 34,
     params: { cols: 4, rows: 4 },
   },
@@ -585,7 +585,7 @@ function lightsLevelOf(stageIndex) {
 // 九宫填数的段位表：盘面规格 / 挖洞数 / 时限 / 三条时间线。
 // 规格按档递进：4×4 先把「行、列、宫各一遍」看懂，6×6 换宫格形状，9×9 才是正经数独。
 // 挖洞越多越难；时限给得比 B 线宽一截，是为了让「填完但慢」还有个 C，
-// 而不是一超线就直接判负——没填完（走火）和填得慢（C）是两件事。
+// 而不是一超线就直接判负——没填完（失败）和填得慢（C）是两件事。
 const SUDOKU_LEVELS = [
   { size: 4, holes: 8, timeLimit: 150, tS: 45, tA: 70, tB: 100 },
   { size: 6, holes: 14, timeLimit: 240, tS: 80, tA: 120, tB: 170 },
@@ -1541,12 +1541,16 @@ function stageDetail(method, stageIndex) {
       ? changes.map(function (c) { return c.text; }).join(' · ')
       : '入门基准：节奏最缓、目标最宽，宜先练稳本门火候。';
   }
+  // brief 是准备页用的整句（含罚时与 S 线），局内 HUD 塞不下。短版取前两截：
+  // 每门的前两截都是「盘多大 + 本段最要紧的那条规格」，不另写一张与 brief 会漂的表。
+  const short = brief.split(' · ').slice(0, 2).join(' · ');
   return {
     key: d.key,
     name: d.name,
     qiBase: d.qi,
     desc: d.desc,
     brief: brief,
+    short: short,
     changes: changes,
   };
 }
@@ -1618,7 +1622,7 @@ const STAGE_RULES = {
   // 留影只是把照见的那一对多留一会儿；记印只记「自己刚看过的那一象」——两条都没替玩家翻过一张牌。
   seal: [
     { at: 3, name: '留影', short: '照见到点下一处才散', desc: '精纯起入定照见的这一对留到点下一处才收：省一次「看一眼就得赶紧背下来」，照见次数照样扣' },
-    { at: 5, name: '记印', short: '翻错过的牌背留痕', desc: '化境起翻错的两处阖上后，牌背留一道极淡的卦象——记的是你自己刚看过的那一象，不是替你看牌' },
+    { at: 5, name: '记印', short: '翻错过的牌背留痕', desc: '化境起翻错的两处合上后，牌背留一道极淡的卦象——记的是你自己刚看过的那一象，不是替你看牌' },
   ],
 };
 

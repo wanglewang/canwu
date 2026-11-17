@@ -770,9 +770,9 @@ function create(ctx) {
       done = true;
       bag.clear();
       vm.phase = 'done';
-      vm.status = '收功';
+      vm.status = '结束';
       render();
-      ctx.finish({ grade: 'F', score: score, summary: '中途收功' });
+      ctx.finish({ grade: 'F', score: score, summary: '中途结束' });
     },
     destroy: function () { bag.clear(); },
   });

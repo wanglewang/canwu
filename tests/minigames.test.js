@@ -227,7 +227,7 @@ function actionFor(game) {
     };
   }
   if (game === 'blocks') {
-    // 灵石自己会落、堆到顶就收功；方向键的手感由下面的专项断言单独验。
+    // 灵石自己会落、堆到顶就完成；方向键的手感由下面的专项断言单独验。
     return function () {};
   }
   if (game === 'sudoku') {
@@ -971,7 +971,7 @@ check('阵灯推演：S / A / B / C / F 五档都真的拿得到', function () {
   } finally { restoreClock(); }
 });
 
-check('阵灯推演：步数用尽还没全亮即阵溃，按走火 F 收场', function () {
+check('阵灯推演：步数用尽还没全亮即阵溃，按失败 F 收场', function () {
   installClock();
   try {
     const m = data.getMethod('arrayEye');
@@ -995,8 +995,8 @@ check('阵灯推演：步数用尽还没全亮即阵溃，按走火 F 收场', f
       guard += 1;
     }
     assert.ok(ctx.st.finished, '步数用尽了还没结算');
-    // 阵溃是「没解开」，不是「解得糙」：走火 F，与步数超两倍的 C 分开。
-    assert.strictEqual(ctx.st.finished.grade, 'F', '阵溃不是走火 F：' + ctx.st.finished.grade);
+    // 阵溃是「没解开」，不是「解得糙」：失败 F，与步数超两倍的 C 分开。
+    assert.strictEqual(ctx.st.finished.grade, 'F', '阵溃不是失败 F：' + ctx.st.finished.grade);
     assert.ok(/阵溃/.test(ctx.st.finished.summary), '结算没写阵溃：' + ctx.st.finished.summary);
     ctx.c.destroy();
   } finally { restoreClock(); }
@@ -2134,9 +2134,9 @@ check('首局手把手只给「自带脚本」的玩法，不是所有玩法硬�
   assert.strictEqual(index.createTeach('click', {}), null, '没有脚本却返回了控制器');
 });
 
-// 走火（F）与粗浅（C）是两个结论：前者是「这一局没走完」，后者是「走完了但糙」。
+// 失败（F）与粗浅（C）是两个结论：前者是「这一局没走完」，后者是「走完了但糙」。
 // 把没走完算成 C，玩家会以为再练练就好；把打得糙算成 F，又等于抹掉一局的努力。
-check('走火：有失败态的玩法判负给 F，没有失败态的玩法不许瞎给', function () {
+check('失败：有失败态的玩法判负给 F，没有失败态的玩法不许瞎给', function () {
   const fs = require('fs');
   const path = require('path');
   const root = path.join(__dirname, '..', 'minigames');
@@ -2157,14 +2157,14 @@ check('走火：有失败态的玩法判负给 F，没有失败态的玩法不�
     biggest: /finishOnce\('F', '时辰到/,
   };
   Object.keys(mustBeF).forEach(function (f) {
-    assert.ok(mustBeF[f].test(readMod(f)), f + '.js 的判负分支没给走火 F');
+    assert.ok(mustBeF[f].test(readMod(f)), f + '.js 的判负分支没给失败 F');
   });
 
   // 没有「达成/未达成」的玩法（一局有自然终点）不许出现第二种 F：
-  // 唯一合法的 F 是 abandon（中途收功），那是玩家自己退的，不是打崩的。
+  // 唯一合法的 F 是 abandon（中途结束），那是玩家自己退的，不是打崩的。
   ['click', 'tempo', 'match', 'blocks'].forEach(function (f) {
     const hits = readMod(f).match(/finishOnce\('F'|grade: 'F'/g) || [];
-    assert.ok(hits.length <= 1, f + '.js 把「时间到」也判成了走火（F 只该留给中途收功）');
+    assert.ok(hits.length <= 1, f + '.js 把「时间到」也判成了失败（F 只该留给中途结束）');
   });
 
   // 有失败态的玩法，说明页必须写出这条：玩家要能在开局前知道「崩了会掉到哪」。
@@ -2173,14 +2173,14 @@ check('走火：有失败态的玩法判负给 F，没有失败态的玩法不�
     const r = mod.lines(data.buildParams(m, 'entry'), 'entry');
     if (mustBeF[m.game]) {
       assert.ok(r.fail, m.id + ' 有失败态却没在说明页写 fail 线');
-      assert.ok(/走火\s*F|走火（F）/.test(r.fail), m.id + ' 的 fail 线没说清是走火 F：' + r.fail);
+      assert.ok(/失败\s*F|失败（F）/.test(r.fail), m.id + ' 的 fail 线没说清是失败 F：' + r.fail);
     } else {
       assert.ok(!r.fail, m.id + ' 没有失败态，却写了 fail 线');
     }
   }
 });
 
-check('太虚照见诀：时辰到还没通完就是走火 F', function () {
+check('太虚照见诀：时辰到还没通完就是失败 F', function () {
   installClock();
   try {
     const method = data.getMethod('seal');
@@ -2253,7 +2253,7 @@ check('顺序点格：盘上不标「下一个在哪」，五档各自换盘面�
 });
 
 check('顺序点格：罚时只吃评级，不提前收场', function () {
-  // 走火（F）＝「一局没走完」，判据只能是实际经过的时辰。
+  // 失败（F）＝「一局没走完」，判据只能是实际经过的时辰。
   // 旧版把罚时也累进这个判据里，于是绝境档连错四次就能把一局打得不错的人判成 F，
   // 与「点错只是纪录变差」「本门只奖不罚」两句话都相反。
   installClock();
@@ -2270,7 +2270,7 @@ check('顺序点格：罚时只吃评级，不提前收场', function () {
     for (let i = 0; i < times; i += 1) ctx.c.tap(wrongIdx);
     // 先把时钟推过十秒，逼它真的走几拍——若还按「实际 + 罚时」判，这里就该收场了。
     advance(10000);
-    assert.strictEqual(ctx.st.finished, null, '罚时把一局判成了走火（F 只该留给「没走完」）');
+    assert.strictEqual(ctx.st.finished, null, '罚时把一局判成了失败（F 只该留给「没走完」）');
     assert.ok(vm.timeText && vm.timeText !== '00:00', '时辰被罚时吃空了：倒计时该只走实际时间');
     for (let v = 1; v <= n; v += 1) ctx.c.tap(vm.schulte.order.indexOf(v));
     assert.ok(ctx.st.finished, '点完整盘没有结算');
@@ -2281,7 +2281,7 @@ check('顺序点格：罚时只吃评级，不提前收场', function () {
 
 check('顺序点格：200 关都留得出 C 带，点完了但慢要有落处', function () {
   // 这一门的时辰不是参数，是「B 线 + 8」现推的。章内按 lineScale 往紧里收时，
-  // 一旦把时辰收进 B 线里，C 档就没有落处：玩家过了 B 线却被判走火，
+  // 一旦把时辰收进 B 线里，C 档就没有落处：玩家过了 B 线却被判失败，
   // 而「C 是走完了但糙」正是这一门唯一给得起的耐心。这个坑在别的门里踩过三次
   // （预算 < 2×最优 → C 档不存在），所以逐关复算，而不是只看五档表头。
   installClock();
@@ -2416,7 +2416,7 @@ check('推石入位：图每局现抽，可解、落在本档区间、同档不�
       assert.ok(board, keys[i] + ' 抽不出图');
       assert.ok(board.optimal >= p.minOpt && board.optimal <= p.maxOpt,
         keys[i] + ' 抽到的图最优 ' + board.optimal + ' 推，超出本档 ' + p.minOpt + '～' + p.maxOpt);
-      // 真能走完：解不出来就是把一张死局丢给玩家，而这一门有走火 F，玩家得付灵石的账。
+      // 真能走完：解不出来就是把一张死局丢给玩家，而这一门有失败 F，玩家得付灵石的账。
       assert.ok(pushboxMod.solutionMoves(board.rows), keys[i] + ' 抽到的图走不通');
       // 石箱与阵位必须一一对应：少一处阵位，这一局不用推就完成了。
       const flat = board.rows.join('');
@@ -2562,9 +2562,9 @@ check('落石垒基：10×20 标准场地、7-bag、三块预告、落定延迟�
     assert.deepStrictEqual(mod.fullRows(b2, 10, 4), [2, 3], '满行报错');
     assert.strictEqual(mod.clearLines(b2, 10, 4).lines, 2, '化的行数与满行不符');
 
-    // ⑪ 收功：中途收功只该报中途收功这一个 F，不能把「时间到」也判成走火。
+    // ⑪ 结束：中途结束只该报中途结束这一个 F，不能把「时间到」也判成失败。
     ctrl.destroy();
-    assert.strictEqual(res, null, '还没收功就结算了');
+    assert.strictEqual(res, null, '还没结束就结算了');
   } finally {
     restoreClock();
   }
@@ -2704,7 +2704,7 @@ check('牵灵引线：S / A / B / C 四档都真的拿得到，未收干净才�
       let guard = 0;
       while (leftOf() > left && guard < 200) {
         guard += 1;
-        // 照纹每次少 2 息；差 1 息时走一秒，别把剩余息压穿到 0（那是走火）。
+        // 照纹每次少 2 息；差 1 息时走一秒，别把剩余息压穿到 0（那是失败）。
         if (leftOf() - left >= 2) c.hint();
         else advance(1000);
       }
@@ -2728,7 +2728,7 @@ check('牵灵引线：S / A / B / C 四档都真的拿得到，未收干净才�
   } finally { restoreClock(); }
 });
 
-check('牵灵引线：局内不报「已入 S」，时辰到还剩对子才是走火 F', function () {
+check('牵灵引线：局内不报「已入 S」，时辰到还剩对子才是失败 F', function () {
   const mod = require('../minigames/link.js');
   const m = data.getMethod('linkpair');
   const params = data.buildParams(m, 'novice');
@@ -2757,7 +2757,7 @@ check('牵灵引线：局内不报「已入 S」，时辰到还剩对子才是�
     advance(80000);
     assert.ok(fin, '时辰到没结算');
     assert.strictEqual(fin.grade, 'F', '没收干净却给了 ' + fin.grade);
-    assert.ok(/还剩/.test(fin.summary), '走火的结算没说清是没走完');
+    assert.ok(/还剩/.test(fin.summary), '失败的结算没说清是没走完');
     c.destroy();
   } finally { restoreClock(); }
 });

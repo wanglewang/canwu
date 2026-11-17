@@ -7,7 +7,7 @@
 // 与「三秀同收」的区别：三消是换相邻两格凑三连，这里是同一行整体滑到底、撞上才合。
 //
 // 一局一盘：四条方向键把全盘往那个方向挤，同数相撞合成双倍，空出来的格子里补一块新的。
-// 合出本段的目标块即收功；盘满又推不动了就是走火 F（无路可走，不是「打得糙」）。
+// 合出本段的目标块即完成；盘满又推不动了就是失败 F（无路可走，不是「打得糙」）。
 // 评级看最大那一块合到多大，倍率之外不再看别的；得分（合并值累加）只用来破纪录。
 
 const C = require('./common.js');
@@ -110,7 +110,7 @@ function create(ctx) {
     vm.scoreText = '得分 ' + score;
     vm.combo = best;
     vm.comboText = best ? '最大一块 ' + best : '';
-    vm.goal = best >= target ? '已合出目标块' : '再合到 ' + target + ' 就收功';
+    vm.goal = best >= target ? '已合出目标块' : '再合到 ' + target + ' 就完成';
     vm.gradeNow = best >= lim[0] ? 'S' : best >= lim[1] ? 'A' : best >= lim[2] ? 'B' : 'C';
     vm.hint = '四向滑动 · ' + costText;
   }
@@ -248,7 +248,7 @@ function create(ctx) {
       C.flash(vm, '合 +' + roundGain, 'good');
     }
     if (promoted) {
-      C.flash(vm, '合出 ' + target + ' · 收功', 'gold');
+      C.flash(vm, '合出 ' + target + ' · 完成', 'gold');
       finishOnce(gradeOf(), '合出 ' + best + ' 一块 · ' + moves + ' 手');
       return;
     }
@@ -297,7 +297,7 @@ function create(ctx) {
   return C.fillController({
     start: start,
     move: move,
-    abandon: function () { finishOnce('F', '中途收功'); },
+    abandon: function () { finishOnce('F', '中途结束'); },
     destroy: function () { bag.clear(); },
   });
 }
@@ -306,14 +306,14 @@ function lines(p) {
   const lim = linesOf(p);
   return {
     rule: '按最大那一块合到多大评级（本段起手 '
-      + Math.max(2, Math.min(5, (p && p.startTiles) || 2)) + ' 块 · 合出目标块即收功）',
+      + Math.max(2, Math.min(5, (p && p.startTiles) || 2)) + ' 块 · 合出目标块即完成）',
     items: [
       'S：合出 ' + lim[0] + ' 一块',
       'A：合出 ' + lim[1] + ' 一块',
       'B：合出 ' + lim[2] + ' 一块',
       'C：没合到 ' + lim[2] + ' 一块',
     ],
-    fail: '盘满且相邻没有同数、再也推不动 → 走火 F，这一局没有收益',
+    fail: '盘满且相邻没有同数、再也推不动 → 失败 F，这一局没有收益',
   };
 }
 

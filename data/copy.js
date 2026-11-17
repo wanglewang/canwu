@@ -28,7 +28,7 @@ const TERMS = [
     { key: 'prof', name: '熟练度', group: '成长', desc: '每门功法单独累计，练深了抬属性加成、逐步开本门新法。它不管难度：难度靠一关一关走通，走通才开下一关。' },
     { key: 'tier', name: '火候', group: '成长', desc: '熟练度的六级：生涩 → 初窥 → 渐熟 → 精纯 → 通玄 → 化境。只管属性加成与本门新法，不算关卡。' },
     { key: 'rank', name: '品阶', group: '成长', desc: '功法分天地玄黄四阶，决定运功耗气、属性系数与可修境界，不决定难度、也不加速熟练度。' },
-    { key: 'combo', name: '连 S 倍率', group: '成长', desc: '同一门功法连续拿 S，本局熟练度按 1.5 倍一层叠上去，最多十层；C / B / A、走火或收功都会清零。' },
+    { key: 'combo', name: '连 S 倍率', group: '成长', desc: '同一门功法连续拿 S，本局熟练度按 1.5 倍一层叠上去，最多十层；C / B / A、失败或中途结束都会清零。' },
     // 两种货币是新经济的骨架，必须能被查：一个只管花、一个只管攒，玩家分得清才不会问「灵力能买什么」。
     { key: 'qi', name: '灵力', group: '成长', desc: '运功的根本。闭关每一分钟养回 0.5 点，洞府里随时能打坐收一笔；参悟与切磋一次耗掉几点到几十点。有上限（气海：境界 + 真元），满了不再生。灵石能买它，它买不回灵石。' },
     { key: 'qihai', name: '气海', group: '成长', desc: '灵力的上限：境界基数（炼气 150 → 元婴 620）+ 真元每点 2 点，再乘心法的扩池加成。满了不再生，破境会拓深并当场补满。' },
@@ -42,12 +42,12 @@ const TERMS = [
     { key: 'cangjingge', name: '藏经阁', group: '去处', desc: '功法页里用灵石兑换功法的地方。灵石在这里买的是功法，在洞府里买的是灵力，两处都是花，来路只有切磋与秘境。' },
     { key: 'jiyuan', name: '机缘', group: '去处', desc: '参悟时极小概率拾得残卷，是「不花灵石拿功法」的第三条路；不给灵力也不给灵石。' },
     { key: 'codex', name: '功法图鉴', group: '去处', desc: '功法页里点开任意一枚玉简展开的详情：玩法规则、练成所得与习得路径。未习得也能查全本，锁的只是开练。' },
-    { key: 'worlds', name: '此界之外', group: '去处', desc: '尚未开放的后续世界；当前只有青云界可玩。' },
+    { key: 'worlds', name: '此界之外', group: '去处', desc: '暂未开放的后续世界；当前只有青云界可玩。' },
     { key: 'code', name: '战力码', group: '对战', desc: '以 CW1- 开头的一串码。复制给朋友，对方粘贴后就能和你的镜像过招。' },
     { key: 'mirror', name: '镜像', group: '对战', desc: '按战力码还原出的「另一个人」，不用同时在线也能打一场。' },
     { key: 'mijing', name: '秘境', group: '对战', desc: '只出灵石、不掉功法的去处，也是除切磋之外唯一的灵石来源。每场都要运功 5 点灵力。' },
     { key: 'stageRule', name: '本门新法', group: '玩法', desc: '熟练度到阶段后新增的规则或便利，每门功法各不相同，准备页会逐条列出。' },
-    { key: 'shen', name: '心神', group: '玩法', desc: '部分玩法的容错次数，误触一次扣一盏，耗尽就收功。' },
+    { key: 'shen', name: '心神', group: '玩法', desc: '部分玩法的容错次数，误触一次扣一盏，耗尽即失败。' },
     { key: 'pause', name: '收势', group: '玩法', desc: '刀法大成后的规矩：刀划到靶心时停一拍再抬手，才算这一招收得稳。' },
     // 「息」是整套参悟的计时单位，HUD、香炷、罚时全按它走，却从来没解释过。
     { key: 'xi', name: '息', group: '玩法', desc: '计时单位，一息即一秒。局内那一炷香、倒计时与「扣一息」都按息算。' },
@@ -56,7 +56,8 @@ const TERMS = [
 // 评级中文名只此一份。以前 world.js 写「S=圆满」、旧修炼页写「S=绝佳」，
 // 两套叫法并存，而且「圆满」还是段位名——结算页显示「圆满」会让人以为晋了段。
 // 一律避开段位词（未入门 / 入门 / 小成 / 大成 / 圆满 / 大圆满）。
-const GRADE_TITLE = { S: '绝佳', A: '上乘', B: '中平', C: '粗浅', F: '走火' };
+// F 写「失败」而不是「走火」：玩家要的是「这一局没过」，不是一记需要查词典的暗号。
+const GRADE_TITLE = { S: '绝佳', A: '上乘', B: '中平', C: '粗浅', F: '失败' };
 
 // 跨页复用文案。WXML 只能写 {{copy.xxx}}，不许再抄一遍字面量。
 const UI = {
@@ -70,9 +71,9 @@ const UI = {
     loading: '正在读取进度…',
     errorTitle: '读取存档失败',
     errorDesc: '可以再试一次，或到「道牒」导入存档码。',
-    emptyLog: '尚无动静，且去参一局。',
-    emptyBoard: '榜单尚空，斗一场便留名。',
-    emptySkills: '尚未习得功法',
+    emptyLog: '暂无记录，可先参悟一局。',
+    emptyBoard: '榜单暂无记录，参悟一局就能上榜。',
+    emptySkills: '暂未习得功法',
 
     // 按钮：同一动作只有一个说法。两级不许混成一个词：
     //   参悟     = 从功法列表进这一门的详情（还没开局，进去先看关卡与代价）；
@@ -80,8 +81,8 @@ const UI = {
     actions: {
         start: '开始参悟',
         practice: '参悟',
-        swap: '另择 ›',
-        leave: '暂且退去',
+        swap: '换一门 ›',
+        leave: '退出',
         close: '关闭',
         cancel: '取消',
         // 领奖别用自造词：它同时被领奖弹层和纯关闭弹层用，
@@ -112,12 +113,15 @@ const UI = {
         allAchievements: '全部成就',
         // 参悟结算：金按钮是「再来一局」（打完多半还想连刷），文字链才是「留在本页」——
         // 留下的是刚打完的那一屏盘面，不是退到准备页。
-        stay: '留于此处',
-        again: '再参一局',
+        stay: '留在本页',
+        again: '再来一局',
         back: '返回',
+        // 局内右上角那个小字：中途退出本局。不写「结束本局」——那个位置只有两个字宽，
+        // 而且它问完再退，写长了反而像主按钮。
+        endRound: '结束',
         backSkills: '返回功法',
         backHome: '回洞府',
-        cancelStart: '容再思量',
+        cancelStart: '暂不开始',
         reviewRecord: '上局战绩',
         // 每页唯一的「说明」入口。参悟页的这一处在准备页右上角：
         // 局中切页=本局作废，所以整篇规则只能在开局前看。
@@ -126,7 +130,7 @@ const UI = {
         // 复位只把这一盘放回开局，是本局内的可逆操作。
         resetBoard: '复原本局',
         // 首局手把手：跳过就是「我看懂了」，不用二次确认——它本来就不是必须走完的门槛。
-        skipTeach: '略过指引',
+        skipTeach: '跳过指引',
     },
 
     // 功法页两个分区，是「同一座功法楼的两层」，不是两个页面：
@@ -157,7 +161,7 @@ const UI = {
         duel: '约战',
         secrets: '可探之处',
         // 参悟准备页只剩这一块讲规则：一整句「这一局做什么」，整篇在说明页。
-        rule: '本局法度',
+        rule: '本局规则',
         more: '更多 · 修行记录与诸界',
         log: '修行记录',
         worlds: '诸界',
@@ -171,9 +175,21 @@ const UI = {
         codexUnlock: '如何习得',
         // 参悟准备页的「这一门」：原功法详情页那几段并进来，折起只占一行。
         // 换功法也在这一页（页内弹层），所以只留 swapTitle 一个标题。
-        archive: '本门要略',
+        archive: '本门简介',
         archiveFold: '来历与所得',
-        swapTitle: '另择一门',
+        swapTitle: '换一门功法',
+    },
+
+    // 跨页共用的短标签。玩家看的是盘与本局的进度，这些词不写进页面里，
+    // 免得主页和人物页各写一遍、改一处忘一处。
+    labels: {
+        boardSpec: '本段盘面',
+        boardChange: '本关变化',
+        todayDone: '今日已参悟',
+        dailyLeft: '还差',
+        times: '次',
+        progress: '功法进度',
+        rank: '战力仙榜',
     },
 
     // 功法图鉴：未习得也能查全本功法。状态与按钮只说明「现在能不能做什么」，不写黑话。
@@ -187,7 +203,7 @@ const UI = {
         cleared: '已战胜',
         walked: '已走过',
         unwalked: '未走过',
-        noRecord: '尚无战绩 · 可试一局',
+        noRecord: '暂无战绩 · 可试一局',
     },
 
     hints: {
@@ -232,7 +248,7 @@ function decayText(kind, realmName) {
 function practiceNote(cross, crossQi) {
     const save = '触类旁通 · 耗气 ×' + Number(crossQi).toFixed(2);
     return cross
-        ? '本局另择一门 · ' + save
+        ? '本局换了功法 · ' + save
         : '同一门连练不减所得 · 换一门另有' + save;
 }
 
@@ -247,11 +263,19 @@ function formatGain(qi, stone) {
     const parts = [];
     if (qi > 0) parts.push('灵力 +' + qi);
     if (stone > 0) parts.push('灵石 +' + stone);
-    return parts.length ? parts.join(' / ') : '无进项';
+    return parts.length ? parts.join(' / ') : '没有所得';
 }
 
 // 进度不在这里再包一层：它只有「当前 / 目标」两个数字、没有单位要拼，
 // WXML 直接写 {{a}} / {{b}}，tests/layout.test.js 会挡住无空格写法。
+// 名次不是这种「当前 / 目标」：没上榜时得一并说出差多少战力，才有个够得着的目标。
+function formatRank(rank) {
+    return rank > 0 ? '榜上第 ' + rank + ' 名' : '暂未上榜';
+}
+
+function formatRankGap(gap, rankLimit) {
+    return gap > 0 ? ' · 距第 ' + rankLimit + ' 名还差 ' + gap + ' 战力' : '';
+}
 
 module.exports = {
     BRAND: BRAND,
@@ -264,4 +288,6 @@ module.exports = {
     practiceNote: practiceNote,
     formatCost: formatCost,
     formatGain: formatGain,
+    formatRank: formatRank,
+    formatRankGap: formatRankGap,
 };

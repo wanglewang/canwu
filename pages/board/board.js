@@ -44,10 +44,8 @@ Page({
     const state = store.get();
     const result = await social.refreshBoard(state, !!force);
     const rows = result.board.ok ? result.board.rows : [];
-    let myRank = 0;
-    for (let i = 0; i < rows.length; i += 1) {
-      if (rows[i].isMe) { myRank = rows[i].rank; break; }
-    }
+    // 名次与主页读同一把尺子：两页各写一遍循环时，其中一页总会先坏。
+    const myRank = social.myRankOf(rows);
     this.setData({
       rows: rows.slice(0, 10),
       myRank: myRank,

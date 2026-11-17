@@ -218,7 +218,7 @@ const SKILLS = [
   },
   {
     id: 'heyuan', name: '丹道·同源叠元诀', type: '丹道', kind: 'skill', tier: 'huang', method: 'heyuan',
-    desc: '同数两块一撞就合成双倍，越往上越重；合出本档那一块即收功。',
+    desc: '同数两块一撞就合成双倍，越往上越重；合出本档那一块即完成。',
     flavor: '一加一的道理，练到最后是 1024 加 1024。',
     bonus: { ling: 3, ti: 1 },
     effect: { type: 'power', value: 0.05, text: '叠元：对战战力 +5%' },

@@ -47,7 +47,7 @@ function create(ctx) {
     holding = false;
     vm.charge.holding = false;
     vm.phase = 'done';
-    vm.status = '收功';
+    vm.status = '结束';
     vm.banner = grade === 'S' ? (theme.praise || '破关') : '';
     render();
     ctx.finish({ grade: grade, score: Math.round(value), summary: summary });
@@ -119,7 +119,7 @@ function create(ctx) {
     press: press,
     release: release,
     tap: tapFallback,
-    abandon: function () { finishOnce('F', '中途收功'); },
+    abandon: function () { finishOnce('F', '中途结束'); },
     destroy: function () { bag.clear(); },
   });
 }

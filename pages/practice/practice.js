@@ -88,6 +88,7 @@ Page({
     nextText: '',
     nextBenefit: '',
     stageBoardBrief: '',
+    stageBoardShort: '',
     goalText: '',
     stageKey: 'novice',
     // 关卡：一门一条 1–1000 的长线，五段。关只由「走通了几关」定，与熟练度无关。
@@ -249,7 +250,7 @@ Page({
     }
     const s = skillData.getSkill(this.skillId);
     if (this.mode === 'practice' && (!s || !store.get().skills[this.skillId] || !store.get().skills[this.skillId].unlocked)) {
-      toast('尚未习得这门功法');
+      toast('暂未习得这门功法');
       setTimeout(function () { wx.navigateBack(); }, 900);
       return;
     }
@@ -286,7 +287,7 @@ Page({
   },
 
   // 「这一局还在打吗」：在局内、没出结算，也不是「留在终局那一屏」。
-  // 收功、左上角返回、切页三种离开方式都按这一个判据，免得三处各写一套。
+  // 结束、左上角返回、切页三种离开方式都按这一个判据，免得三处各写一套。
   inRound: function () {
     if (!this.controller || !this.data.started) return false;
     if (this.data.showResult || this.data.boardHeld) return false;
@@ -294,15 +295,15 @@ Page({
     return true;
   },
 
-  // 收功要说的话：冲关局起手不扣灵力（布阵灵石要到结算才扣），
+  // 中途结束要说的话：冲关局起手不扣灵力（布阵灵石要到结算才扣），
   // 所以那句「起手耗去的灵力不退」在冲关里是假话，得分开写。
   abandonText: function (ask) {
-    const tail = ask ? '确定收功？' : '';
-    if (this.mode === 'breakthrough') return '本局作废，冲关未成不计所得。' + tail;
+    const tail = ask ? '确定结束？' : '';
+    if (this.mode === 'breakthrough') return '本局作废，冲关失败不计所得。' + tail;
     return '本局作废，不计所得；连 S 归零，起手耗去的灵力不退。' + tail;
   },
 
-  // 左上角返回与「收功」必须是同一件事：区别只在按钮在哪儿（右上角那个带字，
+  // 左上角返回与「结束」必须是同一件事：区别只在按钮在哪儿（右上角那个带字，
   // 左上角那个只有箭头），结果却一个是弹窗确认、一个是静默丢盘，玩家学不会。
   // 小程序的 pages 没有 onBackPress 可以拦原生返回，官方唯一的入口是
   // wx.enableAlertBeforeUnload——它会在导航栏返回 / 安卓 back 键上先弹一次询问。
@@ -321,9 +322,9 @@ Page({
     wx.disableAlertBeforeUnload({ fail: function () {} });
   },
 
-  // 一局没打完就离开（返回 / 收功 / 切页）＝这一局作废：
+  // 一局没打完就离开（返回 / 结束 / 切页）＝这一局作废：
   // **数值一笔不给**（熟练度、连 S 层数不动），但有两件账必须落地——
-  // ① 连 S 断掉。收功弹窗里写着「连 S 归零」，若只在点收功时兑现，
+  // ① 连 S 断掉。结束弹窗里写着「连 S 归零」，若只在点结束时兑现，
   //    那「预感这把拿不到 S 就按返回」就成了一条不花钱的保连击路子。
   // ② 记钟（markTouched）。玩家确实练了这一段，不给数值也该在列表里往前排。
   // 已经结算过的局不走这里（showResult / boardHeld 时 inRound 为假）。
@@ -358,7 +359,7 @@ Page({
   markTouched: function () {
     if (this.mode === 'breakthrough' || this.data.tutorial) return;
     if (!this.skillId || !this.data.started) return;
-    // 已经出结算的局，钟早就在 applyPractice / 收功那一路写过了。
+    // 已经出结算的局，钟早就在 applyPractice / 结束那一路写过了。
     if (this.data.showResult) return;
     if (!this.hasProgress()) return;
     const skillId = this.skillId;
@@ -407,6 +408,7 @@ Page({
         nextText: '目标 ' + info.nextName,
         nextBenefit: '',
         stageBoardBrief: '',
+        stageBoardShort: '',
         rankLabel: '',
         rankChar: '',
         rankRewardText: '',
@@ -463,7 +465,7 @@ Page({
     const bestText = best ? '本门最佳 ' + best.score + ' 分 · ' + best.grade : '';
 
     // 连 S 每门各算各的：只有「本门当前关」的 S 叠层，回关局不叠，
-    // C/B/A 与走火归零。一行只写「现在几层 / 下一局 S 值多少点」，整条曲线在说明页，别铺公式。
+    // C/B/A 与失败归零。一行只写「现在几层 / 下一局 S 值多少点」，整条曲线在说明页，别铺公式。
     const comboMax = worldData.COMBO_MAX;
     const comboNow = Math.min(comboMax, Math.floor(Number(state.sCombo && state.sCombo[skill.id]) || 0));
     const comboDots = [];
@@ -633,6 +635,8 @@ Page({
       // 这一段除了更贵还收紧了什么：stageDetail 已经算好了（亮起时长、口诀轮数…），
       // 以前只在数据里躺着没渲染，玩家只能看到「×1.70」。
       stageBoardBrief: stageInfo.brief,
+      // 局内只报短版：整句罚时与 S 线留在准备页，盘上这一行要一眼读完。
+      stageBoardShort: stageInfo.short,
       goalText: sLine,
       rankLabel: tier.label,
       rankChar: tier.name,
@@ -657,8 +661,8 @@ Page({
 
   buildGame: function () {
     if (this.controller) this.controller.destroy();
-    // 新一局默认不是「主动收功」：这个标记只由 onAbandon 置位，结算读完即失效。
-    // 同一条 F 有两种来历——主动退出（整局作废）与走火（一局打完但没成），
+    // 新一局默认不是「主动结束」：这个标记只由 onAbandon 置位，结算读完即失效。
+    // 同一条 F 有两种来历——主动退出（整局作废）与失败（一局打完但没成），
     // 收益与连 S 处置完全不同，所以必须在页面上分开。
     this.aborting = false;
     const state = store.get();
@@ -977,7 +981,7 @@ Page({
     if (this.data.showResult) mode = '';
     // 本局已终、盘面留在屏上：这一屏不能点盘面了，三个去处全在底栏。
     else if (this.data.boardHeld) mode = 'done';
-    // 教学盘没有「收功」也没有提示按钮：它连一步都不计，底栏不该出现任何可点项。
+    // 教学盘没有「结束」也没有提示按钮：它连一步都不计，底栏不该出现任何可点项。
     else if (this.data.tutorial) mode = '';
     // 撤销 / 复位 / 提示三者有一个就得出条：华容道只有「复位」，没有这一项就点不到。
     else if (this.data.started) mode = vm && (vm.extras.showUndo || vm.extras.showHint || vm.extras.showReset) ? 'tools' : '';
@@ -1002,7 +1006,7 @@ Page({
         content: '布阵要 ' + this.data.stoneCost + ' 枚灵石，你还差 ' + lack
           + ' 枚。灵石只能靠切磋与秘境挣——先回洞府，从「仙门切磋」或「秘境探索」走一趟。',
         confirmText: '去切磋',
-        cancelText: '再等等',
+        cancelText: '稍后',
         success: function (res) {
           if (res.confirm) wx.navigateTo({ url: '/pages/battle/battle' });
         },
@@ -1012,14 +1016,14 @@ Page({
     const lack = Math.max(0, this.data.qiCost - this.data.qi);
     wx.showModal({
       title: '灵力不足',
-      content: '本局需 ' + this.data.qiCost + ' 点，尚差 ' + lack
+      content: '本局需 ' + this.data.qiCost + ' 点，还差 ' + lack
         + ' 点（气海上限 ' + this.data.qiMax + '）。回洞府闭关打坐，每分钟 '
         + worldData.getWorld().idle.qiPerMinute + ' 点，约坐 '
         + Math.ceil(lack / worldData.getWorld().idle.qiPerMinute)
-        + ' 分钟可足' + (this.data.stone > 0 ? '；若是等不及，回洞府拿灵石换（1 枚 100 点）' : '')
+        + ' 分钟就够了' + (this.data.stone > 0 ? '；等不及的话，回洞府拿灵石换（1 枚 100 点）' : '')
         + '。上限不够用时，破境或练真元都能把气海拓深。',
       confirmText: '回洞府打坐',
-      cancelText: '容再思量',
+      cancelText: copy.UI.actions.cancelStart,
       success: function (res) {
         if (res.confirm) wx.switchTab({ url: '/pages/index/index' });
       },
@@ -1092,7 +1096,7 @@ Page({
 
   onStart: function () {
     if (!this.controller || this.data.started || this.data.countdown > 0) return;
-    // 新一局开始：上一局的「已结账」标记要清掉，否则这一局的收功 / 返回不会被断连 S。
+    // 新一局开始：上一局的「已结账」标记要清掉，否则这一局的结束 / 返回不会被断连 S。
     this.roundClosed = false;
     // 付不起就先拦：教学盘不结算也不扣气，可以照走；真局与冲关必须付得起。
     // 拦在起手，而不是打完再告诉玩家「其实你没气」——那时候盘的功夫已经白费了。
@@ -1108,7 +1112,7 @@ Page({
         const n = self.data.countdown - 1;
         if (n <= 0) {
           self.setData({ countdown: 0, started: true });
-          // 盘面一活就挂上返回询问：从这一刻起按左上角返回与点收功都是「作废」。
+          // 盘面一活就挂上返回询问：从这一刻起按左上角返回与点结束都是「作废」。
           self.armLeaveGuard();
           sfx.play('go');
           if (self.controller) self.controller.start();
@@ -1139,7 +1143,7 @@ Page({
   },
 
   // 倒数三秒里还能反悔：这时 controller.start() 还没调用，撤掉遮罩就是回到准备页，
-  // 不用先开局再「收功」。想看清规则、难度与本门新法的人有这一拍。
+  // 不用先开局再「结束」。想看清规则、难度与本门新法的人有这一拍。
   onCancelCountdown: function () {
     if (!this.pageAlive || this.data.countdown <= 0) return;
     this.clearCountdown();
@@ -1536,18 +1540,18 @@ Page({
     if (!this.controller || this.data.showResult) return;
     const self = this;
     wx.showModal({
-      title: '中途收功',
+      title: '中途结束',
       content: this.abandonText(true),
-      confirmText: '收功',
+      confirmText: '结束',
       confirmColor: '#b4453c',
       success: function (res) {
         if (res.confirm && self.controller) {
-          // 先置位再收功：结算回来才知道这条 F 是玩家自己点的，而不是打崩的。
+          // 先置位再结束：结算回来才知道这条 F 是玩家自己点的，而不是打崩的。
           self.aborting = true;
           self.disarmLeaveGuard();
           // 结账只走这一处：断连 S + 记钟都在 closeAbandonedRound 里，
           // 和「左上角返回 / 切页离开」完全同一套（三条出口一种账）。
-          // 收功不进 applyPractice，所以连 S 必须在这里显式断——
+          // 中途结束不进 applyPractice，所以连 S 必须在这里显式断——
           // 否则预感拿不到 S 就退出，能把连击永久保住。
           self.closeAbandonedRound();
           self.controller.abandon();
@@ -1565,9 +1569,9 @@ Page({
     let rv;
 
     // F 有两种来历，处置完全不同：
-    //   ① 玩家点「收功」→ 这一局作废，不进结算，由 onAbandon 把连 S 归零；
+    //   ① 玩家点「结束」→ 这一局作废，不进结算，由 onAbandon 把连 S 归零；
     //   ② 玩法自己判负（阵溃 / 心神耗尽 / 时辰到没通完）→ 是一局打完的结果，
-    //      按「走火」结算：零收益（熟练度 / 灵力 / 灵石 / 加成都不给），连 S 断。
+    //      按失败结算：零收益（熟练度 / 灵力 / 灵石 / 加成都不给），连 S 断。
     // 突破局只有一种 F：气机一乱，走 ①。
     if (grade === 'F' && (this.aborting || this.mode === 'breakthrough')) {
       let btFail = null;
@@ -1577,12 +1581,16 @@ Page({
       }
       rv = {
         kind: 'abandon',
-        grade: '收',
+        // 大字位只放得下一个字，又不能写「F」——那是打崩的评级，玩家自己退的不算。
+        // 破折号 = 本局没有成绩，与下面「本局作废」是同一句话。
+        grade: '—',
+        aborted: true,
         gradeColor: '#8a8f83',
-        gradeTitle: copy.GRADE_TITLE.F,
-        headline: this.mode === 'breakthrough' ? '气机一乱' : '中途收功',
+        // 玩家自己退的，不写「失败」——大字已经是破折号，副标题只需说清这一局不算数。
+        gradeTitle: '本局作废',
+        headline: this.mode === 'breakthrough' ? '突破失败' : '中途结束',
         subline: this.mode === 'breakthrough'
-          ? '气机散了，未伤根基，再来一次就好。'
+          ? '气机散了，根基没伤，再来一次。'
           : '这回不算数，随时可以重新起手。',
         summary: res.summary,
         lines: btFail && btFail.stoneCost > 0
@@ -1628,9 +1636,9 @@ Page({
       // 参悟只换熟练度，不产资源：结算卡里灵力是「花掉的」，不是「赚到的」。
       // 这一行是玩家唯一能核对的账，所以耗气的三个修正也要在同一屏写清（见 notes）。
       const lines = r.wiped
-        // 走火不是「得 0 分」，是这一局不作数：一排 +0 会让人以为自己算错了。
+        // 失败不是「得 0 分」，是这一局不作数：一排 +0 会让人以为自己算错了。
         ? [
-          { k: '所得', v: '无 · 走火' },
+          { k: '所得', v: '无 · 未完成' },
           { k: '灵力', v: '−' + r.qiCost + '（不退）' },
           { k: '局内得分', v: String(res.score || 0) },
         ]
@@ -1645,10 +1653,22 @@ Page({
             v: r.stageName + ' · 第 ' + r.level + ' / ' + r.levelTotal + ' 关'
               + (r.levelWasCurrent ? '（本关）' : ' · 回关'),
           }] : []),
+          // 结算也报一次盘面规格：玩家打完最容易问「刚才那局难在哪」，
+          // 只在准备屏说过一次等于没说。整句 brief 放不下，用与局内同一份短版。
+          ...(this.data.stageBoardShort ? [{
+            k: copy.UI.labels.boardSpec,
+            v: this.data.stageBoardShort,
+          }] : []),
+          // 兜底句「与上一关规格相同」每关都出现，摆到结算只会像卡住了；
+          // 真有看得见的变化才单列一行。
+          ...(this.data.levelChange && this.data.levelChange.indexOf('与上一关规格相同') !== 0 ? [{
+            k: copy.UI.labels.boardChange,
+            v: this.data.levelChange,
+          }] : []),
           { k: '灵力', v: '−' + r.qiCost + ' · 余 ' + r.qiAfter + ' / ' + r.qiMax },
           { k: '局内得分', v: String(res.score || 0) },
         ];
-      // 走火没给加成：这行留着会让玩家以为「崩了还蹭到了 30 分钟加速」。
+      // 失败没给加成：这行留着会让玩家以为「崩了还蹭到了 30 分钟加速」。
       if (!r.wiped) lines.push({ k: '挂机加速', v: '×' + r.buffMultiplier.toFixed(1) + ' · 30 分钟' });
       lines.push({ k: '当前熟练度', v: String(r.profAfter) });
       // 战力是阶梯值：只跟段位系数与境界加成走，段位不跳它就一分不动。
@@ -1663,10 +1683,10 @@ Page({
       // 玩法层可以带自己的评级依据（星罗点灯诀写「走了几步 / 最优几步 / 为什么不是 S」）。
       // 它排在最前：玩家最先想知道的是这一局本身，而不是连 S 进度。
       const notes = Array.isArray(res.notes) ? res.notes.slice() : [];
-      // 走火不是「成绩差」，是没走完：先把理由摆在最前，玩家才知道这一局到底栽在哪。
+      // 失败不是「成绩差」，是没走完：先把理由摆在最前，玩家才知道这一局到底栽在哪。
       // 灵力不退是这套经济的硬规则——起手就烧了，崩掉的只是熟练度与加成。
       if (grade === 'F') {
-        notes.unshift('本局未走完，按「走火」不计所得：熟练度与挂机加成不给、连 S 归零；'
+        notes.unshift('本局未走完，不计所得：熟练度与挂机加成不给、连 S 归零；'
           + '起手烧掉的 ' + r.qiCost + ' 点灵力不退。');
       }
       // 耗气要当场可复算：玩家看到「灵力 −17」，得知道这个 17 是怎么来的。
@@ -1700,7 +1720,7 @@ Page({
       if (r.comboActive) {
         notes.push('连 S ' + r.comboNow + ' / ' + r.comboMax + '：本局 34 × 1.5^'
           + (r.comboNow - 1) + ' → ' + r.comboGain + ' 点；下一局 S ' + r.comboNextGain
-          + ' 点' + (r.comboCapped ? '（已封顶）' : '') + '。非 S 或走火都会归零。');
+          + ' 点' + (r.comboCapped ? '（已封顶）' : '') + '。非 S 或失败都会归零。');
       } else if (grade !== 'F' && r.comboTransparent) {
         notes.push('本门连 S ' + r.comboNow + ' 层原样保留：回关不叠也不清。');
       } else if (grade !== 'F') {
@@ -1724,11 +1744,11 @@ Page({
         kind: 'practice',
         grade: grade,
         gradeColor: color,
-        // 走火时 headline 与 gradeTitle 都会写「走火」，标题行会重复两遍；
-        // 这里让副标题改说「这一局没走完」，把「为什么一分不给」留在 notes 里。
-        gradeTitle: grade === 'F' ? '此局未竟' : gradeTitle,
+        // 失败时 headline 与 gradeTitle 都会写「失败」，标题行会重复两遍；
+        // 这里让副标题改说「本局未完成」，把「为什么一分不给」留在 notes 里。
+        gradeTitle: grade === 'F' ? '本局未完成' : gradeTitle,
         headline: grade === 'F'
-          ? '走火'
+          ? '失败'
           : (r.promoted ? '晋段 · ' + r.stageAfterName : '参悟完成'),
         subline: r.methodName + ' · ' + res.summary,
         summary: res.summary,
@@ -1759,8 +1779,8 @@ Page({
         if (rv.lines[i].k === '熟练度') gain = rv.lines[i].v;
       }
       // 这一行是准备页上唯一还看得见的上一局结论，所以写短、写准：
-      // 走火/收功各自一个词，别再拼「这一局没走完」那种一读就断的短语。
-      const briefTitle = rv.kind === 'abandon' ? '收功' : (grade === 'F' ? '走火' : rv.gradeTitle);
+      // 中途结束 / 失败各自一个词，别再拼「这一局没走完」那种一读就断的短语。
+      const briefTitle = rv.kind === 'abandon' ? '结束' : (grade === 'F' ? '失败' : rv.gradeTitle);
       recordBrief = '上局 · ' + (briefTitle || '')
         + (gain ? ' · ' + (gain === '已化境' ? '熟练度已化境' : gain + ' 熟练度') : '');
     }
@@ -1817,9 +1837,9 @@ Page({
   },
 
   // 结算卡次按钮与终局底栏共用的「返回功法」：回的是**这一门的静室准备屏**
-  // （品阶、火候、连 S、本门最佳、入门规则、本局法度都在那一屏），不是退出页面落到功法列表。
-  // 玩家是从这门点进来的，退出去等于多退了一层。普通结算、中途收功、留在本页之后，
-  // 三个入口都走同一条路——旧版只特判了收功，打完一局点「返回」照样掉到列表。
+  // （品阶、火候、连 S、本门最佳、入门规则、本局规则都在那一屏），不是退出页面落到功法列表。
+  // 玩家是从这门点进来的，退出去等于多退了一层。普通结算、中途结束、留在本页之后，
+  // 三个入口都走同一条路——旧版只特判了结束，打完一局点「返回」照样掉到列表。
   // 冲关局没有「这一门」可回，仍去功法页。
   onBackToSkill: function () {
     if (this.mode === 'breakthrough') {
@@ -1831,19 +1851,19 @@ Page({
     this.onQuitToPrep();
   },
 
-  // 次按钮：练习局的普通结算与中途收功都回本门静室；冲关局去功法页。
+  // 次按钮：练习局的普通结算与中途结束都回本门静室；冲关局去功法页。
   onSecondary: function () {
     this.onBackToSkill();
   },
 
   // 收起这一局，回到本页的准备屏。不 navigateBack：静室就是这一门功法的详情，
-  // 玩家想离开页面有左上角原生返回与准备屏底部的「暂且退去」，出口不必叠在结算卡上。
+  // 玩家想离开页面有左上角原生返回与准备屏底部的「退出」，出口不必叠在结算卡上。
   onQuitToPrep: function () {
     if (!this.pageAlive) return;
     this.clearSettleTimers();
     this.disarmLeaveGuard();
     if (this.controller) { this.controller.destroy(); this.controller = null; }
-    // 收功时置的两个标记要一起清：aborting 留着会让下一局的结算仍按「收」处置，
+    // 结束时置的两个标记要一起清：aborting 留着会让下一局的结算仍按「中途结束」处置，
     // roundClosed 留着会让下一局离开时不结账。
     this.aborting = false;
     this.roundClosed = false;

@@ -244,7 +244,7 @@ function create(ctx) {
     tickTimer = bag.after(tick, TICK);
   }
 
-  // 折一盏心神：还有心神就重整这一轮（题长不变），否则收功。
+  // 折一盏心神：还有心神就重整这一轮（题长不变），否则失败。
   function foldRound() {
     accepting = false;
     stopTick();
@@ -253,7 +253,7 @@ function create(ctx) {
     vm.hearts = { value: Math.max(0, lives), max: maxLives };
     vm.comboText = '';
     if (lives <= 0) {
-      // 心神折尽＝这一局没背完：走火，不是「分低」。
+      // 心神折尽＝这一局没背完：失败，不是「分低」。
       finishOnce('口诀散在第 ' + round + ' 轮 · 得分 ' + score, 'F');
       return;
     }
@@ -338,7 +338,7 @@ function create(ctx) {
     if (done || vm.phase !== 'flashing') return;
     // 一个字都还没闪：这不是抢记，是自杀。多半是手按住了屏幕，直接忽略。
     if (flashed <= 0) {
-      C.flash(vm, '还没起头 · 先看清头一字', 'bad');
+      C.flash(vm, '还没起头 · 先看清第一个字', 'bad');
       render();
       return;
     }
@@ -356,7 +356,7 @@ function create(ctx) {
     start: start,
     tap: tap,
     longpress: longpress,
-    abandon: function () { finishOnce('中途收功', 'F'); },
+    abandon: function () { finishOnce('中途结束', 'F'); },
     destroy: function () { bag.clear(); },
   });
 }
@@ -388,7 +388,7 @@ function lines(p) {
   return {
     rule: '按本局总分（理论满分 ' + fs + ' 分，按它的比例取线）',
     items: ['S ≥ ' + lim.s + ' 分', 'A ≥ ' + lim.a + ' 分', 'B ≥ ' + lim.b + ' 分', '其余为 C'],
-    fail: '心神全折（口诀散掉、这一局没背完）→ 走火 F，这一局没有收益',
+    fail: '心神全折（口诀散掉、这一局没背完）→ 失败 F，这一局没有收益',
   };
 }
 

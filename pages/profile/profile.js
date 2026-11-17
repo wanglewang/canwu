@@ -31,7 +31,7 @@ function appVersion() {
 }
 
 function timeLabel(ts) {
-  if (!ts) return '尚未同步';
+  if (!ts) return '暂未同步';
   const d = new Date(ts);
   const pad = function (n) { return n < 10 ? '0' + n : '' + n; };
   return pad(d.getHours()) + ':' + pad(d.getMinutes());
@@ -120,6 +120,16 @@ Page({
     const state = store.get();
     const ov = engine.getOverview(state);
     const top = engine.getTopSkills(state, 3);
+    // 人物页要报「走到了哪一段、第几关」：这一把尺子在静室里藏得太深，
+    // 玩家不进功法就完全看不到。主修用熟练度最高的那门，名字只取正名。
+    const main = top[0];
+    const progressLine = main
+      ? String(main.name).split(skillsData.NAME_RULE.sep).pop() + ' · ' + main.stageName
+        + ' · 已走通 ' + main.stageLevel + ' / ' + main.levelTotal + ' 关'
+      : '暂未习得功法';
+    const clearedTotal = engine.getSkillList(state).reduce(function (sum, s) {
+      return sum + (s.stageLevel || 0);
+    }, 0);
     const worlds = worldData.WORLDS.map(function (w) {
       return { id: w.id, label: w.label, name: w.name, enabled: w.enabled, intro: w.intro, style: w.style };
     });
@@ -175,7 +185,9 @@ Page({
       worlds: worlds,
       myCode: engine.battleCode(state),
       attrsLine: attrsLine,
-      statsLine: '习得 ' + ov.unlockedCount + ' / ' + ov.skillTotal + ' 门 · 参悟 ' + ov.practiceCount + ' 次 · 胜 ' + ov.wins + ' 场',
+      progressLine: progressLine,
+      statsLine: '习得 ' + ov.unlockedCount + ' / ' + ov.skillTotal + ' 门 · 共走通 ' + clearedTotal
+        + ' 关 · 参悟 ' + ov.practiceCount + ' 次 · 胜 ' + ov.wins + ' 场',
       syncLabel: sync.label,
       syncTone: sync.tone,
       achievements: achievements,
@@ -502,7 +514,7 @@ Page({
         const flushed = await store.flushCloud();
         if (!flushed.ok) {
           wx.showModal({
-            title: '还没同步成功',
+            title: '同步未成功',
             content: '当前有改动暂未写入云端，退出会清掉本机缓存。仍要退出吗？',
             confirmText: '仍要退出',
             confirmColor: '#b4453c',

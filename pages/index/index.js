@@ -3,6 +3,7 @@
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const share = require('../../utils/share.js');
+const social = require('../../utils/cloud-social.js');
 const copy = require('../../data/copy.js');
 const nav = require('../../data/navigation.js');
 const skillsData = require('../../data/skills.js');
@@ -23,6 +24,13 @@ Page({
     dailyReady: false,
     dailyGain: '',
     dailyAction: '',
+    // 份例进度常驻：只在领得到那一刻才出现，玩家一整天都看不到「今天练了几局」。
+    dailyCount: 0,
+    dailyTarget: 0,
+    dailyLeft: 0,
+    // 名次也常驻：仙榜原本只在子页露一次，且列表只有前十。
+    rankText: '',
+    rankGapText: '',
     idleReady: false,
     idleText: '',
     syncLabel: '',
@@ -44,6 +52,7 @@ Page({
     // 先清再挂：两次 onShow 之间没走 onHide 的话，不清会叠出第二个定时器。
     this.clearTick();
     this.refresh();
+    this.loadRank();
     // 灵力是参悟的油：坐着的每一分钟都在攒，所以这一行得自己走起来。
     // 半分钟刷一次只动这一行，不重算整页。
     const self = this;
@@ -97,6 +106,23 @@ Page({
       ? '已坐 ' + pending.minutes + ' 分 · 灵力 +' + pending.qi + ' / 上限 ' + pending.qiCap
       : '';
     this.setData({ idleReady: ready, idleText: text });
+  },
+
+  // 主页只报「我在榜上第几」和「差多少能上榜」，完整榜单仍在仙榜页。
+  // 读失败时不摆一个假名次：空字符串让那一行只剩标签，不把网络问题说成没上榜。
+  loadRank: async function () {
+    const state = store.get();
+    if (!state) return;
+    const result = await social.refreshBoard(state, false);
+    if (!result.board.ok) { this.setData({ rankText: '', rankGapText: '' }); return; }
+    const rows = result.board.rows;
+    const rank = social.myRankOf(rows);
+    this.setData({
+      rankText: copy.formatRank(rank),
+      rankGapText: rank > 0 ? '' : copy.formatRankGap(
+        social.rankGapOf(rows, engine.computePower(state)), social.RANK_LIMIT
+      ),
+    });
   },
 
   onMeditate: function () {
@@ -165,6 +191,9 @@ Page({
       breakPercent: breakPercent,
       hintText: hintText,
       dailyReady: dailyReady,
+      dailyCount: ov.daily.count,
+      dailyTarget: ov.daily.target,
+      dailyLeft: Math.max(0, ov.daily.target - ov.daily.count),
       // 领之前就写清能领多少：气海装不下时写「+60」再给 21，等于当场骗一次。
       // 气海一点空位都没有时，这一行仍然出现（玩家得知道有份例），但动作改成「气海已满」，
       // 别让人点一下才被告知领不了。

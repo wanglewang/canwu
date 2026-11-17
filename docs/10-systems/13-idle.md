@@ -43,7 +43,7 @@ meditate(state)             // 打坐 = 当场调一次 settleOffline
 
 ## 4. buff：刚练完，气机还热着
 
-`applyPractice` 在非走火时设一个 30 分钟的 buff：
+`applyPractice` 在非失败时设一个 30 分钟的 buff：
 
 | 上一局评级 | buff 倍率 |
 | --- | --- |
@@ -51,7 +51,7 @@ meditate(state)             // 打坐 = 当场调一次 settleOffline
 | A | ×1.5 |
 | B | ×1.25 |
 | C | ×1.1 |
-| F | 不设（走火没有加成） |
+| F | 不设（失败没有加成） |
 
 计算方式：落在 `buff.until` 之后的分钟按 ×multiplier 折算，其余按 1 折算。
 

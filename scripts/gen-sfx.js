@@ -214,7 +214,7 @@ const SOUNDS = {
     return b;
   },
 
-  // 走火：两音下行，同样拉开间隔
+  // 失败：两音下行，同样拉开间隔
   fail: function () {
     const b = blank(0.56);
     tone(b, {

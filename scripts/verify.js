@@ -434,16 +434,16 @@ for (const word of EFFECT_IMAGE_WORDS) {
   if (errors.length === errsBeforeRealm) checked += 1;
 }
 
-// 8b-2c. 走火（F）是整局作废，不是「最低一档」：倍率必须是 0，
+// 8b-2c. 失败（F）是整局作废，不是「最低一档」：倍率必须是 0，
 // 玩家看到的说法必须是「没有收益」，不许再写回「两成」这种打折口径。
 {
   const worldMod = require('../data/world.js');
-  if (worldMod.GRADE_FACTOR.F !== 0) errors.push('GRADE_FACTOR.F 不是 0：走火该整局作废，不是打两折');
+  if (worldMod.GRADE_FACTOR.F !== 0) errors.push('GRADE_FACTOR.F 不是 0：失败该整局作废，不是打两折');
   else checked += 1;
   let doubled = 0;
   for (const f of files.filter(function (x) { return /minigames[\\/][a-z]+\.js$/.test(x); })) {
     if (fs.readFileSync(f, 'utf8').indexOf('两成') >= 0) {
-      errors.push(rel(f) + ' 的说明文案又写回了「两成收益」：走火是零收益');
+      errors.push(rel(f) + ' 的说明文案又写回了「两成收益」：失败是零收益');
       doubled += 1;
     }
   }
@@ -1100,6 +1100,10 @@ const sharedCopy = [
   copy.UI.sections.settings, copy.UI.sections.battleCode,
   // 切磋与秘境共用「我的战力」与对手列表标题：两页各抄一遍就会有一页先改。
   copy.UI.sections.myPower, copy.UI.sections.rivals,
+  // 局内/结算/主页/人物页共用的短标签：散回 WXML 就会出现「本段盘面」和「本段」两套叫法。
+  copy.UI.labels.boardSpec, copy.UI.labels.boardChange,
+  copy.UI.labels.todayDone, copy.UI.labels.dailyLeft, copy.UI.labels.times,
+  copy.UI.labels.progress, copy.UI.labels.rank,
 ];
 for (const text of sharedCopy) {
   if (allWxml.indexOf('>' + text + '<') >= 0) errors.push('WXML 又硬编码了共享文案：' + text);
@@ -1263,7 +1267,7 @@ if (!fs.existsSync(checklistPath)) {
   } else checked += 1;
   if (doc.indexOf('四舍五入') < 0) errors.push('自检清单没写取整口径');
   else checked += 1;
-  // 连 S 叠倍率是熟练度的唯一曲线：三连 S 晋级的旧字段必须整体消失，收功必须断连。
+  // 连 S 叠倍率是熟练度的唯一曲线：三连 S 晋级的旧字段必须整体消失，结束必须断连。
   const worldSrc = fs.readFileSync(path.join(ROOT, 'data/world.js'), 'utf8');
   if (!/function comboGain\(/.test(worldSrc)) errors.push('data/world.js 没有连 S 曲线真源 comboGain()');
   else checked += 1;
@@ -1272,7 +1276,7 @@ if (!fs.existsSync(checklistPath)) {
   if (doc.indexOf('1307') < 0) errors.push('自检清单没写连 S 第 10 层封顶值 1307');
   else checked += 1;
   const pageSrc = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.js'), 'utf8');
-  if (!/engine\.breakCombo\(/.test(pageSrc)) errors.push('参悟页收功没接 breakCombo()，连击能靠中途退出保住');
+  if (!/engine\.breakCombo\(/.test(pageSrc)) errors.push('参悟页结束没接 breakCombo()，连击能靠中途退出保住');
   else checked += 1;
   if (/S_STREAK_GOAL|promotionGain|sStreakGoal/.test(gameSrc)) {
     errors.push('utils/game.js 还留着三连 S 晋级的旧字段');
@@ -1303,11 +1307,12 @@ if (!fs.existsSync(checklistPath)) {
   const readmeSrc = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
   if (readmeSrc.indexOf('docs/checklist-puzzle.md') < 0) errors.push('README 没有指到 docs/checklist-puzzle.md');
   else checked += 1;
-  // 最差那一档必须写清是「没走完」而不是「做糙了」：走火（F）与粗浅（C）是两个结论。
-  // 曾经所有 F 都被页面当成「中途收功」，打崩了一分收益都没有、还被说成「这回不算数」。
-  if (readmeSrc.indexOf('走火') < 0) errors.push('README 没写「走火（F）」这一档');
+  // 最差那一档必须写清是「没走完」而不是「做糙了」：失败（F）与粗浅（C）是两个结论。
+  // 曾经所有 F 都被页面当成「中途结束」，打崩了一分收益都没有、还被说成「这回不算数」。
+  // 断言盯住「F 叫失败」这个具体表述，不是「文档里有没有『失败』两个字」——后者满篇都是。
+  if (readmeSrc.indexOf('F「失败」') < 0) errors.push('README 没写「F＝失败」这一档');
   else checked += 1;
-  if (doc.indexOf('走火') < 0) errors.push('自检清单没写「走火（F）」：最差结局的语义没人守');
+  if (doc.indexOf('`F` 是失败') < 0) errors.push('自检清单没写「F 是失败」：最差结局的语义没人守');
   else checked += 1;
   // 有失败态的玩法必须在说明页给出 fail 线，缺了就等于玩家开局前不知道崩了会怎样。
   const failMods = ['lights', 'mines', 'memory', 'seal', 'link',

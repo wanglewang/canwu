@@ -72,7 +72,7 @@
 
   <!-- 两条都是"看规则"：合成一行，别在页尾排两段同类链接。 -->
   <view class="pg__foot">
-    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">此处说明</text>
+    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">本页说明</text>
     <text class="pg__foot__sep">·</text>
     <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoGuide">完整规则 ›</text>
   </view>

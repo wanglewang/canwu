@@ -16,7 +16,7 @@ const PROF_MAX = 99999;
 const PROF_C_RUNS = 9999;
 
 // 单局基础（连 S 层数 0 时）：C 10 是整套数值的锚，B 15、A 22.5→23、S 33.75→34。
-// F 是走火，整局作废，0 点。C/B/A 固定不叠层，且会把连 S 归零。
+// F 是失败，整局作废，0 点。C/B/A 固定不叠层，且会把连 S 归零。
 const PROF_BASE = { S: 34, A: 23, B: 15, C: 10, F: 0 };
 // 连 S：只有「本门当前关」的 S 才叠层，每局独立从 34 起算 ×1.5^(k-1) 后四舍五入，
 // 不是拿上一局的整数接着乘，也不是最后总和再取整。第 10 层封顶，第 11 局起锁死 1307。
@@ -54,17 +54,17 @@ const PROF_S_RUNS = (function () {
 // 一个也不重：重名会让「我小成了」有两种意思。
 // 也不许同音（旧的「初熟 / 纯熟」念出来一样，隔着屏幕看也分不清是哪一级）。
 const TIERS = [
-  { key: 'none', name: '生涩', threshold: 0, bonus: 0, color: '#9aa39a', desc: '尚无属性加成' },
+  { key: 'none', name: '生涩', threshold: 0, bonus: 0, color: '#9aa39a', desc: '暂无属性加成' },
   { key: 'basic', name: '初窥', threshold: 300, bonus: 1, color: '#3d8c74', desc: '属性加成 ×1' },
   { key: 'skilled', name: '渐熟', threshold: 1500, bonus: 1.8, color: '#2f6b5b', desc: '属性加成 ×1.8' },
-  { key: 'master', name: '精纯', threshold: 6000, bonus: 2.8, color: '#b8893b', desc: '属性加成 ×2.8，本门新法自此逐条开' },
+  { key: 'master', name: '精纯', threshold: 6000, bonus: 2.8, color: '#b8893b', desc: '属性加成 ×2.8，本门新法从这一级起逐条解锁' },
   { key: 'grand', name: '通玄', threshold: 24000, bonus: 4, color: '#b4453c', desc: '属性加成 ×4' },
   { key: 'perfect', name: '化境', threshold: PROF_MAX, bonus: 5, color: '#8a5cb0', desc: '属性加成 ×5，本门新法开到最后一条' },
 ];
 
 // 评级倍率：只决定这一局的挂机加速与评级观感，既不进熟练度，也不进资源产出。
 // 参悟已经不产灵力灵石了（见 data/economy.js），这一档现在只影响 buff 时长档位。
-// F 是 0，不是「最低一档」：走火＝这一局没走完，整局作废，熟练度、挂机加成都不给，
+// F 是 0，不是「最低一档」：失败＝这一局没走完，整局作废，熟练度、挂机加成都不给，
 // 已经烧掉的灵力也不退。C 才是「走完了但糙」的那一档（0.6）。
 const GRADE_FACTOR = { S: 1.5, A: 1.2, B: 1.0, C: 0.6, F: 0 };
 const GRADE_COLOR = { S: '#b4453c', A: '#b8893b', B: '#3d8c74', C: '#8a8f83', F: '#8a8f83' };

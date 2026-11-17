@@ -42,7 +42,7 @@
 
 `applyPractice()` 里的顺序是**先判作废，再判回打，再判 S，最后是普通评级**。顺序不能换。
 
-### 情况 A：走火（F）→ 0 点，断连
+### 情况 A：失败（F）→ 0 点，断连
 
 ```js
 const rawFactor = worldData.GRADE_FACTOR[grade];
@@ -53,7 +53,7 @@ const wiped = factor === 0;
 - 熟练度 **0**，连 S **归零**；
 - 灵力**不退**（起手就烧了）；
 - 不立纪录（`grade !== 'F'` 才写 `state.records`）；
-- 日志写「参悟 X 走火，本局无所得」，**不写「熟练度 +0」**——那读起来像 bug。
+- 日志写「参悟 X 失败，本局无所得」，**不写「熟练度 +0」**——那读起来像 bug。
 
 > `GRADE_FACTOR.F = 0` 是唯一的 0，所以不能用 `||` 兜底（`0 || 0.6` 会静默变成 0.6）。这行注释在代码里留了三年。
 
@@ -112,7 +112,7 @@ const gain = Math.min(rawGain, Math.max(0, worldData.PROF_MAX - rec.prof));
 
 ## 4. 评级对挂机的影响（唯一的「倍率」出口）
 
-`applyPractice` 在非走火时设一个 30 分钟的 buff：
+`applyPractice` 在非失败时设一个 30 分钟的 buff：
 
 | 评级 | buff 倍率 |
 | --- | --- |
@@ -130,8 +130,8 @@ const gain = Math.min(rawGain, Math.max(0, worldData.PROF_MAX - rec.prof));
 
 每门功法记一个「本门最佳」（`state.records[skillId]`）：
 
-- 只在**分数更高**且**不是走火**时更新；
-- 走火不立纪录——第一局崩掉就在准备页留下「本局最佳 0 分 · 走火」，玩家会以为那就是自己的水平；
+- 只在**分数更高**且**不是失败**时更新；
+- 失败不立纪录——第一局崩掉就在准备页留下「本局最佳 0 分 · 失败」，玩家会以为那就是自己的水平；
 - **分数不加任何收益**。评级管收益，分数管追求。
 
 ## 6. 被否决的方案
@@ -165,7 +165,7 @@ const gain = Math.min(rawGain, Math.max(0, worldData.PROF_MAX - rec.prof));
 | --- | --- |
 | 正常 | `参悟 刀法·开锋破军诀，熟练度 +34（灵力 −6）` |
 | 升火候 | `刀法·开锋破军诀 参悟至「渐熟」` |
-| 走火 | `参悟 刀法·开锋破军诀 走火，本局无所得` |
+| 失败 | `参悟 刀法·开锋破军诀 失败，本局无所得` |
 | 到顶 | `参悟 刀法·开锋破军诀，熟练度已圆满，本局只记战绩` |
 
 「+0」不出现在日志里，任何一条分支都不写它。
@@ -175,7 +175,7 @@ const gain = Math.min(rawGain, Math.max(0, worldData.PROF_MAX - rec.prof));
 - `utils/game.js` —— `applyPractice()`（四种情况的判定顺序、`advanced` 推进关卡）、`tierIndex()`、`breakCombo()`
 - `data/world.js` —— `TIERS`（`desc` 只说属性与新法，不提难度）、`PROF_BASE`、`PROF_MAX`、`GRADE_FACTOR`、`comboGain()`
 - `data/practice.js` —— `levelFactor()` / `profByLevel()`（按 本关÷当前关 折）、`clearedOf()` / `curLevelOf()`
-- `tests/game.test.js` —— 1–14 连逐局入账、非 S / 收功 / 走火断连、跨功法、回关解耦、大圆满后层数照常、v7→v8 迁移
+- `tests/game.test.js` —— 1–14 连逐局入账、非 S / 结束 / 失败断连、跨功法、回关解耦、大圆满后层数照常、v7→v8 迁移
 - `tests/rank.test.js` —— 回关系数对照表与单调性、回打不再叠第二刀、四品阶同值
 
 ## 待验

@@ -19,12 +19,12 @@
     <view wx:if="{{worldOpen}}" class="help-sec__body">
       <view class="world-row" wx:for="{{worlds}}" wx:key="id">
         <text class="world-row__name">{{item.label}} · {{item.name}}</text>
-        <text class="world-row__state">{{item.enabled ? '进行中' : '敬请期待'}}</text>
+        <text class="world-row__state">{{item.enabled ? '进行中' : '暂未开放'}}</text>
       </view>
     </view>
   </view>
 
   <view class="pg__foot">
-    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">此处说明 ›</text>
+    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">本页说明 ›</text>
   </view>
 </view>

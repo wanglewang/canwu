@@ -328,7 +328,7 @@ function create(ctx) {
 
   // 三条线都落在冗余手数上，因此五档的宽窄每局都一样，不随「抽到几步解的盘」变形。
   function gradeOf() {
-    // 阵溃不是「解得糙」，是没解开：走火（F），和「解开了但浪费太多」的 C 分开算。
+    // 阵溃不是「解得糙」，是没解开：失败（F），和「解开了但浪费太多」的 C 分开算。
     if (failed) return 'F';
     const w = wasted();
     let g;
@@ -608,7 +608,7 @@ function create(ctx) {
     abandon: function () {
       if (!done) {
         done = true;
-        ctx.finish({ grade: 'F', score: 0, summary: '中途收功' });
+        ctx.finish({ grade: 'F', score: 0, summary: '中途结束' });
       }
     },
   });
@@ -623,7 +623,7 @@ function lines(params) {
     items: ['S：正好走最优步数', 'A：比最优多 ' + A_WASTE + ' 步以内',
       'B：比最优多 ' + (slack - 2) + ' 步以内', '其余为 C（解开了，但多走太多）',
       '阵眼感应每看一眼算 ' + HINT_COST + ' 步；复原本局每局一次，用了本盘最高 A'],
-    fail: '比最优多走满 ' + slack + ' 步还没全亮（阵溃）→ 走火 F，这一局没有收益',
+    fail: '比最优多走满 ' + slack + ' 步还没全亮（阵溃）→ 失败 F，这一局没有收益',
   };
 }
 

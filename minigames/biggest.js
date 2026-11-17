@@ -8,7 +8,7 @@
 // 这里是十几个数字里挑最大，靠的是大小关系。
 //
 // 一局固定若干轮：每轮盘上重排一批数，点最大的那个进下一轮，走完即完成。
-// 点错不换轮，只罚 2 秒；时辰到还没走完是走火 F。
+// 点错不换轮，只罚 2 秒；时辰到还没走完是失败 F。
 // 评级只看用时（含罚时），三条线由本模块 linesOf 按本段轮数与档位推。
 
 const C = require('./common.js');
@@ -199,7 +199,7 @@ function create(ctx) {
       C.flash(vm, '对了 · 第 ' + round + ' 轮', 'good');
       render();
     },
-    abandon: function () { finishOnce('F', '中途收功'); },
+    abandon: function () { finishOnce('F', '中途结束'); },
     destroy: function () { bag.clear(); },
   });
 }
@@ -215,7 +215,7 @@ function lines(p) {
       'B：' + lim[2] + ' 秒内',
       'C：超过 ' + lim[2] + ' 秒才走完',
     ],
-    fail: '时辰到还没走完 → 走火 F，这一局没有收益',
+    fail: '时辰到还没走完 → 失败 F，这一局没有收益',
   };
 }
 

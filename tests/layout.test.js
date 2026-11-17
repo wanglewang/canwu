@@ -130,15 +130,15 @@ check('不可撤销操作使用警示样式并与常规操作分区', function (
   assert.ok(/\.imm-btn--danger\s*\{/.test(read('styles/immortal.wxss')), 'immortal.wxss 未定义 .imm-btn--danger');
 });
 
-check('参悟局内收功放在屏幕上方且带二次确认', function () {
+check('参悟局内结束放在屏幕上方且带二次确认', function () {
   const s = read('pages/practice/practice.wxml');
   const js = read('pages/practice/practice.js');
-  assert.ok(/class="hud__quit" bindtap="onAbandon"/.test(s), '收功不在局内 HUD 上方的独立小入口');
+  assert.ok(/class="hud__quit" bindtap="onAbandon"/.test(s), '结束不在局内 HUD 上方的独立小入口');
   const bar = (s.match(/<view[^>]*class="sticky-bar[^"]*"[\s\S]*?<\/view>/) || [])[0] || '';
   assert.ok(bar.length > 0, '局内缺少吸底辅助操作条');
-  assert.ok(!/onAbandon/.test(bar), '收功仍放在拇指热区，容易误触');
+  assert.ok(!/onAbandon/.test(bar), '结束仍放在拇指热区，容易误触');
   assert.ok(/bindtap="onUndo"/.test(s) && /bindtap="onHint"/.test(s), '撤销/提示未放进吸底条');
-  assert.ok(/中途收功/.test(js) && /wx\.showModal/.test(js), '收功缺少二次确认');
+  assert.ok(/中途结束/.test(js) && /wx\.showModal/.test(js), '结束缺少二次确认');
 });
 
 check('参悟局内隐藏功法头卡，盘面优先', function () {
@@ -158,21 +158,21 @@ check('参悟吸底条只在有操作时出现', function () {
   assert.ok(/bindtap="onBack"/.test(start), '准备页缺少退出入口');
 });
 
-check('两种 F 分开处置：收功作废，走火照常结算', function () {
+check('两种 F 分开处置：结束作废，失败照常结算', function () {
   // 同一条 grade === 'F' 有两个来历，处置必须不同：
-  //   ① 玩家点「收功」→ 整局作废，不进 applyPractice，由 breakCombo 把连 S 归零；
+  //   ① 玩家点「结束」→ 整局作废，不进 applyPractice，由 breakCombo 把连 S 归零；
   //   ② 玩法判负（阵溃 / 心神尽 / 时辰到）→ 一局打完的结果，进结算、断连，但零收益。
-  // 旧写法把所有 F 都当 ①，于是「蓄力偏离」「阵溃」也被显示成「中途收功 · 这回不算数」，
+  // 旧写法把所有 F 都当 ①，于是「蓄力偏离」「阵溃」也被显示成「中途结束 · 这回不算数」，
   // 玩家既看不到自己栽在哪，也拿不到结算卡。
   const js = read('pages/practice/practice.js');
-  assert.ok(/this\.aborting = false/.test(js), '新一局没清掉收功标记');
-  assert.ok(/self\.aborting = true/.test(js), '玩家收功时没置位，结算分不出是哪种 F');
+  assert.ok(/this\.aborting = false/.test(js), '新一局没清掉结束标记');
+  assert.ok(/self\.aborting = true/.test(js), '玩家结束时没置位，结算分不出是哪种 F');
   assert.ok(/grade === 'F' && \(this\.aborting \|\| this\.mode === 'breakthrough'\)/.test(js),
-    '所有 F 都被当成收功，走火拿不到结算');
-  assert.ok(/未走完，按「走火」不计所得/.test(js), '走火结算没写清「一分不给」');
-  assert.ok(/r\.wiped/.test(js), '结算卡没把走火与正常局分开，会显示一排 +0');
-  assert.ok(/engine\.breakCombo\(/.test(js), '收功没把连 S 归零，能靠中途退出保住连击');
-  assert.ok(/连 S 归零/.test(js), '收功确认框没写明连 S 会断');
+    '所有 F 都被当成结束，失败拿不到结算');
+  assert.ok(/未走完，不计所得/.test(js), '失败结算没写清「一分不给」');
+  assert.ok(/r\.wiped/.test(js), '结算卡没把失败与正常局分开，会显示一排 +0');
+  assert.ok(/engine\.breakCombo\(/.test(js), '结束没把连 S 归零，能靠中途退出保住连击');
+  assert.ok(/连 S 归零/.test(js), '结束确认框没写明连 S 会断');
 });
 
 check('说明页写清本档四条线：C / B / A / S 各自要什么', function () {
@@ -432,7 +432,7 @@ check('战力明细收进「说明」真源，首屏只留数值；指南保留�
   const lines = (power ? power.lines : []).join('');
   assert.ok(lines.length > 0, '说明页缺战力专节');
   assert.ok(/体魄 ×1\.0/.test(lines) && /境界加成/.test(lines) && /功法特效/.test(lines), '说明没讲公式三项');
-  assert.ok(/突破境界/.test(lines) && /化境/.test(lines) && /另择一门/.test(lines)
+  assert.ok(/突破境界/.test(lines) && /化境/.test(lines) && /换一门修习/.test(lines)
     && /不减所得/.test(lines), '说明没讲突破、特效与「只奖不罚」');
   const index = read('pages/index/index.wxml');
   const indexJs = read('pages/index/index.js');
@@ -771,7 +771,7 @@ check('页面骨架统一：三 tab + 子页用仙箓皮肤，导航只留原生
     assert.ok(!/imm-head/.test(wxml), name + ' 又在顶部留了一条只放「说明」的空行');
     // 说明页自己就是解释，不需要再嵌一个说明入口。
     if (name !== 'help') {
-      assert.ok(/class="pg__foot"[\s\S]*此处说明/.test(wxml), name + ' 页尾缺「说明」入口');
+      assert.ok(/class="pg__foot"[\s\S]*本页说明/.test(wxml), name + ' 页尾缺「说明」入口');
       assert.ok(/bindtap="onGoHelp"/.test(wxml), name + ' 缺「说明」入口');
     }
     assert.ok(!/class="pg__head"|class="muted mt8"/.test(wxml),
@@ -798,8 +798,8 @@ check('加载 / 空 / 错误状态统一用 .state 占位，不再白屏', funct
       name + ' 数据未就绪时没有状态占位');
   }
   // 参悟页不设空态：没习得这门功法就直接说一句并退回，不把人留在一张空页上。
-  assert.ok(/toast\('尚未习得这门功法'\)/.test(read('pages/practice/practice.js')),
-    '参悟页没有「尚未习得」的兜底');
+  assert.ok(/toast\('暂未习得这门功法'\)/.test(read('pages/practice/practice.js')),
+    '参悟页没有「暂未习得」的兜底');
   // 榜单的内联错误态跟着榜单走，现在它在战力仙榜页。
   assert.ok(/class="state state--inline"/.test(read('pages/board/board.wxml')), '榜单错误没有用内嵌状态');
   const css = read('app.wxss');
@@ -920,6 +920,9 @@ check('文案真源：跨页复用文案只在 data/copy.js 写一次', function
     copy.UI.emptyLog, copy.UI.emptyBoard, copy.UI.emptySkills,
     copy.UI.sections.today, copy.UI.sections.more,
     copy.UI.sections.settings, copy.UI.sections.battleCode,
+    copy.UI.labels.boardSpec, copy.UI.labels.boardChange,
+    copy.UI.labels.todayDone, copy.UI.labels.dailyLeft, copy.UI.labels.times,
+    copy.UI.labels.progress, copy.UI.labels.rank,
   ];
   for (const text of shared) {
     assert.ok(all.indexOf('>' + text + '<') < 0, '页面又硬编码了共享文案：' + text);
@@ -1414,17 +1417,17 @@ check('已持玉简按最近练过的在前，藏经阁仍是兑换顺序', func
   // 排序会静默退化成「按门名」——看起来正常，其实「最近玩」根本没生效。
   assert.ok(/rec\.lastAt = Date\.now\(\)/.test(engine), '参悟结算没有写 rec.lastAt');
   assert.ok(/lastAt: Math\.floor\(num\(r\.lastAt, 0\)\)/.test(engine), '读档没给 lastAt 兜底');
-  // 「确实打了但不出结算」的两条路也必须记钟，否则玩家收功/返回十次，列表纹丝不动。
-  // 2026-11 真机反馈就是这么来的：applyPractice 里早写着「走火也记」，
-  // 可中途收功与局中返回根本不经过它。两头都守：函数在引擎，两处在页面调。
+  // 「确实打了但不出结算」的两条路也必须记钟，否则玩家结束/返回十次，列表纹丝不动。
+  // 2026-11 真机反馈就是这么来的：applyPractice 里早写着「失败也记」，
+  // 可中途结束与局中返回根本不经过它。两头都守：函数在引擎，两处在页面调。
   assert.ok(/function touchSkill/.test(engine) && /touchSkill: touchSkill/.test(engine),
-    '引擎没有 touchSkill：收功 / 返回这两条路没法记钟');
+    '引擎没有 touchSkill：结束 / 返回这两条路没法记钟');
   const pg = read('pages/practice/practice.js');
-  // 记钟只有一处实现（markTouched），收功 / 返回 / 切页都调它。
+  // 记钟只有一处实现（markTouched），结束 / 返回 / 切页都调它。
   assert.ok(/markTouched: function[\s\S]{0,400}engine\.touchSkill\(s, skillId\)/.test(pg),
-    '记钟没走到 engine.touchSkill：收功一局回去列表顺序不变（玩家判定为「没生效」）');
+    '记钟没走到 engine.touchSkill：结束一局回去列表顺序不变（玩家判定为「没生效」）');
   assert.ok(/onAbandon:[\s\S]{0,1600}self\.closeAbandonedRound\(\)/.test(pg),
-    '中途收功没走统一结账：它会不会断连 S 取决于另一条路，早晚分叉');
+    '中途结束没走统一结账：它会不会断连 S 取决于另一条路，早晚分叉');
   assert.ok(/onHide:[\s\S]{0,600}this\.closeAbandonedRound\(\)/.test(pg) &&
     /onUnload:[\s\S]{0,400}this\.closeAbandonedRound\(\)/.test(pg),
     '局中离开没结账：onHide 管切页/切后台，onUnload 管导航返回（返回只走后者）');
@@ -1442,9 +1445,9 @@ check('已持玉简按最近练过的在前，藏经阁仍是兑换顺序', func
     '藏经阁分区改用推荐排序了：换得起的会被换不起的顶到下面');
 });
 
-check('左上角返回与「收功」是同一件事：都先问一句', function () {
+check('左上角返回与「结束」是同一件事：都先问一句', function () {
   const pg = read('pages/practice/practice.js');
-  // 2026-11 真机反馈：右上角「收功」会弹确认，左上角返回静默丢盘，同一个页面两种脾气。
+  // 2026-11 真机反馈：右上角「结束」会弹确认，左上角返回静默丢盘，同一个页面两种脾气。
   // 小程序没有 onBackPress，拦原生返回只有官方这一个口子：
   // wx.enableAlertBeforeUnload —— 导航栏返回 / 安卓 back 键会先弹询问。
   assert.ok(/wx\.enableAlertBeforeUnload\(/.test(pg),
@@ -1455,36 +1458,36 @@ check('左上角返回与「收功」是同一件事：都先问一句', functio
   // 少一处就会在「这一局早打完了」的时候被问「本局作废」。
   const disarms = (pg.match(/this\.disarmLeaveGuard\(\)/g) || []).length;
   assert.ok(disarms >= 6, '撤返回询问的地方只有 ' + disarms + ' 处，打完一局还会挨弹窗');
-  // 两处文案同源：收功弹窗与返回询问要说同一句话，各写一份早晚改漏一处。
+  // 两处文案同源：结束弹窗与返回询问要说同一句话，各写一份早晚改漏一处。
   assert.ok(/content: this\.abandonText\(true\)/.test(pg) &&
     /enableAlertBeforeUnload\(\{ message: this\.abandonText\(false\)/.test(pg),
-    '收功弹窗与返回询问各写了一套文案');
+    '结束弹窗与返回询问各写了一套文案');
   // 冲关局起手不扣灵力（布阵灵石结算才扣），不许沿用那句「起手耗去的灵力不退」。
-  assert.ok(/abandonText:[\s\S]{0,300}breakthrough[\s\S]{0,200}本局作废，冲关未成/.test(pg),
-    '冲关局套用了练习局的收功文案：它不扣灵力，却告诉玩家「灵力不退」');
+  assert.ok(/abandonText:[\s\S]{0,300}breakthrough[\s\S]{0,200}本局作废，冲关失败/.test(pg),
+    '冲关局套用了练习局的结束文案：它不扣灵力，却告诉玩家「灵力不退」');
 });
 
 check('结算与终局底栏的「返回功法」都回本门静室，不是退回列表', function () {
   const pg = read('pages/practice/practice.js');
   const wxml = read('pages/practice/practice.wxml');
-  // 2026-11 真机反馈两次：先是中途收功点「返回」落到列表，后来打完一局点
+  // 2026-11 真机反馈两次：先是中途结束点「返回」落到列表，后来打完一局点
   // 「返回功法」又落到列表。玩家要的是这一门的静室准备屏（品阶、火候、连 S、
   // 最佳、规则、本局法度）——不是退出页面。「多退了一层」不是 navigateBack
-  // 退多了，是这一层本来就不该退出。旧版只特判了收功，另两个入口漏了。
+  // 退多了，是这一层本来就不该退出。旧版只特判了结束，另两个入口漏了。
   assert.ok(/onSecondary:\s*function \(\) \{\s*this\.onBackToSkill\(\);/.test(pg),
     '结算次按钮没统一走 onBackToSkill：普通结算还会退出页面落到列表');
   assert.ok(!/onSecondary:[\s\S]{0,300}rv\.kind === 'abandon'/.test(pg),
-    '还留着「只有收功才回静室」的特判：正常结算仍掉到功法列表');
+    '还留着「只有结束才回静室」的特判：正常结算仍掉到功法列表');
   assert.ok(/bindtap="onBackToSkill"[^>]*>\{\{copy\.actions\.backSkills\}\}/.test(wxml),
     '终局底栏的「返回功法」仍绑 onBack：留在本页后点它照样退出页面');
   assert.ok(/onBackToSkill:[\s\S]{0,400}this\.onQuitToPrep\(\)/.test(pg),
     'onBackToSkill 没回准备屏');
   assert.ok(/onQuitToPrep:[\s\S]{0,700}started: false/.test(pg),
-    '没有回准备屏的收口：收功后只能退出页面');
-  // 两个标记必须一起清：aborting 留着，下一局照常结算也会被当成「收」；
+    '没有回准备屏的收口：结束后只能退出页面');
+  // 两个标记必须一起清：aborting 留着，下一局照常结算也会被当成「中途结束」；
   // roundClosed 留着，下一局中途离开就不结账（记钟与断连 S 全跳过）。
   assert.ok(/onQuitToPrep:[\s\S]{0,700}this\.aborting = false/.test(pg),
-    '回准备屏没清 aborting：下一局的正常结算仍被当成中途收功');
+    '回准备屏没清 aborting：下一局的正常结算仍被当成中途结束');
   assert.ok(/onQuitToPrep:[\s\S]{0,700}this\.roundClosed = false/.test(pg),
     '回准备屏没清 roundClosed：下一局中途离开不记钟、不断连 S');
   // 「留在本页」是留刚打完那一屏，回准备屏是回开局前那一屏——两件事不能合成一个函数。
@@ -1586,7 +1589,7 @@ check('节律判定：写下拍速、响出拍子、环在正中', function () {
   assert.ok(!/\.ring-area\s*\{[\s\S]{0,200}flex-wrap/.test(wxss),
     'ring-area 又变回 flex 换行排版：环会被顶偏');
   // 2026-11 真机第二轮：「这个还是不对」——字挤成两行、两环一大一小。
-  // ① 小字不许跟在小节号后面一起写：右侧「评级 / 收功」一挤，行尾就剩一个孤字「秒」。
+  // ① 小字不许跟在小节号后面一起写：右侧「评级 / 结束」一挤，行尾就剩一个孤字「秒」。
   assert.ok(/vm\.timeText\s*=[^\n]*小节'/.test(tempo), '小节号没有单独成句');
   assert.ok(/class="hud__speed"/.test(wxml), '模板里没有小字那一行');
   assert.ok(/\.hud__time\s*\{[\s\S]{0,400}white-space:\s*nowrap/.test(wxss),
@@ -1845,8 +1848,8 @@ check('参悟结算：金按钮再来一局、留在本页留的是刚打完那�
   const wxml = read('pages/practice/practice.wxml');
   const js = read('pages/practice/practice.js');
   const copy = require('../data/copy.js');
-  assert.strictEqual(copy.UI.actions.stay, '留于此处', '「留于此处」文案没进真源');
-  assert.strictEqual(copy.UI.actions.again, '再参一局', '「再参一局」文案没进真源');
+  assert.strictEqual(copy.UI.actions.stay, '留在本页', '「留在本页」文案没进真源');
+  assert.strictEqual(copy.UI.actions.again, '再来一局', '「再来一局」文案没进真源');
   // 位置对调：金按钮是再来一局，留在本页退成下方文字链。
   assert.ok(/primary: copy\.UI\.actions\.again/.test(js), '金按钮没换成再来一局');
   assert.ok(!/primary: copy\.UI\.actions\.stay/.test(js), '金按钮仍是留在本页');
@@ -1864,11 +1867,11 @@ check('参悟结算：金按钮再来一局、留在本页留的是刚打完那�
   const bar = /barMode === 'done'[\s\S]{0,520}?<\/view>/.exec(wxml);
   assert.ok(bar && /onOpenRecord/.test(bar[0]) && /onBack/.test(bar[0]) && /onAgain/.test(bar[0]),
     '终局底栏缺去处');
-  // 盘面已终：收功与操作提示都不该还在邀请玩家点。
+  // 盘面已终：结束与操作提示都不该还在邀请玩家点。
   assert.ok(/wx:if="\{\{!boardHeld\}\}" class="scene-hud__quit"/.test(wxml)
     && /wx:if="\{\{!tutorial && !boardHeld\}\}" class="pr-hint"/.test(wxml)
     && /vm\.trail && started && !boardHeld/.test(wxml),
-    '本局已终还挂着收功 / 操作提示');
+    '本局已终还挂着结束 / 操作提示');
   // 留住的盘面是「这一局」的，不能在换局路上活着：建局与再来一局都要把标记清掉，
   // 否则下一局开局就被当成已终局，底栏摆着终局三项却点不动盘面。
   const build = /buildGame: function \(\) \{[\s\S]*?lastTones = \[\];/.exec(js);
@@ -1904,8 +1907,8 @@ check('首局手把手：盘上引导而不是全屏弹窗，跳过有入口、�
   assert.ok(teachTag.index > playAt && teachTag.index < maskAt, '引导卡跑到遮罩里去了，会盖住盘面');
   assert.ok(/catchtap="onSkipTeach"/.test(wxml), '引导没有跳过入口');
   assert.ok(/onSkipTeach: function/.test(js), '跳过入口没有对应方法');
-  assert.strictEqual(copy.UI.actions.skipTeach, '略过指引');
-  assert.ok(wxml.indexOf('跳过引导') < 0, '引导文案被写死在 WXML 里');
+  assert.strictEqual(copy.UI.actions.skipTeach, '跳过指引');
+  assert.ok(wxml.indexOf('跳过指引') < 0, '引导文案被写死在 WXML 里');
 
   // 第一次开局先走教学，只对自带脚本的玩法生效；走完必须落存档，否则每次进来都弹。
   assert.ok(/canTeach: function/.test(js) && /minigames\.hasTeach/.test(js), '页面没接教学判断');
@@ -1915,7 +1918,7 @@ check('首局手把手：盘上引导而不是全屏弹窗，跳过有入口、�
   assert.strictEqual(index.hasTeach('lights'), true, '星罗点灯诀没有教学脚本');
   assert.ok(game.markOnboarded && game.hasOnboarded, '引擎没有引导标记接口');
 
-  // 教学盘不该出现评级、重置与收功：那是一局才有的压力。
+  // 教学盘不该出现评级、重置与结束：那是一局才有的压力。
   const lights = read('minigames/lights.js');
   assert.ok(/showGradeNow = false/.test(lights) && /showReset = false/.test(lights), '教学盘还挂着正式局的控件');
   assert.ok(/不计步/.test(lights), '教学盘没写清不计步');
@@ -2120,6 +2123,99 @@ check('文档明细表与代码同源：门数、effect 门面词、F 列', func
       });
     }
   }
+});
+
+check('说明页接住当前段：导航传 stage，说明页读 stage 并随分享带走', function () {
+  const nav = require('../data/navigation.js');
+  const helpData = require('../data/help.js');
+  const skills = require('../data/skills.js');
+  const url = nav.practiceHelpUrl(skills.SKILLS[0].method, '', 'xiaocheng');
+  assert.ok(url.indexOf('&stage=xiaocheng') > 0, '准备页的段号没进说明链接：' + url);
+  const helpJs = read('pages/help/help.js');
+  assert.ok(/stage:\s*q\.stage/.test(helpJs), '说明页没接 q.stage');
+  assert.ok(/practiceTopic\(\{[\s\S]*?stage:\s*q\.stage/.test(helpJs), '说明页生成时没把段号传下去');
+  assert.ok(/parts\.push\('stage=' \+ t\.stage\)/.test(helpJs), '分享出去的说明丢了段号');
+  const method = skills.SKILLS[0].method;
+  const first = JSON.stringify(helpData.practiceTopic({ method: method, stage: 0 }).sections);
+  const later = JSON.stringify(helpData.practiceTopic({ method: method, stage: 3 }).sections);
+  assert.notStrictEqual(first, later, '传了 stage 说明页却还是同一册：这段参数没生效');
+});
+
+check('局内与结算的盘面规格取自同一份 stageDetail', function () {
+  const practice = require('../data/practice.js');
+  const skills = require('../data/skills.js');
+  for (const s of skills.SKILLS) {
+    const method = practice.getMethod(s.method);
+    for (let i = 0; i < practice.STAGES.length; i += 1) {
+      const d = practice.stageDetail(method, i);
+      assert.ok(d.short && d.short.length > 0, s.name + ' 第 ' + (i + 1) + ' 段缺局内短版');
+      assert.strictEqual(d.brief.indexOf(d.short), 0, s.name + ' 的短版不是整句的前两截');
+      assert.ok(d.short.split(' · ').length <= 2, s.name + ' 的短版塞进了第三截');
+    }
+  }
+  const js = read('pages/practice/practice.js');
+  const wxml = read('pages/practice/practice.wxml');
+  assert.ok(/stageBoardShort:\s*stageInfo\.short/.test(js), '准备页没把短版送进 data');
+  assert.strictEqual((wxml.match(/wx:if="\{\{stageBoardShort\}\}"/g) || []).length, 2,
+    '普通 HUD 与样板 HUD 都要显示本段盘面，且只各显示一次');
+  assert.ok(/k: copy\.UI\.labels\.boardSpec/.test(js), '结算没列本段盘面');
+  assert.ok(/k: copy\.UI\.labels\.boardChange/.test(js), '结算没列本关变化');
+});
+
+check('主页与人物页把关卡进度、今日份例和名次摆在明处', function () {
+  const copy = require('../data/copy.js');
+  const indexJs = read('pages/index/index.js');
+  const indexWxml = read('pages/index/index.wxml');
+  const profileJs = read('pages/profile/profile.js');
+  const profileWxml = read('pages/profile/profile.wxml');
+  assert.ok(/social\.refreshBoard/.test(indexJs) && /social\.myRankOf/.test(indexJs),
+    '主页没有读名次，仙榜仍只在子页可见');
+  assert.ok(/copy\.labels\.rank/.test(indexWxml), '主页境界卡没写仙榜那一行');
+  assert.ok(/dailyCount/.test(indexWxml) && /dailyLeft/.test(indexWxml),
+    '今日份例未达三次前仍是隐形行');
+  assert.ok(/progressLine/.test(profileJs) && /copy\.labels\.progress/.test(profileWxml),
+    '人物页没显示本门走到了哪一段第几关');
+  assert.ok(/共走通/.test(profileJs), '人物页没有跨门累计关卡数');
+
+  // 榜单辅助函数在 node 下没有 wx 也能加载（只用到纯数组运算）。
+  global.wx = global.wx || {};
+  const social = require('../utils/cloud-social.js');
+  assert.strictEqual(social.myRankOf([{ rank: 3, isMe: false }, { rank: 7, isMe: true }]), 7);
+  assert.strictEqual(social.myRankOf([]), 0, '榜单为空时不该报一个假名次');
+  assert.strictEqual(social.rankGapOf([{ power: 100, isMe: false }], 90), 11);
+  assert.strictEqual(social.rankGapOf([{ rank: 1, power: 100, isMe: true }], 90), 0, '已上榜不该再报差价');
+  assert.ok(/social\.myRankOf/.test(read('pages/board/board.js')), '仙榜页没和主页共用名次算法');
+
+  assert.strictEqual(copy.formatRank(0), '暂未上榜');
+  assert.strictEqual(copy.formatRank(7), '榜上第 7 名');
+  assert.ok(copy.formatRankGap(9, social.RANK_LIMIT).indexOf('第 20 名') > 0, '差价没说出够到哪一名');
+  assert.strictEqual(copy.formatRankGap(0, social.RANK_LIMIT), '');
+});
+
+// 2026-11 用户口径：本作是现代背景的修仙，不是古代修仙。设定名词（气海、灵石、功法）照旧，
+// 句子与按钮一律白话。这里守的是「别说回仿古句」——只改一次文案不算数，要有闸门。
+check('文案用现代汉语：仿古词不许进玩家文案', function () {
+  const copy = require('../data/copy.js');
+  const help = require('../data/help.js');
+  const guides = require('../data/guides.js');
+  const skillData = require('../data/skills.js');
+  // 「走火 / 收功」也进黑名单：它们不是仿古虚词，而是设定味的暗号——
+  // 2026-11-17 定下 F 写「失败」、中途退出写「结束」、达成写「完成」，不许再回来。
+  const BANNED = ['暂且退去', '留于此处', '再参一局', '容再思量', '略过指引', '另择',
+    '本局法度', '本门要略', '尚未', '尚无', '方能', '无从', '自此', '且去', '阖上', '尚需',
+    '走火', '收功', '此局未竟', '还没上榜', '再想想'];
+  const blobs = [JSON.stringify([copy.UI, copy.TERMS, copy.SHARE, copy.GRADE_TITLE,
+    help.TOPICS, guides.GUIDES])];
+  // 说明页按功法现拼，十五门都要过一遍（写「每门都」就得逐门验，见 04-open-issues）。
+  skillData.SKILLS.forEach(function (s) {
+    blobs.push(JSON.stringify(help.practiceTopic({ method: s.method })));
+  });
+  BANNED.forEach(function (w) {
+    blobs.forEach(function (blob, i) {
+      assert.ok(blob.indexOf(w) < 0, '玩家文案里还有禁用词「' + w + '」（第 ' + (i + 1) + ' 份），'
+        + '口径见 docs/00-foundation/04-voice-and-copy.md §一');
+    });
+  });
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

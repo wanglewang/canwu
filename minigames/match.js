@@ -360,7 +360,7 @@ function create(ctx) {
     start: start,
     tap: tap,
     hint: hint,
-    abandon: function () { finishOnce('F', '中途收功'); },
+    abandon: function () { finishOnce('F', '中途结束'); },
     destroy: function () { bag.clear(); },
   });
 }

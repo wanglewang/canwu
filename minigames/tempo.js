@@ -67,7 +67,7 @@ const COACH_DROP_AFTER = 2;   // 点中两个音符之后撤口令，引导不�
 
 const COACH = [
   { listen: '只听着 · 一响一格', rule: '环缩到红圈就点 · 点中了它还会往底收，别松手等下一响' },
-  { listen: '只听着 · 一响一格', rule: '环走到自己那一格才点 · 早一点点都不算，宁晚勿早' },
+  { listen: '只听着 · 一响一格', rule: '环走到自己那一格才点 · 早一点不算，宁可晚一点' },
   { listen: '只听着 · 数一小节几下', rule: '提示只剩小节头那一下 · 中间几格靠耳朵数，重音就是小节线' },
   { listen: '只听着 · 左右各一条', rule: '左手一条右手一条 · 各点各的，不用对齐，谁到点谁点' },
   { listen: '只听着 · 一小节六格', rule: '提示全撤掉了 · 只听格点，缩到红圈那一下才点' },
@@ -418,7 +418,7 @@ function create(ctx) {
     if (allDone()) { finishOnce(gradeNow(), summary()); return; }
     // 剩下的音符全打满也够不到 B：结果已经是 C，不再让玩家把剩下几小节走完。
     if (points() + restNotes() < band.bMin) {
-      finishOnce('C', summary() + ' · 后程已无从追回');
+      finishOnce('C', summary() + ' · 后程已经追不回来了');
       return;
     }
     refreshRings(ms);
@@ -491,7 +491,7 @@ function create(ctx) {
   return C.fillController({
     start: start,
     tap: tap,
-    abandon: function () { finishOnce('F', '中途收功'); },
+    abandon: function () { finishOnce('F', '中途结束'); },
     destroy: function () { bag.clear(); },
   });
 }

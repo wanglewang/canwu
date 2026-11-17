@@ -16,3 +16,10 @@
 
 /* 突破进度那一行的左字比右侧百分比更重要一点 */
 .imm-strip + .imm-strip { margin-top: var(--sp-2); }
+
+/* 名次那行右侧要塞下「尚未上榜 · 距第 20 名还差 N 战力」，字号降一档、右对齐，
+   不然在窄屏上会把左边的标签挤成两行。 */
+.imm-strip__value--rank {
+    font-size: var(--fs-caption);
+    text-align: right;
+}

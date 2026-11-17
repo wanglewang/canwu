@@ -12,6 +12,8 @@ const worldData = require('../data/world.js');
 const SCORE_TABLE = 'canwu_scores';
 const SCORE_COLS = 'owner_id,role_name,portrait,realm_index,power,updated_at';
 const PUBLISH_INTERVAL_MS = 30000;
+// 榜单读前 20，这一个数同时决定「距榜尾还差多少」的文案，不许在页面里再写一遍。
+const RANK_LIMIT = 20;
 
 let lastPublishAt = 0;
 
@@ -112,8 +114,27 @@ async function listScores(limit) {
 // 一次拿到「我的战绩已上榜 + 完整榜单」，供仙门切磋页与仙榜页调用。
 async function refreshBoard(state, force) {
   const published = await publishScore(state, force);
-  const board = await listScores(20);
+  const board = await listScores(RANK_LIMIT);
   return { published: published, board: board };
+}
+
+// 我在榜上的名次：只在已读到的 rows 里找，不另发一次查询。
+// 仙榜页与主页共用这一把尺子，各自写循环必然会出现「一页有名次一页没有」。
+function myRankOf(rows) {
+  if (!Array.isArray(rows)) return 0;
+  for (let i = 0; i < rows.length; i += 1) {
+    if (rows[i].isMe) return Number(rows[i].rank) || 0;
+  }
+  return 0;
+}
+
+// 没上榜时离榜尾还差几战力：读最后一行（榜单按 power 降序），
+// 不为了一个差价去查全服总人数——那既慢，也没有给玩家更多信息。
+function rankGapOf(rows, myPower) {
+  if (!Array.isArray(rows) || rows.length === 0) return 0;
+  if (myRankOf(rows) > 0) return 0;
+  const last = Number(rows[rows.length - 1].power) || 0;
+  return Math.max(0, last + 1 - Math.floor(Number(myPower) || 0));
 }
 
 // 挑一个战力最接近、且不是自己的真实玩家作为对手；榜单不足时返回 null 由页面回退 NPC。
@@ -135,6 +156,9 @@ module.exports = {
   publishScore: publishScore,
   listScores: listScores,
   refreshBoard: refreshBoard,
+  myRankOf: myRankOf,
+  rankGapOf: rankGapOf,
+  RANK_LIMIT: RANK_LIMIT,
   pickRival: pickRival,
   realmNameOf: realmNameOf,
 };

@@ -2,7 +2,7 @@
   <view class="imm-panel">
     <view class="imm-panel__head">
       <text class="imm-panel__label">{{copy.sections.myPower}}</text>
-      <text class="imm-chip">{{myRank > 0 ? '榜上第 ' + myRank : '尚未上榜'}}</text>
+      <text class="imm-chip">{{myRank > 0 ? '榜上第 ' + myRank : '暂未上榜'}}</text>
     </view>
     <text class="imm-realm">{{ov ? ov.power : 0}}</text>
     <view class="imm-strip">
@@ -37,6 +37,6 @@
   </view>
 
   <view class="pg__foot">
-    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">此处说明 ›</text>
+    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">本页说明 ›</text>
   </view>
 </view>

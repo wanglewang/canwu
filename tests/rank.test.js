@@ -336,35 +336,35 @@ check('回关折减连续无断崖：越退越薄，走通满关后回打第 1 �
   }
   assert.ok(practice.levelFactor(cur - 1, cur) > 0.99, '退一关就掉了超过 1%');
 
-  // 走火仍是 0 点，且不分关一律断连。
+  // 失败仍是 0 点，且不分关一律断连。
   const s = setCleared(freshState('jingxin', 0, 1), 'jingxin', cur);
   s.sCombo.jingxin = 7;
   const r = game.applyPractice(s, 'jingxin', 'F', { level: 1, score: 0 });
-  assert.strictEqual(r.gain, 0, '走火还给了熟练度');
-  assert.strictEqual(r.comboNow, 0, '回关走火没断连');
+  assert.strictEqual(r.gain, 0, '失败还给了熟练度');
+  assert.strictEqual(r.comboNow, 0, '回关失败没断连');
 });
 
-check('走火：F 算一局，但熟练度为零——气照烧、灵石不动、连 S 归零', function () {
+check('失败：F 算一局，但熟练度为零——气照烧、灵石不动、连 S 归零', function () {
   // F 有两种来历，这里测的是「玩到一半被判负」的那种：
   // 它是一局真实打完的结果，所以要进结算（报价、断连），但结论是这一局作废——
-  // 不是「最低一档」，所以一分熟练度都没有。主动收功不调 applyPractice，走 breakCombo()。
+  // 不是「最低一档」，所以一分熟练度都没有。主动结束不调 applyPractice，走 breakCombo()。
   const s = freshState('jingxin', 1200, 1);
   s.sCombo.jingxin = 2;
   const qiBefore = s.resources.qi;
   const stoneBefore = s.resources.stone;
   const profBefore = s.skills.jingxin.prof;
   const r = game.applyPractice(s, 'jingxin', 'F', { score: 0 });
-  assert.strictEqual(r.gradeFactor, 0, '走火倍率不是 0');
-  assert.strictEqual(r.wiped, true, '走火没被标记成整局作废');
-  assert.strictEqual(r.gain, 0, '走火还给了熟练度');
-  assert.strictEqual(s.skills.jingxin.prof, profBefore, '走火把熟练度写进存档了');
-  // 气在起手时就烧掉了：走火不退，这才是「走火」真正的分量。
-  assert.ok(r.qiCost > 0, '走火这一局没有报价');
-  assert.strictEqual(s.resources.qi, qiBefore - r.qiCost, '走火没扣灵力（或扣错了数）');
-  assert.strictEqual(s.resources.stone, stoneBefore, '走火动了灵石——灵石只从对战来');
-  assert.strictEqual(s.buff.multiplier, 1, '走火还给了挂机加成');
-  assert.strictEqual(r.comboNow, 0, '走火没有断连');
-  assert.strictEqual(s.sCombo.jingxin, 0, '走火后存档里的连 S 没清');
+  assert.strictEqual(r.gradeFactor, 0, '失败倍率不是 0');
+  assert.strictEqual(r.wiped, true, '失败没被标记成整局作废');
+  assert.strictEqual(r.gain, 0, '失败还给了熟练度');
+  assert.strictEqual(s.skills.jingxin.prof, profBefore, '失败把熟练度写进存档了');
+  // 气在起手时就烧掉了：失败不退，这才是「失败」真正的分量。
+  assert.ok(r.qiCost > 0, '失败这一局没有报价');
+  assert.strictEqual(s.resources.qi, qiBefore - r.qiCost, '失败没扣灵力（或扣错了数）');
+  assert.strictEqual(s.resources.stone, stoneBefore, '失败动了灵石——灵石只从对战来');
+  assert.strictEqual(s.buff.multiplier, 1, '失败还给了挂机加成');
+  assert.strictEqual(r.comboNow, 0, '失败没有断连');
+  assert.strictEqual(s.sCombo.jingxin, 0, '失败后存档里的连 S 没清');
 
   // 对照：同一门、同一档打出 S，熟练度必须有——F 与 S 是「有」和「没有」，不是「差几倍」。
   const s2 = freshState('jingxin', 1200, 1);
@@ -372,13 +372,13 @@ check('走火：F 算一局，但熟练度为零——气照烧、灵石不动�
   assert.ok(rs.gain > 0, 'S 没有熟练度收益');
   assert.ok(rs.qiCost > 0, 'S 这一局没有报价');
 
-  // 走火不立纪录：没走完的这一局不该成为「本门最佳」。
-  assert.strictEqual(s.records.jingxin, undefined, '走火被写成了本门纪录');
+  // 失败不立纪录：没走完的这一局不该成为「本门最佳」。
+  assert.strictEqual(s.records.jingxin, undefined, '失败被写成了本门纪录');
   // 而同一存档之后打出 S，纪录照常出现。
   const s3 = freshState('jingxin', 1200, 1);
   game.applyPractice(s3, 'jingxin', 'F', { score: 0 });
   game.applyPractice(s3, 'jingxin', 'S', { score: 640 });
-  assert.strictEqual(s3.records.jingxin.score, 640, '走火之后的正常一局没立纪录');
+  assert.strictEqual(s3.records.jingxin.score, 640, '失败之后的正常一局没立纪录');
 });
 
 check('参悟是纯支出：一百局里灵石一分不动，灵力只按 qiCost 减', function () {
@@ -606,7 +606,7 @@ check('段内结构副轴：数距沿全书只紧不松，换段不回卷', func
     '首尾两关数距一样，副轴等于没加');
 });
 
-check('关卡由走通推进：越权回落、回关与走火都不推进、满关不越界', function () {
+check('关卡由走通推进：越权回落、回关与失败都不推进、满关不越界', function () {
   const s = game.createNewState();
   // 一关都没走通时只有第 1 关：传第 40 关一律回落到第 1 关。
   const r1 = game.applyPractice(s, 'jian', 'B', { level: 40, score: 10 });
@@ -624,11 +624,11 @@ check('关卡由走通推进：越权回落、回关与走火都不推进、满�
   const r3 = game.applyPractice(s, 'jian', 'B', { level: 1, score: 10 });
   assert.strictEqual(r3.advanced, false, '回关也推进了进度');
   assert.strictEqual(s.skills.jian.cleared, 2);
-  // 走火：不推进。
+  // 失败：不推进。
   const before = s.skills.jian.cleared;
   const r4 = game.applyPractice(s, 'jian', 'F', { level: 3, score: 0 });
   assert.strictEqual(r4.wiped, true);
-  assert.strictEqual(r4.advanced, false, '走火把进度推上去了');
+  assert.strictEqual(r4.advanced, false, '失败把进度推上去了');
   assert.strictEqual(s.skills.jian.cleared, before);
   // 满关不越界：重打第 1000 关不再推进，也不会算出第 1001 关。
   const t = game.createNewState();

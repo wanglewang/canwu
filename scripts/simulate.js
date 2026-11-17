@@ -328,7 +328,7 @@ expect(comboGains.slice(10).every(function (g) { return g === world.COMBO_CAP_GA
 expect(world.comboGain(4) !== Math.round(world.comboGain(3) * world.COMBO_STEP),
   '每局独立取整，不拿上一局整数接着乘');
 
-// ③b 断连与收功：非 S / 走火 / breakCombo 都归零，下一局回到 34。
+// ③b 断连与结束：非 S / 失败 / breakCombo 都归零，下一局回到 34。
 const breakState = game.createNewState();
 breakState.resources.qi = 1e6;
 game.applyPractice(breakState, 'jian', 'S', { score: 0 });
@@ -338,7 +338,7 @@ expect(afterA.comboNow === 0 && afterA.gain === world.PROF_BASE.A, '非 S 归零
 game.applyPractice(breakState, 'jian', 'S', { score: 0 });
 game.breakCombo(breakState, 'jian');
 const afterAbort = game.applyPractice(breakState, 'jian', 'S', { score: 0 });
-expect(afterAbort.comboNow === 1 && afterAbort.gain === 34, '收功断连后下一局从 34 点重起');
+expect(afterAbort.comboNow === 1 && afterAbort.gain === 34, '结束断连后下一局从 34 点重起');
 
 // ④ 各段基础值不受任何倍率影响：C 都是 10 点。
 // 段位只看走通了几关，所以逐段把前面几段整段走通，才能站到那一段的首关。
@@ -470,7 +470,7 @@ const prodRun = game.applyPractice(prodState, 'jian', 'S', { score: 0 });
 expect(prodRun.qi === undefined && prodRun.stone === undefined && prodRun.qiCost > 0,
   '参悟只耗不产：qiCost ' + prodRun.qiCost + ' 点，qi/stone 产出字段已不存在');
 
-// ⑫ 走火：熟练度 0、断连，但烧掉的气不退。
+// ⑫ 失败：熟练度 0、断连，但烧掉的气不退。
 const wipedState = game.createNewState();
 wipedState.skills.jian.unlocked = true;
 wipedState.sCombo.jian = 6;
@@ -478,7 +478,7 @@ wipedState.resources.qi = 200;
 const wipedRun = game.applyPractice(wipedState, 'jian', 'F', { score: 0 });
 expect(wipedRun.gain === 0 && wipedRun.comboNow === 0
   && wipedState.resources.qi === 200 - wipedRun.qiCost,
-  '走火：熟练度 0、连 S 归零，已扣的 ' + wipedRun.qiCost + ' 点灵力不退');
+  '失败：熟练度 0、连 S 归零，已扣的 ' + wipedRun.qiCost + ' 点灵力不退');
 
 // ⑬ 回关护栏：问的是「回打这一关，每点灵力换到的熟练度有没有高过打当前关」。
 // **口径在 2026-11 改过一次，这里是新口径。** 旧口径是「6000 点预算下只刷第 1 关

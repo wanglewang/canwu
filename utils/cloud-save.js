@@ -18,7 +18,7 @@ let rowUpdatedAt = '';
 function messageOf(error, fallback) {
   if (!error) return fallback;
   const code = error.code || '';
-  if (code === '42P01') return '云端存档表尚未创建';
+  if (code === '42P01') return '云端存档表暂未创建';
   if (code === '42501') return '没有权限访问这份存档';
   if (code === '23505') return '这份存档已存在，正在重新对齐';
   if (code === 'NOT_FOUND_OR_FORBIDDEN') return '存档已被移除或无权修改，请重新登录';
@@ -122,7 +122,7 @@ async function save(state, expectedVersion) {
   } catch (e) {
     return { ok: false, conflict: false, message: '登录状态读取失败，请检查网络' };
   }
-  if (!signedIn) return { ok: false, conflict: false, message: '未登录，进度未能保存到云端' };
+  if (!signedIn) return { ok: false, conflict: false, message: '未登录，进度没有保存到云端' };
 
   if (rowId === null || rowId === undefined) {
     const resolved = await resolveRow();

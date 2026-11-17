@@ -10,7 +10,7 @@
 //   ③ 钉阵钉不再只是装饰：点已翻开的数字格，钉数对上就自动连开其余邻格（chord）。
 //      不钉钉照样能玩，会用的人才快，所以不破坏「一看就懂」。
 //
-// 保留下来的本门机制：三盏心神（误触只扣一盏并让那处显形，耗尽才收功）、长按钉阵钉、
+// 保留下来的本门机制：三盏心神（误触只扣一盏并让那处显形，耗尽即失败）、长按钉阵钉、
 // 大成开局勘出禁位。盘面只有数字与两个通用符号（✕ 禁制 / ⚑ 阵钉），不落汉字。
 //
 // finish.score 一律「越大越好」：engine.applyPractice 按 score > prevBest 记破纪录，
@@ -62,7 +62,7 @@ function create(ctx) {
   const maxHearts = typeof p.hearts === 'number' ? p.hearts : HEARTS_BY_DEPTH[depth];
   // 提示区只留规则，操作速记交给 guides 的 inline（两行都在讲「长按钉阵钉」是重复的）。
   // 代价句来自准备页的 method.tip；「此盘已验过」是无猜保证，两者都是规则，一起留在提示区。
-  const costText = ctx.tip || '误触折 1 盏心神，耗尽即收功';
+  const costText = ctx.tip || '误触折 1 盏心神，耗尽即失败';
   const vm = C.makeVm(cols, n, '点开第一格，禁制才会显形', costText + ' · 此盘已验过，不必靠猜');
   vm.timeText = '00:00';
   vm.scoreText = '已探 0 / ' + (n - mineCount);
@@ -362,7 +362,7 @@ function create(ctx) {
     paint();
     syncHud();
     if (hearts <= 0) {
-      // 心神耗尽＝这一局没探完，是走火不是粗浅：粗浅是探完了但慢。
+      // 心神耗尽＝这一局没探完，是失败不是粗浅：粗浅是探完了但慢。
       finishOnce('F', '心神耗尽，这一局没探完', true);
       return;
     }
@@ -467,7 +467,7 @@ function create(ctx) {
     start: start,
     tap: tap,
     longpress: longpress,
-    abandon: function () { finishOnce('F', '中途收功', true); },
+    abandon: function () { finishOnce('F', '中途结束', true); },
     destroy: function () { bag.clear(); },
   });
 }
@@ -483,7 +483,7 @@ function lines(p) {
     items: ['本段 ' + cols + '×' + rows + ' 盘 · ' + ((p && p.mines) || 6) + ' 处禁制 · ' + hearts + ' 盏心神',
       'S ≤ ' + line[0] + ' 秒', 'A ≤ ' + line[1] + ' 秒',
       'B ≤ ' + line[2] + ' 秒', '其余为 C'],
-    fail: '本段 ' + hearts + ' 盏心神全折（禁制没探完）→ 走火 F，这一局没有收益',
+    fail: '本段 ' + hearts + ' 盏心神全折（禁制没探完）→ 失败 F，这一局没有收益',
   };
 }
 

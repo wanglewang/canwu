@@ -126,7 +126,7 @@ function create(ctx) {
       elapsed += 1;
       syncHud();
       if (elapsed >= timeLimit) {
-        // 时辰到还没通完＝没走完：走火。通完了只是慢，那才是 C。
+        // 时辰到还没通完＝没走完：失败。通完了只是慢，那才是 C。
         finishOnce('F', '只通了 ' + pairsDone + ' 对，时辰到了');
         return;
       }
@@ -254,7 +254,7 @@ function create(ctx) {
     start: start,
     tap: tap,
     hint: hint,
-    abandon: function () { finishOnce('F', '中途收功'); },
+    abandon: function () { finishOnce('F', '中途结束'); },
     destroy: function () { bag.clear(); },
   });
 }
@@ -265,7 +265,7 @@ function lines(p) {
     rule: '按解完全部对子的用时；S 另要求翻牌次数少',
     items: ['S ≤ ' + GRADE_LINE[0] + ' 秒，且翻牌 ≤ ' + pairs * 4 + ' 次',
       'A ≤ ' + GRADE_LINE[1] + ' 秒', 'B ≤ ' + GRADE_LINE[2] + ' 秒', '其余为 C'],
-    fail: '时辰到还没全部通开 → 走火 F，这一局没有收益',
+    fail: '时辰到还没全部通开 → 失败 F，这一局没有收益',
   };
 }
 
