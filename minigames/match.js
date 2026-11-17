@@ -139,9 +139,9 @@ function makeBoard(cols, rows, kinds) {
 // 演出期间不收输入，但表照走——停表会让手快的人拿动画换时间，一局打不完。
 const BEAT = {
   clear: 170,
-  fallBase: 130,
-  fallPer: 30,
-  fallMax: 300,
+  fallBase: 120,
+  fallPer: 26,
+  fallMax: 250,
 };
 
 // 连锁层数上限。跟「扫到没有为止」一样不能无界：一次补苗可能又凑出好几条，

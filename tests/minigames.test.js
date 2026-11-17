@@ -2936,7 +2936,8 @@ check('三秀同收：一手分成「留空」与「落下」两个拍子，中�
       '空格帧不到 120ms 就被补上了，玩家看不到「这里少了三株」');
 
     // 第二拍：落下。每一格都要带距离与时长，两者缺一就退回「牌闪了一下」。
-    advance(200);
+    // 推到 1420ms：空格帧在 170ms 处收，最短的一列也要 120ms 才落定，这一段一定在落。
+    advance(100);
     const fell = vm.cells.filter(function (c) { return /cell--fall\d/.test(c.cls); });
     assert.ok(fell.length >= 3, '落下来这一拍没有任何一格在动（只有 ' + fell.length + ' 格）');
     assert.ok(fell.every(function (c) { return c.fall > 0 && c.fd > 0; }),
