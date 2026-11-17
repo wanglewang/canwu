@@ -24,7 +24,7 @@ function read(rel) {
 // 正向断言会报红（还算好），负向断言（「不许再出现 xxx」）会静默通过，闸门等于被拆掉。
 function readEngine() {
   const dir = path.join(ROOT, 'utils', 'game');
-  if (!fs.existsSync(dir)) return readEngine();
+  if (!fs.existsSync(dir)) return read('utils/game.js');
   return fs.readdirSync(dir)
     .filter(function (f) { return f.endsWith('.js'); })
     .map(function (f) { return fs.readFileSync(path.join(dir, f), 'utf8'); })
@@ -2260,6 +2260,46 @@ check('正名层不用现实游戏名，口语层允许（禁令只在名字上�
   const lingqi = skillData.SKILLS.filter(function (s) { return s.id === 'lingqi'; })[0];
   assert.ok(lingqi && /连连看/.test(lingqi.flavor),
     '并蒂那句「你觉得这叫连连看」被抹了：口语层允许点出品类名');
+});
+
+// 2026-11 拆内核之后新增的三条结构守卫。都不是「有没有这行代码」，而是问
+// 「这层结构还在不在」：门面薄不薄、导出键有没有写错、上层有没有绕过门面。
+check('内核门面是薄的一层，导出键没有一个是空的', function () {
+  const facade = read('utils/game.js');
+  assert.ok(facade.split('\n').length <= 12,
+    'utils/game.js 又长回去了：它只该转发到 game/index.js，代码搬回门面等于把拆分撤销');
+  assert.ok(/module\.exports = require\('\.\/game\/index\.js'\);/.test(facade),
+    '门面没转发到 game/index.js（写成 require(\'./game\') 目录形式，小程序打包解析不到）');
+  // index.js 是手写的 70 个键，写错一个名字不会报错，只会在页面调用时变成
+  // 「xxx is not a function」。这里直接把门面跑一遍，空值当场红。
+  const api = require('../utils/game.js');
+  const empty = Object.keys(api).filter(function (k) { return api[k] === undefined || api[k] === null; });
+  assert.strictEqual(empty.length, 0, '门面导出了空值（index.js 里名字写错了）：' + empty.join(', '));
+  assert.ok(Object.keys(api).length >= 60, '门面导出面突然变小，页面会大面积 undefined');
+});
+
+check('上层只许走门面，不许直接 require 内核里的子文件', function () {
+  const offenders = [];
+  const dirs = ['pages', 'utils', 'data', 'minigames', 'components'];
+  function walk(d) {
+    if (!fs.existsSync(d)) return;
+    fs.readdirSync(d).forEach(function (n) {
+      const p = path.join(d, n);
+      // 内核目录自己内部互相 require 是正常的；门面本身当然要 require 内核
+      if (p === path.join(ROOT, 'utils', 'game')) return;
+      if (p === path.join(ROOT, 'utils', 'game.js')) return;
+      if (fs.statSync(p).isDirectory()) return walk(p);
+      if (!n.endsWith('.js')) return;
+      const src = fs.readFileSync(p, 'utf8');
+      if (/require\(['"][^'"]*\/?game\/(?:index|[a-z]+)\.js['"]\)/.test(src)) {
+        offenders.push(path.relative(ROOT, p).replace(/\\/g, '/'));
+      }
+    });
+  }
+  dirs.forEach(function (d) { walk(path.join(ROOT, d)); });
+  assert.strictEqual(offenders.length, 0,
+    '这些文件绕过了门面直接 require 内核子文件：' + offenders.join(', ')
+    + '（分层靠路径守住，不靠自觉；要新接口就往 game/index.js 上加）');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

@@ -25,8 +25,8 @@
 | 位置 | 说的是什么 |
 | --- | --- |
 | `pages/guide/guide.js` 第 55 行 | 「身法**每 30 点**把切磋波动下限抬 1%（封顶 10%）」 |
-| `utils/game.js` 注释 | 「身法给的切磋波动下限：**每 30 点** +1%，封顶 +10%」 |
-| `utils/game.js` 代码 | 曾是 `const SHEN_FLOOR_PER = 1 / 300;` → 现为 `1 / 3000` |
+| `utils/game/profs.js` 注释 | 「身法给的切磋波动下限：**每 30 点** +1%，封顶 +10%」 |
+| `utils/game/profs.js` 代码 | 曾是 `const SHEN_FLOOR_PER = 1 / 300;` → 现为 `1 / 3000` |
 
 `1/300` 是 **每 3 点 +1%**：身法 30 点就吃满 10% 封顶，练两门之后这项属性再堆零收益。「每 30 点 +1%」需要 `1/3000`。
 
@@ -118,7 +118,7 @@ hydrate 之后   qi = 0     ← 玩家看到的就是这个数
 | 位置 | 错在哪 |
 | --- | --- |
 | `utils/store.js` 的 `init()` | 先 `settleOffline()` 结算、再由 `hydrate()` 用云端档整个覆盖 `state`——这一笔算完就扔了。而且 `init()` 里那句 `game.save()` 不给云端留 pending 标记，`hydrate()` 就当作「本机没改过」，直接拉云端 |
-| `utils/game.js` 的 `save()` | 里面写着 `state.lastSeen = Date.now()`。存档远比结算频繁（领份例、换门、参悟结算…），每存一次就把闭关起点推到现在，攒下的时长一次次被抹掉 |
+| `utils/game/state.js` 的 `save()` | 里面写着 `state.lastSeen = Date.now()`。存档远比结算频繁（领份例、换门、参悟结算…），每存一次就把闭关起点推到现在，攒下的时长一次次被抹掉 |
 
 两条合起来正好是玩家看到的循环：**每次冷启动都弹「+90」，每次都是一分不到账**（云端那份 `lastSeen` 也是旧的，所以下次还能再算一遍）。
 
@@ -406,7 +406,7 @@ assert.ok(total >= 5, '按压反馈覆盖不足：' + total + ' 处');
 | 位置 | 事实 |
 | --- | --- |
 | `pages/practice/practice.js` | `qi` 只在准备页扣一次、结算显示一次；局内的 `onHint / onUndo / onReset` 直接调 controller，一分气不花、次数不限 |
-| `utils/game.js` | 境界只进 `power / bonus / qiCap` 三个字段，筑基与元婴玩同一门功法，盘面规则一字不差 |
+| `utils/game/realm.js` | 境界只进 `power / bonus / qiCap` 三个字段，筑基与元婴玩同一门功法，盘面规则一字不差 |
 | `minigames/*.js` | 每门玩法都是完整信息的纯技巧游戏：三秀连收诀想的是「哪三连」，循数勘禁诀想的是「哪个有雷」——这些判断换到任何主题下都成立 |
 
 **已经补上的那一半**（表现层，不改玩法）：练功 → 战力 → 破境 这条链原来只有系统知道，现在四处同源地说出来——功法页「再练到入门：战力 +4」、结算「战力 45 → 49（+4）」、主页「还差 30 · 星罗点灯诀到入门 +8」、人物页破境卡同一句。见 `10-systems/10-power.md` 第 4 节。
@@ -685,7 +685,7 @@ cur = 2 / 21 / 200 / 800 四档逐档复算）。但**全局**不保证——段
 
 | 条目 | 位置 |
 | --- | --- |
-| A1 身法 | `utils/game.js:367-375`、`pages/guide/guide.js:55` |
+| A1 身法 | `utils/game/profs.js` 的 `SHEN_FLOOR_PER` / `shenFloorBonus()`、`pages/guide/guide.js:55` |
 | A2 推石文案 | `minigames/pushbox.js` 的 `costText` 与 `undo()` |
 | A3 门槛表 | 根 `README.md`、`data/practice.js:289-293` |
 | A4 说明分享 | `pages/help/help.js:61-69` |

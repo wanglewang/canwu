@@ -161,7 +161,7 @@ profByLevel(base, 关, 当前关) = round(base × levelFactor)
 - `scripts/simulate.js` —— `GRADE_DIST`、两条毕业曲线、五个预算实验
 - `data/world.js` —— `PROF_MAX` / `PROF_BASE` / `COMBO_TABLE` / `COMBO_ROUND` / `PROF_C_RUNS` / `PROF_S_RUNS`
 - `data/practice.js` —— 六段门槛、回关折减（`levelFactor` / `profByLevel` / `retreatText`）
-- `utils/game.js:627` —— `applyPractice`（四种情况的判定顺序）
+- `utils/game/settle.js` —— `applyPractice`（四种情况的判定顺序）
 - `tests/game.test.js` —— 连 S 的 8 条取整纪律
 - `tests/rank.test.js` —— 五段区分度
 

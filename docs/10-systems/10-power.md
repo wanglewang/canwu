@@ -45,7 +45,7 @@ total = round( base × (1 + 境界加成 + 功法特效) )
 十五门功法于是看上去像十五个互不相干的小游戏——这正是「套壳」这个印象的来源。补的不是新机制，是这次换算本身：
 
 ```js
-// utils/game.js
+// utils/game/profs.js
 skillPowerGain(state, id)   // 把 rec.prof 换成下一段门槛，重算属性与战力，取差
 nextPowerStep(state)        // 已习得且未大圆满的门里，取「离下一段熟练度最近」的那门
 ```

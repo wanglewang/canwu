@@ -119,9 +119,10 @@ for each 已习得功法:
 | 功法卡片 | 不计（卡片只留三行） |
 | 图鉴「练成之后」 | 一行「本门特效」+ 当前几成：「刀意：对战战力 +6%（现 50%，满额 1.5%→3%）」 |
 | 参悟准备页 | 第一行「属性加成」、第二行「本门特效」 |
-| 人物页战力明细 | 只列已生效的（`activeBattleEffects`） |
+| 人物页 | 只写总战力（`ov.power`），不列逐门特效——逐门在功法卡与图鉴上，见下条 |
 
-`effectNoteOf(detail)` 生成那句「已生效 / 习得并练至入门后生效」，避免把未生效的特效写成灰色数字。
+`effectNoteOf(detail)` 生成那句「按火候逐级发挥」的说明，避免把未生效的特效写成灰色数字。
+`effectUnlocked`（`view.js`）的判据是 `rec.unlocked && effectScaleOf(rec.prof) > 0`，即**初窥 25% 起就算生效**。
 
 ## 9. 被否决的方案
 
@@ -144,16 +145,23 @@ for each 已习得功法:
 
 **为什么 offline 给 10%–12%**：两门合计 +22%，差不多把「一天两收」变成「一天三收」的量。它不影响单局强度，只影响节奏，所以可以给得慷慨些。
 
-## 11. 一处小不一致（不影响数值）
+## 11. 已修：特效清单的「大成门槛」
 
-`activeBattleEffects(state)` 只在 `tierIndex >= 3`（大成）时把特效列进「已生效」清单，而 `effectValue` 从入门起就按 25% 生效。
+旧版这节写的是「`activeBattleEffects(state)` 只在 `tierIndex >= 3`（大成）时把特效列进已生效清单，而 `effectValue` 从入门起就按 25% 生效」——展示比数值少列一段。
 
-结果显示上会「少列」：入门到小成期间，特效已经在算，但明细里不显示。这属于**展示口径**问题，不是数值 bug。若要修，把过滤条件改成 `effectScaleOf(rec.prof) > 0` 即可，但会让人物页的明细在前期变长——目前保留现状，记入待办。
+特效改成按**火候**兑现之后，这处不一致就不存在了：
+
+- `effectUnlocked` 的判据是 `rec.unlocked && effectScaleOf(rec.prof) > 0`（`view.js`），初窥 25% 起就算生效，没有段位门槛；
+- `effectNoteOf()`（同文件）出的是「按火候逐级发挥：初窥 25% → 通玄满额」，不再有「练到大成才有」的说法；
+- 人物页也不再列逐门特效明细，只写总战力 `ov.power`。
+
+2026-11 核文档时发现 `activeBattleEffects()` **在代码里已经不存在**（随火候改造一起删了），这节的名字是旧的；引用它的地方一律按上面三条看。
 
 ## 代码指路
 
 - `data/skills.js` —— 每门的 `effect: { type, value, text }`
-- `utils/game/` —— `EFFECT_TIER_SCALE` / `effectScaleOf()` / `effectValue()` / `activeBattleEffects()`
+- `utils/game/profs.js` —— `EFFECT_TIER_SCALE` / `effectScaleOf()` / `effectValue()`
+- `utils/game/view.js` —— `effectUnlocked` / `effectPercent` / `effectNoteOf()`
 - `data/economy.js` —— `PRACTICE_SAVE_MAX`（0.5）、`QI_CAP_SKILL_MAX`（0.3）
 - `scripts/verify.js` —— `qiCap` 只能挂心法、扩池总和 ≤ 30%
 - `tests/game.test.js` —— 特效 25% / 75% / 100%

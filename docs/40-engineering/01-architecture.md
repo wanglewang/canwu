@@ -107,7 +107,7 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 
 **真成本只有两笔**，都比想象中小：
 
-1. 有 12 处断言是直接读 `utils/game.js` 源码做正则匹配的。文件一拆，**负向的那些（「不许再出现 xxx」）会静默通过**——闸门没红，但也没在守。现在统一走「把 `utils/game/*.js` 全拼起来再匹配」（`verify.js` 的 `engineSrc()`、`layout.test.js` 的 `readEngine()`、`rank.test.js` 的 `engineSrc()` / `enginePart()`），并逐条反证过。
+1. 有 12 处断言是直接读 `utils/game.js` 源码做正则匹配的。文件一拆，**负向的那些（「不许再出现 xxx」）会静默通过**——闸门没红，但也没在守。现在统一走「把 `utils/game/*.js` 全拼起来再匹配」（`verify.js` 的 `engineSrc()`、`layout.test.js` 的 `readEngine()`、`rank.test.js` 的 `engineSrc()` / `enginePart()`）。12 处没有逐条反证：挑了两条负向各试一次（往 `profs.js` 塞 `restless`、往 `realm.js` 塞 `state.realmOk`），都当场报红并点名到子文件。
 2. 存档 ↔ 挂机 是真循环（`normalizeState` 要调 `checkDaily`）。把 `checkDaily` 归到 `state.js`（它本来就是「读档时的一次日历归零」）之后，依赖变成单向，环消失。
 
 **剩下的代价**：总行数从 2306 涨到 2518（多了 9 个文件头与导出块）。换来的是「改一处只读一处」——改参悟结算只读 333 行的 `settle.js`，而不是在 2000 行里找上下文。
