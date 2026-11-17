@@ -1984,8 +1984,10 @@ check('收牌迸溅与选中跳动：只动 transform / opacity，都是一次�
   assert.ok(dotRule.indexOf(v.MOTION.sparkMs + 'ms') >= 0, '迸溅时长与 MOTION.sparkMs 不一致');
 
   // 颜色取真源：图案是图片，取不到色，只能在 visual.CREST_HUE 登记一次。
+  // 这条同时守「图与色表同长」：迸溅色按 crest 序号取，错一格就把别的格的颜色溅出来，
+  // 而界面上看不出来是哪一步错的。scripts/gen-crest.js 出图时也核一次。
   assert.ok(/visual\.CREST_HUE/.test(js), '迸溅颜色没走 visual.CREST_HUE');
-  assert.strictEqual(v.CREST_HUE.length, 8, '纹样色表要与八个图案一一对应');
+  assert.strictEqual(v.CREST_HUE.length, 26, '纹样色表要与二十六格一一对应');
 
   // 选中跳动只动纹样自己的 transform。格子的 transform 归按压反馈（.cell--press），
   // 两处写同一个属性会互相顶掉，按下就没反馈了。
@@ -2047,41 +2049,52 @@ check('15 门盘面图案化：果器纹 / 卦象器物纹 / 数字纸纹三层�
   assert.ok(!/infinite/.test(etch), '金圈变成了常驻循环动画，动效预算会爆');
 });
 
-check('灵纹牌按剪影族取，不按 sprite 序号取', function () {
+check('灵纹牌按剪影族取，不按 sprite 序号取；四套主题共用一套族骨架', function () {
   const L = require('../minigames/link.js');
-  const fam = L.CREST_FAMILY;
   const src = read('minigames/link.js');
+  const fams = L.THEME_FAMILIES;
+  const themes = L.CREST_THEMES;
 
-  // 一、族表本身：每族只许一种，sprite 索引不许撞。
-  assert.ok(Array.isArray(fam) && fam.length >= 6, '族表不足六种，kinds 到不了 6');
-  const famNames = fam.map(function (c) { return c.family; });
-  const crestIds = fam.map(function (c) { return c.crest; });
-  assert.strictEqual(new Set(famNames).size, famNames.length,
-    '族表里有两个同族并列：' + famNames.join('/') + ' —— 分族就白分了');
-  assert.strictEqual(new Set(crestIds).size, crestIds.length, '族表里有两格指向同一张 sprite');
-  for (const id of crestIds) {
-    assert.ok(Number.isInteger(id) && id >= 1 && id <= 8, 'sprite 只有八格，索引越界：' + id);
+  // 一、族序是合同：四套主题都按这一串画，玩家学的是「第几族长什么样」。
+  assert.ok(Array.isArray(fams) && fams.length >= 6, '族序不足六种，kinds 到不了 6');
+  assert.strictEqual(new Set(fams).size, fams.length, '族序里有同名族');
+  assert.ok(themes.length >= 2, '只有一套主题，等于没轮换');
+
+  // 二、每套主题六格、精灵索引不许撞、不许越出 26 格。
+  const seen = new Set();
+  for (const t of themes) {
+    assert.ok(t.name && Array.isArray(t.ids), '主题缺名字或格位表');
+    assert.strictEqual(t.ids.length, fams.length,
+      t.name + ' 有 ' + t.ids.length + ' 格，族序有 ' + fams.length + ' 个 —— 换皮不换骨架被破坏了');
+    for (const id of t.ids) {
+      assert.ok(Number.isInteger(id) && id >= 1 && id <= 26, t.name + ' 的格位越界：' + id);
+      assert.ok(!seen.has(id), '第 ' + id + ' 格被两套主题重复占用');
+      seen.add(id);
+    }
   }
-  assert.strictEqual(new Set(fam.map(function (c) { return c.name; })).size, fam.length,
-    '族表里有两个同名纹样');
 
-  // 二、纹种数封顶只能读族表长度。写死 6 与写死门槛是同一个毛病：
-  //     以后往 sprite 里补了器物，得改这里才知道。
-  assert.ok(/kinds = Math\.min\(CREST_FAMILY\.length/.test(src),
-    'kinds 的封顶没有读族表长度');
+  // 三、纹种数封顶只能读族序长度。写死 6 与写死门槛是同一个毛病。
+  assert.ok(/kinds = Math\.min\(THEME_FAMILIES\.length/.test(src), 'kinds 的封顶没有读族序长度');
   assert.ok(!/Math\.min\(GLYPHS\.length/.test(src), 'kinds 又按字符表长度封顶了');
 
-  // 三、防回归：按序号取是这条规则最容易复发的地方。
-  //     旧写法 cell.crest = v 让「第几族」直接等于「第几张图」，族表就成了摆设。
+  // 四、防回归：按序号取是这条规则最容易复发的地方。
   assert.ok(!/cell\.crest = v\b/.test(src), 'paint 又按序号直接取 sprite 了');
-  assert.ok(!/cell\.tone = v\b/.test(src), 'tone 又按序号直接取色了，迸溅色会跟着串族');
+  assert.ok(!/cell\.tone = v\b/.test(src), 'tone 又按序号直接取色了，迸溅色会跟着串主题');
 
-  // 四、运行时：开局那一帧上场的 crest 必须整份来自族表，且一盘之内不重族。
+  // 五、主题由生成端注入，玩法层只消费。自己算兜底一旦与生成端不一致，
+  //     盘面会悄悄跳主题，而换皮不换难度，界面上看不出是哪一步错了。
+  assert.ok(/out\.theme = linkThemeOf\(lv\)/.test(read('data/levels.js')),
+    'levels.js 没有按关号注入纹样主题');
+  assert.ok(/linkThemeOf\(levelData\.stageRange/.test(read('data/practice.js')),
+    'buildParamsAt 没给段基准主题，段级读者会拿到 undefined');
+
+  // 六、运行时：每一套主题都要能真的起一局，盘上的 crest 必须整份来自该套，
+  //     且一盘之内不重格（重格就是同族内部两格混在一起）。
   const pd = require('../data/practice.js');
   const method = pd.PRACTICE_METHODS.filter(function (m) { return m.game === 'link'; })[0];
   assert.ok(method, '找不到并蒂引这一门');
-  for (const diff of ['novice', 'full']) {
-    const params = pd.buildParams(method, diff);
+  for (let t = 0; t < themes.length; t += 1) {
+    const params = Object.assign({}, pd.buildParams(method, 'minor'), { theme: t, kinds: 6 });
     let vm = null;
     const c = L.create({
       params: params, perks: { tier: 0 }, theme: {},
@@ -2091,22 +2104,112 @@ check('灵纹牌按剪影族取，不按 sprite 序号取', function () {
     c.destroy();
     const onBoard = new Set();
     for (const cell of vm.cells || []) if (cell.crest) onBoard.add(cell.crest);
-    assert.ok(onBoard.size > 0, diff + ' 档开局盘上一张牌都没有');
-    assert.strictEqual(onBoard.size, Math.min(fam.length, Math.max(3, params.kinds || 6)),
-      diff + ' 档上场的纹种数与参数不符');
+    assert.strictEqual(onBoard.size, 6, themes[t].name + ' 主题开局盘上不是六种纹');
     for (const id of onBoard) {
-      assert.ok(crestIds.indexOf(id) >= 0, diff + ' 档盘上出现了族表之外的 sprite：' + id);
+      assert.ok(themes[t].ids.indexOf(id) >= 0,
+        themes[t].name + ' 主题下盘上出现了别的主题的格：' + id);
     }
   }
 
-  // 五、教学盘走同一条映射：教学校里写 sprite 序号会绕过族表，
-  //     改族那天教学盘会悄悄换一整套图，而且没有任何断言会报红。
+  // 七、轮换节奏：每 5 关换一套，四套循环；同一段内相邻两关不许同主题连续太久。
+  const ld = require('../data/levels.js');
+  assert.strictEqual(ld.linkThemeOf(1), 0, '第 1 关不是第一套主题');
+  assert.strictEqual(ld.linkThemeOf(5), 0, '第 5 关还没换主题，节奏被改短了');
+  assert.strictEqual(ld.linkThemeOf(6), 1, '第 6 关没换主题');
+  assert.strictEqual(ld.linkThemeOf(21), 0, '四套没有循环回第一套');
+  let switches = 0;
+  for (let lv = 2; lv <= 20; lv += 1) if (ld.linkThemeOf(lv) !== ld.linkThemeOf(lv - 1)) switches += 1;
+  assert.strictEqual(switches, 3, '前 20 关应换三次主题，实际 ' + switches + ' 次');
+
+  // 八、教学盘走同一条映射：教学校里写 sprite 序号会绕过族序，
+  //     换主题那天教学盘会悄悄换一整套图，而且没有任何断言会报红。
   const teach = L.teach.create({
     render: function () { }, finish: function () { }, params: {},
   });
   teach.start();
   if (teach.destroy) teach.destroy();
   assert.ok(/crestOf\(board\[i\], 0\)/.test(src), '教学盘没走族序映射（且没钉在第一套主题）');
+});
+
+check('并蒂引盘形：空位只挖边沿、段内对数恒定、每四关换一副', function () {
+  const L = require('../minigames/link.js');
+  const ld = require('../data/levels.js');
+  const pd = require('../data/practice.js');
+  const src = read('minigames/link.js');
+  const method = pd.PRACTICE_METHODS.filter(function (m) { return m.game === 'link'; })[0];
+
+  // 一、四副布局：id 与名字唯一。
+  const lays = ld.LINK_LAYOUTS;
+  assert.ok(lays.length >= 4, '盘形不足四副，段内轮换撑不住');
+  assert.strictEqual(new Set(lays.map(function (x) { return x.id; })).size, lays.length, '盘形 id 重复');
+  assert.strictEqual(new Set(lays.map(function (x) { return x.name; })).size, lays.length, '盘形名重复');
+
+  // 二、每段之内：空位数恒定（= 对数恒定），且空位只挖在边沿。
+  //     中腹挖空会变成一条免费通道（实测每对可连量 +43%），那是变松不是变样；
+  //     对数一变，floor(每对预算 × 对数) 还会在那一关把每对预算顶高 0.03 息——
+  //     盘上写着「每对时辰 5.42 → 5.45」，玩家读到的是这一关变松了。
+  for (let st = 0; st < ld.STAGES.length; st += 1) {
+    const range = ld.stageRange(st);
+    let gapCount = -1;
+    for (let lv = range.from; lv <= range.to; lv += 1) {
+      const q = pd.buildParamsAt(method, lv);
+      assert.ok(Array.isArray(q.gaps), '第 ' + lv + ' 关的参数没带上盘形空位');
+      assert.deepStrictEqual(q.gaps, ld.linkGapsAt(lv, q.cols, q.rows),
+        '第 ' + lv + ' 关的空位不是生成端那一份');
+      if (gapCount < 0) gapCount = q.gaps.length;
+      assert.strictEqual(q.gaps.length, gapCount, '第 ' + lv + ' 关的空位数和本段别的关不一样');
+      assert.strictEqual((q.cols * q.rows - q.gaps.length) % 2, 0, '第 ' + lv + ' 关剩下奇数格，配不成对');
+      for (const g of q.gaps) {
+        const r = Math.floor(g / q.cols);
+        const c = g % q.cols;
+        assert.ok(r === 0 || r === q.rows - 1 || c === 0 || c === q.cols - 1,
+          '第 ' + lv + ' 关把空位挖到了中腹（第 ' + r + ' 行第 ' + c + ' 列）——那是一条免费通道，不是换盘');
+      }
+    }
+  }
+
+  // 三、节奏：段内每 4 关换一副，四副轮一圈后回到第一副。
+  const base = ld.stageRange(1).from;
+  const seq = [];
+  for (let lv = base; lv < base + 16; lv += 1) seq.push(ld.linkLayoutOf(lv));
+  assert.deepStrictEqual(seq, [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3],
+    '段内盘形不是每四关换一副：' + seq.join(','));
+  assert.strictEqual(ld.linkLayoutOf(base + 16), 0, '四副没有循环回第一副');
+
+  // 四、玩法层只消费：p.gaps 决定盘上的空位，对数与数据层是同一把尺子。
+  for (const lv of [1, base, base + 4, 300, 700]) {
+    const q = pd.buildParamsAt(method, lv);
+    let vm = null;
+    const c = L.create({
+      params: q, perks: { tier: 0 }, theme: {}, tip: method.tip,
+      render: function (v) { vm = v; }, finish: function () { },
+    });
+    c.start();
+    c.destroy();
+    const holes = vm.cells.filter(function (x) { return x.cls.indexOf('cell--hole') >= 0; });
+    assert.strictEqual(holes.length, q.gaps.length, '第 ' + lv + ' 关盘上的空位数与参数不符');
+    for (const h of holes) {
+      assert.strictEqual(h.crest, 0, '第 ' + lv + ' 关空位上摆了纹样');
+      assert.ok(h.cls.indexOf('cell--lit') < 0, '第 ' + lv + ' 关的空位亮着，读起来像一张牌');
+    }
+    assert.strictEqual(vm.link.pairs, pd.linkPairsOf(q),
+      '第 ' + lv + ' 关玩法层与数据层算出的对数不一样（时辰的分母会跟着错）');
+    const tokens = vm.cells.filter(function (x) { return x.crest; }).length;
+    assert.strictEqual(tokens, vm.link.pairs * 2, '第 ' + lv + ' 关牌数不是对数的两倍');
+  }
+
+  // 五、主题名只有一处：数据层的名字表与玩法层的 CREST_THEMES 必须同序同名，
+  //     否则「本关变化」会写着「纹样 甜点 → 海洋」而盘上换的是别的两套。
+  assert.deepStrictEqual(ld.LINK_THEME_NAMES, L.CREST_THEMES.map(function (t) { return t.name; }),
+    '主题名表与 CREST_THEMES 不同序');
+  assert.strictEqual(ld.LINK_THEME_COUNT, L.CREST_THEMES.length, '主题数与纹样套数不一致');
+
+  // 六、空位不是「收走的牌」：.cell--gone 是牌位空掉（压暗留痕），
+  //     .cell--hole 是这里本来没有牌位（整格透空）。两种画法都得有。
+  const css = read('pages/practice/practice.wxss');
+  assert.ok(/\.cell--hole\s*\{/.test(css), '盘形空位没有样式');
+  assert.ok(/\.cell--hole\s*\{[\s\S]*?background:\s*none/.test(css), '空位还留着牌面底色，看起来像一张牌');
+  assert.ok(/hole\[i\]/.test(src), 'paint 没按空位表分叉');
 });
 
 check('26 格器纹 sprite：单份 base64、三处容器、PNG 尺寸与打包排除', function () {

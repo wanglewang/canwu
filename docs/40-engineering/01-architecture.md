@@ -154,7 +154,7 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 | `tokens.wxss` | 246 | **唯一数值出处**：颜色 / 字号 / 间距 / 圆角 / 阴影 / 层级 / 触控 / 动效 |
 | `immortal.wxss` | 656 | 仙箓皮肤：`.pg--imm` 映射层 + `.imm-*` 组件类 |
 | `scene.wxss` | 779 | 舞台与盘面：`.scene__*` / `.pg--scene .cell--*` |
-| `crest.wxss` | 46 | 8 格果器 sprite |
+| `crest.wxss` | 64 | 26 格灵纹牌 sprite（果器 8 格 + 三套主题各 6 格） |
 | `emblems.wxss` | 89 | 26 格卦象 sprite |
 
 `app.wxss`（473 行）只做 `@import` + 跨页面复用类。

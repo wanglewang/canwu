@@ -638,12 +638,17 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   } else checked += 1;
   // 段内布纹必须两头都有人管：levels.js 生成 weave，link.js 读走它去派牌。
   // 只在一头写参数，就是 8b-5d 守的「生成了没生效 / 消费了没生成」假变化。
+  // 盘形同理：levels.js 生成 gaps，link.js 按空位表派牌（空位不铺纹）。
   const levelsSrc = fs.readFileSync(path.join(ROOT, 'data/levels.js'), 'utf8');
-  if (!/game === 'link'[\s\S]{0,320}out\.weave\s*=/.test(levelsSrc)
+  if (!/game === 'link'[\s\S]{0,420}out\.weave\s*=/.test(levelsSrc)
       || !/(p|params)[ ]*[.][ ]*weave(?![a-zA-Z])/.test(linkSrc)
-      || !/board\s*=\s*makeBoard\(n, kinds, weave\)/.test(linkSrc)
+      || !/board\s*=\s*makeBoard\(hole, kinds, weave\)/.test(linkSrc)
       || typeof linkMod.pairCounts !== 'function') {
     errors.push('linkpair 的段内布纹没接成：levels.js 没生成，或 link.js 读了没派牌');
+  } else checked += 1;
+  if (!/game === 'link'[\s\S]{0,520}out\.gaps\s*=/.test(levelsSrc)
+      || !/(p|params)[ ]*[.][ ]*gaps(?![a-zA-Z])/.test(linkSrc)) {
+    errors.push('linkpair 的盘形没接成：levels.js 没生成 gaps，或 link.js 没按空位派牌');
   } else checked += 1;
   let hintStable = true;
   let sourced = true;
@@ -664,11 +669,15 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
     if (prevPP !== null && pp > prevPP + 1e-9) perPairOk = false;
     prevPP = pp;
     if (lv > 1) {
-      const txt = practiceMod.levelDelta(m, lv).map(function (x) { return x.text; }).join(' / ');
+      const items = practiceMod.levelDelta(m, lv);
+      const txt = items.map(function (x) { return x.text; }).join(' / ');
       if (/flashMs|hintMs|亮起时长/.test(txt)) reportOk = false;
       const mm = /每对时辰 ([\d.]+) → ([\d.]+) 息/.exec(txt);
       if (mm && Number(mm[2]) > Number(mm[1])) reportOk = false;
-      if (txt) reported += 1;
+      // 末关那条「本门最后一关」回答的是终点，不是「这一关比上一关变了什么」，
+      // 与 tests/rank.test.js 的「真变」逐关对齐时不能算进来——两处口径不一样，
+      // 就会一个说 435、一个说 434，而两条闸门各自都是绿的。
+      if (items.some(function (x) { return x.key !== 'final'; })) reported += 1;
     }
   }
   if (!hintStable) errors.push('linkpair 的 hintMs 在 1000 关里变了：照纹亮多久不是难度旋钮');
@@ -758,9 +767,12 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   // 路径钉到中文正名，目录名被改回英文 stem 时这里会当场报错，不会静默读旧文件。
   const docPath = path.join(ROOT, 'docs/20-minigames/11-并蒂连枝引/总览.md');
   const doc = fs.readFileSync(docPath, 'utf8');
-  if (!/收干净那一刻的剩余息/.test(doc) || !/59 关有东西可报/.test(doc)
-      || !/布纹/.test(guide)) {
-    errors.push('11-并蒂连枝引 的玩法文档 / 说明页又是旧版：改了机制必须同批改那一篇');
+  // 「N 关有东西可报」不写字面量：N 就是上面逐关数出来的 reported。
+  // 写死一个数字，改了轮换节奏之后文档会与代码各说各的，而且没有任何断言会红。
+  if (!/收干净那一刻的剩余息/.test(doc) || doc.indexOf(reported + ' 关有东西可报') < 0
+      || !/布纹/.test(guide) || !/盘形/.test(guide) || !/盘形/.test(doc)) {
+    errors.push('11-并蒂连枝引 的玩法文档 / 说明页又是旧版（应为「' + reported
+      + ' 关有东西可报」）：改了机制必须同批改那一篇');
   } else checked += 1;
 }
 // 8b-6b. 玩法文档目录名 = 编号 + 功法正名（照 05-吐纳周天诀），单门六篇齐全。

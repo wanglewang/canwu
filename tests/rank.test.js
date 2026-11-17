@@ -1295,11 +1295,18 @@ check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备�
   //      这时比的是名义值 linkPerPairAt，那也是设计用的那一把尺子。
   let changed = 0;
   let reported = 0;
+  // 分项账本：文档「总览 §5」引用的那串拆解必须与本表逐项相等。
+  // 关数 ≠ 条数——一关最多报三条（换段那关报换段 / 换盘 / 换纹种），
+  // 把 500 条当成 500 关、或把拆解当成「加起来正好 435」，都是把这份账读错。
+  const tally = { chapter: 0, cols: 0, kinds: 0, layout: 0, theme: 0, weave: 0, perPair: 0 };
+  let multi = 0;
   let prev = practice.buildParamsAt(m, 1);
-  let prevPP = prev.duration / (prev.cols * prev.rows / 2);
+  let prevPP = prev.duration / practice.linkPairsOf(prev);
   for (let lv = 2; lv <= L.LEVEL_MAX; lv += 1) {
     const q = practice.buildParamsAt(m, lv);
-    const pp = q.duration / (q.cols * q.rows / 2);
+    // 分母是本关真能接几对（盘形挖了空位就不是 cols*rows/2）：这一门所有「每对」
+    // 都走 practice.linkPairsOf，测试也不许自己再算一套。
+    const pp = q.duration / practice.linkPairsOf(q);
     assert.ok(practice.linkPerPairAt(lv) <= practice.linkPerPairAt(lv - 1) + 1e-12,
       '第 ' + lv + ' 关每对预算的名义值往松走了');
     if (L.stageOfLevel(lv) === L.stageOfLevel(lv - 1)) {
@@ -1307,18 +1314,37 @@ check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备�
     } else {
       assert.ok(pp <= prevPP + 0.02, '第 ' + lv + ' 关换段时每对预算松了 ' + (pp - prevPP).toFixed(3) + ' 息');
     }
+    // 「真变」= 玩家在盘上看得见的东西变了：盘面 / 纹种 / 布纹 / 盘形 / 纹样 / 时辰。
+    // 盘形与纹样是上一版之后新加的两条段内旋钮，这里不跟着算，账就永远对不上。
     if (q.duration !== prev.duration || q.cols !== prev.cols || q.rows !== prev.rows
-      || q.kinds !== prev.kinds || q.weave !== prev.weave) changed += 1;
+      || q.kinds !== prev.kinds || q.weave !== prev.weave
+      || q.layout !== prev.layout || q.theme !== prev.theme) changed += 1;
     const ds = practice.levelDelta(m, lv);
     // 「本门第一关」与「本门最后一关」回答的是起点/终点，不是「这一关比上一关变了什么」，
     // 不进「逐关真变 = 界面可报」这本账；末关常常只是整秒取整，本就没变。
     if (ds.some(function (x) { return x.key !== 'start' && x.key !== 'final'; })) reported += 1;
+    for (const x of ds) {
+      if (Object.prototype.hasOwnProperty.call(tally, x.key)) tally[x.key] += 1;
+    }
+    if (ds.length > 1 && ds.every(function (x) { return x.key !== 'start' && x.key !== 'final'; })) multi += 1;
     assert.ok(ds.every(function (x) { return !/flashMs|hintMs|亮起时长/.test(x.text); }),
       '第 ' + lv + ' 关又报毫秒假变化');
     prev = q;
     prevPP = pp;
   }
   assert.strictEqual(changed, reported, '逐关真变 ' + changed + ' 关、界面可报 ' + reported + ' 关，两者对不上');
+  // 这张表是「段内两根只换外观的轴真的有在换」的唯一硬证据：
+  // 盘形每 4 关一副 → 1000 关里两百多条；纹样每 5 关一套 → 一百多条。
+  // 改盘形周期 / 纹样周期 / 布纹档数，这里必须跟着改，不顺带改就是文档与代码各说一套。
+  assert.deepStrictEqual(tally,
+    { chapter: 4, cols: 2, kinds: 2, layout: 246, theme: 195, weave: 15, perPair: 35 },
+    '分项账本变了：总览 §5 的拆解要同批改');
+  // 七项合计 499 条 + 末关那条「圆满」= 500 条，落在 435 关上（有 64 关报了多条）。
+  // 关数、条数、拆解是三个不同的数，写成「加起来正好 435」就是一笔假账。
+  assert.strictEqual(Object.keys(tally).reduce(function (a, k) { return a + tally[k]; }, 0), 499,
+    '分项条目数变了（七项 499 + 末关 1 = 500 条）');
+  assert.strictEqual(reported, 434, '有东西可报的关数变了（末关那条「本门最后一关」是终点总结，不计入）');
+  assert.strictEqual(multi, 64, '一关报多条的次数变了（371 一条 / 63 两条 / 1 三条）');
   assert.ok(changed >= 30, '规格台阶掉到 ' + changed + ' 级');
   assert.strictEqual(m.tip, practice.tipFor(m, 'novice'), '功法表的兜底代价句与简单档分叉了');
   assert.ok(!/flashMs/.test(JSON.stringify(m.params)), '种子参数里还有 flashMs');

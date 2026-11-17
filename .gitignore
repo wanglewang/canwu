@@ -25,3 +25,6 @@ _gitee-sync-plus-log.md
 # 整目录忽略：插件本体（gitee-sync-plus/main.js 六千行）进仓库会被 ESLint 扫到，
 # 也会让静态校验的项数随另一台机器的同步动作漂移。
 .obsidian/
+
+# JetBrains / IDEA 本地工程配置（每人一份，不入库）
+.idea/

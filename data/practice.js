@@ -505,11 +505,11 @@ function matchLevelOf(stageIndex) {
 // 「时辰 39 秒 → 51 秒」，等于承认上一章更难。所以时辰改按「每对预算」沿关号
 // 连续收，见下面的 linkPerPairAt / linkDurationAt。
 const LINK_LEVELS = [
-  { cols: 6, rows: 4, kinds: 4 },   // 12 对 · 4 种纹：同纹各 6 枚，路径好找
-  { cols: 6, rows: 4, kinds: 5 },   // 12 对 · 5 种纹
-  { cols: 6, rows: 4, kinds: 6 },   // 12 对 · 6 种纹：每种正好 4 枚，同纹候选最少
-  { cols: 7, rows: 4, kinds: 6 },   // 14 对
-  { cols: 8, rows: 4, kinds: 6 },   // 16 对
+  { cols: 6, rows: 4, kinds: 4 },   // 挖四格 = 20 格 · 10 对 · 4 种纹：段首多的一种 6 枚，路径好找
+  { cols: 6, rows: 4, kinds: 5 },   // 10 对 · 5 种纹
+  { cols: 6, rows: 4, kinds: 6 },   // 10 对 · 6 种纹：换段只换纹种，盘还是这一副
+  { cols: 7, rows: 4, kinds: 6 },   // 挖四格 = 24 格 · 12 对
+  { cols: 8, rows: 4, kinds: 6 },   // 挖四格 = 28 格 · 14 对
 ];
 // 每对预算（息）：第 1 关 5.5 → 第 200 关 2.75，正好 2 倍。
 // 拿「每对」而不是「总秒数」当主承重：换章盘面变大，总秒数跟着变长是应该的，
@@ -522,6 +522,14 @@ const WEAVE_NAMES = ['均匀', '微偏', '偏斜', '极偏'];
 
 function weaveNameOf(weave) {
   return WEAVE_NAMES[Math.max(0, Math.min(WEAVE_NAMES.length - 1, Math.round(Number(weave) || 0)))];
+}
+
+// 纹样主题的名字：真源在 data/levels.js 的 LINK_THEME_NAMES（数据层要拿它写「本关变化」），
+// 图案在 minigames/link.js 的 CREST_THEMES。两处顺序由 layout.test 断言，不靠人记。
+function linkThemeNameOf(theme) {
+  const names = levelData.LINK_THEME_NAMES;
+  const i = Math.max(0, Math.min(names.length - 1, Math.round(Number(theme) || 0)));
+  return names[i];
 }
 
 // 这一关每对给几息：沿全书进度线性收，不按章回卷——「章内收三成、换章复位」
@@ -540,8 +548,21 @@ function linkPerPairAt(level) {
 function linkDurationAt(level) {
   const lv = Math.max(1, Math.min(levelData.LEVEL_MAX, Math.round(level) || 1));
   const board = LINK_LEVELS[levelData.stageOfLevel(lv)];
-  const pairs = board.cols * board.rows / 2;
-  return Math.max(20, Math.floor(linkPerPairAt(lv) * pairs));
+  return Math.max(20, Math.floor(linkPerPairAt(lv) * linkPairsAt(lv, board.cols, board.rows)));
+}
+
+// 本关能接几对 = (格数 − 空位数) / 2。**这一门所有「每对」的分母都只从这一个函数出**
+// （时辰 / 规格串 / 末关跨度 / 本关变化），空位一加就有四处要改，各算一套必然对不上。
+function linkPairsAt(level, cols, rows) {
+  const gaps = levelData.linkGapsAt(level, cols, rows);
+  return Math.max(1, (cols * rows - gaps.length) / 2);
+}
+
+// 同一件事的「按参数算」版本：上面那个吃关号，这个吃已经算好的 params（q.gaps 在里头）。
+function linkPairsOf(q) {
+  const cells = (q.cols || 0) * (q.rows || 0);
+  const holes = Array.isArray(q.gaps) ? q.gaps.length : 0;
+  return Math.max(1, (cells - holes) / 2);
 }
 
 // 局内那行代价句要跟着本段罚息走：以前写死「少 2 息」，改了档就变成假话。
@@ -900,6 +921,12 @@ function rawParams(method, depthIndex) {
     // 段基准是「均匀布纹」，段内一级一级偏过去（tweakParams）。写在这里是为了
     // buildParams(method, stage) 那些段级读者也有同一个起点，不会出现 undefined。
     out.weave = 0;
+    // 纹样主题同理：段首关（1/11/51/201/501）都给第一套，按关号的轮换由 tweakParams 注入。
+    out.theme = levelData.linkThemeOf(levelData.stageRange(d.depth).from);
+    // 盘形同理：段级读者拿到的是段首关那一副（未入门段是整块），段内轮换由 tweakParams 注入。
+    // 空位列表要跟 duration 同源：时辰的分母是「本关能接几对」，挖了空位就不是 cols*rows/2。
+    out.layout = levelData.linkLayoutOf(levelData.stageRange(d.depth).from);
+    out.gaps = levelData.linkGapsAt(levelData.stageRange(d.depth).from, out.cols, out.rows);
   }
   // 阵灯推演按「比最优多走几步」评级，盘面规格、最优步数区间与步数余量由这一份表按档注入。
   if (method && method.game === 'lights') {
@@ -1136,7 +1163,7 @@ function levelSpecItems(method, q, limit) {
   if (num(q.lenStep) && q.lenStep > 0) out.push('刀路多 ' + q.lenStep + ' 桩');
   // 灵纹连线的总时辰换章时会被盘变大顶上去，能比的是「一对平均给几息」。
   if (method && method.game === 'link' && num(q.duration) && num(q.cols) && num(q.rows)) {
-    out.push('每对 ' + (q.duration / (q.cols * q.rows / 2)).toFixed(2) + ' 息');
+    out.push('每对 ' + (q.duration / linkPairsOf(q)).toFixed(2) + ' 息');
   } else if (num(q.duration)) out.push('时辰 ' + Math.round(q.duration) + ' 秒');
   else if (num(q.timeLimit)) out.push('时辰 ' + Math.round(q.timeLimit) + ' 秒');
   return out.slice(0, limit || 3);
@@ -1161,8 +1188,8 @@ function levelSpanItems(method, from, to, limit) {
   // 灵纹连线连总时辰也不报，报「一对平均给几息」——盘变大本来就该多给时间。
   if (method && method.game === 'link' && num(from.duration) && num(to.duration)
     && num(from.cols) && num(from.rows) && num(to.cols) && num(to.rows)) {
-    add('每对时辰 ' + (from.duration / (from.cols * from.rows / 2)).toFixed(2)
-      + ' → ' + (to.duration / (to.cols * to.rows / 2)).toFixed(2) + ' 息');
+    add('每对时辰 ' + (from.duration / linkPairsOf(from)).toFixed(2)
+      + ' → ' + (to.duration / linkPairsOf(to)).toFixed(2) + ' 息');
     skip.duration = true;
   } else if (num(from.duration) && num(to.duration) && to.duration < from.duration) {
     pair('duration');
@@ -1282,13 +1309,24 @@ function levelDelta(method, level) {
     if (now.kinds !== prev.kinds) {
       out.push({ key: 'kinds', label: '灵纹', text: '灵纹 ' + prev.kinds + ' → ' + now.kinds + ' 种' });
     }
+    // 盘形与纹样是段内一眼看得见的两件事：每四 / 五关换一副，所以排在最前，
+    // 优先于「布纹」（每 10 关才动一格）与「每对时辰」（几乎每关都在动）。
+    // 换段那关不报——段首本来就是整块 + 新纹种，前三条额度已经说完了。
+    if (!chStart && now.layout !== prev.layout) {
+      out.push({ key: 'layout', label: '盘形',
+        text: '盘形 ' + levelData.linkLayoutNameOf(prevLv) + ' → ' + levelData.linkLayoutNameOf(lv) });
+    }
+    if (!chStart && now.theme !== prev.theme) {
+      out.push({ key: 'theme', label: '纹样',
+        text: '纹样 ' + linkThemeNameOf(prev.theme) + ' → ' + linkThemeNameOf(now.theme) });
+    }
     // 布纹只在段内报：下一段首关会从「极偏」回到「均匀」，那是新段的起手牌阵，
     // 不是这一关变松了。换段那关前三条额度留给换段 / 换盘 / 换纹种。
     if (!chStart && now.weave !== prev.weave) {
       out.push({ key: 'weave', label: '布纹',
         text: '布纹 ' + weaveNameOf(prev.weave) + ' → ' + weaveNameOf(now.weave) });
     }
-    const perPair = function (q) { return (q.duration / (q.cols * q.rows / 2)).toFixed(2); };
+    const perPair = function (q) { return (q.duration / linkPairsOf(q)).toFixed(2); };
     const a = perPair(prev);
     const b = perPair(now);
     // 只报「变紧」。换段时对数从 12 跳到 14，总时辰是整数秒、每对的粒度跟着变细，
@@ -1521,10 +1559,11 @@ function stageDetail(method, stageIndex) {
     // 这一门的难度不写在总秒数上（盘变大时辰就变长），写在「一对平均给几息」上。
     // 每对时辰从本段真实参数现算，不另抄一份 linkPerPairAt——向下取整之后两者会差到
     // 0.08 息，准备页说 5.50、局内却是 5.42，玩家一眼就看得出是两张嘴。
-    const pairs = now.cols * now.rows / 2;
+    // 对数也要读 linkPairsOf：盘形挖掉四格之后，cols*rows/2 已经不是牌的对数了。
+    const pairs = linkPairsOf(now);
     brief = now.cols + '×' + now.rows + ' 盘 · ' + pairs + ' 对 · ' + now.kinds + ' 种灵纹 · '
       + now.duration + ' 息 · 每对 ' + (now.duration / pairs).toFixed(2) + ' 息'
-      + ' · 布纹由均匀渐至极偏';
+      + ' · 布纹由均匀渐至极偏 · 盘形四副轮换';
   } else if (method && method.game === 'tempo') {
     // 这一门的段差是「换了一副谱」，不是「快了几毫秒」：谱型 / 手数 / 提示三样写在一句里，
     // 准备页才不会写着「最快节奏」而玩家进局发现只是窗窄了一点。
@@ -1650,6 +1689,11 @@ module.exports = {
   weaveNameOf: weaveNameOf,
   linkPerPairAt: linkPerPairAt,
   linkDurationAt: linkDurationAt,
+  // 本关对数（= 时辰的分母）：盘上挖了空位就不再是 cols*rows/2。
+  // 界面上每一句「每对几息」都必须走这两个之一，各算一套就会在换盘那关报出假回弹。
+  linkPairsAt: linkPairsAt,
+  linkPairsOf: linkPairsOf,
+  linkThemeNameOf: linkThemeNameOf,
   tipFor: tipFor,
   TEMPO_FLOOR: TEMPO_FLOOR,
   TEMPO_SCORES: TEMPO_SCORES,

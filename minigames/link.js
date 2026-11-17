@@ -16,36 +16,39 @@ const K = require('./teach-kit.js');
 
 // 上场的纹样按「剪影族」排，不按 sprite 序号取。
 //
-// sprite 八格是：1 灵果 2 灵梨 3 灵珠（葡萄）4 灵桃 5 灵橘 6 茶盏 7 灵葫 8 灵芝（蘑菇）。
-// 旧写法 `kinds = min(6, p.kinds)` 再按序号取前 N —— 前六格是五果一器，最简档（4 种）
-// 干脆是一整盘水果：同族挤满、异族一个都没有。
-//
 // 配对类盘面的第一条硬规则是「先看剪影，后看颜色」：去色成单色、眯眼仍要分得清，
 // 业内叫 silhouette / squint test。麻将在这件事上是极端样本（144 张、34 种面），
 // 反复被读混的对子（二索 vs 三索、六筒 vs 八筒）全是同族内细差，解法不是给细节
 // 加描边，而是先按花色分组 —— 族间差异要粗，族内差异才轮到细。
 //
-// 所以这里按族挑，由易到难，六种六个族，单色下互不重叠：
-//   圆润（灵果）→ 方框（茶盏）→ 伞状（灵芝）→ 竖长（灵梨）→ 成簇（灵珠）→ 心形（灵桃）
-// 灵橘（5）与灵葫（7）不上场：灵橘与灵果同为「圆 + 瓣」，灵葫与灵梨同为「上窄下宽
-// 竖长」，正好是同族里最容易被读混的两对。难度仍随 kinds 上升，但涨的是「候选变多、
-// 同纹变少」，不是「越来越像」—— 难度不该建立在看不清上。
-const CREST_FAMILY = [
-  { crest: 1, name: '灵果', family: '圆润' },
-  { crest: 6, name: '茶盏', family: '方框' },
-  { crest: 8, name: '灵芝', family: '伞状' },
-  { crest: 2, name: '灵梨', family: '竖长' },
-  { crest: 3, name: '灵珠', family: '成簇' },
-  { crest: 4, name: '灵桃', family: '心形' },
+// 所以每套主题都按同一套族序画六格，族序固定：
+//   圆润 · 方框 · 伞锥 · 竖长 · 成簇 · 带尖
+// 换皮不换骨架：玩家学的是「第几族长什么样」，不是「这一格画的是什么东西」。
+// 因此换主题只重置一次认图（一两秒），不用重建整套判断。
+//
+// 四套主题按关号轮换（每 THEME_EVERY 关换一套，见 data/levels.js）：
+//   - 灵植是原来那套果器，八格里只取六个上场的。灵橘与灵果同为「圆 + 瓣」、
+//     灵葫与灵梨同为「上窄下宽竖长」，正好是最容易被读混的两对，所以不上场。
+//   - 甜点 / 海洋 / 灵兽 由 scripts/gen-crest.js 按同一族序画（9–26 格）。
+// 难度仍随 kinds 上升，但涨的是「候选变多、同纹变少」，不是「越来越像」——
+// 难度不该建立在看不清上。
+const THEME_FAMILIES = ['圆润', '方框', '伞锥', '竖长', '成簇', '带尖'];
+
+const CREST_THEMES = [
+  // 灵植：果器八格里挑出来的六格（圆 / 方框 / 伞 / 竖长 / 簇 / 尖）
+  { name: '灵植', ids: [1, 6, 8, 2, 3, 4] },
+  { name: '甜点', ids: [9, 10, 11, 12, 13, 14] },
+  { name: '海洋', ids: [15, 16, 17, 18, 19, 20] },
+  { name: '灵兽', ids: [21, 22, 23, 24, 25, 26] },
 ];
-// label 只是数据里的可读代号（不上屏，上屏的是 crest 位图），顺序与族表一一对应。
+// label 只是数据里的可读代号（不上屏，上屏的是 crest 位图），顺序与族序一一对应。
 const GLYPHS = ['✦', '◆', '✿', '▲', '●', '❤'];
 const DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
-// board 里存的是族序号（1..kinds），不是 sprite 序号 —— 这样换纹样只动这张表。
-function crestOf(v) {
-  const c = CREST_FAMILY[v - 1];
-  return c ? c.crest : 0;
+// board 里存的是族序号（1..kinds），不是 sprite 序号 —— 换主题只动这张表。
+function crestOf(v, theme) {
+  const set = CREST_THEMES[theme] || CREST_THEMES[0];
+  return set.ids[v - 1] || 0;
 }
 
 // 评级只认一件事：收干净那一刻还剩几息。
@@ -206,14 +209,21 @@ function pairCounts(pairs, kinds, weave) {
   return counts;
 }
 
-function makeBoard(n, kinds, weave) {
-  const counts = pairCounts(n / 2, kinds, weave || 0);
+// 盘形：空位由数据层按关号一次算清（`data/levels.js` 的 `linkGapsAt`），这里只消费。
+// 不写「没给就自己挖一个」的兜底：兜底一旦和生成端算得不一样，盘上就少一对，
+// 而时辰是按生成端的对数算出来的——界面上看不出是哪一步错了。
+function makeBoard(hole, kinds, weave) {
+  const open = [];
+  for (let i = 0; i < hole.length; i += 1) if (!hole[i]) open.push(i);
+  const counts = pairCounts(open.length / 2, kinds, weave || 0);
   const deck = [];
   for (let i = 0; i < counts.length; i += 1) {
     for (let k = 0; k < counts[i]; k += 1) deck.push(i + 1, i + 1);
   }
   C.shuffle(deck);
-  return deck;
+  const board = new Array(hole.length).fill(0);
+  for (let k = 0; k < open.length; k += 1) board[open[k]] = deck[k];
+  return board;
 }
 
 function create(ctx) {
@@ -223,7 +233,22 @@ function create(ctx) {
   const cols = Math.max(3, p.cols || 6);
   const rows = Math.max(3, p.rows || 4);
   const n = cols * rows;
-  const kinds = Math.min(CREST_FAMILY.length, Math.max(3, p.kinds || 6));
+  // 盘形的空位：生成端已经给成「格子下标」，这里只落成一张布尔表。
+  // 空位是「盘上没有牌、但线能穿过去」的位置——它和「收走的牌」不是一回事，
+  // 所以空格画成透空，收走的牌画成压暗（两种情况玩家要分得出来）。
+  const gaps = Array.isArray(p.gaps) ? p.gaps : [];
+  const hole = [];
+  let openCount = 0;
+  for (let i = 0; i < n; i += 1) hole.push(false);
+  for (let i = 0; i < gaps.length; i += 1) {
+    const g = Math.round(gaps[i]);
+    if (g >= 0 && g < n && !hole[g]) { hole[g] = true; openCount += 1; }
+  }
+  const kinds = Math.min(THEME_FAMILIES.length, Math.max(3, p.kinds || 6));
+  // 纹样主题由 data/levels.js 按关号注入（生成端），这里只消费。
+  // 不写「没给就自己算」的兜底：兜底一旦和生成端算得不一样，盘面就会悄悄跳主题，
+  // 而且换皮不换难度，界面上看不出是哪一步错了。
+  const crestTheme = Math.max(0, Math.min(CREST_THEMES.length - 1, Math.round(p.theme || 0)));
   // 段内布纹：生成端在 data/practice.js，这里只消费。不写兜底默认值以外的换算，
   // 否则「参数在动、盘面没动」会在这里被悄悄托住。
   const weave = Math.max(0, Math.min(3, Math.round(p.weave || 0)));
@@ -235,7 +260,7 @@ function create(ctx) {
   const hintMs = Math.max(200, p.hintMs || 900);
   const hintCost = stage >= 3 ? 1 : 2;     // 大成「照纹」：少扣 1 息，仍要付
   const twinHint = stage >= 5;             // 大圆满「双照」：一次照见两对
-  const pairs = n / 2;
+  const pairs = (n - openCount) / 2;
   const leftLine = gradeLefts(duration);
 
   const vm = C.makeVm(cols, n, '点两枚同纹灵石，能连起来就收走一对', ctx.tip || '点两枚同纹，转折不超过两次');
@@ -307,6 +332,15 @@ function create(ctx) {
       const v = board[i];
       cell.arrow = -1;
       cell.end = false;
+      if (hole[i]) {
+        // 空位：牌位不在这张盘上。它和「收走的牌」要分得出来——收走是这张牌位
+        // 空掉了（压暗留痕），空位是这里本来就没有牌位，所以整格透空。
+        cell.cls = 'cell cell--chip cell--hole';
+        cell.label = '';
+        cell.crest = 0;
+        cell.tone = 0;
+        continue;
+      }
       if (!v) {
         // 收走的一对要把牌位留空：仍是这张盘上的位置，只是没有牌了。
         cell.cls = 'cell cell--chip cell--gone';
@@ -321,7 +355,7 @@ function create(ctx) {
       // 上屏的是纹样不是字形：crest 交给 wxss 画，label 只在数据里留个可读的代号。
       // crest 与 tone 都写 sprite 序号（不是族序号）：迸溅色按 tone 查 CREST_HUE，
       // 只能跟着那张图走，跟着族序号走会把茶的色溅到果上。
-      const crest = crestOf(v);
+      const crest = crestOf(v, crestTheme);
       cell.crest = crest;
       cell.tone = crest;
       cell.label = GLYPHS[v - 1];
@@ -479,7 +513,7 @@ function create(ctx) {
     vm.status = '点两枚同纹灵石，能连起来就收走一对';
     vm.banner = theme.banner || '';
     for (let t = 0; t < 40; t += 1) {
-      board = makeBoard(n, kinds, weave);
+      board = makeBoard(hole, kinds, weave);
       if (findPair(board, cols, rows)) break;
     }
     paint();
@@ -608,6 +642,6 @@ module.exports = {
   id: 'link',
   findPath: findPath, name: '灵纹连线', create: create, lines: lines, teach: teach,
   canLink: canLink, findPair: findPair, GLYPHS: GLYPHS, pairCounts: pairCounts,
-  CREST_FAMILY: CREST_FAMILY, crestOf: crestOf,
+  CREST_THEMES: CREST_THEMES, THEME_FAMILIES: THEME_FAMILIES, crestOf: crestOf,
   gradeByLeft: gradeByLeft, gradeLefts: gradeLefts,
 };
