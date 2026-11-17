@@ -29,6 +29,12 @@
    底色与正文仍是低彩度的纸与墨，彩色只落在标签、数值、图标、进度与主操作上；
    大面积彩色与「宣纸」会互相打架，也会让每一屏都在喊。
 
+   【五支颜料取「水彩」的浓度，不取「矿物颜料」】
+   2026-11 把五支整体降饱和、提明度（色相分工一个字不动）：朱砂→陶土红、石青→雾水蓝、
+   石绿→苔豆绿、藤黄→麦芽黄、绛紫→藕荷紫。浓到发艳的那版被否过，玩家原话
+   「花里胡哨刺眼」。降饱和不是退回灰：每支仍保住自己的色相；做文字的那几支另备
+   深一档的 `-text`，压到 4.5:1 以上，块色与描边才用柔版。夜里同此理，各提一档。
+
    【页面规范】
    1. 结构：一级页 / 二级页根节点统一 .pg（登录页 .login-page、参悟页 .pg--scene），
       页头交给原生导航栏（标题 + 返回箭头），页内不再画标题；「说明」沉到页尾 .pg__foot 一行，
@@ -76,33 +82,33 @@ page {
     /* 五支颜料色，各自绑一个系统，不许混用（见文件头「一个系统一个颜色」）：
        朱砂 = 主操作 / 当前项；石青 = 灵力 / 链接 / 信息；
        石绿 = 进度 / 成功；藤黄 = 灵石 / 贵重；绛紫 = 秘境 / 稀有。 */
-    --c-primary:         #c0442d;   /* 朱砂 */
-    --c-primary-soft:    #f9e6dc;
+    --c-primary:         #b1503a;   /* 朱砂（陶土红）：主操作底，白字压上 5.0:1 */
+    --c-primary-soft:    #f8e8e2;
     --c-primary-on:      #fffcf2;
-    --c-primary-text:    #b03c27;   /* 朱砂在纸上的可读版（5.0:1） */
-    --c-gold:            #c99a1e;   /* 藤黄：只做底与小面积色块 */
-    --c-gold-soft:       #f8eed2;
-    --c-gold-text:       #8f6b0e;   /* 藤黄做文字要压暗才有 4.8:1 */
+    --c-primary-text:    #a8462f;   /* 朱砂做文字的可读版（5.7:1） */
+    --c-gold:            #b8933f;   /* 藤黄（麦芽黄）：只做底与小面积色块 */
+    --c-gold-soft:       #f6eddc;
+    --c-gold-text:       #8a6d24;   /* 藤黄做文字要压暗才有 4.8:1 */
     --c-danger:          #b3352b;
     --c-danger-text:     #b3352b;
-    --c-success:         #4f8a5b;   /* 石绿 */
-    --c-success-text:    #43764f;
+    --c-success:         #6a9c78;   /* 石绿（苔豆绿） */
+    --c-success-text:    #4a7a58;
     --c-neutral:         #8d7c64;
     --c-neutral-soft:    #efe4cc;
-    --c-link:            #2a6f8f;   /* 石青 */
+    --c-link:            #3d6f88;   /* 石青（雾水蓝） */
     --c-track:           #e8dbbe;   /* 进度轨 */
-    --c-fill:            #c0442d;   /* 进度填充：与主操作同色 */
+    --c-fill:            #b1503a;   /* 进度填充：与主操作同色 */
     --c-mask:            rgba(51, 41, 31, 0.45);
     --c-ink-scrim:       rgba(255, 252, 242, 0.14);  /* 墨褐卡内嵌块 */
     --c-ink-track:       rgba(255, 252, 242, 0.24);  /* 墨褐卡上的进度轨 / 标签底 */
     --c-ink-divider:     rgba(255, 252, 242, 0.18);  /* 墨褐卡上的分隔线 */
-    --c-gold-bright:     #dfb64a;               /* 金色高光，明暗通用 */
+    --c-gold-bright:     #d8bd78;               /* 金色高光，明暗通用 */
 
     /* ---------- 颜色：仙箓皮肤（亮色段 = 白天「宣纸彩墨」） ----------- */
     /* 五支颜料色 + 纸墨两档。彩色不许铺大面：卡片仍是白纸，颜色落在
        数值、图标、标签、进度与主操作上；底色一彩，整页就变成游戏登录页。 */
     /* 对比度（WCAG，纸 #fffcf2 上）：正文 12.4:1、次文字 6.4:1、注脚 5.5:1，
-       朱砂 5.0:1、石青 5.5:1、藤黄文字版 4.8:1，均达 AA。 */
+       朱砂文字版 5.7:1、石青 5.3:1、藤黄文字版 4.8:1，均达 AA。 */
     --c-imm-bg:          #f2e9d6;   /* 宣纸底 */
     --c-imm-bg-2:        #faf4e6;   /* 页面顶部渐层：比底更亮一档，像纸受光 */
     --c-imm-panel:       #fffcf2;   /* 面板 */
@@ -110,21 +116,21 @@ page {
     --c-imm-tile:        #fbf4e3;   /* 宫格底 */
     --c-imm-line:        #e2d3b5;   /* 常规描边 */
     --c-imm-line-soft:   #eee2c8;   /* 分隔线 */
-    --c-imm-primary:     #c0442d;   /* 朱砂：主操作 / 当前项 */
-    --c-imm-primary-deep:#a5341f;   /* 朱砂下沿：只做实心按钮渐变的末端，不用它画描边 */
-    --c-imm-primary-soft:#f9e6dc;
-    --c-imm-gold:        #c99a1e;   /* 藤黄：灵石 / 贵重 */
-    --c-imm-gold-deep:   #a67c12;
-    --c-imm-gold-text:   #8f6b0e;   /* 藤黄做文字要压暗才有 4.8:1 */
-    --c-imm-gold-dim:    #dcbd80;   /* 浅金：只用于描边与细线 */
-    --c-imm-gold-soft:   rgba(201, 154, 30, 0.13);
+    --c-imm-primary:     #b1503a;   /* 朱砂：主操作 / 当前项 */
+    --c-imm-primary-deep:#973e2c;   /* 朱砂下沿：只做实心按钮渐变的末端，不用它画描边 */
+    --c-imm-primary-soft:#f8e8e2;
+    --c-imm-gold:        #b8933f;   /* 藤黄：灵石 / 贵重 */
+    --c-imm-gold-deep:   #9d7d2d;
+    --c-imm-gold-text:   #8a6d24;   /* 藤黄做文字要压暗才有 4.8:1 */
+    --c-imm-gold-dim:    #d4c19c;   /* 浅金：只用于描边与细线 */
+    --c-imm-gold-soft:   rgba(184, 147, 63, 0.13);
     --c-imm-text:        #33291f;   /* 墨褐正文 */
     --c-imm-text-2:      #5b4c3b;   /* 次要文字 */
     --c-imm-text-3:      #786850;   /* 注脚 / 占位 */
-    --c-imm-jade:        #4f8a5b;   /* 石绿：进度与「进行中」 */
-    --c-imm-jade-dim:    rgba(79, 138, 91, 0.34);   /* 石绿描边：只做边框，不做字色 */
-    --c-imm-azure:       #2a6f8f;   /* 石青：灵力 / 信息 / 秘境 */
-    --c-imm-violet:      #7a4a8f;   /* 绛紫：稀有 / 特殊 */
+    --c-imm-jade:        #6a9c78;   /* 石绿：进度与「进行中」 */
+    --c-imm-jade-dim:    rgba(106, 156, 120, 0.34);   /* 石绿描边：只做边框，不做字色 */
+    --c-imm-azure:       #3d6f88;   /* 石青：灵力 / 信息 / 秘境 */
+    --c-imm-violet:      #8a67a0;   /* 绛紫：稀有 / 特殊 */
     --c-imm-track:       rgba(51, 41, 31, 0.09);
     --c-imm-danger:      #b3352b;   /* 警示文字：只用于不可撤销说明 */
     --c-imm-danger-soft: rgba(179, 53, 43, 0.08);   /* 警示块底 */
@@ -149,7 +155,7 @@ page {
     --c-nav:             #fffcf2;   /* @navBgColor */
     --c-tab:             #fffcf2;   /* @tabBgColor */
     --c-tab-text:        #786850;   /* @tabColor */
-    --c-tab-active:      #c0442d;   /* @tabSelectedColor */
+    --c-tab-active:      #b1503a;   /* @tabSelectedColor */
 
     /* ---------- 夜色板：昼夜两套皮肤里「夜」的那一份原色 ---------- */
     /* 只在这里定义一次。下面暗色段把它逐键映到 --c-* / --c-imm-*，
@@ -159,7 +165,7 @@ page {
        不叫 --c-night-*：verify 要求暗色段覆盖亮色段每一个 --c-* 键，
        带 --c- 前缀会被当成「亮色段有、暗色段也必须有一个」的令牌。 */
     /* 对比度（WCAG，夜底 #08131c 上）：正文 16.3:1、次文字 10.0:1、注脚 7.0:1，
-       朱砂 7.2:1、藤黄 10.2:1、石青 9.1:1、绛紫 7.9:1、石绿 9.1:1，全达 AA。 */
+       朱砂 7.6:1、藤黄 10.5:1、石青 8.9:1、绛紫 7.3:1、石绿 9.0:1，全达 AA。 */
     --night-bg:            #08131c;   /* 深青墨底：也是参悟页舞台底色 */
     --night-bg-2:          #0e2030;   /* 页面顶部渐层 */
     --night-panel:         #0f2030;   /* 卡 / 面板 / 吸底条 */
@@ -170,23 +176,23 @@ page {
     --night-line:          rgba(227, 241, 248, 0.20);
     --night-line-soft:     rgba(227, 241, 248, 0.12);
     --night-line-strong:   rgba(227, 241, 248, 0.34);
-    --night-primary:       #f08160;   /* 朱砂夜里提亮：深底上的 #c0442d 只剩 2.2:1 */
-    --night-primary-deep:  #c95f42;
-    --night-primary-soft:  rgba(240, 129, 96, 0.16);
-    --night-on-primary:    #0b1620;   /* 亮朱砂上的字要用深色，白字只有 2.2:1 */
-    --night-gold:          #e8b94a;
-    --night-gold-deep:     #c99a1e;
-    --night-gold-dim:      rgba(232, 185, 74, 0.45);
-    --night-gold-soft:     rgba(232, 185, 74, 0.12);
-    --night-gold-bright:   #f0cd6a;
+    --night-primary:       #dd927c;   /* 朱砂夜里提亮：深底上的 #b1503a 只剩 3.6:1 */
+    --night-primary-deep:  #c07a66;
+    --night-primary-soft:  rgba(221, 146, 124, 0.16);
+    --night-on-primary:    #0b1620;   /* 亮朱砂上的字要用深色，白字对比不足 */
+    --night-gold:          #dcc06a;
+    --night-gold-deep:     #c9ab5c;
+    --night-gold-dim:      rgba(220, 192, 106, 0.45);
+    --night-gold-soft:     rgba(220, 192, 106, 0.12);
+    --night-gold-bright:   #e6cf8a;
     --night-text:          #e3f1f8;   /* 玉白，不用纯白 */
     --night-text-2:        #9fc3d4;
     --night-text-3:        #7fa3b8;
     --night-placeholder:   #5d7d90;   /* 唯一允许低于 4.5:1 的一档 */
-    --night-jade:          #8fbfa9;
-    --night-jade-dim:      rgba(143, 191, 169, 0.42);
-    --night-azure:         #7bb8ff;
-    --night-violet:        #b39ce8;
+    --night-jade:          #95bda9;
+    --night-jade-dim:      rgba(149, 189, 169, 0.42);
+    --night-azure:         #8db7e0;
+    --night-violet:        #ac98d6;
     --night-neutral:       #8fa6b5;
     --night-neutral-soft:  rgba(227, 241, 248, 0.08);
     --night-track:         rgba(227, 241, 248, 0.12);
@@ -358,7 +364,7 @@ page {
         --c-nav:             #0f2030;
         --c-tab:             #0f2030;
         --c-tab-text:        #9fc3d4;
-        --c-tab-active:      #f08160;
+        --c-tab-active:      #dd927c;
 
         /* 深底上投影不靠「压暗」而是靠「离得远」：纸上的褐影在夜里会糊成一块脏晕。 */
         --sh-card:           0 4rpx 14rpx rgba(0, 0, 0, 0.36);

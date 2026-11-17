@@ -32,7 +32,7 @@ const CHROME = {
         window: '#f2e9d6',
         tabBg: '#fffcf2',
         tabColor: '#786850',
-        tabSelected: '#c0442d',
+        tabSelected: '#b1503a',
         iconSuffix: '',
     },
     night: {
@@ -41,7 +41,7 @@ const CHROME = {
         window: '#08131c',
         tabBg: '#0f2030',
         tabColor: '#9fc3d4',
-        tabSelected: '#f08160',
+        tabSelected: '#dd927c',
         iconSuffix: '-night',
     },
 };

@@ -19,7 +19,7 @@
     <view class="imm-panel">
       <view class="imm-panel__head">
         <text class="imm-panel__label">{{ov.roleName}}</text>
-        <text class="imm-chip imm-chip--info">境界 {{ov.realmIndex + 1}} / {{ov.realmCount}}</text>
+        <text class="imm-chip">境界 {{ov.realmIndex + 1}} / {{ov.realmCount}}</text>
       </view>
       <text class="imm-realm">{{ov.realmName}}</text>
       <view class="imm-bar"><view class="imm-bar__fill" style="width:{{breakPercent}}%"></view></view>
@@ -34,17 +34,17 @@
       <view class="imm-stats">
         <view class="imm-stat">
           <text class="imm-stat__label">战 力</text>
-          <text class="imm-stat__value imm-stat__value--power">{{ov.power}}</text>
+          <text class="imm-stat__value">{{ov.power}}</text>
         </view>
         <view class="imm-stat">
           <text class="imm-stat__label">灵 力</text>
-          <text class="imm-stat__value imm-stat__value--qi">{{ov.qi}}<text class="imm-stat__cap">/{{ov.qiMax}}</text></text>
+          <text class="imm-stat__value">{{ov.qi}}<text class="imm-stat__cap">/{{ov.qiMax}}</text></text>
         </view>
         <!-- 灵石是主页唯一能花的东西：点这一格开兑换。标一个「兑」字，
              否则没人会想到数字能点。 -->
         <view class="imm-stat imm-stat--tap pressable" hover-class="pressable--on" bindtap="onOpenExchange">
           <text class="imm-stat__label">灵 石<text class="imm-stat__mark">兑</text></text>
-          <text class="imm-stat__value imm-stat__value--stone">{{ov.stone}}</text>
+          <text class="imm-stat__value">{{ov.stone}}</text>
         </view>
       </view>
     </view>
@@ -84,7 +84,7 @@
     <view class="imm-grid">
       <view class="imm-tile" wx:for="{{tiles}}" wx:key="key">
         <view class="imm-tile__inner pressable" hover-class="pressable--on" data-key="{{item.key}}" bindtap="onTile">
-          <text class="imm-tile__glyph imm-tile__glyph--{{item.tone}}">{{item.glyph}}</text>
+          <text class="imm-tile__glyph">{{item.glyph}}</text>
           <text class="imm-tile__label">{{item.label}}</text>
         </view>
       </view>

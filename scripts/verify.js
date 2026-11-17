@@ -1310,7 +1310,19 @@ for (const tile of nav.TILES) {
   else checked += 1;
   if (!tile.label || !tile.glyph || !tile.mode || !tile.key) errors.push('六宫格条目字段不全：' + JSON.stringify(tile));
   else checked += 1;
+  // 六格不许再带 tone。曾经每格一个色相（剑石青 / 秘绛紫 / …），六个同权重的字各带一色，
+  // 既没有信息又把一屏彩点从 0 抬到 6，玩家反馈「花里胡哨刺眼」。这条断言就是防它回来：
+  // 判据是「颜色只给需要挑一个或看状态的东西」，宫格是并排罗列的一组，不该上色。
+  if (tile.tone) errors.push('六宫格不该再有 tone 字段（宫格字形一律墨褐）：' + tile.key);
+  else checked += 1;
 }
+// 字形色变体如果还在，说明 css 里的六色没删干净——数据删了、样式还在，等于留了个开关等人接回去。
+const glyphTones = (fs.readFileSync(path.join(ROOT, 'styles/immortal.wxss'), 'utf8').match(/\.imm-tile__glyph--/g) || []).length;
+if (glyphTones !== 0) errors.push('immortal.wxss 里还有 ' + glyphTones + ' 条 .imm-tile__glyph--* 变体，宫格字形应统一墨褐');
+else checked += 1;
+if (/imm-tile__glyph--\{\{/.test(fs.readFileSync(path.join(ROOT, 'pages/index/index.wxml'), 'utf8'))) {
+  errors.push('主页宫格仍按 tone 出类名，宫格字形应统一墨褐');
+} else checked += 1;
 // 每个页面页尾的「说明」都要有对应主题，且主题里有可展开的分节。
 for (const pageKey of Object.keys(nav.HELP_TOPICS)) {
   const topic = helpData.TOPICS[nav.HELP_TOPICS[pageKey]];

@@ -156,12 +156,11 @@
     margin-top: var(--sp-2);
 }
 
-/* 三个数值按语义分色：战力是墨、灵力石青、灵石藤黄。
-   分色不是为了好看，是让「哪一格是灵力」不用读字——主页每一屏都看这行。
-   藤黄做文字必须走 --c-imm-gold-text（暗一档），--c-imm-gold 在纸上只有 2.5:1。 */
-.imm-stat__value--power { color: var(--c-imm-text); }
-.imm-stat__value--qi { color: var(--c-imm-azure); }
-.imm-stat__value--stone { color: var(--c-imm-gold-text); }
+/* 三个数值一律墨褐，不分色。
+   曾经按语义分过（战力墨 / 灵力石青 / 灵石藤黄），但它们是**同一组同类文字并排**——
+   三个数并排本来就靠位置和标签区分，再上三种颜色只是把一屏的彩点从 4 个抬到 7 个。
+   判据在这里：**颜色只给需要「选一个」或「看状态」的东西，不给「一眼罗列的一组」。**
+   灵力、灵石在别的页面（气海、兑换）各有自己的色，那才是它们该出现的地方。 */
 
 /* 「96 / 174」里的分母：比主数小一号、压成灰，让上限读起来是注脚而不是第二个数。 */
 .imm-stat__cap {
@@ -180,9 +179,9 @@
 .imm-stat__mark {
     margin-left: var(--sp-2);
     padding: 0 6rpx;
-    border: 1rpx solid var(--c-imm-gold-dim);
+    border: 1rpx solid var(--c-imm-line);
     border-radius: 4rpx;
-    color: var(--c-imm-primary);
+    color: var(--c-imm-text-2);
     font-size: 18rpx;
     letter-spacing: 0;
 }
@@ -254,14 +253,10 @@
     line-height: 1;
 }
 
-/* 六格六色：tone 由 data/navigation.js 的 TILES 给，缺省落到墨褐。
-   一个汉字一个色相，扫一眼就知道哪格是仙门、哪格是秘境，不用读四个字。 */
-.imm-tile__glyph--cinnabar { color: var(--c-imm-primary); }
-.imm-tile__glyph--azure { color: var(--c-imm-azure); }
-.imm-tile__glyph--violet { color: var(--c-imm-violet); }
-.imm-tile__glyph--gold { color: var(--c-imm-gold-text); }
-.imm-tile__glyph--jade { color: var(--c-imm-jade); }
-.imm-tile__glyph--ink { color: var(--c-imm-text-2); }
+/* 宫格字形一律墨褐。曾经六格六色（剑石青 / 秘绛紫 / 榜藤黄 / 印朱砂 / 录墨 / 典石绿），
+   看上去「彩色」，实际是六个同权重的字各带一个色相——既没有信息（点之前就知道要进哪格，
+   标签就写在字下面），又把一屏的彩点从 0 抬到 6。这是「花里胡哨」的直接来源。
+   彩色在这个页面只剩两处：主按钮的朱砂底、灵石那一格的按压反馈；两处都带「可操作」语义。 */
 
 .imm-tile__label {
     color: var(--c-imm-text-2);
@@ -337,7 +332,10 @@
 }
 
 .imm-row__value {
-    color: var(--c-imm-primary);
+    /* 数值不给颜色。一行列表里每行右边都有一个数，全上朱砂就是一列红字——
+       成组罗列的东西靠位置、字重和字号已经足够分层，颜色叠上去只是噪音。
+       朱砂留给「当前项」（.imm-row--on）和真正可点的字，那些才需要被挑出来。 */
+    color: var(--c-imm-text);
     font-size: var(--fs-h3);
     font-weight: 600;
 }
@@ -351,7 +349,7 @@
     justify-content: center;
     border: 1rpx solid var(--c-imm-line);
     border-radius: var(--r-sm);
-    color: var(--c-imm-primary);
+    color: var(--c-imm-text-2);
     font-size: var(--fs-h3);
 }
 

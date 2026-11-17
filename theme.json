@@ -6,7 +6,7 @@
     "bgTxtStyle": "dark",
     "tabBgColor": "#fffcf2",
     "tabColor": "#786850",
-    "tabSelectedColor": "#c0442d",
+    "tabSelectedColor": "#b1503a",
     "tabBorderStyle": "black"
   },
   "dark": {
@@ -16,7 +16,7 @@
     "bgTxtStyle": "light",
     "tabBgColor": "#0f2030",
     "tabColor": "#9fc3d4",
-    "tabSelectedColor": "#f08160",
+    "tabSelectedColor": "#dd927c",
     "tabBorderStyle": "black"
   }
 }
