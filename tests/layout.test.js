@@ -161,7 +161,7 @@ check('参悟局内隐藏功法头卡，盘面优先', function () {
 check('参悟吸底条只在有操作时出现', function () {
   const s = read('pages/practice/practice.wxml');
   const js = read('pages/practice/practice.js');
-  assert.ok(/class="pg pg--imm \{\{barMode \? 'pg--with-bar' : ''\}\}[^"]*"/.test(s), '页面未按 barMode 留底部空间');
+  assert.ok(/class="pg pg--imm pg--t-\{\{themeTone\}\} \{\{barMode \? 'pg--with-bar' : ''\}\}[^"]*"/.test(s), '页面未按 barMode 留底部空间（或根节点没挂 pg--t-{{themeTone}}）');
   assert.ok(/sceneOn && started && !showResult \? 'pg--scene' : ''/.test(s), '沉浸舞台没有按样板开关与局内状态挂载');
   assert.ok(/barMode === 'start'/.test(s) && /barMode === 'tools'/.test(s), '吸底条缺少开始/工具两种形态');
   assert.ok(/syncBar: function/.test(js), '缺少吸底条状态同步');
@@ -797,7 +797,7 @@ check('页面骨架统一：三 tab + 子页用仙箓皮肤，导航只留原生
     assert.ok(!/copy\.footHint/.test(wxml), name + ' 还留着重复页脚口号');
   }
   assert.ok(/\{\{copy\.footGuide\}\}/.test(read('pages/guide/guide.wxml')), '指南页页脚品牌行丢了');
-  assert.ok(/class="pg--imm login-page"/.test(read('pages/login/login.wxml')), '登录页根节点没接上墨金映射');
+  assert.ok(/class="pg--imm pg--t-\{\{themeTone\}\} login-page"/.test(read('pages/login/login.wxml')), '登录页根节点没接上墨金映射');
   // 参悟页也进仙箓皮肤：根容器同时是 .pg（页面骨架）与 .pg--imm（墨金映射）。
   assert.ok(/^<view class="pg pg--imm/.test(read('pages/practice/practice.wxml')), '参悟页根节点不是 .pg--imm');
 });
@@ -920,7 +920,11 @@ check('设计令牌覆盖色彩 / 字号 / 间距 / 圆角 / 层级 / 触控 / �
     '--touch:', '--dur-fast', '--safe-bottom', '--lh-body', '--page-x', '--card-gap']) {
     assert.ok(t.indexOf(key) >= 0, '令牌表缺少 ' + key);
   }
-  assert.ok(/@media \(prefers-color-scheme: dark\)/.test(t), '没有暗色令牌段');
+  // 夜皮肤是一块类选择器（.pg--t-night），由 utils/theme.js 解析档位后挂上去；
+  // 不许回到媒体查询——那样玩家手选白天就压不住「系统说是夜」。
+  assert.ok(/\.pg--t-night\s*\{/.test(t), '没有 .pg--t-night 夜皮肤块');
+  assert.ok(!/@media\s*\(\s*prefers-color-scheme/.test(t), '令牌表又按系统明暗翻色，手选档位会失效');
+  assert.ok(/--night-bg:|--night-text:/.test(t), '夜色原色板缺失');
   assert.ok(/@import\s+"\.\/styles\/tokens\.wxss"/.test(read('app.wxss')), 'app.wxss 没引入令牌表');
 });
 

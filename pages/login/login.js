@@ -1,10 +1,12 @@
 'use strict';
 
+const pageTheme = require('../../utils/theme.js');
 const { cloud } = require('../../utils/cloud.js');
 const copy = require('../../data/copy.js');
 
 Page({
     data: {
+        themeTone: 'light',
         busy: false,
         error: '',
         reason: '',
@@ -13,6 +15,7 @@ Page({
     },
 
     onLoad(query) {
+        pageTheme.syncPage(this);
         const raw = query && query.reason ? query.reason : '';
         let reason = '';
         try { reason = decodeURIComponent(raw); } catch (e) { reason = raw; }

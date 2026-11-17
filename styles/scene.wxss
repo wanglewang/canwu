@@ -1,7 +1,8 @@
 /* 参悟 · 沉浸舞台
    三层场景 + 游戏化 HUD + 命中粒子 + 结算五段演出。
-   舞台固定深色，不跟随 prefers-color-scheme；全站页面同样挂 .pg--imm 恒定额色，
-   只有 tokens.wxss 的暗色令牌服务没挂 .pg--imm 的基础层。
+   舞台固定深色：盘面要跳出来，台必须暗，这一点不跟明暗主题走。
+   它用的正是「墨玉夜」那一支原色（tokens.wxss 的 --night-*），所以系统深色模式下
+   页面与舞台同色、进局没有硬切；浅色模式下页面是宣纸，进局由倒数遮罩接住那一次过渡。
    全部由纯 CSS 色块与 transform/opacity 画出，零图片资源。
 
    本文件与 pages/practice/practice.wxss 的盘面色板是「页面规范」的白名单例外：
@@ -10,9 +11,42 @@
    等通用控件仍一律取 styles/tokens.wxss 的语义变量。 */
 
 .pg--scene {
+    /* 舞台不是第三套配色，它就是夜皮肤的那一支。
+       色值统一定义在 tokens.wxss 的 --night-* 里，这里只做映射——写死第二份的话，
+       改夜深色时总有一处会漏，而漏掉不会有任何断言报红（舞台照样渲染，只是悄悄发灰）。
+       这份覆盖必须排在 immortal.wxss 之后（app.wxss 的 @import 顺序已保证）：
+       同一个元素上同时挂 .pg--imm 与 .pg--scene，后者赢，舞台在白天也保持深色。
+       连带的好处：系统深色模式下，页面底色与舞台底色是同一个值，进局没有明暗硬切。 */
+    --c-imm-bg: var(--night-bg);
+    --c-imm-bg-2: var(--night-bg-2);
+    --c-imm-panel: var(--night-panel);
+    --c-imm-panel-2: var(--night-panel-2);
+    --c-imm-tile: var(--night-tile);
+    --c-imm-line: var(--night-line);
+    --c-imm-line-soft: var(--night-line-soft);
+    --c-imm-primary: var(--night-primary);
+    --c-imm-primary-deep: var(--night-primary-deep);
+    --c-imm-primary-soft: var(--night-primary-soft);
+    --c-imm-gold: var(--night-gold);
+    --c-imm-gold-deep: var(--night-gold-deep);
+    --c-imm-gold-text: var(--night-gold);
+    --c-imm-gold-dim: var(--night-gold-dim);
+    --c-imm-gold-soft: var(--night-gold-soft);
+    --c-imm-text: var(--night-text);
+    --c-imm-text-2: var(--night-text-2);
+    --c-imm-text-3: var(--night-text-3);
+    --c-imm-jade: var(--night-jade);
+    --c-imm-jade-dim: var(--night-jade-dim);
+    --c-imm-azure: var(--night-azure);
+    --c-imm-violet: var(--night-violet);
+    --c-imm-track: var(--night-track);
+    --c-imm-danger: var(--night-danger);
+    --c-imm-danger-soft: var(--night-danger-soft);
+    --c-imm-mask: var(--night-mask);
+    --c-imm-shadow: var(--night-shadow);
     position: relative;
-    background: #08131c;
-    color: #e3f1f8;
+    background: var(--night-bg);
+    color: var(--night-text);
 }
 
 .pg--scene .pg__foot { display: none; }

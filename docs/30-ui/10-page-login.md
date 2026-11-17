@@ -4,7 +4,7 @@
 
 ## 1. 一句话
 
-一块品牌头 + 一枚金色主按钮（微信登录）+ 一条游客出口 + 一条邮箱兜底 + 一块「已有本机进度怎么办」的说明面板 + 一行协议。
+一块品牌头 + 一枚朱砂主按钮（微信登录）+ 一条游客出口 + 一条邮箱兜底 + 一块「已有本机进度怎么办」的说明面板 + 一行协议。
 
 ## 2. 目标与非目标
 
@@ -24,10 +24,10 @@
 ## 3. 屏幕结构
 
 ```
-参悟                                    ← 品牌字（旧金，54rpx）
+参悟                                    ← 品牌字（朱砂，54rpx）
 登录后接续你的修行                        ← 副标题
 
-[        微信一键登录        ]           ← 金色实心主按钮
+[        微信一键登录        ]           ← 朱砂实心主按钮
 不设密码，用微信身份直接开始
 
 [        先不登录 · 本机玩    ]           ← 细描边次按钮（游客）
@@ -47,7 +47,7 @@
 
 | 入口 | 类 | 结果 |
 | --- | --- | --- |
-| 微信一键登录 | `.btn-wechat`（金色实心） | `wx.login` → 云后端换会话 → `app.afterLogin()` |
+| 微信一键登录 | `.btn-wechat`（朱砂实心） | `wx.login` → 云后端换会话 → `app.afterLogin()` |
 | 先不登录 · 本机玩 | `.login-guest`（细描边） | `app.enterGuest()` → `switchTab` 到主页 |
 | 使用邮箱验证码登录 | `.login-alt`（细描边） | 展开 `login-panel`，`bind:signedin` → `afterLogin()` |
 
@@ -96,7 +96,7 @@ if (result.status === 'ok' || result.status === 'offline' || result.status === '
 
 **代价**：`padding` 简写会盖掉全局兜底，所以 `env(safe-area-inset-bottom)` 必须在这里再写一次（文件里明确注释了这一点）。
 
-## 6. 金色按钮的三处特别写法
+## 6. 朱砂按钮的三处特别写法
 
 ```css
 .btn-wechat {
@@ -118,7 +118,7 @@ if (result.status === 'ok' || result.status === 'offline' || result.status === '
 | --- | --- | --- |
 | `reason` | `.login-error` | URL query（`decodeURIComponent` 后） |
 | `error` | `.login-error` | 本页产生的错误 |
-| `busy` | `.login-busy`（金色） | 「正在读取云端存档…」 |
+| `busy` | `.login-busy`（朱砂） | 「正在读取云端存档…」 |
 
 `reason` 是**上一页把人送过来时带的原因**（例如「会话已过期」）。用 `decodeURIComponent` 包在 `try` 里：非法编码会让整页崩，退化成原文即可。
 
@@ -138,7 +138,7 @@ console.error('[WorkBuddy Cloud] login failed', JSON.stringify({ stage, message 
 
 - 整行可点（`.login-legal`），点开 `?topic=privacy`；
 - **不做成按钮**：和上面的操作抢层级；
-- 链接部分是旧金，正文是注脚灰。
+- 链接部分是朱砂，正文是注脚灰。
 
 ## 9. 被否决的方案
 

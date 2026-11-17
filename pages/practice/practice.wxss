@@ -80,7 +80,7 @@
 }
 
 .pr-seal__glyph {
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: 42rpx;
     line-height: 1;
 }
@@ -124,7 +124,7 @@
     flex: 1 1 0;
     min-width: 0;
     text-align: right;
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: var(--fs-body-sm);
     word-break: break-all;
 }
@@ -314,7 +314,7 @@
 }
 
 .combo-chip {
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: 26rpx;
     font-weight: 600;
 }
@@ -386,7 +386,7 @@
 }
 
 .heart--on {
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     text-shadow: 0 0 12rpx rgba(207, 174, 109, 0.55);
 }
 
@@ -421,7 +421,7 @@
     padding: 12rpx 0;
     border-top: 1rpx solid var(--c-imm-gold-dim);
     border-bottom: 1rpx solid var(--c-imm-gold-dim);
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     text-align: center;
     font-size: 30rpx;
     letter-spacing: 4rpx;
@@ -464,7 +464,7 @@
 
 .fx--good { color: var(--c-imm-jade); }
 .fx--bad { color: var(--c-imm-danger); }
-.fx--gold { color: var(--c-imm-gold); }
+.fx--gold { color: var(--c-imm-gold-text); }
 .fx--k0, .fx--k1 { animation: fxFloat 0.9s ease-out forwards; }
 
 /* ---------- 蓄力停区 ---------- */
@@ -1567,7 +1567,7 @@
 }
 
 .countdown-seal {
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: 72rpx;
     letter-spacing: 10rpx;
 }
@@ -1650,7 +1650,7 @@
 /* 段位条与难度档共用一个 .diff-chip：这里只补两条预览卡片要用的字色，
    尺寸与排版统一在下面「难度档：五条并列的线」那一组里，不在两处各写一套。 */
 .diff-chip__mult { font-size: var(--fs-caption); color: var(--c-text-2); }
-.diff-chip__need { font-size: var(--fs-caption); color: var(--c-imm-gold); }
+.diff-chip__need { font-size: var(--fs-caption); color: var(--c-imm-gold-text); }
 /* 本章规格：准备页唯一一处常驻的「你打的是哪一副盘」。
    旧金描边、不铺色块、不从 opacity:0 起跳——一屏只允许一处金色实心（开始参悟）。 */
 .chapter-note {
@@ -1659,7 +1659,7 @@
     border-left: 3rpx solid var(--c-imm-gold-dim);
     border-radius: 0 var(--r-xs) var(--r-xs) 0;
     background: var(--c-imm-gold-soft);
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: var(--fs-caption);
     line-height: 1.6;
 }
@@ -1695,7 +1695,7 @@
     justify-content: center;
     font-size: 40rpx;
     line-height: 1;
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     border: 1rpx solid var(--c-border);
     border-radius: var(--r-sm);
     background: var(--c-imm-bg-2);
@@ -1713,7 +1713,7 @@
     border-radius: var(--r-sm);
     background: var(--c-imm-gold-soft);
 }
-.lv-num { font-size: var(--fs-h3); color: var(--c-imm-gold); font-weight: 600; line-height: 1.1; }
+.lv-num { font-size: var(--fs-h3); color: var(--c-imm-gold-text); font-weight: 600; line-height: 1.1; }
 .lv-sub { font-size: var(--fs-caption); color: var(--c-imm-text-3); }
 /* 选关入口：跟在「已走通多少关」后面的一小截，只作提示，不抢关卡号本身。 */
 .lv-open { font-size: var(--fs-caption); color: var(--c-imm-gold-dim); }
@@ -1789,8 +1789,8 @@
     background: var(--c-imm-bg-2);
 }
 .lv-cell--cur {
-    color: var(--c-imm-gold);
-    border-color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
+    border-color: var(--c-imm-gold-text);
     background: var(--c-imm-gold-soft);
     font-weight: 600;
 }
@@ -1833,7 +1833,7 @@
     border-color: var(--c-imm-gold-dim);
     background: var(--c-imm-gold-soft);
 }
-.diff-chip--on .diff-chip__name { color: var(--c-imm-gold); font-weight: 600; }
+.diff-chip--on .diff-chip__name { color: var(--c-imm-gold-text); font-weight: 600; }
 .diff-chip--on .diff-chip__hint { color: var(--c-imm-gold-dim); }
 /* 未开：压暗到能读但明显不活跃。静态透明，不做入场动画。 */
 .diff-chip--lock { opacity: 0.42; }
@@ -1875,7 +1875,7 @@
 
 .stage-rule__toggle--on {
   border-color: var(--c-imm-gold-dim);
-  color: var(--c-imm-gold);
+  color: var(--c-imm-gold-text);
 }
 
 /* ---------- 连 S 倍率的十格圆点 ---------- */
@@ -1889,7 +1889,7 @@
   box-sizing: border-box;
 }
 
-.combo-dot--on { background: var(--c-imm-gold); border-color: var(--c-imm-gold); }
+.combo-dot--on { background: var(--c-imm-gold); border-color: var(--c-imm-gold-text); }
 
 /* ---------- 三套经典玩法的盘面：矮格 / 灵纹 / 落石 / 方向键 ---------- */
 /* 6 列以上、8 行的盘面要把格子压矮，否则小屏装不下；只在 vm.extras.compact 时启用。 */

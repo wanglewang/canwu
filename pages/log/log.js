@@ -1,5 +1,6 @@
 'use strict';
 
+const pageTheme = require('../../utils/theme.js');
 const store = require('../../utils/store.js');
 const worldData = require('../../data/world.js');
 const nav = require('../../data/navigation.js');
@@ -8,6 +9,7 @@ const share = require('../../utils/share.js');
 
 Page({
     data: {
+        themeTone: 'light',
         logs: [],
         worlds: [],
         worldOpen: false,
@@ -15,6 +17,7 @@ Page({
     },
 
     onLoad: function () {
+        pageTheme.syncPage(this);
         this.listener = this.refresh.bind(this);
         store.subscribe(this.listener);
         this.setData({
@@ -25,7 +28,7 @@ Page({
         this.refresh();
     },
 
-    onShow: function () { this.refresh(); },
+    onShow: function () { pageTheme.syncPage(this); this.refresh(); },
 
     onUnload: function () { store.unsubscribe(this.listener); },
 

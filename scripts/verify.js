@@ -983,11 +983,17 @@ if (!/@import\s+"\.\/styles\/tokens\.wxss"/.test(appWxss)) {
 } else checked += 1;
 
 const tokenSrc = fs.readFileSync(path.join(ROOT, 'styles/tokens.wxss'), 'utf8');
-// 文件头注释里也会提到这条媒体查询，必须匹配带 { 的真正规则块。
-const darkMatch = /@media \(prefers-color-scheme: dark\)\s*\{/.exec(tokenSrc);
+// 皮肤是三档设置（跟随系统 / 白天 / 夜晚），由 utils/theme.js 解析成 light / night，
+// 页面根节点挂 .pg--t-night。CSS 里不许再留 prefers-color-scheme：两条路径同时存在时，
+// 「系统说是夜、玩家选的是白天」只能靠选择器权重压过去，而权重是改样式的人看不见的。
+if (/@media\s*\(prefers-color-scheme/.test(tokenSrc)) {
+  errors.push('tokens.wxss 仍有 prefers-color-scheme：皮肤档位只能由 utils/theme.js 解析，CSS 只留 .pg--t-night 一块');
+} else checked += 1;
+// 注释里也会提到 .pg--t-night，必须匹配带 { 的真正规则块。
+const darkMatch = /\.pg--t-night\s*\{/.exec(tokenSrc);
 const darkAt = darkMatch ? darkMatch.index : -1;
 if (darkAt < 0) {
-  errors.push('tokens.wxss 缺少暗色令牌段');
+  errors.push('tokens.wxss 缺少 .pg--t-night 夜皮肤块');
 } else checked += 1;
 
 function varsOf(text) {
@@ -1001,7 +1007,7 @@ const colorKeys = Object.keys(lightVars).filter(function (k) { return k.indexOf(
 if (colorKeys.length < 30) errors.push('颜色令牌过少，可能没写全：' + colorKeys.length);
 else checked += 1;
 for (const key of colorKeys) {
-  if (darkVars[key] === undefined) errors.push('暗色令牌缺少 ' + key);
+  if (darkVars[key] === undefined) errors.push('夜皮肤块缺少 ' + key);
   else checked += 1;
 }
 // theme.json 的 @变量与令牌必须同值，否则明暗切换时原生栏与页面会脱节。
@@ -1019,6 +1025,124 @@ for (const mode of ['light', 'dark']) {
       errors.push('theme.json ' + mode + '.' + name + ' 与 ' + themeToToken[name] + ' 不同值');
     } else checked += 1;
   }
+}
+
+// 昼夜两套皮肤：色值只许有一份真源（tokens 亮色段的 --night-*）。
+// 暗色段与 .pg--scene 都只许引用它——两处各写一份时，改了一处漏了另一处，
+// 夜里页面与舞台就会悄悄对不上，而两边都还渲染得出来，不会有任何报错。
+const sceneSrc = fs.readFileSync(path.join(ROOT, 'styles/scene.wxss'), 'utf8');
+const nightKeys = Object.keys(lightVars).filter(function (k) { return k.indexOf('--night-') === 0; });
+if (nightKeys.length < 20) {
+  errors.push('夜色板过少，--night-* 只剩 ' + nightKeys.length + ' 个');
+} else checked += 1;
+// 原生栏四个是例外：上面那段拿它们与 theme.json 逐字比对，必须是字面量。
+const NIGHT_LITERAL_OK = ['--c-nav', '--c-tab', '--c-tab-text', '--c-tab-active'];
+for (const key of colorKeys) {
+  if (NIGHT_LITERAL_OK.indexOf(key) >= 0) continue;
+  const v = darkVars[key] === undefined ? '' : darkVars[key];
+  if (v.indexOf('var(--night-') !== 0) {
+    errors.push('夜皮肤块 ' + key + ' 必须引用 --night-*，不许另写一份色值：' + v);
+  } else checked += 1;
+}
+// 夜板里每个键都要真被用到：生成了没人消费的键，等于留下一份没人维护的第二真源。
+const nightUsed = new Set();
+for (const src of [tokenSrc, sceneSrc]) {
+  for (const m of src.matchAll(/var\((--night-[\w-]+)\)/g)) nightUsed.add(m[1]);
+}
+for (const key of nightKeys) {
+  if (!nightUsed.has(key)) errors.push('夜色板 ' + key + ' 没有任何地方引用');
+  else checked += 1;
+}
+// 两套皮肤必须真的不一样。上一版就是「暗色段与亮色段同值」，
+// 于是 app.json 开着 darkmode、theme.json 有 dark 段，看起来全套就位，实际一点都没切。
+if (darkVars['--c-imm-bg'] === lightVars['--c-imm-bg']) {
+  errors.push('夜皮肤块的页面底色与白天相同，两套皮肤等于没切');
+} else checked += 1;
+if (darkVars['--c-imm-text'] === lightVars['--c-imm-text']) {
+  errors.push('夜皮肤块的正文色与白天相同，两套皮肤等于没切');
+} else checked += 1;
+// 舞台也是夜皮肤，不许自己写第二份色值：.pg--scene 里的 --c-imm-* 必须全部引用 --night-*。
+const sceneBlock = (/\.pg--scene\s*\{([\s\S]*?)\n\}/.exec(sceneSrc) || [])[1];
+if (!sceneBlock) {
+  errors.push('scene.wxss 找不到 .pg--scene 规则块');
+} else {
+  let sceneVars = 0;
+  for (const m of sceneBlock.matchAll(/(--c-imm-[\w-]+):\s*([^;]+);/g)) {
+    sceneVars += 1;
+    if (m[2].trim().indexOf('var(--night-') !== 0) {
+      errors.push('scene.wxss 的 ' + m[1] + ' 必须引用 --night-*，不许写死：' + m[2].trim());
+    } else checked += 1;
+  }
+  if (sceneVars < 20) errors.push('scene.wxss 的 .pg--scene 只映射了 ' + sceneVars + ' 个令牌');
+  else checked += 1;
+}
+// tabBar 图标是纯色 png，不认 theme.json 的 @变量：夜版必须另有一份文件，
+// app.js 在切主题时用 wx.setTabBarItem 换。少了就会在深底上整片消失。
+function nightIconOf(p) {
+  const isOn = /-on\.png$/.test(p);
+  const stem = p.replace(/-on\.png$/, '.png').replace(/\.png$/, '');
+  return stem + '-night' + (isOn ? '-on' : '') + '.png';
+}
+for (const item of appJson.tabBar.list) {
+  for (const key of ['iconPath', 'selectedIconPath']) {
+    if (!item[key]) continue;
+    const nightPath = nightIconOf(item[key]);
+    if (!fs.existsSync(path.join(ROOT, nightPath))) {
+      errors.push('夜版 tabBar 图标缺失: ' + nightPath);
+    } else checked += 1;
+  }
+}
+
+
+// 夜块写在 tokens、舞台写在 scene：同一个元素上两个类权重相同，靠引入顺序决定谁赢。
+// 顺序反了，参悟页的盘面会被夜皮肤盖住（或反过来），而且只在这一页显形。
+const importTokensAt = appWxss.indexOf('styles/tokens.wxss');
+const importSceneAt = appWxss.indexOf('styles/scene.wxss');
+if (importTokensAt < 0 || importSceneAt < 0 || importTokensAt > importSceneAt) {
+  errors.push('app.wxss 的 @import 顺序必须是 tokens → immortal → scene（.pg--scene 要能盖住 .pg--t-night）');
+} else checked += 1;
+
+// 三档皮肤必须真的落到每一页：类名挂在页面根节点、同步调在 onLoad/onShow。
+// 漏一页的症状是「这一页永远是白天」，而且不报错——只能一页一页翻着找。
+const uiTheme = require(path.join(ROOT, 'utils/theme.js'));
+for (const pagePath of appJson.pages) {
+  const pageWxml = path.join(ROOT, pagePath + '.wxml');
+  const pageJs = path.join(ROOT, pagePath + '.js');
+  if (!fs.existsSync(pageWxml) || !fs.existsSync(pageJs)) {
+    errors.push('页面文件缺失: ' + pagePath);
+    continue;
+  }
+  const wxmlSrc = fs.readFileSync(pageWxml, 'utf8');
+  if (!/^<view class="[^"]*pg--t-\{\{themeTone\}\}/.test(wxmlSrc)) {
+    errors.push(pagePath + ' 的根节点没挂 pg--t-{{themeTone}}，这一页不会跟着皮肤换');
+  } else checked += 1;
+  const jsSrc = fs.readFileSync(pageJs, 'utf8');
+  if (jsSrc.indexOf('pageTheme.syncPage(this)') < 0) {
+    errors.push(pagePath + ' 没有调用 pageTheme.syncPage(this)：原生栏与 tabBar 不会跟着皮肤换');
+  } else checked += 1;
+}
+// 运行时的原生栏颜色只有一份真源（theme.js 的 CHROME），theme.json 必须与它逐字相同；
+// 不同值时冷启动那一瞬间（JS 还没跑）会先闪一帧错的导航栏，之后再被改回来。
+const CHROME_PAIRS = [
+  ['light', 'navBgColor', 'nav'], ['light', 'tabBgColor', 'tabBg'],
+  ['light', 'tabColor', 'tabColor'], ['light', 'tabSelectedColor', 'tabSelected'],
+  ['light', 'bgColor', 'window'],
+  ['dark', 'navBgColor', 'nav'], ['dark', 'tabBgColor', 'tabBg'],
+  ['dark', 'tabColor', 'tabColor'], ['dark', 'tabSelectedColor', 'tabSelected'],
+  ['dark', 'bgColor', 'window'],
+];
+for (const pair of CHROME_PAIRS) {
+  const jsonMode = pair[0];
+  const toneKey = jsonMode === 'light' ? 'light' : 'night';
+  const chrome = uiTheme.CHROME[toneKey] || {};
+  if (chrome[pair[2]] !== theme[jsonMode][pair[1]]) {
+    errors.push('utils/theme.js 的 CHROME.' + toneKey + '.' + pair[2] + ' 与 theme.json ' + jsonMode + '.' + pair[1] + ' 不同值');
+  } else checked += 1;
+}
+// 三档都要在：只剩两档时「跟随系统」与「白天」会被当成同一件事。
+for (const m of ['auto', 'light', 'night']) {
+  if (uiTheme.MODES.indexOf(m) < 0) errors.push('utils/theme.js 的 MODES 缺少 ' + m);
+  else checked += 1;
 }
 
 // 导航栏标题：tab 页一律留空（页名由底部 tabBar 承担，顶部再写一遍就是同一行字出现两次）；

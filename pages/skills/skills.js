@@ -1,5 +1,6 @@
 'use strict';
 
+const pageTheme = require('../../utils/theme.js');
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const copy = require('../../data/copy.js');
@@ -36,6 +37,7 @@ function primaryOf(d) {
 
 Page({
   data: {
+    themeTone: 'light',
     ov: null,
     tab: 'learned',
     cards: [],
@@ -50,6 +52,7 @@ Page({
   },
 
   onLoad: function () {
+    pageTheme.syncPage(this);
     this.listener = this.refresh.bind(this);
     store.subscribe(this.listener);
     this.refresh();
@@ -58,6 +61,7 @@ Page({
   // 别处（指南页、人物页）想让玩家落在哪个分区，切过来前先写 globalData.skillsTab。
   // tab 页不能带 query，这是 switchTab 唯一的传参办法；读完即清，免得下次再进还停在那儿。
   onShow: function () {
+    pageTheme.syncPage(this);
     const app = getApp();
     const want = app.globalData.skillsTab;
     if (want === 'learned' || want === 'shop') {

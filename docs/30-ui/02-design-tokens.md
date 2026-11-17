@@ -1,10 +1,10 @@
-# 设计令牌：唯一真源与它的四条守卫
+# 设计令牌：唯一真源与它的七条守卫
 
 > `styles/tokens.wxss` 是全站样式唯一的数值出处。页面 wxss 里不许出现裸色值，不许自造字号，不许随手写 `z-index: 999`。
 
 ## 1. 一句话
 
-一本 246 行的令牌表 + 四条静态断言，把「改一次颜色要动几个文件」压缩到**一个**。
+一本 367 行的令牌表 + 一组静态断言，把「改一次颜色要动几个文件」压缩到**一个**。
 
 ## 2. 目标与非目标
 
@@ -12,20 +12,21 @@
 
 - 换肤只改一个文件；
 - 拼错变量名立刻在 `verify` 阶段炸掉，而不是到真机上「样式静默消失」；
-- 明暗两套只在 token 层翻，页面样式一行不改；
-- 原生导航栏 / tabBar 与页面同色，浅色系统下不拼出米白横条。
+- 昼夜两套只在 token 层定义，页面样式一行不改（例外只有两处：tabBar 的 png 图标，与页面根节点那一个类名）；
+- 原生导航栏 / tabBar 与页面同色，切肤时一起切，不拼出一条异色横条；
+- 夜里的色值只有一份（`--night-*`），夜块与舞台都只做 `var()` 引用。
 
 **非目标**
 
 - 不做 CSS 预处理器（小程序原生 wxss 没有构建链）；
-- 不做运行时主题切换（恒定深色，见 `01-visual-language.md`）；
+- 不做站内自定义色板（玩家挑颜色）——只有白天 / 夜晚两套，档位是全局设置；
 - 不把玩法盘面色板（`--acc / --soft / --ink / --bg / --frame`）收进令牌表——它们由 `minigames/theme.js` 与 `data/visual.js` 在运行时注入。
 
 ## 3. 六组令牌
 
 | 组 | 前缀 | 数量 | 例 |
 | --- | --- | --- | --- |
-| 颜色 | `--c-*` | 白昼 40 + 暗色 40 + 仙箓 20 + 原生栏 4 | `--c-imm-gold: #cfae6d` |
+| 颜色 | `--c-*` | 每段 66（基础 35 + 仙箓 27 + 原生栏 4），两段键完全一致；另有 37 个 `--night-*` 原色板 | `--c-imm-primary: #c0442d` |
 | 字号 | `--fs-*` | 10 | `--fs-body: 28rpx` |
 | 间距 | `--sp-*` / `--page-x` / `--card-pad` | 15 | `--sp-6: 24rpx` |
 | 圆角 | `--r-*` | 7 | `--r-lg: 24rpx` |
@@ -76,24 +77,29 @@
 `tokens.wxss` 里其实有三套颜色，不是一套：
 
 ```
-① page { ... }                       ← 白昼基础层（浅米）
-② @media (prefers-color-scheme:dark) { page { ... } }  ← 暗色基础层
-③ 仙箓皮肤 --c-imm-*                 ← 恒定深色，两段里都取同一组值
+① page { ... }                       ← 白天基础层（宣纸）+ 夜色原色板 --night-*
+② .pg--t-night { ... }               ← 夜里那套，逐键 var(--night-*)，挂在页面根节点
+③ 仙箓皮肤 --c-imm-*                 ← 昼夜各一套，由 ①② 决定
 ```
 
-`.pg--imm`（`styles/immortal.wxss:18`）做映射：把 `--c-bg` 重新指到 `--c-imm-bg`，把 `--c-primary` 指到 `--c-imm-gold`……
+档位（跟随系统 / 白天 / 夜晚）由 `utils/theme.js` 解析成 `light` / `night`，再落到页面根的类名上。**令牌表里没有 `prefers-color-scheme`**：媒体查询只能问系统，玩家手选白天时压不住它，两条路径同时存在时只能靠选择器权重分胜负，而权重是改样式的人看不见的。
+
+`.pg--imm`（`styles/immortal.wxss:20`）做映射：把 `--c-bg` 重新指到 `--c-imm-bg`，把 `--c-primary` 指到 `--c-imm-primary`（朱砂）……
 
 **为什么还要留 ①②**：`tokens.wxss` 是通用的基础层，`app.wxss` 的 `.card` / `.btn` / `.state` 这些跨页面类依赖它。真正跑在玩家眼前的页面全部挂 `.pg--imm`，所以看到的永远是 ③。
 
 **这也是一个已知脆弱点**：`.pg--imm` 是类选择器，漏挂就退回浅米底。登录页为此直接取 `--c-imm-*` 而不取映射后的 `--c-bg`（见 `10-page-login.md`）。
 
-## 5. 四条守卫
+## 5. 七条守卫
 
 | 守卫 | 在哪儿 | 查什么 |
 | --- | --- | --- |
 | `app.wxss` 必须 `@import` 令牌表 | `verify` | 少一行 import，整套令牌不生效 |
-| 令牌表必须有暗色段 | `verify` + `layout.test.js` | `/@media \(prefers-color-scheme: dark\)\s*\{/` |
+| `@import` 顺序必须是 tokens → immortal → scene | `verify` | `.pg--scene` 要能盖住 `.pg--t-night`（同权重，靠顺序） |
+| 令牌表必须有夜皮肤块 | `verify` + `layout.test.js` | `/\.pg--t-night\s*\{/`，且不许再出现 `prefers-color-scheme` |
 | `theme.json` 的 `@变量` 与令牌同值 | `verify` | `@navBgColor` === `--c-nav` 等四项，逐项比对 |
+| `theme.js` 的 `CHROME` 与 `theme.json` 同值 | `verify` | 十项逐字比对，另查 `MODES` 含 `auto` / `light` / `night` |
+| 每个页面都接着皮肤 | `verify` | 根节点挂 `pg--t-{{themeTone}}`、js 调 `pageTheme.syncPage(this)` |
 | 常规页不许写裸色值 | `verify` + `layout.test.js` | `/#[0-9a-f]{6}\b|rgba?\(\d+,\d+,\d+/` 命中即失败 |
 
 **裸色值白名单**（`verify` 里显式列出的三处）：
@@ -118,8 +124,8 @@ const runtimeVars = new Set(['--acc','--soft','--ink','--bg','--frame','--glow',
 ## 6. 为什么颜色名分成「裸名」与 `-text`
 
 ```css
---c-gold:      #b8893b;   /* 用于背景 */
---c-gold-text: #a2762d;   /* 用于文字 */
+--c-gold:      #c99a1e;   /* 用于背景 */
+--c-gold-text: #8f6b0e;   /* 用于文字 */
 ```
 
 同一支色相做背景和做文字，需要的亮度不同：背景要够深才托得住白字，文字要够深才在浅底上读得清。合成一个变量，就必然有一处偏掉。
@@ -152,7 +158,7 @@ padding: var(--page-top) var(--page-x) calc(var(--page-bottom) + env(safe-area-i
 ## 9. 代码指路
 
 - `styles/tokens.wxss` —— 令牌表本体，文件头注释写明 9 条页面规范
-- `styles/immortal.wxss:18` —— `.pg--imm` 的映射层
+- `styles/immortal.wxss:20` —— `.pg--imm` 的映射层
 - `app.wxss:3` —— `@import` 三张表（tokens / immortal / scene）
 - `theme.json` —— 原生栏四色，与令牌同值
 - `scripts/verify.js:532` 起 —— 页面规范、明暗一致性、裸色值、变量拼错
@@ -161,6 +167,7 @@ padding: var(--page-top) var(--page-x) calc(var(--page-bottom) + env(safe-area-i
 ## 10. 待验
 
 - `--fs-display`（76rpx）只在 `.grade` 评级圆章用过一次，其余大数字走 `--fs-realm` 体系。**这一级是否还有存在必要**需要复核。
-- 暗色段里有 40 个变量，其中约 15 个在当前恒定深色的页面里根本走不到（页面都挂 `.pg--imm`）。留着是为了 `app.wxss` 的通用类兜底，但**没有断言证明它们仍然自洽**。
-- `--c-imm-gold-soft` 是 `rgba(207,174,109,0.10)`，用 `rgba` 而不是 `color-mix`：小程序对 `color-mix` 支持不一。若将来统一支持，可收成派生色。
+- 夜块与白天段的键必须逐个对齐（各 66 个 `--c-*`），`verify` 会逐个核对，照抄时漏一行就红；另有断言要求夜块**不许写字面色值**（除四个原生栏变量），否则夜板与页面会各有一份真源、改一处漏一处。
+- 夜板的 37 个键每个都必须被引用，`verify` 会核对——生成了没人消费的键，等于留下一份没人维护的第二真源。
+- `--c-imm-gold-soft` 是 `rgba(201,154,30,0.13)`，用 `rgba` 而不是 `color-mix`：小程序对 `color-mix` 支持不一。若将来统一支持，可收成派生色。
 - 裸色值白名单是按**文件名**列的：新增页面必须记得加进 `TOKENIZED` 数组，否则那一页可以随便写色值而不被拦。

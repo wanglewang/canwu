@@ -1,5 +1,6 @@
 'use strict';
 
+const pageTheme = require('../../utils/theme.js');
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const copy = require('../../data/copy.js');
@@ -14,6 +15,7 @@ function toast(title) {
 // 以前它埋在人物页的折叠区里，翻三层才找到，等于没有。
 Page({
   data: {
+    themeTone: 'light',
     equippedName: '',
     unlockedCount: 0,
     totalCount: 0,
@@ -22,12 +24,13 @@ Page({
   },
 
   onLoad: function () {
+    pageTheme.syncPage(this);
     this.listener = this.refresh.bind(this);
     store.subscribe(this.listener);
     this.refresh();
   },
 
-  onShow: function () { this.refresh(); },
+  onShow: function () { pageTheme.syncPage(this); this.refresh(); },
 
   onUnload: function () { store.unsubscribe(this.listener); },
 

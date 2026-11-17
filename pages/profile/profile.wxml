@@ -1,4 +1,4 @@
-<view class="pg pg--imm">
+<view class="pg pg--imm pg--t-{{themeTone}}">
   <view wx:if="{{!ov}}" class="state">
     <text class="state__glyph">◇</text>
     <text class="state__desc">{{copy.loading}}</text>
@@ -104,6 +104,10 @@
         <view class="row--between">
           <text class="imm-row__name">局内音效</text>
           <button class="imm-btn--ghost imm-btn--sm" bindtap="onToggleSfx">音效 · {{sfxLabel}}</button>
+        </view>
+        <view class="row--between">
+          <text class="imm-row__name">皮肤</text>
+          <button class="imm-btn--ghost imm-btn--sm" bindtap="onPickTheme">皮肤 · {{themeLabel}}</button>
         </view>
         <view class="row--wrap mt16">
           <term term-key="daohao" />

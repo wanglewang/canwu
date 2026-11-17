@@ -1,4 +1,4 @@
-<view class="pg pg--imm">
+<view class="pg pg--imm pg--t-{{themeTone}}">
   <view wx:if="{{logs.length > 0}}" class="imm-panel">
     <view class="imm-panel__label">近期动静</view>
     <view class="log-line" wx:for="{{logs}}" wx:key="at">

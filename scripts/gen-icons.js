@@ -2,7 +2,8 @@
 
 // 零依赖生成 tabBar 图标：81x81 RGBA PNG，2 倍超采样降采样获得平滑边缘。
 // 用法：node scripts/gen-icons.js
-// 输出：assets/tab/{home,book,seal}[-on].png（三个 tab 各一对）
+// 输出：assets/tab/{home,book,seal}[-night][-on].png（三个 tab × 昼夜两套 × 常态/选中）
+//       色值从 theme.json 读，白天、夜里各一套。
 
 const fs = require('fs');
 const path = require('path');
@@ -158,15 +159,27 @@ function encodePng(rgba, rgb) {
 function main() {
   const outDir = path.join(__dirname, '..', 'assets', 'tab');
   fs.mkdirSync(outDir, { recursive: true });
-  // 与 theme.json 的 tabColor / tabSelectedColor 同值：深青底上的灰青与金色。
-  const normal = hexToRgb('#7d8a83');
-  const active = hexToRgb('#cfae6d');
+  // 色值不在这里写死，直接从 theme.json 读——真源在 theme.json，而 theme.json 又被
+  // verify 钉着必须与 tokens.wxss 的 --c-tab-text / --c-tab-active 同值。
+  // 链条是 tokens → theme.json → 这四张 png，任何一处改了忘了重跑本脚本，
+  // 浅底上就会出现「看不见的图标」或者深底上一片脏褐。
+  const theme = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'theme.json'), 'utf8'));
+  // 两套：白天与夜里各一份。tabBar 的 iconPath 不支持 theme.json 的 @变量，
+  // 所以夜版只能靠 app.js 在切主题时用 wx.setTabBarItem 换图。
+  const SETS = [
+    { suffix: '', mode: 'light' },
+    { suffix: '-night', mode: 'dark' },
+  ];
   let count = 0;
   for (const key of Object.keys(ICONS)) {
     const alpha = downsample(render(ICONS[key]));
-    fs.writeFileSync(path.join(outDir, key + '.png'), encodePng(alpha, normal));
-    fs.writeFileSync(path.join(outDir, key + '-on.png'), encodePng(alpha, active));
-    count += 2;
+    for (const set of SETS) {
+      const normal = hexToRgb(theme[set.mode].tabColor);
+      const active = hexToRgb(theme[set.mode].tabSelectedColor);
+      fs.writeFileSync(path.join(outDir, key + set.suffix + '.png'), encodePng(alpha, normal));
+      fs.writeFileSync(path.join(outDir, key + set.suffix + '-on.png'), encodePng(alpha, active));
+      count += 2;
+    }
   }
   console.log('generated ' + count + ' icons in ' + outDir);
 }

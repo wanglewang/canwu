@@ -7,7 +7,7 @@
 
 .log-line__dot {
     width: var(--sp-8);
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: var(--fs-caption);
 }
 
@@ -30,6 +30,6 @@
 }
 
 .world-row__state {
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: var(--fs-note);
 }

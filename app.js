@@ -2,6 +2,7 @@
 
 const store = require('./utils/store.js');
 const cloudSave = require('./utils/cloud-save.js');
+const theme = require('./utils/theme.js');
 const { cloud } = require('./utils/cloud.js');
 
 function toast(title) {
@@ -32,6 +33,10 @@ function writeGuest(on) {
 // 没有这条前缀日志，真机排查时只能靠猜。只留最近 20 条，不落盘、不上报。
 const ERROR_KEEP = 20;
 
+// tabBar 图标是纯色 png，不支持 theme.json 的 @变量：底色跟着主题换、图标不会。
+// 白天的墨褐图标压在夜里的 #0f2030 上等于消失，所以切主题时要换一套图。
+// 换图与原生栏改色一起收在 utils/theme.js（页面 onLoad / onShow 调 theme.syncPage）。
+
 App({
     globalData: {
         appName: '参悟',
@@ -56,6 +61,8 @@ App({
         this.awaitingLogin = false;
         this.bootstrapPromise = null;
         this.watchNetwork();
+        // 皮肤跟着设置走：系统切深浅时只影响「跟随系统」那一档，见 utils/theme.js。
+        theme.watch();
         this.checkUpdate();
     },
 

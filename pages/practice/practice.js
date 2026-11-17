@@ -1,5 +1,6 @@
 'use strict';
 
+const pageTheme = require('../../utils/theme.js');
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const minigames = require('../../minigames/index.js');
@@ -75,6 +76,7 @@ function previewCells(piece) {
 
 Page({
   data: {
+    themeTone: 'light',
     mode: 'practice',
     showDifficulty: true,
     title: '',
@@ -200,6 +202,7 @@ Page({
   },
 
   onLoad: function (query) {
+    pageTheme.syncPage(this);
     this.pageAlive = true;
     this.controller = null;
     // 教学盘是独立控制器：它不结算、不进存档，只负责把「点一格翻五格」演一遍。
@@ -260,6 +263,7 @@ Page({
   },
 
   onShow: function () {
+    pageTheme.syncPage(this);
     if (!this.pageAlive || !this.mode) return;
     this.refresh();
     if (this.needsRebuild && !this.data.showResult) {

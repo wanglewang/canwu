@@ -1,5 +1,6 @@
 'use strict';
 
+const pageTheme = require('../../utils/theme.js');
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const share = require('../../utils/share.js');
@@ -14,6 +15,7 @@ function toast(title) {
 
 Page({
   data: {
+    themeTone: 'light',
     viewState: 'ready',
     ov: null,
     tiles: nav.TILES,
@@ -43,12 +45,14 @@ Page({
   },
 
   onLoad: function () {
+    pageTheme.syncPage(this);
     this.listener = this.refresh.bind(this);
     store.subscribe(this.listener);
     this.refresh();
   },
 
   onShow: function () {
+    pageTheme.syncPage(this);
     // 先清再挂：两次 onShow 之间没走 onHide 的话，不清会叠出第二个定时器。
     this.clearTick();
     this.refresh();

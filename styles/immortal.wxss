@@ -1,15 +1,17 @@
 /* ==========================================================================
    仙箓皮肤 · Immortal Skin
    --------------------------------------------------------------------------
-   四个主页面（主页 / 修炼 / 功法 / 人物）与说明、日志、藏经阁、仙榜、称号簿
-   共用的视觉底座。规则只有四条：
+   全部页面（主页 / 功法 / 人物 + 说明、日志、仙门、秘境、仙榜、称号簿）
+   共用的视觉底座。规则五条：
 
-     1. 一种底色（墨）、一种正文字（暖白）、一种强调（旧金）、一种状态色（青玉）。
-        强调色只标「数字、当前项、主操作」，其余用描边与字重区分。
-     2. 不用大圆角气泡与四角金饰，改用 1rpx 细描边 + 大块留白；卡片成组出现
-        （.imm-list + .imm-row），不做一叠各带边框的独立小盒。
-     3. 标题不做字间加空格、不加 ✦ 装饰；层级靠字号与字重，不靠字距。
-     4. 按钮只有两种：金色实心（主操作）与细描边（次操作），高度统一 88 / 64rpx，
+     1. 纸与墨两档打底：宣纸做底、白纸做卡、墨褐做字。层级靠「纸压纸」的明度差
+        与 1rpx 淡褐描边，不靠阴影堆叠。
+     2. 彩色是信息，不是装饰：五支颜料色各绑一个系统（朱砂 = 主操作 / 当前项、
+        石青 = 灵力 / 信息、石绿 = 进度、藤黄 = 灵石 / 贵重、绛紫 = 稀有）。
+        同一屏同一个含义只给一种颜色；没有语义的地方一律墨褐，不为了好看上色。
+     3. 卡片成组出现（.imm-list + .imm-row），不做一叠各带边框的独立小盒。
+     4. 标题不做字间加空格、不加 ✦ 装饰；层级靠字号与字重，不靠字距。
+     5. 按钮只有两种：朱砂实心（主操作）与细描边（次操作），高度统一 88 / 64rpx，
         line-height 锁 1，避免微信按钮默认行高把两枚按钮撑成不一样高。
 
    只引用 --c-imm-* / --sp-* 等令牌，不写裸色值；变更配色只改 tokens.wxss。
@@ -27,26 +29,26 @@
     --c-text-2: var(--c-imm-text-2);
     --c-text-3: var(--c-imm-text-3);
     --c-placeholder: var(--c-imm-text-3);
-    --c-primary: var(--c-imm-gold);
-    --c-primary-on: var(--c-imm-bg);
-    --c-primary-text: var(--c-imm-jade);
+    --c-primary: var(--c-imm-primary);
+    --c-primary-on: var(--c-imm-panel);
+    --c-primary-text: var(--c-imm-primary);
     --c-gold: var(--c-imm-gold);
     --c-success: var(--c-imm-jade);
     --c-success-text: var(--c-imm-jade);
     --c-danger: var(--c-imm-danger);
-    --c-primary-soft: var(--c-imm-panel-2);
-    --c-gold-text: var(--c-imm-gold);
+    --c-primary-soft: var(--c-imm-primary-soft);
+    --c-gold-text: var(--c-imm-gold-text);
     --c-gold-soft: var(--c-imm-gold-soft);
-    --c-link: var(--c-imm-gold);
+    --c-link: var(--c-imm-azure);
     --c-track: var(--c-imm-track);
     --c-fill: var(--c-imm-jade);
     --c-neutral: var(--c-imm-text-2);
     --c-neutral-soft: var(--c-imm-panel-2);
     --c-danger-text: var(--c-imm-danger);
     --c-mask: var(--c-imm-mask);
-    --c-surface-ink: var(--c-imm-panel-2);
-    --c-on-ink: var(--c-imm-text);
-    --c-on-ink-2: var(--c-imm-text-2);
+    --c-surface-ink: var(--c-imm-text);
+    --c-on-ink: var(--c-imm-panel);
+    --c-on-ink-2: var(--c-imm-gold-dim);
     --c-ink-track: var(--c-imm-track);
     --c-ink-divider: var(--c-imm-line-soft);
     --c-ink-scrim: var(--c-imm-gold-soft);
@@ -73,13 +75,13 @@
     margin: calc(0rpx - var(--sp-4)) 0 var(--sp-6);
 }
 
-/* ---------- 面板：细描边 + 顶部微亮，不用四角金饰 ---------- */
+/* ---------- 面板：白纸压宣纸 + 1rpx 淡褐描边 ---------- */
 .imm-panel {
     box-sizing: border-box;
     border: 1rpx solid var(--c-imm-line);
     border-radius: var(--r-lg);
     background-color: var(--c-imm-panel);
-    background-image: linear-gradient(to bottom, var(--c-imm-panel-2), transparent 240rpx);
+    box-shadow: var(--sh-card);
     padding: var(--sp-6);
     margin-top: var(--sp-5);
 }
@@ -148,11 +150,18 @@
 
 .imm-stat__value {
     display: block;
-    color: var(--c-imm-gold);
+    color: var(--c-imm-text);
     font-size: var(--fs-h2);
     font-weight: 700;
     margin-top: var(--sp-2);
 }
+
+/* 三个数值按语义分色：战力是墨、灵力石青、灵石藤黄。
+   分色不是为了好看，是让「哪一格是灵力」不用读字——主页每一屏都看这行。
+   藤黄做文字必须走 --c-imm-gold-text（暗一档），--c-imm-gold 在纸上只有 2.5:1。 */
+.imm-stat__value--power { color: var(--c-imm-text); }
+.imm-stat__value--qi { color: var(--c-imm-azure); }
+.imm-stat__value--stone { color: var(--c-imm-gold-text); }
 
 /* 「96 / 174」里的分母：比主数小一号、压成灰，让上限读起来是注脚而不是第二个数。 */
 .imm-stat__cap {
@@ -173,7 +182,7 @@
     padding: 0 6rpx;
     border: 1rpx solid var(--c-imm-gold-dim);
     border-radius: 4rpx;
-    color: var(--c-imm-gold);
+    color: var(--c-imm-primary);
     font-size: 18rpx;
     letter-spacing: 0;
 }
@@ -193,15 +202,15 @@
     gap: var(--sp-3);
     margin-top: var(--sp-5);
     padding: var(--sp-4) var(--sp-5);
-    border-left: 4rpx solid var(--c-imm-gold-dim);
+    border-left: 4rpx solid var(--c-imm-primary);
     border-radius: 0 var(--r-sm) var(--r-sm) 0;
-    background: var(--c-imm-gold-soft);
+    background: var(--c-imm-primary-soft);
     color: var(--c-imm-text-2);
     font-size: var(--fs-body-sm);
     line-height: var(--lh-head);
 }
 
-.imm-hint__pin { color: var(--c-imm-gold); flex: none; }
+.imm-hint__pin { color: var(--c-imm-primary); flex: none; }
 
 /* ---------- 宫格：一整块 3×2 细线格，而不是六个小盒 ---------- */
 /* 宫格：三个入口一行。现在只有五个入口（藏经阁并进了功法页），
@@ -239,11 +248,20 @@
 }
 
 .imm-tile__glyph {
-    color: var(--c-imm-gold);
-    font-size: 44rpx;
+    color: var(--c-imm-text);
+    font-size: 46rpx;
     font-weight: 500;
     line-height: 1;
 }
+
+/* 六格六色：tone 由 data/navigation.js 的 TILES 给，缺省落到墨褐。
+   一个汉字一个色相，扫一眼就知道哪格是仙门、哪格是秘境，不用读四个字。 */
+.imm-tile__glyph--cinnabar { color: var(--c-imm-primary); }
+.imm-tile__glyph--azure { color: var(--c-imm-azure); }
+.imm-tile__glyph--violet { color: var(--c-imm-violet); }
+.imm-tile__glyph--gold { color: var(--c-imm-gold-text); }
+.imm-tile__glyph--jade { color: var(--c-imm-jade); }
+.imm-tile__glyph--ink { color: var(--c-imm-text-2); }
 
 .imm-tile__label {
     color: var(--c-imm-text-2);
@@ -272,8 +290,8 @@
 }
 
 .imm-tab--on {
-    background: var(--c-imm-panel-2);
-    color: var(--c-imm-gold);
+    background: var(--c-imm-primary-soft);
+    color: var(--c-imm-primary);
     font-weight: 600;
 }
 
@@ -296,11 +314,11 @@
 .imm-row + .imm-row { border-top: 1rpx solid var(--c-imm-line-soft); }
 
 .imm-row--on {
-    background: var(--c-imm-panel);
-    box-shadow: inset 4rpx 0 0 var(--c-imm-gold);
+    background: var(--c-imm-primary-soft);
+    box-shadow: inset 4rpx 0 0 var(--c-imm-primary);
 }
 
-.imm-row--on .imm-row__name { color: var(--c-imm-gold); }
+.imm-row--on .imm-row__name { color: var(--c-imm-primary); }
 
 .imm-row__body { flex: 1; min-width: 0; }
 
@@ -319,7 +337,7 @@
 }
 
 .imm-row__value {
-    color: var(--c-imm-gold);
+    color: var(--c-imm-primary);
     font-size: var(--fs-h3);
     font-weight: 600;
 }
@@ -333,7 +351,7 @@
     justify-content: center;
     border: 1rpx solid var(--c-imm-line);
     border-radius: var(--r-sm);
-    color: var(--c-imm-gold);
+    color: var(--c-imm-primary);
     font-size: var(--fs-h3);
 }
 
@@ -345,7 +363,7 @@
     font-size: var(--fs-body-sm);
 }
 
-.imm-row__rank--top { color: var(--c-imm-gold); font-weight: 700; }
+.imm-row__rank--top { color: var(--c-imm-gold-text); font-weight: 700; }
 
 /* 列表内的迷你进度：比主进度条更细，只在有进度时出现 */
 .imm-bar--thin { height: 6rpx; margin-top: var(--sp-2); }
@@ -363,6 +381,8 @@
 }
 
 .imm-chip--jade { border-color: var(--c-imm-line); color: var(--c-imm-jade); }
+.imm-chip--info { border-color: var(--c-imm-line); color: var(--c-imm-azure); }
+.imm-chip--gold { border-color: var(--c-imm-gold-dim); color: var(--c-imm-gold-text); }
 
 /* ---------- 属性格：2×2 细线格，与宫格同一套语言 ---------- */
 .imm-attrs {
@@ -453,7 +473,7 @@
     letter-spacing: 2rpx;
 }
 
-/* 金色实心按钮用 background-color，不用 linear-gradient：
+/* 朱砂实心按钮用 background-color，不用 linear-gradient：
    渐变里再套 var() 一旦任何一个变量解析失败，整条 background 会被判为无效，
    按钮就退化成「一行没有底色的字」——真机上这种整条声明失效的坑很难查。
    层次感改由 1rpx 亮边 + 内阴影给，不依赖渐变。 */
@@ -462,10 +482,10 @@
        两者分开写是必须的：若把渐变塞进 background 简写、色标又直接写变量，
        任何一个变量在个别环境里解析失败，整条 background 会被判为无效，
        按钮就退化成「一行没有底色的字」——真机上极难排查。 */
-    background-color: var(--c-imm-gold);
-    background-image: linear-gradient(to bottom, var(--c-imm-gold), var(--c-imm-gold-deep));
-    color: var(--c-imm-bg);
-    border: 1rpx solid var(--c-imm-gold);
+    background-color: var(--c-imm-primary);
+    background-image: linear-gradient(to bottom, var(--c-imm-primary), var(--c-imm-primary-deep));
+    color: var(--c-imm-panel);
+    border: 1rpx solid var(--c-imm-primary);
 }
 
 .imm-btn--ghost {
@@ -484,7 +504,7 @@
 }
 
 .imm-btn--danger {
-    border-color: var(--c-imm-gold-dim);
+    border-color: var(--c-imm-line);
     color: var(--c-imm-danger);
 }
 
@@ -544,7 +564,7 @@
     background: var(--c-imm-panel-2);
     color: var(--c-imm-text);
 }
-.pg--imm .text-link { color: var(--c-imm-gold); }
+.pg--imm .text-link { color: var(--c-imm-primary); }
 
 /* ---------- 说明 / 日志 / 称号共用的折叠分节 ---------- */
 .help-sec {
@@ -604,7 +624,7 @@
     color: var(--c-imm-text-2);
 }
 
-.pg--imm .tag--gold { border-color: var(--c-imm-gold-dim); color: var(--c-imm-gold); }
+.pg--imm .tag--gold { border-color: var(--c-imm-gold-dim); color: var(--c-imm-gold-text); }
 .pg--imm .tag--jade { border-color: var(--c-imm-line); color: var(--c-imm-jade); }
 
 .pg--imm .divider { background: var(--c-imm-line-soft); }
@@ -662,12 +682,12 @@
 }
 
 .riv-tone--good { color: var(--c-imm-jade); }
-.riv-tone--warn { color: var(--c-imm-gold); }
+.riv-tone--warn { color: var(--c-imm-gold-text); }
 
 .riv-drop {
     display: block;
     margin-top: var(--sp-2);
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: var(--fs-caption);
 }
 

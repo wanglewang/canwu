@@ -1,5 +1,6 @@
 'use strict';
 
+const pageTheme = require('../../utils/theme.js');
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const worldData = require('../../data/world.js');
@@ -52,6 +53,7 @@ function syncView(status) {
 
 Page({
   data: {
+    themeTone: 'light',
     ov: null,
     topSkills: [],
     worlds: [],
@@ -77,6 +79,7 @@ Page({
     draftName: '',
     draftPortrait: 0,
     sfxLabel: '轻',
+    themeLabel: '跟随系统',
     breakList: [],
     achOpen: false,
     moreOpen: false,
@@ -85,6 +88,7 @@ Page({
   },
 
   onLoad: function () {
+    pageTheme.syncPage(this);
     this.listener = this.refresh.bind(this);
     store.subscribe(this.listener);
     this.setData({ sfxLabel: SFX_LABEL[sfx.level()] || '轻', versionLabel: appVersion() });
@@ -93,6 +97,7 @@ Page({
   },
 
   onShow: function () {
+    pageTheme.syncPage(this);
     this.refresh();
     this.loadAccount();
     social.publishScore(store.get());
@@ -287,6 +292,23 @@ Page({
         const next = sfx.setLevel(keys[res.tapIndex] || 'low');
         self.setData({ sfxLabel: SFX_LABEL[next] || '轻' });
         if (next !== 'off') sfx.play('hit');
+      },
+      fail: function () { /* 取消就不动 */ },
+    });
+  },
+
+  // 皮肤三档：跟随系统 / 白天 / 夜晚。选完当场生效，不做「下次进来才变」——
+  // 玩家点它就是想立刻看一眼；原生栏、tabBar、页面底色一起换（都在 theme.syncPage 里）。
+  onPickTheme: function () {
+    const self = this;
+    const keys = ['auto', 'light', 'night'];
+    wx.showActionSheet({
+      itemList: ['跟随系统 · 手机开深色就用夜里这套', '白天 · 宣纸彩墨', '夜晚 · 墨玉夜'],
+      success: function (res) {
+        const mode = keys[res.tapIndex] || 'auto';
+        pageTheme.setMode(mode);
+        pageTheme.syncPage(self);
+        self.setData({ themeLabel: pageTheme.label(mode) });
       },
       fail: function () { /* 取消就不动 */ },
     });

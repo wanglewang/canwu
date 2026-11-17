@@ -1,5 +1,6 @@
 'use strict';
 
+const pageTheme = require('../../utils/theme.js');
 // 修行指南：所有数值与 data/、utils/game.js 保持一致，改规则时也要同步这里。
 //
 // 目录顺序按「新手要搞懂的顺序」排，不按功能模块排：
@@ -176,6 +177,7 @@ SECTIONS.push(glossarySection('十二'));
 
 Page({
     data: {
+        themeTone: 'light',
         sections: SECTIONS.map(function (s, i) {
             return Object.assign({}, s, {
                 id: 'sec-' + i,
@@ -185,6 +187,11 @@ Page({
         }),
         allOpen: false,
         copy: copy.UI,
+    },
+
+    // 长文页没有别的生命周期，这里只为把皮肤同步一次（原生导航栏是逐页生效的）。
+    onLoad: function () {
+        pageTheme.syncPage(this);
     },
 
     // 十几节长文不该一屏铺到底：目录直达 + 单节展开 + 一键全展开 / 全收起。

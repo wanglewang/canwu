@@ -12,7 +12,7 @@
 }
 
 .pg--imm .alert-bar__text { color: var(--c-imm-text); }
-.pg--imm .alert-bar__action { color: var(--c-imm-gold); }
+.pg--imm .alert-bar__action { color: var(--c-imm-gold-text); }
 
 /* 突破进度那一行的左字比右侧百分比更重要一点 */
 .imm-strip + .imm-strip { margin-top: var(--sp-2); }

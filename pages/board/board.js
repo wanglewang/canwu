@@ -1,5 +1,6 @@
 'use strict';
 
+const pageTheme = require('../../utils/theme.js');
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const social = require('../../utils/cloud-social.js');
@@ -15,6 +16,7 @@ function toast(title) {
 // 榜首前十列出来就够了，不在这里复述切磋的规则（那在「说明」里）。
 Page({
   data: {
+    themeTone: 'light',
     ov: null,
     rows: [],
     myRank: 0,
@@ -25,13 +27,14 @@ Page({
   },
 
   onLoad: function () {
+    pageTheme.syncPage(this);
     this.listener = this.refreshMe.bind(this);
     store.subscribe(this.listener);
     this.refreshMe();
     this.loadBoard(false);
   },
 
-  onShow: function () { this.refreshMe(); },
+  onShow: function () { pageTheme.syncPage(this); this.refreshMe(); },
 
   onUnload: function () { store.unsubscribe(this.listener); },
 

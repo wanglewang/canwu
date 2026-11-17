@@ -50,7 +50,7 @@
 }
 
 .bout-set__label {
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: var(--fs-note);
     letter-spacing: 2rpx;
 }
@@ -79,7 +79,7 @@
     height: 44rpx;
     border: 1rpx solid var(--c-imm-gold-dim);
     border-radius: 6rpx;
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-family: "Songti SC", "STSong", serif;
     font-size: 26rpx;
     line-height: 1;
@@ -122,7 +122,7 @@
 
 .bout__val {
     margin-left: auto;
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: var(--fs-note);
     font-variant-numeric: tabular-nums;
 }
@@ -148,5 +148,5 @@
 
 /* 我方那一侧：赢了用全站唯一的强调金，输了退成暖白。
    两人的数字同色的话，玩家得先读完标题才知道谁赢了。 */
-.duel-num--win { color: var(--c-imm-gold); }
+.duel-num--win { color: var(--c-imm-gold-text); }
 .duel-num--lose { color: var(--c-text); }

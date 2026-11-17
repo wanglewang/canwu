@@ -39,7 +39,7 @@
 
 .mp__toggle {
   flex-shrink: 0;
-  color: var(--c-imm-gold);
+  color: var(--c-imm-gold-text);
   font-size: var(--fs-note);
 }
 
@@ -91,7 +91,7 @@
   height: 46rpx;
   border: 1rpx solid var(--c-imm-gold-dim);
   border-radius: 8rpx;
-  color: var(--c-imm-gold);
+  color: var(--c-imm-gold-text);
   /* 印面用衬线，跟盘面上的数字是同一套气息。 */
   font-family: "Songti SC", "STSong", serif;
   font-size: 28rpx;
@@ -134,7 +134,7 @@
 }
 
 .mp__val {
-  color: var(--c-imm-gold);
+  color: var(--c-imm-gold-text);
   font-size: var(--fs-note);
   /* 数值每场都在变，等宽才不跳。 */
   font-variant-numeric: tabular-nums;
@@ -191,7 +191,7 @@
   text-align: right;
 }
 
-.mp__item--on .mp__mark { color: var(--c-imm-gold); }
+.mp__item--on .mp__mark { color: var(--c-imm-gold-text); }
 
 .mp__empty {
   display: block;

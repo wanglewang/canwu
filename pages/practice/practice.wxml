@@ -1,4 +1,4 @@
-<view class="pg pg--imm {{barMode ? 'pg--with-bar' : ''}} {{sceneOn && started && !showResult ? 'pg--scene' : ''}}" style="--acc:{{theme.accent}};--soft:{{theme.soft}};--ink:{{theme.ink}};--bg:{{theme.bg}};--frame:{{theme.frame}};--glow:{{stage.glow}};--deep:{{stage.deep}};--well:{{stage.well}}">
+<view class="pg pg--imm pg--t-{{themeTone}} {{barMode ? 'pg--with-bar' : ''}} {{sceneOn && started && !showResult ? 'pg--scene' : ''}}" style="--acc:{{theme.accent}};--soft:{{theme.soft}};--ink:{{theme.ink}};--bg:{{theme.bg}};--frame:{{theme.frame}};--glow:{{stage.glow}};--deep:{{stage.deep}};--well:{{stage.well}}">
 
   <!-- 沉浸舞台三层：远层静态 / 中层循环 / 近层判定信息。只在样板玩法开局后出现。 -->
   <view wx:if="{{sceneOn && started && !showResult}}" class="scene">

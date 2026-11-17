@@ -1,4 +1,4 @@
-<view class="pg pg--imm">
+<view class="pg pg--imm pg--t-{{themeTone}}">
   <!-- 两个分区页签滚动时钉在顶上。sticky 挂在外层条上：直接钉 .imm-tabs，
        它上方的页面留白会透出下面滚过的卡片，像一条漏光的缝。 -->
   <view class="sk-tabs-bar">

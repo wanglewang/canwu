@@ -11,7 +11,7 @@
 
 .help-line__dot {
     width: var(--sp-6);
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: var(--fs-body);
 }
 
@@ -30,7 +30,7 @@
 .help-term__name {
     width: 168rpx;
     flex: none;
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: var(--fs-body-sm);
 }
 

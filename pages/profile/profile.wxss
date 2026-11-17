@@ -124,7 +124,7 @@
 }
 
 .imm-idcard__edit {
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: var(--fs-note);
     margin-top: var(--sp-2);
 }
@@ -192,7 +192,7 @@
 }
 
 .world-row__state {
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: var(--fs-note);
 }
 

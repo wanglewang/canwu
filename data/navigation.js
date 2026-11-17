@@ -21,17 +21,21 @@ const TAB_LABELS = {
 };
 
 // glyph 用一个汉字而不是符号：⚔ ✦ 这类字符在部分机型会渲染成彩色 emoji，
-// 和墨底金线拼在一起非常跳；汉字单字在任何字体下都稳，也统一了视觉。
+// 和纸底墨字拼在一起非常跳；汉字单字在任何字体下都稳，也统一了视觉。
+// tone 决定这个字的颜色，六格六色一一对应（styles/immortal.wxss 的 .imm-tile__glyph--*）。
+// 色相跟参悟盘面的族色板对齐：兵刃青蓝、阵法绛紫、丹道藤黄、心法石绿——
+// 从主页点某一格进去，舞台辉光是同一个色系，玩家不用重新认颜色。
+// 没有 tone 的格子会落到墨褐（默认），所以新增入口不写这个字段也不会报错，只是没颜色。
 // 藏经阁不再是独立页：它是功法页的第二个标签（未习得的都在那儿换）。
 // 秘境探索曾经和同门对手挤在「仙门切磋」一页里，两段列表各自有按钮、各自有结算，
 // 首屏得先分清「哪一段是同门」才能点——它现在是一格，一个页面只说一件事。
 const TILES = [
-    { key: 'battle', label: '仙门切磋', glyph: '剑', mode: 'page', url: '/pages/battle/battle' },
-    { key: 'secret', label: '秘境探索', glyph: '秘', mode: 'page', url: '/pages/secret/secret' },
-    { key: 'board', label: '战力仙榜', glyph: '榜', mode: 'page', url: '/pages/board/board' },
-    { key: 'titles', label: '称号簿', glyph: '印', mode: 'page', url: '/pages/titles/titles' },
-    { key: 'log', label: '修行日志', glyph: '录', mode: 'page', url: '/pages/log/log' },
-    { key: 'guide', label: '玩法说明', glyph: '典', mode: 'page', url: '/pages/guide/guide' },
+    { key: 'battle', label: '仙门切磋', glyph: '剑', tone: 'azure', mode: 'page', url: '/pages/battle/battle' },
+    { key: 'secret', label: '秘境探索', glyph: '秘', tone: 'violet', mode: 'page', url: '/pages/secret/secret' },
+    { key: 'board', label: '战力仙榜', glyph: '榜', tone: 'gold', mode: 'page', url: '/pages/board/board' },
+    { key: 'titles', label: '称号簿', glyph: '印', tone: 'cinnabar', mode: 'page', url: '/pages/titles/titles' },
+    { key: 'log', label: '修行日志', glyph: '录', tone: 'ink', mode: 'page', url: '/pages/log/log' },
+    { key: 'guide', label: '玩法说明', glyph: '典', tone: 'jade', mode: 'page', url: '/pages/guide/guide' },
 ];
 
 // 二级页的导航标题（页面 json 的 navigationBarTitleText）也只此一份：

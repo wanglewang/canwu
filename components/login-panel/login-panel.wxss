@@ -1,5 +1,5 @@
-/* 登录面板：与全站同一套墨金，不用蓝色（原先是 #3b6ef5 的通用蓝，和墨底放一起最刺眼）。
-   颜色全部取令牌，组件内不写裸色值；深色是唯一一套，系统明暗切换不翻转。 */
+/* 登录面板：与全站同一套宣纸彩墨，不用蓝色（原先是 #3b6ef5 的通用蓝，和纸底放一起最刺眼）。
+   颜色全部取令牌，组件内不写裸色值；恒定宣纸一套，系统明暗切换不翻转。 */
 .login {
     padding: var(--sp-6) var(--sp-5);
     border: 1rpx solid var(--c-imm-line);
@@ -60,7 +60,7 @@
     padding: 0 var(--sp-5);
     border: 1rpx solid var(--c-imm-gold-dim);
     border-radius: var(--r-md);
-    color: var(--c-imm-gold);
+    color: var(--c-imm-gold-text);
     font-size: var(--fs-note);
     line-height: 1;
 }
@@ -82,8 +82,8 @@
     border: 0;
     border-radius: var(--r-md);
     /* 同 .btn-wechat：实色在 background-color 上兜底，渐变只作层次 */
-    background-color: var(--c-imm-gold);
-    background-image: linear-gradient(to bottom, var(--c-imm-gold), var(--c-imm-gold-deep));
+    background-color: var(--c-imm-gold-text);
+    background-image: linear-gradient(to bottom, var(--c-imm-primary), var(--c-imm-primary-deep));
     color: var(--c-imm-bg);
     font-size: var(--fs-h3);
     font-weight: 600;

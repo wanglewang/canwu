@@ -1,5 +1,6 @@
 'use strict';
 
+const pageTheme = require('../../utils/theme.js');
 const helpData = require('../../data/help.js');
 const copy = require('../../data/copy.js');
 const share = require('../../utils/share.js');
@@ -22,6 +23,7 @@ function shareQuery(page) {
 
 Page({
     data: {
+        themeTone: 'light',
         title: '',
         lead: '',
         sections: [],
@@ -31,6 +33,7 @@ Page({
     },
 
     onLoad: function (query) {
+        pageTheme.syncPage(this);
         // 参悟页的说明是「一门一册」，要按功法现拼；其余主题是静态表。
         const q = query || {};
         // 分享要落回同一册：主题 key 记在实例上（不放进 data，WXML 用不到）。

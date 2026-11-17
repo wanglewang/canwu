@@ -93,22 +93,23 @@
 
 ## 7. 六宫格
 
-| 格 | glyph | 去向 |
-| --- | --- | --- |
-| 仙门切磋 | 剑 | `/pages/battle/battle` |
-| 秘境探索 | 秘 | `/pages/secret/secret` |
-| 战力仙榜 | 榜 | `/pages/board/board` |
-| 称号簿 | 印 | `/pages/titles/titles` |
-| 修行日志 | 录 | `/pages/log/log` |
-| 玩法说明 | 典 | `/pages/guide/guide` |
+| 格 | glyph | tone（字形颜色） | 去向 |
+| --- | --- | --- | --- |
+| 仙门切磋 | 剑 | `azure` 石青 | `/pages/battle/battle` |
+| 秘境探索 | 秘 | `violet` 绋紫 | `/pages/secret/secret` |
+| 战力仙榜 | 榜 | `gold` 藤黄 | `/pages/board/board` |
+| 称号簿 | 印 | `cinnabar` 朱砂 | `/pages/titles/titles` |
+| 修行日志 | 录 | `ink` 墨褐 | `/pages/log/log` |
+| 玩法说明 | 典 | `jade` 石绿 | `/pages/guide/guide` |
 
-三条规则：
+四条规则：
 
 1. **每一格都进自己的页面**，不许 `switchTab` 去别的 tab 借道（历史上「修炼」格是唯一违背这条的，现在已不存在）；
-2. **glyph 用汉字单字**，不用 `⚔ ✦`：这类字符在部分机型会被渲染成彩色 emoji，与墨底金线拼在一起非常跳；
-3. **宫格是一整块 3×2 细线格**，不是六个小盒（见 `03-components.md` 的边框数学）。
+2. **glyph 用汉字单字**，不用 `⚔ ✦`：这类字符在部分机型会被渲染成彩色 emoji，与纸底墨字拼在一起非常跳；
+3. **六格六色，每色都有归处**：`TILES` 的 `tone` 决定字形颜色（缺省落墨褐）。分色是为了「扫一眼就知道哪格是秘境」，不是为了好看——所以六色不许随手换，换之前先问「它接管了哪个系统」；
+4. **宫格是一整块 3×2 细线格**，不是六个小盒（见 `03-components.md` 的边框数学）。
 
-数据在 `data/navigation.js` 的 `TILES`，`verify` 核对每一条 `url` 都是已注册页面。
+数据在 `data/navigation.js` 的 `TILES`，`verify` 核对每一条 `url` 都是已注册页面；`tone` 没有校验，写错就是默认墨褐（不会报错，只是没颜色）。
 
 ## 8. 吸底主操作
 
