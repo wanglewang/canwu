@@ -1064,8 +1064,9 @@ for (const f of TOKENIZED) {
 
 // CSS 变量拼错在小程序里是静默失效（不会报错，样式直接消失），必须静态兜住。
 // 运行时由 minigames/theme.js / data/visual.js 注入的盘面变量在这里白名单放行。
+// --fall / --fd 由消消乐按格写进 style（掉几格、这一格该花多久），同样属于运行时注入。
 const tokenDefs = new Set([...tokenSrc.matchAll(/(--[\w-]+)\s*:/g)].map(function (m) { return m[1]; }));
-const runtimeVars = new Set(['--acc', '--soft', '--ink', '--bg', '--frame', '--glow', '--deep', '--well', '--a', '--d']);
+const runtimeVars = new Set(['--acc', '--soft', '--ink', '--bg', '--frame', '--glow', '--deep', '--well', '--a', '--d', '--fall', '--fd']);
 const styleFiles = ['app.wxss', 'styles/scene.wxss', 'styles/immortal.wxss', 'components/duel-result/duel-result.wxss'].concat(appJson.pages.map(function (pg) { return pg + '.wxss'; }));
 const undefinedVars = [];
 for (const f of styleFiles) {

@@ -360,7 +360,7 @@
         <view wx:for="{{slashList}}" wx:key="key" class="grid__slash" style="transform:translate(-50%,-50%) rotate({{item.angle}}deg)">
           <view class="grid__slash-beam"></view>
         </view>
-        <view wx:for="{{vm.cells}}" wx:key="key" class="{{item.cls}} cell--t{{item.tone}}" data-index="{{index}}" bindtap="onCellTap" bindlongpress="onCellLongPress" hover-class="cell--press" hover-stay-time="60">
+        <view wx:for="{{vm.cells}}" wx:key="key" class="{{item.cls}} cell--t{{item.tone}}" style="{{item.fd ? '--fall:' + item.fall + ';--fd:' + item.fd + 'ms' : ''}}" data-index="{{index}}" bindtap="onCellTap" bindlongpress="onCellLongPress" hover-class="cell--press" hover-stay-time="60">
           <view wx:if="{{item.life}}" class="cell__life" style="animation-duration:{{item.life}}ms;animation-delay:{{item.lifeDelay}}ms"></view>
           <!-- 刀路用形状指方向：每桩一个箭头指向下一桩，收势桩是靶心。盘面不放汉字。 -->
           <view wx:if="{{item.arrow >= 0}}" class="cell__arrow" style="transform:translate(-50%,-50%) rotate({{item.arrow}}deg)">

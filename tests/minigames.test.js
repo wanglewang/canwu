@@ -2887,38 +2887,98 @@ check('牵灵引线：照纹按段位收费、双照一次照见两对、点空�
   } finally { restoreClock(); }
 });
 
-check('三秀同收：无效互换会抖，收走之后新苗会落下', function () {
-  // 这两条是玩家判断「刚才发生了什么」的唯一线索：
-  // 光少 2 息、不抖，他会以为没点上；收了牌却看不出新苗落下，连锁就像凭空发生。
+check('三秀同收：一手分成「留空」与「落下」两个拍子，中间不许塌成一帧', function () {
+  // 这一门收完立刻补满，盘面前后两帧都是满的：玩家靠什么知道「刚才收在哪儿」？
+  // 只有中间真的空过一段。全压进一次渲染，盘面从满的跳到满的，
+  // 看得见的只有浮字——连锁三层和一层在屏幕上长得一模一样。
   const mod = require('../minigames/match.js');
-  const params = data.buildParamsAt(data.getMethod('sanxiu'), 1);
-  let vm = null;
-  const ctrl = mod.create({
-    params: params, difficulty: 1, perks: { tier: 0 }, tip: 't', theme: {},
-    render: function (v) { vm = v; }, finish: function () {},
-  });
-  ctrl.start();
-  ctrl.tap(0);
-  ctrl.tap(1);
-  const shook = vm.cells.filter(function (c) { return /cell--shake\d/.test(c.cls); }).length;
-  const dropped = vm.cells.filter(function (c) { return /cell--drop\d/.test(c.cls); }).length;
-  assert.ok(shook === 2 || dropped > 0,
-    '这一步既没抖也没落（抖 ' + shook + ' 格 / 落 ' + dropped + ' 格），玩家看不出发生了什么');
+  installClock();
+  try {
+    let vm = null;
+    const ctrl = mod.create({
+      params: data.buildParamsAt(data.getMethod('sanxiu'), 1),
+      difficulty: 1, perks: { tier: 0 }, tip: 't', theme: {},
+      render: function (v) { vm = v; }, finish: function () {},
+    });
+    ctrl.start();
+    const cols = vm.cols;
+    const rows = vm.match.rows;
 
-  // 补苗的格数必须等于消掉后空出来的格数：少补一格，盘面会永久缺一块。
-  const cols = 5;
-  const rows = 5;
-  const board = new Array(cols * rows).fill(0);
-  for (let i = 0; i < board.length; i += 1) board[i] = (i % 3) + 1;
-  // 清掉最下面一行三格，看 collapse 补回几格。
-  board[20] = 0;
-  board[21] = 0;
-  board[22] = 0;
-  const fills = [];
-  const out = mod.collapse(board, cols, rows, 5, fills);
-  assert.strictEqual(fills.length, 3, '补苗格数与空格数不符');
-  assert.ok(out.every(function (v) { return v > 0; }), '补完之后盘上还有空格');
-  ctrl.destroy();
+    // 无效互换：两格抖一下，不许留下空格（抖完牌得回原位）。
+    ctrl.tap(0);
+    ctrl.tap(1);
+    const shook = vm.cells.filter(function (c) { return /cell--shake\d/.test(c.cls); }).length;
+    const clearedAfterBad = vm.cells.filter(function (c) { return c.cls.indexOf('cell--clear') >= 0; }).length;
+    if (shook) {
+      assert.strictEqual(shook, 2, '无效互换该抖两格，实际抖了 ' + shook + ' 格');
+      assert.strictEqual(clearedAfterBad, 0, '无效互换把格子留空了');
+    }
+    advance(1200);
+
+    // 有效互换：第一拍是「收走、留空」，牌和 label 都得从这几格撤掉。
+    const move = mod.findMove(vm.match.board.slice(), cols, rows);
+    assert.ok(move, '开局没有可行换位，这一门不该发出这种盘');
+    ctrl.tap(move[0]);
+    ctrl.tap(move[1]);
+    const gone = vm.cells.filter(function (c) { return c.cls.indexOf('cell--clear') >= 0; });
+    assert.ok(gone.length >= 3, '收走之后盘面上没有空格帧（空了 ' + gone.length + ' 格）');
+    assert.ok(gone.every(function (c) { return c.crest === 0; }), '空格子上还挂着牌');
+    // 空格的 label 会漏到屏幕上：paint 原来写 GLYPHS[v-1] || GLYPHS[0]，
+    // v 为 0 时回落到第一张牌，wxml 在 crest / emblem 都为 0 时把 label 当文字画出来。
+    assert.ok(gone.every(function (c) { return c.label === ''; }), '空格子上屏了字符');
+    // 演出中不收输入：牌还在飞的时候点下一手，点到的是「即将被换掉」的位置。
+    ctrl.tap(move[0]);
+    assert.strictEqual(vm.match.first, -1, '演出中还能选中下一格');
+
+    // 空格帧必须真的占住一段时间，不然等于没演。
+    advance(120);
+    assert.ok(vm.cells.some(function (c) { return c.cls.indexOf('cell--clear') >= 0; }),
+      '空格帧不到 120ms 就被补上了，玩家看不到「这里少了三株」');
+
+    // 第二拍：落下。每一格都要带距离与时长，两者缺一就退回「牌闪了一下」。
+    advance(200);
+    const fell = vm.cells.filter(function (c) { return /cell--fall\d/.test(c.cls); });
+    assert.ok(fell.length >= 3, '落下来这一拍没有任何一格在动（只有 ' + fell.length + ' 格）');
+    assert.ok(fell.every(function (c) { return c.fall > 0 && c.fd > 0; }),
+      '下落缺距离或时长：一格和十格会用同一个时长，读成瞬移');
+    assert.strictEqual(vm.cells.filter(function (c) { return c.cls.indexOf('cell--clear') >= 0; }).length, 0,
+      '落下之后盘面上还留着空格');
+    assert.ok(fell.every(function (c) { return c.crest > 0; }), '落下来的格子上没有牌');
+
+    // 一路演到底：连锁有几层都行，收场时盘面必须满了。
+    advance(12000);
+    assert.ok(vm.cells.every(function (c) { return c.crest > 0 && c.label !== ''; }),
+      '一局打完盘面上还有空格或缺 label 的格子');
+    assert.ok(vm.cells.every(function (c) { return c.cls.indexOf('cell--fall') < 0; }),
+      '落到最后还有格子挂着下落类名');
+
+    // 补苗的格数必须等于消掉后空出来的格数：少补一格，盘面会永久缺一块。
+    const bc = 5;
+    const br = 5;
+    const board = new Array(bc * br).fill(0);
+    for (let i = 0; i < board.length; i += 1) board[i] = (i % 3) + 1;
+    board[20] = 0;
+    board[21] = 0;
+    board[22] = 0;
+    const fills = [];
+    const out = mod.collapse(board, bc, br, 5, fills);
+    assert.strictEqual(fills.length, 3, '补苗格数与空格数不符');
+    assert.ok(out.every(function (v) { return v > 0; }), '补完之后盘上还有空格');
+
+    // 新苗从盘面外掉进来，掉几格必须报出来：报成 0 就等于「凭空出现」。
+    const nc = 3;
+    const nr = 4;
+    const empty = new Array(nc * nr).fill(0);
+    for (let i = 0; i < empty.length; i += 1) empty[i] = 1 + (i % 3);
+    for (let r = 0; r < nr; r += 1) empty[r * nc] = 0;
+    const nf = [];
+    const nm = [];
+    mod.collapse(empty, nc, nr, 3, nf, nm);
+    assert.strictEqual(nf.length, nr, '整列清空该补 ' + nr + ' 株');
+    assert.strictEqual(nm[0], 1, '顶行的新苗该按「从盘外掉 1 格」报距离');
+    assert.strictEqual(nm[(nr - 1) * nc], nr, '最底行的新苗该按「从盘外掉 ' + nr + ' 格」报距离');
+    ctrl.destroy();
+  } finally { restoreClock(); }
 });
 
 check('两门的评级说明都写清「反悔封顶」，玩家查得到', function () {

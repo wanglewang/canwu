@@ -37,9 +37,12 @@ function shuffle(arr) {
 // 纹样由 wxss 画，不放字体字符——✦ ✿ 这类 dingbat 在部分安卓上会被系统换成彩色 emoji，
 // 同一个盘面在两台手机上长两样；八卦「乾坤震巽」这类汉字更是直接违反「盘面不写汉字」。
 // label 仍保留语义值（测试与读屏都靠它），只是不再上屏。
+// fall / fd 是「这一格的内容从上面几格掉下来、这段该花多久」：消消乐用，
+// 直接落到 cell 上让 wxml 写成 --fall / --fd 两个样式变量。其余玩法恒为 0。
+// 在协议里给默认值，格子结构才不会因为某套玩法挂过下落而变得不一致。
 function makeCells(n) {
   const a = [];
-  for (let i = 0; i < n; i += 1) a.push({ key: i, label: '', crest: 0, emblem: 0, cls: 'cell', tone: 0, arrow: -1, end: false, endLive: false });
+  for (let i = 0; i < n; i += 1) a.push({ key: i, label: '', crest: 0, emblem: 0, cls: 'cell', tone: 0, arrow: -1, end: false, endLive: false, fall: 0, fd: 0 });
   return a;
 }
 

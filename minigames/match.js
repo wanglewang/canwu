@@ -79,22 +79,29 @@ function findMove(board, cols, rows) {
 }
 
 // 收走三连后，同列上面的落下来，顶上补新苗。新苗可能再凑出一条线 —— 那就是连锁。
-function collapse(board, cols, rows, kinds, outFills) {
+// outMoves[i] 是「这一格的内容从上面几格掉下来」：页面据此定下落距离，一格和十格
+// 花同样时间会读成瞬移。原来只报 outFills（哪几格是新苗），实在撑不起「看得见的下落」。
+function collapse(board, cols, rows, kinds, outFills, outMoves) {
   const out = board.slice();
   for (let c = 0; c < cols; c += 1) {
     const kept = [];
     for (let r = rows - 1; r >= 0; r -= 1) {
       const v = out[r * cols + c];
-      if (v) kept.push(v);
+      if (v) kept.push({ v: v, r: r });
     }
-    for (let r = rows - 1; r >= 0; r -= 1) {
-      const k = rows - 1 - r;
+    for (let k = 0; k < rows; k += 1) {
+      const dest = rows - 1 - k;
+      const idx = dest * cols + c;
       if (k < kept.length) {
-        out[r * cols + c] = kept[k];
+        out[idx] = kept[k].v;
+        // 只往下掉，所以 dest 一定不小于原行号，差就是掉了几格。
+        if (outMoves) outMoves[idx] = dest - kept[k].r;
       } else {
-        out[r * cols + c] = 1 + C.randInt(kinds);
+        out[idx] = 1 + C.randInt(kinds);
         // 新补的那几株要报给页面：它们从上方落进来，跟「本来就在这儿的牌」得分开画。
-        if (outFills) outFills.push(r * cols + c);
+        if (outFills) outFills.push(idx);
+        // 新苗从盘面外掉进来：要走到第 dest 行，得从 -1 行出发，走 dest + 1 格。
+        if (outMoves) outMoves[idx] = dest + 1;
       }
     }
   }
@@ -124,6 +131,22 @@ function makeBoard(cols, rows, kinds) {
   for (let i = 0; i < n; i += 1) board[i] = 1 + (Math.floor(i / cols) + i % cols) % kinds;
   return board;
 }
+
+// 一手的演出节拍。消消乐的一手不是一个瞬间，是「收走 → 落下 → 再查一轮」三个拍子：
+// 全压进一次渲染，盘面就从满的跳到满的，中间没有一帧是空的，玩家只能靠浮字知道收了东西。
+// 数值比业界通行量级（消除 200–250ms）再紧一档，因为这一门是限时计分而不是步数制：
+// 动画占掉的每一毫秒都直接是玩家少掉的思考时间，单手要压在 0.5 秒以内。
+// 演出期间不收输入，但表照走——停表会让手快的人拿动画换时间，一局打不完。
+const BEAT = {
+  clear: 170,
+  fallBase: 130,
+  fallPer: 30,
+  fallMax: 300,
+};
+
+// 连锁层数上限。跟「扫到没有为止」一样不能无界：一次补苗可能又凑出好几条，
+// 极端盘面能连着炸十几轮，那几秒里玩家什么都做不了。
+const MAX_CHAIN = 12;
 
 function create(ctx) {
   const p = ctx.params || {};
@@ -172,11 +195,16 @@ function create(ctx) {
   let mistakes = 0;
   let shuffles = 0;
   let maxChain = 0;
-  // 这一手的动效状态：无效互换抖哪两格、掉落后新补了哪几格。
+  // 这一手的动效状态：无效互换抖哪两格、哪几格刚被收走、哪几格刚从上面掉下来。
   // 用 0/1 交替的类名，相邻两手才会各自重播一次（同名类连挂两帧不播动画）。
   let fxSeq = 0;
   let shakeAt = [];
-  let dropAt = [];
+  let goneAt = [];
+  let fallAt = [];
+  // 演出中：这一手还没演完，先不收输入。玩家在牌飞的时候点下一手，
+  // 会点到一格「即将被换掉」的位置，他看到的和规则里的不是同一个盘面。
+  // 表照走——限时玩法里把动画时间白送给玩家，等于手越快局越长。
+  let busy = false;
   let left = duration;
   let done = false;
   let started = false;
@@ -185,19 +213,39 @@ function create(ctx) {
 
   function paint() {
     const alt = fxSeq % 2;
+    // 同一列的下落必须同时落定：同列里两株速度不一样，就会在半空互相穿插。
+    // 所以时长按「这一列最远那株掉几格」算——近的列先落完，远的那列接着落，
+    // 跨列各走各的，盘面上看得出来的只有「这一列塌了一截」。
+    const colFar = new Array(cols).fill(0);
+    for (let i = 0; i < n; i += 1) {
+      const d = fallAt[i] || 0;
+      const c = i % cols;
+      if (d > colFar[c]) colFar[c] = d;
+    }
     for (let i = 0; i < n; i += 1) {
       const cell = vm.cells[i];
+      const gone = goneAt.indexOf(i) >= 0;
+      const fall = gone ? 0 : (fallAt[i] || 0);
       cell.arrow = -1;
       cell.end = false;
       cell.cls = 'cell cell--lit cell--chip'
         + (i === selected ? ' cell--sel' : '')
         + (hintPair && (hintPair[0] === i || hintPair[1] === i) ? ' cell--hintpair' : '')
-        + (shakeAt.indexOf(i) >= 0 ? ' cell--shake' + alt : '')
-        + (dropAt.indexOf(i) >= 0 ? ' cell--drop' + alt : '');
-      cell.label = GLYPHS[board[i] - 1] || GLYPHS[0];
+        + (gone ? ' cell--clear' : '')
+        + (fall ? ' cell--fall' + alt : '')
+        + (shakeAt.indexOf(i) >= 0 ? ' cell--shake' + alt : '');
+      // 空格子不许回落到第一张牌：v 为 0 时原来写 GLYPHS[v-1] || GLYPHS[0]，
+      // wxml 在 crest / emblem 都为 0 时把 label 上屏，空出来的格子上就挂了个字符。
+      const v = gone ? 0 : board[i];
+      cell.label = v ? (GLYPHS[v - 1] || '') : '';
       // 同连连看：盘面画的是纹样，label 只留数据语义。
-      cell.crest = board[i];
-      cell.tone = board[i];
+      cell.crest = v;
+      cell.tone = v;
+      // 下落距离与这一格该花多久都交给样式：一格和十格同一个时长会读成瞬移。
+      cell.fall = fall;
+      cell.fd = fall
+        ? Math.min(BEAT.fallMax, BEAT.fallBase + colFar[i % cols] * BEAT.fallPer)
+        : 0;
     }
     vm.match = { board: board.slice(), cols: cols, rows: rows, first: selected };
   }
@@ -219,6 +267,15 @@ function create(ctx) {
     if (done) return;
     done = true;
     bag.clear();
+    // 演出中途收场（时间到 / 中途结束）：先把留在半空的牌补回去再定格。
+    // 结算卡底下压着一个缺了几格的盘面，看起来像卡住了。
+    if (busy) {
+      busy = false;
+      goneAt = [];
+      fallAt = [];
+      board = collapse(board, cols, rows, kinds, null, null);
+      paint();
+    }
     vm.phase = 'done';
     vm.status = '参悟已毕';
     vm.gradeNow = grade;
@@ -250,45 +307,78 @@ function create(ctx) {
     C.flash(vm, '灵畦自整 · 少 ' + realShuffleCost + ' 息', 'good');
   }
 
-  function resolve() {
-    let chain = 0;
-    let guard = 0;
-    while (guard < 12) {
-      guard += 1;
-      const hits = matchesOf(board, cols, rows);
-      if (!hits.length) break;
-      chain += 1;
-      harvested += hits.length;
-      // 大圆满的「连收」只在第 3 层起额外加成：先打出长连锁才拿得到，不是每局白送。
-      const mult = 1 + (chain - 1) * 0.5 + (chain >= 3 ? (chain - 2) * chainBonus : 0);
-      const gain = Math.round(hits.length * 12 * mult);
-      score += gain;
-      for (let i = 0; i < hits.length; i += 1) board[hits[i]] = 0;
-      // 抹零之前先把「收在哪几格」交出去：抹完再 collapse，盘面上就找不到这些位置了。
-      C.markCleared(vm, hits);
-      const fills = [];
-      board = collapse(board, cols, rows, kinds, fills);
-      fxSeq += 1;
-      shakeAt = [];
-      // 一次补进来的新苗最多也有一二十格，全挂动画等于整盘乱抖：
-      // 只画最上面那几格（玩家视线本来就在落点附近）。
-      dropAt = fills.slice(0, 8);
-      // 递进反馈只分三档：普通三连淡光、一次收四株以上提亮、连锁逐层再提亮。
-      // 不新增常驻循环动画，也不往盘面里塞汉字——浮字只落在 HUD 那一层。
-      const bright = chain > 1 || hits.length >= 4;
-      const label = chain > 1 ? '连锁 ' + chain + ' 层'
-        : (hits.length >= 4 ? hits.length + ' 株齐收' : '三秀同收');
-      C.flash(vm, label + ' +' + gain, bright ? 'gold' : 'good');
-    }
+  // 收走这几株：牌从盘面撤掉，格子凹下去，「这一手收在哪几格」就此留在盘上 240ms。
+  // 这一个空格帧是整手唯一能看见「少了东西」的锚点——盘面两帧都是满的，
+  // 只有中间真空过一段，玩家才分得清「收了」和「牌换了个位置」。
+  function stageClear(hits, chain) {
+    harvested += hits.length;
+    // 大圆满的「连收」只在第 3 层起额外加成：先打出长连锁才拿得到，不是每局白送。
+    const mult = 1 + (chain - 1) * 0.5 + (chain >= 3 ? (chain - 2) * chainBonus : 0);
+    const gain = Math.round(hits.length * 12 * mult);
+    score += gain;
     if (chain > maxChain) maxChain = chain;
+    for (let i = 0; i < hits.length; i += 1) board[hits[i]] = 0;
+    // 交出去的是「哪几格」：页面据此在原位迸一小把，颜色取上一帧那张牌的纹样。
+    C.markCleared(vm, hits);
+    goneAt = hits.slice();
+    fallAt = [];
+    shakeAt = [];
+    fxSeq += 1;
+    // 递进反馈只分三档：普通三连淡光、一次收四株以上提亮、连锁逐层再提亮。
+    // 浮字只落在 HUD 那一层，不往盘面里塞汉字。
+    const bright = chain > 1 || hits.length >= 4;
+    const label = chain > 1 ? '连锁 ' + chain + ' 层'
+      : (hits.length >= 4 ? hits.length + ' 株齐收' : '三秀同收');
+    C.flash(vm, label + ' +' + gain, bright ? 'gold' : 'good');
+    paint();
+    syncHud();
+    render();
+    bag.after(function () { stageFall(chain); }, BEAT.clear);
+  }
+
+  // 落下来、补上去。每一格掉几格由 collapse 算好，一格和十格给不同的时长。
+  function stageFall(chain) {
+    goneAt = [];
+    const fills = [];
+    const moves = [];
+    board = collapse(board, cols, rows, kinds, fills, moves);
+    // 总时长取「所有列里掉得最远的那一列」，paint 按列给每格定时长，
+    // 所以这里算出来的就是最后落定的那一刻。
+    let far = 0;
+    for (let i = 0; i < n; i += 1) {
+      if (moves[i] > far) far = moves[i];
+    }
+    fallAt = far ? moves : [];
+    shakeAt = [];
+    fxSeq += 1;
+    paint();
+    syncHud();
+    render();
+    const span = far
+      ? Math.min(BEAT.fallMax, BEAT.fallBase + far * BEAT.fallPer)
+      : BEAT.fallBase;
+    bag.after(function () { settle(chain); }, span);
+  }
+
+  // 落定之后再查一轮：还有三连就是连锁，层数 +1 从头再来一遍。
+  function settle(chain) {
+    fallAt = [];
+    const hits = matchesOf(board, cols, rows);
+    if (hits.length && chain < MAX_CHAIN) { stageClear(hits, chain + 1); return; }
     if (!findMove(board, cols, rows)) reshuffle();
+    busy = false;
+    paint();
+    syncHud();
+    render();
+    if (left <= 0) finish();
   }
 
   function tap(index) {
-    if (done || vm.phase !== 'playing' || index < 0 || index >= n) return;
+    // 演出中不收输入：牌还在飞的时候点下一手，点到的是「即将被换掉」的位置。
+    if (done || busy || vm.phase !== 'playing' || index < 0 || index >= n) return;
     clearHint();
-    if (selected < 0) { selected = index; shakeAt = []; dropAt = []; paint(); render(); return; }
-    if (selected === index) { selected = -1; shakeAt = []; dropAt = []; paint(); render(); return; }
+    if (selected < 0) { selected = index; shakeAt = []; goneAt = []; fallAt = []; paint(); render(); return; }
+    if (selected === index) { selected = -1; shakeAt = []; goneAt = []; fallAt = []; paint(); render(); return; }
     const a = selected;
     if (!adjacent(a, index, cols)) { selected = index; paint(); render(); return; }
     selected = -1;
@@ -296,7 +386,8 @@ function create(ctx) {
     const vb = board[index];
     board[a] = vb;
     board[index] = va;
-    if (!matchesOf(board, cols, rows).length) {
+    const hits = matchesOf(board, cols, rows);
+    if (!hits.length) {
       board[a] = va;
       board[index] = vb;
       mistakes += 1;
@@ -305,19 +396,22 @@ function create(ctx) {
       // 两格自己抖一下，玩家才知道是「这一步不成立」而不是「没点上」。
       fxSeq += 1;
       shakeAt = [a, index];
-      dropAt = [];
+      goneAt = [];
+      fallAt = [];
       C.flash(vm, '换不出三连 · 少 ' + missCost + ' 息', 'bad');
-    } else {
-      resolve();
+      paint();
+      syncHud();
+      if (left <= 0) { finish(); return; }
+      render();
+      return;
     }
-    paint();
-    syncHud();
-    if (left <= 0) { finish(); return; }
-    render();
+    // 成立了：接下来是演出，一拍一拍演完才交还输入。
+    busy = true;
+    stageClear(hits, 1);
   }
 
   function hint() {
-    if (done || vm.phase !== 'playing') return;
+    if (done || busy || vm.phase !== 'playing') return;
     const move = findMove(board, cols, rows);
     if (!move) { reshuffle(); paint(); syncHud(); render(); return; }
     clearHint();

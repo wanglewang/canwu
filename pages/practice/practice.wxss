@@ -2450,23 +2450,41 @@
     box-shadow: inset 0 0 0 3rpx rgba(207, 174, 109, 0.85), 0 0 18rpx rgba(207, 174, 109, 0.32);
 }
 
-/* ---------- 三秀同收：不成立与刚落下 ----------
-   两条都只动 transform：动效被系统关掉时，牌还在原位，只是不抖也不落。 */
+/* ---------- 三秀同收：不成立 / 被收走 / 落下来 ----------
+   这三件事是三个分开的状态，不是一个瞬间里的三次赋值。
+   抖与落都只动 transform：动效被系统关掉时，牌还在原位，只是不抖也不落。 */
 .cell--shake0, .cell--shake1 { animation: cellShake 280ms ease-in-out; }
-.cell--drop0, .cell--drop1 { animation: cellDrop 220ms ease-out; }
+
+/* 收走：牌撤掉、格子凹下去。这一个空格帧是整手唯一「看得见少了东西」的锚点——
+   盘面前后两帧都是满的，只有中间真的空过一段，玩家才分得清「收了」和「换了个位置」。
+   写成静态状态，不是一次性动画：减少动效关掉动画时凹槽还在，
+   「这里刚收走三株」照样读得出来。 */
+.cell--lit.cell--chip.cell--clear {
+    background: transparent;
+    background-image: none;
+    box-shadow: inset 0 6rpx 14rpx rgba(0, 0, 0, 0.5);
+}
+
+/* 落下：牌从上面几格掉进自己这一格。--fall 是掉几格、--fd 是这一格该花多久，
+   都由玩法按距离算好送来——掉一格和掉十格用同一个时长会读成瞬移。
+   translateY 的百分比基准是牌自己（60rpx）而不是格距（76rpx），所以乘 1.35 折算；
+   各档的比例落在 1.27–1.46 之间，差的那几个百分点在盘面上看不出来。
+   只动 .cell__crest：格子的 transform 归按压反馈所有。 */
+.cell--fall0 .cell__crest,
+.cell--fall1 .cell__crest {
+    animation: crestFall var(--fd, 240ms) cubic-bezier(0.35, 0, 0.55, 1);
+}
+
+@keyframes crestFall {
+    from { transform: translateY(calc(var(--fall, 1) * -135%)); }
+    to { transform: translateY(0); }
+}
 
 @keyframes cellShake {
     0%, 100% { transform: translateX(0); }
     26% { transform: translateX(-7rpx); }
     58% { transform: translateX(7rpx); }
     82% { transform: translateX(-3rpx); }
-}
-
-/* 新苗从上方压进来：起点在格子外面一点，落定时回正。
-   不做透明度渐变——半透明的灵纹牌叠在别的牌上会看成「多了一张」。 */
-@keyframes cellDrop {
-    from { transform: translateY(-46%) scaleY(0.84); }
-    to { transform: translateY(0) scaleY(1); }
 }
 
 /* 合并弹 / 新块弹：两个不同的手感，不共用一条动画。
