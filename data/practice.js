@@ -79,7 +79,7 @@ const PRACTICE_METHODS = [
   // 品阶只管收益与可修境界；难度档位自己拧自己那 40 关的数值（dropMs / depth 等）。
   {
     id: 'linkpair', name: '牵灵引线', game: 'link', theme: 'linkpair', twist: 'linkpair',
-    desc: '同纹灵石两两相契，牵一条不过两折的灵线把这一对收回来。',
+    desc: '同纹灵石两两相契，牵一条灵线把这一对收回来；越往后折数收得越紧。',
     tip: '错配或连不上都少 2 息，时辰到还没收干净就是失败',
     base: 34,
     // cols / rows / kinds 由 LINK_LEVELS 按档整表覆盖，这里只是简单档的种子。
@@ -201,7 +201,7 @@ const FAMILIES = {
   丹道: { core: '同级合炼', note: '同级相合，合出更高一阶——炼丹的路子', kind: 'skill' },
   水术: { core: '循纹递推', note: '看河石上的水纹递推（暂无功法）', kind: 'skill' },
   身法: { core: '步法连环', note: '照卷轴踏位（暂无功法）', kind: 'skill' },
-  御灵: { core: '灵纹连线', note: '牵两枚同纹灵石，找一条不超过两折的通路', kind: 'skill' },
+  御灵: { core: '灵纹连线', note: '牵两枚同纹灵石，找一条通路；越往后越紧', kind: 'skill' },
   土行: { core: '落石垒基', note: '挪石转石垒满一层，是唯一持续下落的盘面', kind: 'skill' },
   灵植: { core: '三秀同收', note: '互换相邻两株凑三连，采收后新苗落下还能连锁', kind: 'skill' },
   // 类别按「修士靠什么手段」分，不按「玩家在屏幕上做什么」分——
@@ -509,12 +509,16 @@ function matchLevelOf(stageIndex) {
 // 困难是 10×6 / 12×8 / 16×9，行列一起长；麻将接龙的 12 副布局从 60 张到 144 张。
 // 但「盘变大」不等于「变难」——难度只由每对预算这把尺子管，大盘只是玩家最先看见的变化。
 // 换盘时对数变了，时辰由 linkDurationAt 按本段对数现算，不许在表里写死总秒数。
+// 折数上限是并蒂引的复杂度轴：前三段 2 折（能绕盘外），大成起 1 折。
+// 实测（150 局 × 各段盘）1 折把「每对可连量」压掉约四成：大成 0.88→0.53、
+// 圆满 0.92→0.57；死局由玩法层的重排兜住（换盘不扣息、只断连收）。
+// 盘面尺寸决定「一对有几息」，折数决定「这一息里找得到几对」——两条轴互不顶替。
 const LINK_LEVELS = [
-  { cols: 6, rows: 4, kinds: 4 },   // 挖四格 = 20 格 · 10 对 · 4 种纹：段首多的一种 6 枚，路径好找
-  { cols: 6, rows: 4, kinds: 5 },   // 10 对 · 5 种纹
-  { cols: 6, rows: 4, kinds: 6 },   // 10 对 · 6 种纹：换段只换纹种，盘还是这一副
-  { cols: 7, rows: 5, kinds: 6 },   // 挖三格 = 32 格 · 16 对：大成第一次把盘长高
-  { cols: 8, rows: 6, kinds: 6 },   // 挖四格 = 44 格 · 22 对：圆满再大一圈
+  { cols: 6, rows: 4, kinds: 4, turns: 2 },   // 挖四格 = 20 格 · 10 对 · 4 种纹：段首多的一种 6 枚，路径好找
+  { cols: 6, rows: 4, kinds: 5, turns: 2 },   // 10 对 · 5 种纹
+  { cols: 6, rows: 4, kinds: 6, turns: 2 },   // 10 对 · 6 种纹：换段只换纹种，盘还是这一副
+  { cols: 7, rows: 5, kinds: 6, turns: 1 },   // 挖三格 = 32 格 · 16 对：大成第一次把盘长高，同时收紧到一折
+  { cols: 8, rows: 6, kinds: 6, turns: 1 },   // 挖四格 = 44 格 · 22 对：圆满再大一圈，仍是一折
 ];
 // 每对预算（息）：第 1 关 5.5 → 第 200 关 2.75，正好 2 倍。
 // 拿「每对」而不是「总秒数」当主承重：换章盘面变大，总秒数跟着变长是应该的，
@@ -936,6 +940,7 @@ function rawParams(method, depthIndex) {
     out.cols = lv.cols;
     out.rows = lv.rows;
     out.kinds = lv.kinds;
+    out.turns = lv.turns;
     out.duration = linkDurationAt(levelData.stageRange(d.depth).from);
     // 段基准是「均匀布纹」，段内一级一级偏过去（tweakParams）。写在这里是为了
     // buildParams(method, stage) 那些段级读者也有同一个起点，不会出现 undefined。
@@ -1138,7 +1143,7 @@ const LEVEL_STRUCT_KEYS = ['cols', 'rows', 'size', 'grid', 'kinds', 'holes', 'co
   'target', 'minOpt', 'maxOpt', 'boxes', 'walls', 'startTiles', 'hearts', 'steps',
   'minSteps', 'hiSteps', 'startLevel', 'linesPerLevel', 'lenStep', 'decoys', 'pairs',
   'mines', 'beats', 'segments', 'chainGoal', 'maxRound', 'scramble', 'startLen',
-  'baseLen', 'budgetSlack', 'missCost', 'nearGap', 'hands', 'bar', 'bars'];
+  'baseLen', 'budgetSlack', 'missCost', 'nearGap', 'hands', 'bar', 'bars', 'turns'];
 // 沿全书关号连续收的结构旋钮不属于「本段换了哪一副盘」，换段时不与盘面规格抢那两条额度。
 const CONTINUOUS_STRUCT_KEYS = ['nearGap'];
 
@@ -1327,6 +1332,12 @@ function levelDelta(method, level) {
     }
     if (now.kinds !== prev.kinds) {
       out.push({ key: 'kinds', label: '灵纹', text: '灵纹 ' + prev.kinds + ' → ' + now.kinds + ' 种' });
+    }
+    // 折数是换段才动的规则：大成起从两折收到一折，盘面没变也让可连对数塌了一截。
+    // 它比「盘面变大」更该让玩家先看见——玩家照老习惯找线会连不上。
+    if (now.turns !== prev.turns) {
+      out.push({ key: 'turns', label: '转折',
+        text: '连线只准转折 ' + now.turns + ' 次（原 ' + prev.turns + ' 次）' });
     }
     // 盘形与纹样是段内一眼看得见的两件事：每四 / 五关换一副，所以排在最前，
     // 优先于「布纹」（每 10 关才动一格）与「每对时辰」（几乎每关都在动）。
@@ -1581,8 +1592,8 @@ function stageDetail(method, stageIndex) {
     // 对数也要读 linkPairsOf：盘形挖掉四格之后，cols*rows/2 已经不是牌的对数了。
     const pairs = linkPairsOf(now);
     brief = now.cols + '×' + now.rows + ' 盘 · ' + pairs + ' 对 · ' + now.kinds + ' 种灵纹 · '
-      + now.duration + ' 息 · 每对 ' + (now.duration / pairs).toFixed(2) + ' 息'
-      + ' · 布纹由均匀渐至极偏 · 盘形四副轮换';
+      + now.duration + ' 息 · 每对 ' + (now.duration / pairs).toFixed(2) + ' 息 · 连线只准 '
+      + now.turns + ' 折 · 布纹由均匀渐至极偏 · 盘形四副轮换';
   } else if (method && method.game === 'tempo') {
     // 这一门的段差是「换了一副谱」，不是「快了几毫秒」：谱型 / 手数 / 提示三样写在一句里，
     // 准备页才不会写着「最快节奏」而玩家进局发现只是窗窄了一点。

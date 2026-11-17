@@ -650,6 +650,16 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
       || !/(p|params)[ ]*[.][ ]*gaps(?![a-zA-Z])/.test(linkSrc)) {
     errors.push('linkpair 的盘形没接成：levels.js 没生成 gaps，或 link.js 没按空位派牌');
   } else checked += 1;
+  // 折数是段间难度轴：practice.js 生成 turns，link.js 的判定 / 提示 / 重排三处都得读。
+  // 只生成不消费时盘面与提示会分叉（「照纹说能连、点上去连不上」），而界面不报错。
+  const practiceSrc = fs.readFileSync(path.join(ROOT, 'data/practice.js'), 'utf8');
+  const turnCalls = (linkSrc.match(/(?:findPath|findPair|canLink)\([^)]*board, cols, rows[^)]*\)/g) || []);
+  if (!/LINK_LEVELS[\s\S]{0,900}turns/.test(practiceSrc)
+      || !/const turnsLimit = turnsOf\(p\)/.test(linkSrc)
+      || turnCalls.length < 6
+      || turnCalls.some(function (s) { return s.indexOf('turnsLimit') < 0; })) {
+    errors.push('linkpair 的折数没接成：生成端 turns 没到判定 / 提示 / 重排');
+  } else checked += 1;
   let hintStable = true;
   let sourced = true;
   let perPairOk = true;

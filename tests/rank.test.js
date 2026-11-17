@@ -1300,7 +1300,7 @@ check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备�
   // 分项账本：文档「总览 §5」引用的那串拆解必须与本表逐项相等。
   // 关数 ≠ 条数——一关最多报三条（换段那关报换段 / 换盘 / 换纹种），
   // 把 500 条当成 500 关、或把拆解当成「加起来正好 435」，都是把这份账读错。
-  const tally = { chapter: 0, cols: 0, kinds: 0, layout: 0, theme: 0, weave: 0, perPair: 0 };
+  const tally = { chapter: 0, cols: 0, kinds: 0, turns: 0, layout: 0, theme: 0, weave: 0, perPair: 0 };
   let multi = 0;
   let prev = practice.buildParamsAt(m, 1);
   let prevPP = prev.duration / practice.linkPairsOf(prev);
@@ -1319,7 +1319,7 @@ check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备�
     // 「真变」= 玩家在盘上看得见的东西变了：盘面 / 纹种 / 布纹 / 盘形 / 纹样 / 时辰。
     // 盘形与纹样是上一版之后新加的两条段内旋钮，这里不跟着算，账就永远对不上。
     if (q.duration !== prev.duration || q.cols !== prev.cols || q.rows !== prev.rows
-      || q.kinds !== prev.kinds || q.weave !== prev.weave
+      || q.kinds !== prev.kinds || q.turns !== prev.turns || q.weave !== prev.weave
       || q.layout !== prev.layout || q.theme !== prev.theme) changed += 1;
     const ds = practice.levelDelta(m, lv);
     // 「本门第一关」与「本门最后一关」回答的是起点/终点，不是「这一关比上一关变了什么」，
@@ -1339,12 +1339,12 @@ check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备�
   // 盘形每 4 关一副 → 1000 关里两百多条；纹样每 5 关一套 → 一百多条。
   // 改盘形周期 / 纹样周期 / 布纹档数，这里必须跟着改，不顺带改就是文档与代码各说一套。
   assert.deepStrictEqual(tally,
-    { chapter: 4, cols: 2, kinds: 2, layout: 246, theme: 195, weave: 15, perPair: 49 },
+    { chapter: 4, cols: 2, kinds: 2, turns: 1, layout: 246, theme: 195, weave: 15, perPair: 48 },
     '分项账本变了：总览 §5 的拆解要同批改');
-  // 七项合计 513 条 + 末关那条「圆满」= 514 条，落在 438 关上（有 73 关报了多条）。
+  // 八项合计 513 条 + 末关那条「圆满」= 514 条，落在 438 关上（有 73 关报了多条）。
   // 关数、条数、拆解是三个不同的数，写成「加起来正好 438」就是一笔假账。
   assert.strictEqual(Object.keys(tally).reduce(function (a, k) { return a + tally[k]; }, 0), 513,
-    '分项条目数变了（七项 513 + 末关 1 = 514 条）');
+    '分项条目数变了（八项 513 + 末关 1 = 514 条）');
   assert.strictEqual(reported, 438, '有东西可报的关数变了（末关那条「本门最后一关」是终点总结，不计入）');
   assert.strictEqual(multi, 73, '一关报多条的次数变了（365 一条 / 71 两条 / 2 三条）');
   assert.ok(changed >= 30, '规格台阶掉到 ' + changed + ' 级');

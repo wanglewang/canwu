@@ -76,7 +76,14 @@ function gradeByLeft(left, duration) {
   return 'C';
 }
 
-// 最多两次转折的连线判定。把盘面外扩一圈空位，边上的灵纹也能从盘外绕过去。
+// 最多几次转折：生成端按段注入（前三段 2、大成与圆满 1）。1 折是可达性门槛，
+// 把「每对可连量」实测压掉约四成——盘面没变，找对的难度真上去了。
+// 越界值一律回落到 2：参数缺失时宁可松，不能把玩家挡在连不上的盘前。
+function turnsOf(p) {
+  return (p && p.turns === 1) ? 1 : 2;
+}
+
+// 连线判定。把盘面外扩一圈空位，边上的灵纹也能从盘外绕过去。
 // 纯函数：玩法层和测试用同一套规则，改判定不会偷偷改掉测试期望。
 //
 // 返回的是**一条真的线**，不是「能连 / 不能连」：
@@ -84,7 +91,8 @@ function gradeByLeft(left, duration) {
 // 这类判法，光看两枚牌消失，学不会这一门的规则。点失败时也要有地方说「卡在哪」，
 // 所以路径由这里交出来，页面只负责画。
 // 坐标是外扩后的网格坐标（0 与 cols+1 都算盘外），页面按「减半格」换算成百分比。
-function findPath(board, cols, rows, a, b) {
+function findPath(board, cols, rows, a, b, turnsLimit) {
+  const limit = turnsLimit === 1 ? 1 : 2;
   if (a === b || a < 0 || b < 0 || a >= board.length || b >= board.length) return null;
   const va = board[a];
   if (!va || va !== board[b]) return null;
@@ -111,7 +119,7 @@ function findPath(board, cols, rows, a, b) {
     head += 1;
     for (let d = 0; d < 4; d += 1) {
       const turns = cur.dir === -1 || cur.dir === d ? cur.turns : cur.turns + 1;
-      if (turns > 2) continue;
+      if (turns > limit) continue;
       const nr = cur.r + DIRS[d][0];
       const nc = cur.c + DIRS[d][1];
       if (nr < 0 || nr >= H || nc < 0 || nc >= W) continue;
@@ -155,13 +163,13 @@ function compressPath(pts) {
   return out;
 }
 
-function canLink(board, cols, rows, a, b) {
-  return !!findPath(board, cols, rows, a, b);
+function canLink(board, cols, rows, a, b, turnsLimit) {
+  return !!findPath(board, cols, rows, a, b, turnsLimit);
 }
 
 // avoid 是一次照纹里已经指过的那一对：大圆满的「双照」要再找一对**不同的**，
 // 否则两次照见同一对，玩家等于白扣息。
-function findPair(board, cols, rows, avoid) {
+function findPair(board, cols, rows, avoid, turnsLimit) {
   const skip = avoid || {};
   const left = [];
   for (let i = 0; i < board.length; i += 1) if (board[i]) left.push(i);
@@ -178,7 +186,7 @@ function findPair(board, cols, rows, avoid) {
       if (skip[list[i]]) continue;
       for (let j = i + 1; j < list.length; j += 1) {
         if (skip[list[j]]) continue;
-        if (canLink(board, cols, rows, list[i], list[j])) return [list[i], list[j]];
+        if (canLink(board, cols, rows, list[i], list[j], turnsLimit)) return [list[i], list[j]];
       }
     }
   }
@@ -253,6 +261,9 @@ function create(ctx) {
   // 否则「参数在动、盘面没动」会在这里被悄悄托住。
   const weave = Math.max(0, Math.min(3, Math.round(p.weave || 0)));
   const stage = typeof perks.tier === 'number' ? perks.tier : 0;
+  // 折数上限：生成端按段注入（1/11/51 段 2 折、201/501 段 1 折），这里只消费。
+  // 不写「按 stage 自己算」的兜底：生成端算错时盘面与提示会分叉，界面上看不出是哪一步。
+  const turnsLimit = turnsOf(p);
   const duration = Math.max(20, p.duration || 55);
   // 照纹高亮多久与难度无关（它只是「看得见多久」），所以不进 PACE_KEYS / 章内收紧，
   // 否则 200 关里一百多关的「本关变化」都会是「亮起时长 0.75 秒 → 0.74 秒」——
@@ -263,7 +274,11 @@ function create(ctx) {
   const pairs = (n - openCount) / 2;
   const leftLine = gradeLefts(duration);
 
-  const vm = C.makeVm(cols, n, '点两枚同纹灵石，能连起来就收走一对', ctx.tip || '点两枚同纹，转折不超过两次');
+  // 局内 tip 是代价/规则真源，折数写在这里而不是写死「两次」：大成起收紧到一次，
+  // tip 必须跟着变，否则玩家照着「两次」的点法去点，只会一直看到「连不上」。
+  const turnTip = turnsLimit === 1 ? '点两枚同纹，只准转折一次' : '点两枚同纹，转折不超过两次';
+  const vm = C.makeVm(cols, n, '点两枚同纹灵石，能连起来就收走一对', ctx.tip || turnTip);
+  vm.linkTurns = turnsLimit;
   vm.timeText = C.mmss(duration);
   vm.scoreText = '得分 0';
   vm.weave = weave;
@@ -303,7 +318,7 @@ function create(ctx) {
       k += 1;
     }
     // 极小的概率重排后仍无可连对（剩余纹全被自己围住），再洗几次；绝不死循环。
-    for (let t = 0; t < 24 && !findPair(board, cols, rows); t += 1) {
+    for (let t = 0; t < 24 && !findPair(board, cols, rows, null, turnsLimit); t += 1) {
       C.shuffle(rest);
       k = 0;
       for (let i = 0; i < n; i += 1) {
@@ -436,16 +451,16 @@ function create(ctx) {
       combo = 0;
       left = Math.max(0, left - 2);
       C.flash(vm, '纹不合 · 少 2 息', 'bad');
-    } else if (!findPath(board, cols, rows, a, b)) {
+    } else if (!findPath(board, cols, rows, a, b, turnsLimit)) {
       selected = -1;
       mistakes += 1;
       combo = 0;
       left = Math.max(0, left - 2);
-      C.flash(vm, '隔着纹，连不上 · 少 2 息', 'bad');
+      C.flash(vm, turnsLimit === 1 ? '一次转折接不上 · 少 2 息' : '隔着纹，连不上 · 少 2 息', 'bad');
     } else {
       // 路径要在清牌之前算：清完那两格就变成 0，起点与终点都不再是「同纹」，
       // 再怎么找也找不到这条线了。
-      const path = findPath(board, cols, rows, a, b);
+      const path = findPath(board, cols, rows, a, b, turnsLimit);
       board[a] = 0;
       board[b] = 0;
       selected = -1;
@@ -465,7 +480,7 @@ function create(ctx) {
         finish();
         return;
       }
-      if (!findPair(board, cols, rows)) reshuffle();
+      if (!findPair(board, cols, rows, null, turnsLimit)) reshuffle();
     }
     paint();
     syncHud();
@@ -475,7 +490,7 @@ function create(ctx) {
 
   function hint() {
     if (done || vm.phase !== 'playing') return;
-    const pair = findPair(board, cols, rows);
+    const pair = findPair(board, cols, rows, null, turnsLimit);
     if (!pair) { reshuffle(); paint(); syncHud(); render(); return; }
     clearHint();
     hintPairs = [pair];
@@ -483,7 +498,7 @@ function create(ctx) {
       const skip = {};
       skip[pair[0]] = true;
       skip[pair[1]] = true;
-      const second = findPair(board, cols, rows, skip);
+      const second = findPair(board, cols, rows, skip, turnsLimit);
       if (second) hintPairs.push(second);
     }
     left = Math.max(0, left - hintCost);
@@ -514,7 +529,7 @@ function create(ctx) {
     vm.banner = theme.banner || '';
     for (let t = 0; t < 40; t += 1) {
       board = makeBoard(hole, kinds, weave);
-      if (findPair(board, cols, rows)) break;
+      if (findPair(board, cols, rows, null, turnsLimit)) break;
     }
     paint();
     syncHud();
@@ -566,27 +581,50 @@ function lines(p) {
 const TEACH_BOARD = [1, 3, 2, 4, 5, 1];
 const TEACH_COLS = 3;
 const TEACH_STAGE = [
-  { cols: 3, rows: 2, kinds: 4 },
-  { cols: 6, rows: 4, kinds: 5 },
-  { cols: 6, rows: 4, kinds: 6 },
-  { cols: 7, rows: 5, kinds: 6 },
-  { cols: 8, rows: 6, kinds: 6 },
+  { cols: 3, rows: 2, kinds: 4, turns: 2 },
+  { cols: 6, rows: 4, kinds: 5, turns: 2 },
+  { cols: 6, rows: 4, kinds: 6, turns: 2 },
+  { cols: 7, rows: 5, kinds: 6, turns: 1 },
+  { cols: 8, rows: 6, kinds: 6, turns: 1 },
 ];
 
-// 一段一副盘：同纹两枚取「第一枚」与「同纹里最远的那一枚」——折线要真的走一遍。
+// 一段一副盘：同纹两枚取「第一枚」与「按本段折数真能连到的最远一枚」——折线要真的走一遍。
+// 旧版取「同纹里下标最远的」那一枚，教学盘不走 findPath，于是演示的那一对在真盘上
+// 常常根本连不上（1 折下尤其），玩家照着点只会吃罚息。现在示范对由同一套判定选出来。
 function teachLayout(stage) {
   if (stage === 0) {
-    return { board: TEACH_BOARD.slice(), cols: TEACH_COLS, rows: 2, kinds: 4, a: 0, b: 5 };
+    return { board: TEACH_BOARD.slice(), cols: TEACH_COLS, rows: 2, kinds: 4,
+      turns: 2, a: 0, b: 5 };
   }
   const spec = TEACH_STAGE[stage];
   const n = spec.cols * spec.rows;
   const board = [];
-  for (let i = 0; i < n; i += 1) board.push((i % spec.kinds) + 1);
-  let b = 0;
-  for (let i = 1; i < n; i += 1) {
-    if (board[i] === board[0]) b = i;
+  // 1 折段改按行铺：按列铺时同纹都在同一列、彼此挡死，1 折下一对都连不出，
+  // 教学示范会变成 b=-1。按行铺让相邻同纹直连——这是 1 折下合法的最简示范，
+  // 「只准转折一次」的规矩交给文案讲，教学第一步要先保证第一手能做对。
+  if (spec.turns === 1) {
+    for (let i = 0; i < n; i += 1) board.push(Math.floor(i / spec.cols) % spec.kinds + 1);
+  } else {
+    for (let i = 0; i < n; i += 1) board.push(i % spec.kinds + 1);
   }
-  return { board: board, cols: spec.cols, rows: spec.rows, kinds: spec.kinds, a: 0, b: b };
+  let b = -1;
+  for (let i = n - 1; i > 0; i -= 1) {
+    if (board[i] === board[0] && findPath(board, spec.cols, spec.rows, 0, i, spec.turns)) {
+      b = i;
+      break;
+    }
+  }
+  // 兜底只防模板本身摆坏：同纹相邻永远可连，所以正常情况下走不到这里。
+  if (b < 0) {
+    for (let i = 1; i < n; i += 1) {
+      if (board[i] === board[0] && findPath(board, spec.cols, spec.rows, 0, i, spec.turns)) {
+        b = i;
+        break;
+      }
+    }
+  }
+  return { board: board, cols: spec.cols, rows: spec.rows, kinds: spec.kinds,
+    turns: spec.turns, a: 0, b: b };
 }
 
 function createTeach(ctx) {
@@ -599,23 +637,25 @@ function createTeach(ctx) {
   return K.run(ctx, {
     cols: lay.cols,
     cells: cells,
-    status: stage === 0 ? '教学 · 把同纹的两枚连起来' : '教学 · 这一段 ' + board.length + ' 枚 · ' + lay.kinds + ' 种纹',
+    status: stage === 0 ? '教学 · 把同纹的两枚连起来'
+      : '教学 · 这一段 ' + board.length + ' 枚 · ' + lay.kinds + ' 种纹 · 只准转折 ' + lay.turns + ' 次',
     steps: [
       {
         at: [lay.a],
         text: '点第一枚 · 再点同纹的另一枚',
         take: function (i) {
           first = i;
-          return { text: '同纹只剩这几枚 · 折两下就能到' };
+          return { text: lay.turns === 1 ? '同纹只剩这几枚 · 只准折一下' : '同纹只剩这几枚 · 折两下就能到' };
         },
       },
       {
         at: [lay.b],
-        text: '点这一枚 · 折线不超过两下',
+        text: lay.turns === 1 ? '点这一枚 · 只准转折一次' : '点这一枚 · 折线不超过两下',
         take: function () {
           linked = true;
           first = -1;
-          return { text: '连上了 · 两折以内都算，还能绕到盘外' };
+          return { text: lay.turns === 1 ? '连上了 · 这一段只准一折，绕盘外的走法用不了'
+            : '连上了 · 两折以内都算，还能绕到盘外' };
         },
       },
     ],

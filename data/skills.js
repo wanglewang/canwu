@@ -182,7 +182,7 @@ const SKILLS = [
   {
     // 旧名「灵契·并蒂引」：前缀「灵契」与类别「御灵」不符，统一成类别名；五字后作「并蒂连枝引」。
     id: 'lingqi', name: '御灵·并蒂连枝引', type: '御灵', kind: 'skill', tier: 'huang', method: 'linkpair',
-    desc: '两枚同纹灵石本是一对，牵一条不过两折的灵线，把它们收回契中。',
+    desc: '两枚同纹灵石本是一对，牵一条灵线把它们收回契中；越往后折数收得越紧。',
     flavor: '师父说这叫并蒂，你觉得这叫连连看。',
     bonus: { ling: 3, shen: 2 },
     effect: { type: 'qiSave', value: 0.08, text: '并蒂：参悟耗灵力 −8%' },

@@ -2723,6 +2723,18 @@ check('牵灵引线：连上的那一对真的画得出一条折线', function (
   // 判定与路径必须是同一个函数：两套实现迟早会分叉。
   assert.strictEqual(mod.canLink(around, cols, rows, 0, 3), true);
   assert.strictEqual(mod.findPath(near, cols, rows, 0, 2), null, '不同纹也给了路径');
+
+  // 折数是段间难度轴：同一张盘，两折能从盘外绕通、一折接不上。
+  // 若只剩默认两折在跑，这条会红——参数生成了却没人读的情况必须被挡住。
+  assert.ok(mod.findPath(around, cols, rows, 0, 3, 2), '两折的绕行盘不通');
+  assert.strictEqual(mod.findPath(around, cols, rows, 0, 3, 1), null, '一折也能绕盘外，折数没生效');
+  assert.ok(mod.findPath(near, cols, rows, 0, 1, 1), '一折连相邻同纹都不通');
+  // findPair 也要吃折数，否则「提示说能连、点上去连不上」。
+  assert.deepStrictEqual(mod.findPair(around, cols, rows, null, 2), [0, 3], '两折没找到那对绕行的');
+  // 一折下盘里仍有一对相邻同纹（索引 1/2），但不该再是那对要靠盘外绕行的 0/3。
+  const oneTurnPair = mod.findPair(around, cols, rows, null, 1);
+  assert.ok(oneTurnPair && (oneTurnPair[0] !== 0 || oneTurnPair[1] !== 3),
+    '一折下 findPair 把绕行盘的那对也报成可连');
 });
 
 check('牵灵引线：段内布纹真换了牌阵，纹种不减、开局仍可连', function () {

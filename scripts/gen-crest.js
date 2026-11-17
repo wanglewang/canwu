@@ -330,51 +330,84 @@ function at(pts, ox) {
 }
 
 const SWEET = [
-  // 0 圆润：马卡龙
+  // 0 圆润：马卡龙 —— 裙边褶皱 + 夹心 + 糖霜高光。轮廓仍是上下两片圆壳。
   function (cv, ox) {
-    fill(cv, at(ell(32, 22, 23, 11), ox), C.pink);
-    fill(cv, at(rrect(11, 21, 42, 8, 3), ox), C.cream);
     fill(cv, at(ell(32, 40, 23, 11), ox), C.pink2);
-    fill(cv, at(ell(24, 39, 7, 4), ox), '#f9c9d8');
+    fill(cv, at(rrect(11, 21, 42, 8, 3), ox), C.cream);
+    fill(cv, at(ell(32, 22, 23, 11), ox), C.pink);
+    for (let i = 0; i < 9; i += 1) {
+      const x = 11 + i * 5.2;
+      fill(cv, at([[x, 45], [x + 2.6, 51], [x + 5.2, 45]], ox), C.pink2, 1);
+    }
+    fill(cv, at(ell(24, 18, 9, 3), ox), '#fbd3df', 1);
+    fill(cv, at(ell(41, 26, 5, 2), ox), '#fbd3df', 1);
   },
-  // 1 方框：方蛋糕
+  // 1 方框：方蛋糕 —— 顶面裱花、侧面分层、糖粒、樱桃梗。仍是方块轮廓。
   function (cv, ox) {
     fill(cv, at([[14, 26], [50, 26], [50, 50], [14, 50]], ox), C.cream2);
     fill(cv, at([[14, 26], [32, 16], [50, 26], [32, 34]], ox), C.cream);
     fill(cv, at([[14, 36], [50, 36], [50, 44], [14, 44]], ox), C.pink);
     fill(cv, at(circ(32, 13, 5), ox), C.cherry);
+    fill(cv, at([[32, 9], [35, 4], [32, 3], [30, 7]], ox), C.kelp, 1);
+    [[19, 31], [26, 29], [38, 29], [45, 31]].forEach(function (p) {
+      fill(cv, at(circ(p[0], p[1], 1.6), ox), C.cream, 1);
+    });
+    fill(cv, at([[14, 47], [50, 47], [50, 49], [14, 49]], ox), C.cocoa, 1);
   },
-  // 2 伞锥：冰淇淋
+  // 2 伞锥：冰淇淋 —— 蛋筒格纹、糖珠、球高光。仍是锥体 + 双球。
   function (cv, ox) {
     fill(cv, at([[20, 26], [44, 26], [32, 56]], ox), C.cone);
     fill(cv, at([[20, 26], [44, 26], [40, 34], [24, 34]], ox), C.cocoa);
     fill(cv, at(circ(32, 20, 14), ox), C.cream);
     fill(cv, at(circ(26, 17, 8), ox), C.pink);
     fill(cv, at(circ(38, 20, 7), ox), C.mint);
+    for (let i = 0; i < 4; i += 1) {
+      const y = 38 + i * 5;
+      const w = 4 + i * 2;
+      fill(cv, at([[32 - w, y - 2], [32 - w + 3, y - 2], [32 + w, y + 3], [32 + w - 3, y + 3]], ox), C.cocoa, 1);
+      fill(cv, at([[32 + w, y - 2], [32 + w - 3, y - 2], [32 - w, y + 3], [32 - w + 3, y + 3]], ox), C.cocoa, 1);
+    }
+    fill(cv, at(ell(23, 12, 4, 2), ox), '#ffe9f2', 1);
+    fill(cv, at(circ(30, 11, 1.8), ox), C.cherry, 1);
+    fill(cv, at(circ(41, 16, 1.8), ox), C.cream, 1);
   },
-  // 3 竖长：棒棒糖
+  // 3 竖长：棒棒糖 —— 螺旋纹 + 高光 + 糖纸褶。仍是圆头长柄。
   function (cv, ox) {
     fill(cv, at(rrect(30, 32, 4, 26, 2), ox), C.cream2);
     fill(cv, at(circ(32, 22, 14), ox), C.pink);
     fill(cv, at(quad([32, 22], [40, 12], [32, 12]), ox), C.cream);
     fill(cv, at(quad([32, 22], [24, 30], [32, 32]), ox), C.cream);
+    fill(cv, at(quad([32, 22], [43, 27], [41, 34]), ox), C.cream, 1);
+    fill(cv, at(quad([32, 22], [22, 16], [26, 11]), ox), C.cream, 1);
     fill(cv, at(circ(32, 22, 4), ox), C.pink2);
+    fill(cv, at(ell(26, 15, 4, 2), ox), '#ffe0ea', 1);
+    fill(cv, at([[30, 55], [34, 55], [36, 60], [28, 60]], ox), C.cream, 1);
   },
-  // 4 成簇：一把糖豆
+  // 4 成簇：一把糖豆 —— 每颗加高光，缝里点糖霜。仍是五颗成簇。
   function (cv, ox) {
-    fill(cv, at(circ(24, 38, 9), ox), C.lemon);
-    fill(cv, at(circ(42, 40, 9), ox), C.mint);
-    fill(cv, at(circ(32, 28, 9), ox), C.orange);
-    fill(cv, at(circ(26, 20, 6), ox), C.grape);
-    fill(cv, at(circ(40, 19, 6), ox), C.pink);
+    [[24, 38, 9, C.lemon], [42, 40, 9, C.mint], [32, 28, 9, C.orange],
+      [26, 20, 6, C.grape], [40, 19, 6, C.pink]].forEach(function (b) {
+      fill(cv, at(circ(b[0], b[1], b[2]), ox), b[3]);
+    });
+    [[24, 38, 9, '#fff3bd'], [42, 40, 9, '#c9f0d9'], [32, 28, 9, '#ffd9a3'],
+      [26, 20, 6, '#ded0f2'], [40, 19, 6, '#ffd0dd']].forEach(function (b) {
+      fill(cv, at(ell(b[0] - b[2] * 0.28, b[1] - b[2] * 0.32, b[2] * 0.3, b[2] * 0.18), ox), b[3], 1);
+    });
+    [[33, 20, 1.5], [34, 34, 1.5], [19, 28, 1.5], [47, 30, 1.5]].forEach(function (p) {
+      fill(cv, at(circ(p[0], p[1], p[2]), ox), C.cream, 1);
+    });
   },
-  // 5 带尖：切片蛋糕
+  // 5 带尖：切片蛋糕 —— 分层线、奶油波浪、樱桃梗。仍是三角尖 + 底托。
   function (cv, ox) {
     fill(cv, at(rrect(8, 49, 48, 7, 3), ox), C.cream2);
     fill(cv, at(tri(32, 10, 54, 49, 10, 49), ox), C.cocoa);
     fill(cv, at(tri(32, 10, 44, 30, 20, 30), ox), C.cream);
     fill(cv, at([[13, 40], [51, 40], [54, 46], [10, 46]], ox), C.pink);
     fill(cv, at(circ(32, 10, 5), ox), C.cherry);
+    fill(cv, at([[32, 6], [34, 2], [32, 2], [30, 5]], ox), C.kelp, 1);
+    fill(cv, at([[21, 34], [25, 33], [29, 34], [33, 33], [37, 34], [43, 33],
+      [43, 35], [37, 36], [33, 35], [29, 36], [25, 35], [21, 36]], ox), '#fff6e4', 1);
+    fill(cv, at([[14, 44], [50, 44], [50, 45], [14, 45]], ox), '#fbd3df', 1);
   },
 ];
 
@@ -613,14 +646,17 @@ function main() {
     return a + (total * 100) + '%' + c;
   });
 
+  // 行尾跟着文件走：另一个会话可能用 CRLF 写过这个文件，直接按 \n 匹配会整块失配，
+  // 而替换时写 \n 又会造出混合行尾。这里只探测、不改写别人的行尾。
+  const eol = css.indexOf('\r\n') >= 0 ? '\r\n' : '\n';
   const classes = [];
   for (let i = 1; i <= total; i += 1) {
     const pct = ((i - 1) / (total - 1) * 100).toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
     classes.push('.crest--' + i + ' { background-position-x: ' + pct + '%; }');
   }
-  const blockRe = /\.crest--\d+ \{ background-position-x: [\d.]+%; \}\n(?:\.crest--\d+ \{ background-position-x: [\d.]+%; \}\n)*/;
+  const blockRe = /\.crest--\d+ \{ background-position-x: [\d.]+%; \}\r?\n(?:\.crest--\d+ \{ background-position-x: [\d.]+%; \}\r?\n)*/;
   if (!blockRe.test(css)) throw new Error('crest.wxss 里没有 crest--N 类块');
-  css = css.replace(blockRe, classes.join('\n') + '\n');
+  css = css.replace(blockRe, classes.join(eol) + eol);
   fs.writeFileSync(wxssPath, css);
 
   // ---------- 验收图（不入库） ----------

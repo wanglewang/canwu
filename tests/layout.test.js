@@ -2216,6 +2216,47 @@ check('并蒂引盘形：空位只挖边沿、段内对数恒定、每四关换�
   assert.ok(/hole\[i\]/.test(src), 'paint 没按空位表分叉');
 });
 
+check('并蒂引折数：生成端按段收紧、玩法层真读走、教学盘示范对在本段折数下可连', function () {
+  const L = require('../minigames/link.js');
+  const ld = require('../data/levels.js');
+  const pd = require('../data/practice.js');
+  const method = pd.PRACTICE_METHODS.filter(function (m) { return m.game === 'link'; })[0];
+  const src = read('minigames/link.js');
+
+  // 一、生成端：前三段 2 折、大成与圆满 1 折；段内恒定（折数只在换段动）。
+  const want = [2, 2, 2, 1, 1];
+  for (let st = 0; st < ld.STAGES.length; st += 1) {
+    const range = ld.stageRange(st);
+    for (let lv = range.from; lv <= range.to; lv += 1) {
+      assert.strictEqual(pd.buildParamsAt(method, lv).turns, want[st],
+        '第 ' + lv + ' 关折数与段规格不符');
+    }
+  }
+  // 换段关的「本关变化」必须报折数，否则玩家照两折的点法进大成只会一直吃罚息。
+  assert.ok(pd.levelDelta(method, 201).some(function (x) { return x.key === 'turns'; }),
+    '踏入大成的那一关没报折数收紧');
+
+  // 二、消费端：提示、重排、判定三处都得带 turnsLimit。只改判定不改提示，
+  //     就会出现「照纹说能连、点上去连不上」——界面上完全看不出是哪一处漏了。
+  assert.ok(/const turnsLimit = turnsOf\(p\)/.test(src), '玩法层没从参数读折数');
+  const calls = src.match(/(?:findPath|findPair|canLink)\([^)]*\)/g) || [];
+  const inside = calls.filter(function (s) { return /board, cols, rows/.test(s); });
+  assert.ok(inside.length >= 6, '局内判定调用点太少，参数传递链可能断了');
+  assert.ok(inside.every(function (s) { return /turnsLimit/.test(s); }),
+    '有判定调用点没传折数：' + inside.filter(function (s) { return !/turnsLimit/.test(s); }).join(' / '));
+
+  // 三、教学盘：五段的示范对都必须在本段折数下真能连上。旧版按列铺纹，
+  //     1 折段同纹都在同一列彼此挡死，教学目标是 -1——第一步就点不到。
+  for (let stage = 0; stage <= 4; stage += 1) {
+    let vm = null;
+    L.teach.create({ stage: stage, render: function (v) { vm = v; } }).start();
+    const plan = vm.teachPlan;
+    assert.strictEqual(plan.length, 2, '第 ' + stage + ' 段教学不是两步');
+    assert.ok(plan[1].at[0] >= 0, '第 ' + stage + ' 段教学没有可点的第二枚');
+    assert.notStrictEqual(plan[0].at[0], plan[1].at[0], '第 ' + stage + ' 段教学两步点同一格');
+  }
+});
+
 check('26 格器纹 sprite：单份 base64、三处容器、PNG 尺寸与打包排除', function () {
   const css = read('styles/emblems.wxss');
   const png = fs.readFileSync(path.join(ROOT, 'assets/emblems.png'));
