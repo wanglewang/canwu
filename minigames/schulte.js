@@ -24,6 +24,7 @@
 // 所以「困难 → 极难」这一对同盘面，差别只有一条规则：极难起，点过的格不再退场。
 
 const C = require('./common.js');
+const K = require('./teach-kit.js');
 
 // 五档整表。每一列都是玩家看得见、且玩法层真的读走的：
 //   size    盘面边长（规格）；fade 点过的格退不退场（信息；不退色 = 盘面始终是满的）；
@@ -308,11 +309,39 @@ function lines(p) {
   };
 }
 
+// 首局手把手：只走一步——把「1」点掉。
+// 这一门唯一要讲的是「顺序是死的」，让手先走一遍，比写一句「从 1 点到 N」有用。
+const TEACH_ORDER = [7, 2, 12, 5, 1, 14, 9, 16, 4, 11, 6, 13, 8, 15, 3, 10];
+
+function createTeach(ctx) {
+  const cells = K.blank(4, TEACH_ORDER.length);
+  return K.run(ctx, {
+    cols: 4,
+    cells: cells,
+    status: '教学 · 从 1 点到 16',
+    steps: [{
+      at: [TEACH_ORDER.indexOf(1)],
+      text: '先点 1 · 之后按 2、3 一路点到 16',
+      take: function () { return { text: '1 点掉了 · 跳号不算，得按顺序来' }; },
+    }],
+    paint: function () {
+      for (let i = 0; i < cells.length; i += 1) {
+        cells[i].cls = 'cell cell--num';
+        cells[i].label = String(TEACH_ORDER[i]);
+      }
+    },
+    doneText: '顺序是死的：1 之后是 2',
+  });
+}
+
+const teach = { create: createTeach };
+
 module.exports = {
   id: 'schulte',
   name: '顺序点格',
   create: create,
   lines: lines,
+  teach: teach,
   LEVELS: LEVELS,
   SIZES: SIZES,
   PENALTIES: PENALTIES,

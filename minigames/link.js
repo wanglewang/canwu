@@ -12,6 +12,7 @@
 // 重排不扣息：死局是盘面随机摆出来的，玩家管不着，罚息等于罚运气；代价改成连收断掉。
 
 const C = require('./common.js');
+const K = require('./teach-kit.js');
 
 const GLYPHS = ['✦', '◆', '●', '▲', '■', '✿'];
 const DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
@@ -485,9 +486,60 @@ function lines(p) {
   };
 }
 
+// 首局手把手：两枚同纹摆在对角，只连这一对。
+// 这一门与翻牌、消消乐的分水岭是「折线不超过两下、还能绕到盘外」，
+// 所以第二枚故意不挨着第一枚——就为了让那条折线在盘面上真的走一遍。
+const TEACH_BOARD = [1, 3, 2, 4, 5, 1];
+const TEACH_COLS = 3;
+
+function createTeach(ctx) {
+  const cells = K.blank(TEACH_COLS, TEACH_BOARD.length);
+  let first = -1;
+  let linked = false;
+  return K.run(ctx, {
+    cols: TEACH_COLS,
+    cells: cells,
+    status: '教学 · 把同纹的两枚连起来',
+    steps: [
+      {
+        at: [0],
+        text: '点第一枚 · 再点同纹的另一枚',
+        take: function (i) {
+          first = i;
+          return { text: '同纹只剩一枚 · 折两下就能到' };
+        },
+      },
+      {
+        at: [5],
+        text: '点对角那一枚 · 折线不超过两下',
+        take: function () {
+          linked = true;
+          first = -1;
+          return { text: '连上了 · 两折以内都算，还能绕到盘外' };
+        },
+      },
+    ],
+    paint: function (vm) {
+      for (let i = 0; i < cells.length; i += 1) {
+        const c = cells[i];
+        c.crest = TEACH_BOARD[i];
+        c.tone = TEACH_BOARD[i];
+        c.label = '';
+        c.cls = 'cell cell--chip';
+        if (linked && (i === 0 || i === 5)) c.cls += ' cell--gone';
+        else if (i === first) c.cls += ' cell--sel';
+      }
+      vm.link = { cols: TEACH_COLS, rows: 2 };
+    },
+    doneText: '一对收进契中',
+  });
+}
+
+const teach = { create: createTeach };
+
 module.exports = {
   id: 'link',
-  findPath: findPath, name: '灵纹连线', create: create, lines: lines,
+  findPath: findPath, name: '灵纹连线', create: create, lines: lines, teach: teach,
   canLink: canLink, findPair: findPair, GLYPHS: GLYPHS, pairCounts: pairCounts,
   gradeByLeft: gradeByLeft, gradeLefts: gradeLefts,
 };

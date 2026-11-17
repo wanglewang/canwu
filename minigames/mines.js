@@ -17,6 +17,7 @@
 // 旧实现把「耗时秒数」当 score 传出去，越慢反而越容易破纪录，方向是反的。
 
 const C = require('./common.js');
+const K = require('./teach-kit.js');
 
 const LAYOUT_TRIES = 64;   // 单格可解布局约占十几分之一，64 次足够；找不到就接受最后一盘，绝不死循环
 const HEARTS_BY_DEPTH = [3, 3, 3, 2, 2];
@@ -487,7 +488,55 @@ function lines(p) {
   };
 }
 
+// 首局手把手：三格见方、只有一颗禁制，摆在角上。
+// 让玩家点开正中，盘上露出一个「1」——那一个数就是这一门全部规则的种子：
+// 数字＝它周围八格里的禁制数。剩下的推理玩家自己会接上。
+const TEACH_MINE = 0;
+const TEACH_OPEN = 4;
+const TEACH_NUM = (function () {
+  const n = [];
+  for (let i = 0; i < 9; i += 1) n.push(0);
+  for (let i = 0; i < 9; i += 1) {
+    if (i === TEACH_MINE) continue;
+    const dr = Math.abs(Math.floor(i / 3) - Math.floor(TEACH_MINE / 3));
+    const dc = Math.abs((i % 3) - (TEACH_MINE % 3));
+    if (dr <= 1 && dc <= 1) n[i] += 1;
+  }
+  return n;
+})();
+
+function createTeach(ctx) {
+  const cells = K.blank(3, 9);
+  let opened = false;
+  return K.run(ctx, {
+    cols: 3,
+    cells: cells,
+    status: '教学 · 数出禁制在哪一格',
+    steps: [{
+      at: [TEACH_OPEN],
+      text: '点正中这一格 · 首点不会踩到禁制',
+      take: function () {
+        opened = true;
+        return { text: '翻开一片 · 格上的数字是周围八格的禁制数' };
+      },
+    }],
+    paint: function () {
+      for (let i = 0; i < 9; i += 1) {
+        const c = cells[i];
+        const open = opened && i !== TEACH_MINE;
+        c.cls = open ? 'cell cell--open' : 'cell cell--hidden';
+        c.label = open && TEACH_NUM[i] ? String(TEACH_NUM[i]) : '';
+        c.tone = open ? Math.min(3, TEACH_NUM[i]) : 0;
+        c.emblem = 0;
+      }
+    },
+    doneText: '中心的 1 说明八格里有一颗禁制 · 就压在角上',
+  });
+}
+
+const teach = { create: createTeach };
+
 module.exports = {
-  id: 'mines', name: '数格辨禁', create: create, lines: lines,
+  id: 'mines', name: '数格辨禁', create: create, lines: lines, teach: teach,
   HEARTS_BY_DEPTH: HEARTS_BY_DEPTH,
 };

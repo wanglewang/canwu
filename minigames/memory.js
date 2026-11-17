@@ -19,6 +19,7 @@
 // 分：每轮 10 × 题长 × 连对加成 × 抢记倍率。S 300 / A 150 / B 60。
 
 const C = require('./common.js');
+const K = require('./teach-kit.js');
 
 const TICK = 100;          // 计时粒度
 const WRONG_COST = 1500;   // 点错罚一息半
@@ -392,4 +393,105 @@ function lines(p) {
   };
 }
 
-module.exports = { id: 'memory', name: '记序复现', create: create, lines: lines };
+// 首局手把手：只两个字，依次闪一遍、点回来。
+// 要教的是「顺序是答案」——不是「哪些格亮过」。所以两格都会亮过一次，
+// 只有按先后点回去才算对；点反了不罚，只把句子再说一遍、重来一次。
+const TEACH_SEQ = [4, 0];
+const TEACH_FLASH_MS = 620;
+const TEACH_GAP_MS = 220;
+
+function createTeach(ctx) {
+  const theme = ctx.theme || {};
+  const glyph = theme.glyph || '诀';
+  const cells = K.blank(3, 9);
+  const vm = K.base({
+    cols: 3,
+    cells: cells,
+    status: '教学 · 记住亮的先后',
+    steps: [
+      { text: '看这两格依次亮一次 · 记住先后' },
+      { text: '按刚才的先后点回去' },
+    ],
+  });
+  const timers = [];
+  const ok = [];
+  let step = 0;
+  let lit = -1;
+  let input = false;
+  let over = false;
+
+  function later(fn, ms) {
+    const id = setTimeout(function () { fn(); }, ms);
+    timers.push(id);
+    return id;
+  }
+
+  function paint() {
+    for (let i = 0; i < 9; i += 1) {
+      const c = cells[i];
+      const done = ok.indexOf(i) >= 0;
+      if (done) c.cls = 'cell cell--ok';
+      else if (i === lit) c.cls = 'cell cell--lit';
+      else c.cls = 'cell';
+      c.label = (done || i === lit) ? glyph : '';
+      c.emblem = 20;
+    }
+  }
+
+  function draw() {
+    paint();
+    ctx.render(vm);
+  }
+
+  function show(idx) {
+    if (over) return;
+    lit = TEACH_SEQ[idx];
+    draw();
+    later(function () {
+      lit = -1;
+      draw();
+      if (idx + 1 < TEACH_SEQ.length) later(function () { show(idx + 1); }, TEACH_GAP_MS);
+      else later(function () {
+        input = true;
+        vm.teachText = '按刚才的先后点回去 · 先亮的先点';
+        draw();
+      }, TEACH_GAP_MS);
+    }, TEACH_FLASH_MS);
+  }
+
+  show(0);
+
+  return C.fillController({
+    start: function () { /* 摆好就开始闪 */ },
+    tap: function (index) {
+      if (!input || over) return;
+      if (index !== TEACH_SEQ[step]) {
+        C.flash(vm, step === 0 ? '不是这一格 · 先亮的是正中' : '反了 · 先亮的那一格先点', 'bad');
+        draw();
+        return;
+      }
+      ok.push(index);
+      step += 1;
+      vm.teachStep = Math.min(step + 1, TEACH_SEQ.length);
+      if (step >= TEACH_SEQ.length) {
+        over = true;
+        vm.teachText = '顺序对了 · 闪的先后就是答案';
+        C.flash(vm, '顺序对了', 'gold');
+        draw();
+        later(function () { ctx.done(); }, 900);
+        return;
+      }
+      C.flash(vm, '第一个对了 · 还差一格', 'good');
+      draw();
+    },
+    destroy: function () {
+      over = true;
+      for (let i = 0; i < timers.length; i += 1) clearTimeout(timers[i]);
+      timers.length = 0;
+    },
+  });
+}
+
+const teach = { create: createTeach };
+
+module.exports = { id: 'memory', name: '记序复现', create: create, lines: lines, teach: teach };

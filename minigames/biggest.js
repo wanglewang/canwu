@@ -12,6 +12,7 @@
 // 评级只看用时（含罚时），三条线由本模块 linesOf 按本段轮数与档位推。
 
 const C = require('./common.js');
+const K = require('./teach-kit.js');
 
 const WRONG_PENALTY = 2;
 const COLS = 4;
@@ -219,11 +220,42 @@ function lines(p) {
   };
 }
 
+// 首局手把手：摊一板数，只让人点一次——点出最大的那个。
+// 这一门的规则只有一句「每批只有一个答案：最大的」，让手先走一遍比讲一句强。
+const TEACH_VALUES = [7, 12, 4, 9, 15, 3, 21, 6, 8, 11, 5, 2];
+const TEACH_MAX = 21;
+
+function createTeach(ctx) {
+  const cells = K.blank(COLS, TEACH_VALUES.length);
+  return K.run(ctx, {
+    cols: COLS,
+    cells: cells,
+    status: '教学 · 只挑最大的一个',
+    steps: [{
+      at: [TEACH_VALUES.indexOf(TEACH_MAX)],
+      text: '点这一批里最大的数 · 每批只有一个',
+      take: function () { return { text: '21 最大 · 先比位数，位数相同再比大小' }; },
+    }],
+    paint: function (vm) {
+      for (let i = 0; i < cells.length; i += 1) {
+        cells[i].cls = 'cell cell--num';
+        cells[i].label = String(TEACH_VALUES[i]);
+        cells[i].tone = 2;
+      }
+      vm.biggest = { cols: COLS, values: TEACH_VALUES.slice(), max: TEACH_MAX };
+    },
+    doneText: '每批只挑一个：最大的那个',
+  });
+}
+
+const teach = { create: createTeach };
+
 module.exports = {
   id: 'biggest',
   name: '数中取大',
   create: create,
   lines: lines,
+  teach: teach,
   COUNTS: COUNTS,
   ROUNDS: ROUNDS,
 };

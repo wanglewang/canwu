@@ -19,6 +19,7 @@
 // 最优推数落在哪个区间），图由生成器按规格现抽，每局不同。
 
 const C = require('./common.js');
+const K = require('./teach-kit.js');
 
 // 兜底五张：只在生成器连续抽不中时用一个（正常一局都见不到它们）。
 // # 墙 / . 地 / b 石箱 / o 阵位 / p 人 / * 箱在阵位上 / + 人在阵位上。
@@ -802,11 +803,112 @@ function lines(p) {
   };
 }
 
+// 首局手把手：一箱一位，人正好站在箱子左边。
+// 要教的是「只能推、不能拉」——所以第一下是走一步站到箱子背后，第二下才推上阵位。
+// 这张盘不随机、也不从 LEVELS 里取：教学的话术要对得上图，图就不能变。
+const TEACH_COLS = 6;
+const TEACH_ROWS = 5;
+const TEACH_MAP = [
+  '######',
+  '#....#',
+  '#bp.o#',
+  '#....#',
+  '######',
+];
+// 人 (2,1)、箱 (2,2)、阵位 (2,4)；往右两下，箱子正好进阵位。
+const TEACH_START = { player: 1, box: 2 };
+const TEACH_GOAL = 4;
+
+function createTeach(ctx) {
+  const cells = K.blank(TEACH_COLS, TEACH_COLS * TEACH_ROWS);
+  const pos = { player: TEACH_START.player, box: TEACH_START.box };
+  function paintCell(i) {
+    const r = Math.floor(i / TEACH_COLS);
+    const c = i % TEACH_COLS;
+    const ch = TEACH_MAP[r].charAt(c);
+    const cell = cells[i];
+    cell.label = '';
+    cell.emblem = 0;
+    cell.tone = 0;
+    if (ch === '#') { cell.cls = 'cell cell--wall'; return; }
+    cell.cls = 'cell cell--floor';
+    if (c === TEACH_GOAL) {
+      cell.cls = 'cell cell--goal';
+      cell.label = '○';
+      cell.emblem = 14;
+    }
+    if (c === pos.box) {
+      const onGoal = c === TEACH_GOAL;
+      cell.cls = onGoal ? 'cell cell--boxed cell--on-goal' : 'cell cell--boxed';
+      cell.label = onGoal ? '▩' : '▣';
+      cell.emblem = 13;
+      return;
+    }
+    if (c === pos.player) {
+      cell.cls = 'cell cell--man';
+      cell.label = '☉';
+      cell.emblem = 15;
+    }
+  }
+  return K.run(ctx, {
+    cols: TEACH_COLS,
+    cells: cells,
+    status: '教学 · 只能推，不能拉',
+    steps: [
+      {
+        dir: ['right'],
+        wrongText: '先按「右」走到箱子背后 · 人站错边推不动',
+        text: '先按「右」走到箱子背后 · 人站错边就推不动',
+        take: function () {
+          pos.player = 2;
+          return { text: '站到背后了 · 再按同一个方向才是推' };
+        },
+      },
+      {
+        dir: ['right'],
+        wrongText: '再按一次「右」· 站在背后推才推得动',
+        text: '再按一次「右」· 把箱子推上阵位',
+        take: function () {
+          pos.player = 3;
+          pos.box = TEACH_GOAL;
+          return { text: '箱子进阵位了 · 推出去就拉不回来，所以先想好顺序' };
+        },
+      },
+    ],
+    paint: function (vm) {
+      for (let i = 0; i < cells.length; i += 1) paintCell(i);
+      vm.extras.compact = true;
+      vm.extras.showPad = true;
+      vm.pad = {
+        keys: [
+          { id: 'up', dir: 'up', icon: 'up', glyph: '上' },
+          { id: 'left', dir: 'left', icon: 'left', glyph: '左' },
+          { id: 'down', dir: 'down', icon: 'down', glyph: '下' },
+          { id: 'right', dir: 'right', icon: 'right', glyph: '右' },
+        ],
+      };
+      vm.pushbox = {
+        cols: TEACH_COLS,
+        rows: TEACH_ROWS,
+        boxes: [pos.box],
+        goals: [TEACH_GOAL],
+        player: pos.player,
+        dead: false,
+        layout: TEACH_MAP.slice(),
+      };
+    },
+    doneText: '只能推、不能拉 · 每块都要进自己的阵位',
+  });
+}
+
+const teach = { create: createTeach };
+
 module.exports = {
   id: 'pushbox',
   name: '推石入位',
   create: create,
   lines: lines,
+  teach: teach,
   solve: solve,
   deadCellsOf: deadCellsOf,
   solutionMoves: solutionMoves,

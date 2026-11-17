@@ -13,6 +13,7 @@
 // 那边点一格改一片，这里挪一块只动一块。
 
 const C = require('./common.js');
+const K = require('./teach-kit.js');
 
 // 4×4 的小盘：主块 2×2、横块 1×2、竖块 2×1、两个散块 1×1，空格六格。
 // 块越少空越多，越容易挪开；难度靠「最优步数」上下限控制，不靠加大盘面。
@@ -498,11 +499,77 @@ function lines(p) {
   };
 }
 
+// 首局手把手：4×4、只有主块，差一步就落到盘底正中。
+// 要教的是「一次只挪一格」与「主块必须走到盘底正中」——所以只留一步。
+const TEACH_COLS = 4;
+const TEACH_ROWS = 4;
+
+function createTeach(ctx) {
+  const cells = K.blank(TEACH_COLS, 0);
+  let moved = false;
+  return K.run(ctx, {
+    cols: TEACH_COLS,
+    cells: cells,
+    status: '教学 · 把主块让到盘底正中',
+    steps: [
+      {
+        at: [0],
+        text: '先点主块 · 它要从盘底正中那一格出去',
+        take: function () { return { text: '选中了 · 一次只挪一格' }; },
+      },
+      {
+        dir: ['down'],
+        wrongText: '这一步按「下」· 主块差一格就到正中',
+        text: '按「下」· 主块落到正中就通了',
+        take: function () {
+          moved = true;
+          return { text: '落到盘底正中 · 主块要从这一格出去' };
+        },
+      },
+    ],
+    paint: function (vm) {
+      vm.extras.showGrid = false;
+      vm.extras.showPad = true;
+      vm.pad = {
+        keys: [
+          { id: 'up', dir: 'up', icon: 'up', glyph: '上', shut: false },
+          { id: 'left', dir: 'left', icon: 'left', glyph: '左', shut: false },
+          { id: 'down', dir: 'down', icon: 'down', glyph: '下', shut: false },
+          { id: 'right', dir: 'right', icon: 'right', glyph: '右', shut: false },
+        ],
+      };
+      vm.klotski = {
+        cols: TEACH_COLS,
+        rows: TEACH_ROWS,
+        exitC: 1,
+        aligned: true,
+        open: moved,
+        blocks: [{
+          id: 'main',
+          x: 25,
+          y: moved ? 50 : 25,
+          w: 50,
+          h: 50,
+          sel: true,
+          main: true,
+          blocked: false,
+          escaped: moved,
+          emblem: 20,
+        }],
+      };
+    },
+    doneText: '一次一格 · 主块从盘底正中出去',
+  });
+}
+
+const teach = { create: createTeach };
+
 module.exports = {
   id: 'klotski',
   name: '滑块让路',
   create: create,
   lines: lines,
+  teach: teach,
   solve: solve,
   solvePath: solvePath,
   SHAPES: SHAPES,

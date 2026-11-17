@@ -19,6 +19,7 @@
 // 盘面尺寸不随关变——它一变，这一门就不是俄罗斯方块了。
 
 const C = require('./common.js');
+const K = require('./teach-kit.js');
 
 // 七种四连块。盒（box）是 SRS 定义的旋转盒：I 用 4×4，O 用 2×2，其余 3×3。
 // 旋转在盒内做（(r,c) → (c, n-1-r)），盒的位置不动——旧版把每次旋转后的块
@@ -578,8 +579,65 @@ function lines(p) {
   };
 }
 
+// 首局手把手：最底一行只差一格，一块石正落在缺口上方。
+// 要教的是「垒满一整行才化去」——不是堆形状、也不是堆到顶就赢。
+// 只让玩家按一下「速降」，那一行当场补满、当场消掉，因果一次看完。
+const TEACH_COLS = 10;
+const TEACH_ROWS = 20;
+const TEACH_GAP = 4;
+
+function createTeach(ctx) {
+  const cells = K.blank(TEACH_COLS, TEACH_COLS * TEACH_ROWS);
+  let dropped = false;
+  return K.run(ctx, {
+    cols: TEACH_COLS,
+    cells: cells,
+    status: '教学 · 垒满一整行就化去',
+    steps: [{
+      dir: 'drop',
+      wrongText: '这一手按「速降」· 别的键先不用',
+      text: '按「速降」· 让它落到最底那一行的缺口上',
+      take: function () {
+        dropped = true;
+        return { text: '落到底了 · 这一行垒满，整行化去' };
+      },
+    }],
+    paint: function (vm) {
+      for (let i = 0; i < cells.length; i += 1) {
+        const row = Math.floor(i / TEACH_COLS);
+        const col = i % TEACH_COLS;
+        const c = cells[i];
+        c.label = '';
+        c.cls = 'cell cell--void';
+        c.tone = 0;
+        if (dropped) continue;
+        // 底行九格已垒好，只空着一列；那一列上方悬着一块。
+        if (row === TEACH_ROWS - 1 && col !== TEACH_GAP) {
+          c.cls = 'cell cell--lit cell--set';
+          c.tone = 3;
+        } else if (row === 0 && col === TEACH_GAP) {
+          c.cls = 'cell cell--lit cell--live';
+          c.tone = 3;
+        }
+      }
+      vm.pad = {
+        keys: [
+          { id: 0, dir: 'left', icon: 'left', glyph: '左移' },
+          { id: 1, dir: 'rotate', icon: 'rotate', glyph: '转石' },
+          { id: 2, dir: 'right', icon: 'right', glyph: '右移' },
+          { id: 3, dir: 'drop', icon: 'drop', glyph: '速降' },
+        ],
+      };
+      vm.extras.showPad = true;
+    },
+    doneText: '一行垒满就整行化去 · 堆到顶才是结束',
+  });
+}
+
+const teach = { create: createTeach };
+
 module.exports = {
-  id: 'blocks', name: '落石垒基', create: create, lines: lines,
+  id: 'blocks', name: '落石垒基', create: create, lines: lines, teach: teach,
   rotateCells: rotateCells, clearLines: clearLines, fullRows: fullRows,
   cellsFit: cellsFit, planRotation: planRotation,
   gravityOf: gravityOf, levelOf: levelOf, clearScore: clearScore, bagOf: bagOf,

@@ -1047,6 +1047,16 @@ Page({
       theme: this.theme,
       render: function (vm) {
         if (!self.pageAlive) return;
+        // 教学盘也要有声音：学习闭环的一半是「做对了立刻有回应」，
+        // 原先教学 render 不走浮字通道，全屏只剩一句话。音量与正式局同一套，不额外加强。
+        if (vm.fx && vm.fx.key !== self.lastFxKey) {
+          self.lastFxKey = vm.fx.key;
+          sfx.tone(vm.fx.tone);
+        }
+        if (vm.beatKey !== undefined && vm.beatKey !== self.lastBeatKey) {
+          self.lastBeatKey = vm.beatKey;
+          sfx.play(vm.beatAccent ? 'beataccent' : 'beat');
+        }
         // 教学盘没有命灯、刻度与连击：只给盘面 + 一句该怎么做。
         self.setData({
           vm: vm, tutorial: true, started: true,
@@ -1349,7 +1359,10 @@ Page({
   },
 
   onCellLongPress: function (event) {
-    if (this.data.tutorial) return;
+    if (this.data.tutorial) {
+      if (this.teachController) this.teachController.longpress(Number(event.currentTarget.dataset.index));
+      return;
+    }
     if (!this.controller) return;
     if (this.data.vm && this.data.vm.extras.showSwipe) return;
     const before = this.lastFxKey;
@@ -1360,7 +1373,13 @@ Page({
   // 华容道的块不在 cells 里：整块按百分比定位渲染，点一下就把这一块选中。
   // 只有 stage === 'klotski' 会用到，别的玩法照旧走格子。
   onBlockTap: function (event) {
-    if (this.data.tutorial) return;
+    // 华容道的块不在 cells 里，点击走的是这条口子：教学态必须同样转发，
+    // 否则「移山开路诀」的教学盘上摆着块，玩家点上去毫无反应。
+    if (this.data.tutorial) {
+      if (!this.teachController || this.data.showResult) return;
+      this.teachController.tap(Number(event.currentTarget.dataset.i || 0));
+      return;
+    }
     if (!this.controller || !this.data.started || this.data.showResult) return;
     const i = Number(event.currentTarget.dataset.i || 0);
     this.controller.tap(i);
@@ -1388,11 +1407,15 @@ Page({
       const first = self.cellRects[0];
       const w = first ? first.right - first.left : 0;
       const h = first ? first.bottom - first.top : 0;
-      if (w > 0 && h > 0 && self.controller) self.controller.setAspect(w / h);
+      const ctl = self.controller || self.teachController;
+      if (w > 0 && h > 0 && ctl && ctl.setAspect) ctl.setAspect(w / h);
     }).exec();
   },
 
+  // 教学态也算「盘面就绪」：划刀这一门教学里要能真的划一刀，
+  // 否则教学盘上显示着箭头，手指划过去却什么都没有——比没有教学更糟。
   boardReady: function () {
+    if (this.data.tutorial) return !!(this.data.started && !this.data.showResult && this.teachController);
     return !!(this.data.started && !this.data.showResult && this.controller);
   },
 
@@ -1467,6 +1490,10 @@ Page({
     // 抬手时刻减去最后一次换格的时刻，就是在最后那一桩停住的时长。
     // 只在半途快速划过时它接近 0；到靶心压住不动再抬手就能过收势。
     const hold = Math.max(0, Date.now() - (this.lastStepAt || Date.now()));
+    if (this.data.tutorial) {
+      if (this.teachController) this.teachController.swipe(path, { hold: hold });
+      return;
+    }
     this.controller.swipe(path, { hold: hold });
     // 轻点一下（路径不足两桩）玩法不判也不罚，这里补一声轻响当作「这一刀没递出去」。
     if (this.lastFxKey === before) sfx.play('tap');
@@ -1476,7 +1503,9 @@ Page({
   // 判据只用「起点 → 终点」的位移，不跟轨迹——推盘是一步决策，不是画线。
   // 24px 以下当作没划（手指抖一下不该把整盘推走）；斜划取主轴，不判无效。
   onMoveTouchStart: function (event) {
-    if (!this.controller || !this.data.started || this.data.showResult || this.data.boardHeld) return;
+    if (this.data.tutorial) {
+      if (!this.teachController || this.data.showResult) return;
+    } else if (!this.controller || !this.data.started || this.data.showResult || this.data.boardHeld) return;
     const pt = this.touchPoint(event);
     if (!pt) return;
     this.moveFrom = pt;
@@ -1488,7 +1517,9 @@ Page({
   onMoveTouchEnd: function (event) {
     const from = this.moveFrom;
     this.moveFrom = null;
-    if (!from || !this.controller || !this.controller.move) return;
+    // 教学态没有真 controller：推盘这一门（同源叠元诀）的教学要能划得动。
+    const ctl = this.data.tutorial ? this.teachController : this.controller;
+    if (!from || !ctl || !ctl.move) return;
     const pt = this.touchPoint(event);
     if (!pt) return;
     const dx = pt.x - from.x;
@@ -1497,23 +1528,25 @@ Page({
     const ay = Math.abs(dy);
     if (Math.max(ax, ay) < 24) return;
     const dir = ax > ay ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
-    this.controller.move(dir);
+    ctl.move(dir);
     sfx.play('tap');
   },
 
   // 方向键只给 vm.extras.showPad 的玩法（落石垒基）：统一走 controller.move(dir)。
   onPad: function (event) {
-    if (!this.controller || !this.data.started || this.data.showResult) return;
+    const ctl = this.data.tutorial ? this.teachController : this.controller;
+    if (!ctl || !this.data.started || this.data.showResult) return;
     const dir = event.currentTarget.dataset.dir;
     if (!dir) return;
-    this.controller.move(dir);
+    ctl.move(dir);
     sfx.play('tap');
   },
 
   // 暂存：点右侧的暂存格。玩法层只知道 move('hold')，不碰坐标也不碰视觉。
   onHold: function () {
-    if (!this.controller || !this.data.started || this.data.showResult) return;
-    this.controller.move('hold');
+    const ctl = this.data.tutorial ? this.teachController : this.controller;
+    if (!ctl || !this.data.started || this.data.showResult) return;
+    ctl.move('hold');
     sfx.play('tap');
   },
 

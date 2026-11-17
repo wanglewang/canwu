@@ -20,6 +20,7 @@
 // 罚息留给「明知道该怎么划却乱划」，两种失误的代价不该一样。
 
 const C = require('./common.js');
+const K = require('./teach-kit.js');
 const W = require('../data/weapons.js');
 
 // 连击阶梯：基础 5 / 10 / 20 记。档位越高，每一档再各抬 1 / 2 / 3 记，
@@ -798,8 +799,67 @@ function lines(p) {
   };
 }
 
+// 首局手把手：一排三桩，顺箭头划过去。
+// 这一门唯一要讲的是「一刀＝顺着箭头走完的整条」——倒着划、跳桩、只点一格都不算。
+// 教学里就一条路：从起手划到靶心。划反了不罚，只把方向再说一遍。
+const TEACH_FORM = [6, 7, 8];
+const TEACH_COLS = 3;
+
+function createTeach(ctx) {
+  const cells = K.blank(TEACH_COLS, 9);
+  let cut = false;
+  return K.run(ctx, {
+    cols: TEACH_COLS,
+    cells: cells,
+    status: '教学 · 顺着箭头一刀划过去',
+    // 盘面上箭头本身就是指引，再压暗反而看不清路，所以这一门不压。
+    dim: false,
+    steps: [{
+      at: [TEACH_FORM[0]],
+      text: '从最左这一格起手，顺着箭头划到最右的靶心',
+      // 划刀不是点击：at 只用来标起手那一格，真正的判定在 swipe 里。
+      swipe: function (path) {
+        const line = [];
+        for (let i = 0; i < (path || []).length; i += 1) {
+          const v = path[i];
+          if (line.length && line[line.length - 1] === v) continue;
+          if (line.indexOf(v) < 0) line.push(v);
+        }
+        const a = line.indexOf(TEACH_FORM[0]);
+        const b = line.indexOf(TEACH_FORM[2]);
+        if (a < 0 || b < 0 || a > b || line.indexOf(TEACH_FORM[1]) < 0) return null;
+        cut = true;
+        return { text: '这一刀成了 · 起手在前、靶心在后，走的是箭头' };
+      },
+      swipeWrongText: '顺着箭头划 · 从起手划到靶心，别倒着来',
+    }],
+    paint: function (vm) {
+      for (let i = 0; i < 9; i += 1) {
+        const c = cells[i];
+        c.cls = 'cell';
+        c.arrow = -1;
+        c.end = false;
+        c.label = '';
+      }
+      for (let i = 0; i < TEACH_FORM.length; i += 1) {
+        const idx = TEACH_FORM[i];
+        cells[idx].cls = 'cell ' + (cut ? 'cell--cut' : 'cell--path');
+        cells[idx].end = i === TEACH_FORM.length - 1;
+        if (i < TEACH_FORM.length - 1) {
+          cells[idx].arrow = dirAngle(TEACH_FORM[i], TEACH_FORM[i + 1], TEACH_COLS, DEFAULT_ASPECT);
+        }
+      }
+      // 划刀靠透明层接管触摸：不开这一层，教学盘上的箭头是画给空气看的。
+      vm.extras.showSwipe = true;
+    },
+    doneText: '一刀＝顺着箭头走完的那一条',
+  });
+}
+
+const teach = { create: createTeach };
+
 module.exports = {
-  id: 'click', name: '顺光扫斩', create: create, lines: lines,
+  id: 'click', name: '顺光扫斩', create: create, lines: lines, teach: teach,
   // 纯函数导出给断言用：角度是否与两桩中心连线一致，不靠肉眼校对。
   dirAngle: dirAngle, angleOf: angleOf, DEFAULT_ASPECT: DEFAULT_ASPECT,
 };

@@ -5,6 +5,7 @@
 // 没有数字、没有禁制，只有「翻开—记住—阖上」；入定可观想照见一对。
 
 const C = require('./common.js');
+const K = require('./teach-kit.js');
 
 const SIGNS = ['乾', '坤', '震', '巽', '坎', '离', '艮', '兑'];
 
@@ -269,4 +270,52 @@ function lines(p) {
   };
 }
 
-module.exports = { id: 'seal', name: '成对翻牌', create: create, lines: lines };
+// 首局手把手：四张牌、两对，只翻一对。
+// 要教的是「配对只看卦象，与位置无关」——所以两张同卦故意摆在对角。
+const TEACH_DECK = [1, 2, 2, 1];
+
+function createTeach(ctx) {
+  const cells = K.blank(4, TEACH_DECK.length);
+  let flipped = -1;
+  let matched = false;
+  return K.run(ctx, {
+    cols: 4,
+    cells: cells,
+    status: '教学 · 翻开两张相同的卦',
+    steps: [
+      {
+        at: [0],
+        text: '翻开第一张 · 记住它的卦象',
+        take: function (i) {
+          flipped = i;
+          return { text: '记住这一卦 · 配对只看卦象，不看位置' };
+        },
+      },
+      {
+        at: [3],
+        text: '再翻对角这一张 · 卦象一样就成对',
+        take: function () {
+          matched = true;
+          return { text: '成对了 · 同卦就是一对，离多远都算' };
+        },
+      },
+    ],
+    paint: function () {
+      for (let i = 0; i < cells.length; i += 1) {
+        const c = cells[i];
+        const isPair = i === 0 || i === 3;
+        c.label = SIGNS[TEACH_DECK[i] - 1];
+        c.tone = TEACH_DECK[i];
+        c.emblem = TEACH_DECK[i];
+        c.cls = 'cell cell--card';
+        if (matched && isPair) c.cls += ' cell--matched';
+        else if (i === flipped) c.cls += ' cell--flipped';
+      }
+    },
+    doneText: '两处气窍一起通了',
+  });
+}
+
+const teach = { create: createTeach };
+
+module.exports = { id: 'seal', name: '成对翻牌', create: create, lines: lines, teach: teach };

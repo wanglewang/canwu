@@ -2128,10 +2128,63 @@ check('阵灯推演：首局手把手两步走完就全亮，点错不推进', f
   } finally { restoreClock(); }
 });
 
-check('首局手把手只给「自带脚本」的玩法，不是所有玩法硬塞过场', function () {
-  assert.strictEqual(index.hasTeach('lights'), true, '星罗点灯诀应该有教学脚本');
-  assert.strictEqual(index.hasTeach('click'), false, '没写脚本的玩法不该被塞引导');
-  assert.strictEqual(index.createTeach('click', {}), null, '没有脚本却返回了控制器');
+// 15 门参悟各有一盘教学盘。判据在 docs/30-ui/12-teach-boards.md：
+// ① 每一步只有一处可操作，点别处不推进；② 不计步、不评档、无命灯；
+// ③ 走完停一拍再交棒，且只交棒一次。
+// 这不是「都塞同一段过场」：一眼就会的门只给 1 步（三秒热身），要教因果的才给 2 步。
+check('首局手把手：15 门参悟都有教学盘，只认一处操作，走完交棒一次', function () {
+  installClock();
+  try {
+    const flows = {
+      click: function (c) { c.swipe([6, 6, 7, 8]); },
+      memory: function (c) { advance(1800); c.tap(4); c.tap(0); },
+      tempo: function (c) { advance(1240); c.tap(0); },
+      lights: function (c) { c.tap(4); c.tap(0); },
+      mines: function (c) { c.tap(4); },
+      seal: function (c) { c.tap(0); c.tap(3); },
+      link: function (c) { c.tap(0); c.tap(5); },
+      blocks: function (c) { c.move('drop'); },
+      match: function (c) { c.tap(4); c.tap(5); },
+      sudoku: function (c) { c.tap(3); c.move('4'); },
+      merge: function (c) { c.move('left'); },
+      schulte: function (c) { c.tap(4); },
+      klotski: function (c) { c.tap(0); c.move('down'); },
+      pushbox: function (c) { c.move('right'); c.move('right'); },
+      biggest: function (c) { c.tap(6); },
+    };
+    assert.deepStrictEqual(Object.keys(flows).sort(), index.PRACTICE_GAMES.slice().sort(),
+      '教学流程表与参悟玩法表对不上：新增一门必须同时补一盘教学');
+
+    for (const id of index.PRACTICE_GAMES) {
+      let vm = null;
+      let done = 0;
+      const c = index.createTeach(id, {
+        theme: {},
+        render: function (v) { vm = v; },
+        done: function () { done += 1; },
+      });
+      assert.ok(c, id + ' 没有教学控制器');
+      assert.strictEqual(vm.tutorial, true, id + ' 教学 vm 没标 tutorial，页面会当成正式局');
+      assert.strictEqual(vm.extras.showGradeNow, false, id + ' 教学里不该报当前档位');
+      assert.strictEqual(vm.extras.showProgress, false, id + ' 教学里不该有进度条');
+      assert.ok(vm.teachTotal >= 1 && vm.teachText, id + ' 教学条没有第一步文案');
+
+      // 点错不推进、不记账：教学盘里没有失败，只有「还没点对」。
+      const before = vm.teachStep;
+      c.tap(99);
+      assert.strictEqual(vm.teachStep, before, id + ' 点错却推进了步骤');
+
+      flows[id](c);
+      assert.strictEqual(vm.teachStep, vm.teachTotal, id + ' 按步走完却没到最后一步');
+
+      // 走完停一拍再交棒：那一拍是给玩家看清「做对了是什么样」的。
+      advance(1000);
+      assert.strictEqual(done, 1, id + ' 走完没有交棒（或交了不止一次）');
+      c.destroy();
+      advance(1000);
+      assert.strictEqual(done, 1, id + ' 交棒之后又交了一次');
+    }
+  } finally { restoreClock(); }
 });
 
 // 失败（F）与粗浅（C）是两个结论：前者是「这一局没走完」，后者是「走完了但糙」。

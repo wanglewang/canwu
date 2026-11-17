@@ -1314,6 +1314,36 @@ if (!fs.existsSync(checklistPath)) {
   else checked += 1;
   if (doc.indexOf('`F` 是失败') < 0) errors.push('自检清单没写「F 是失败」：最差结局的语义没人守');
   else checked += 1;
+  // 教学盘的外部引用必须留档：12 里出现的每个外链，原文摘录都得在 13 里。
+  // 守的不是「有没有链接」，是「摘要读起来很顺、但原文没这么说」——
+  // 2026-11 首轮整理时，四处口径错全都 check 全绿：专利里没有的关号、
+  // 不是官方口径的说法被写成官方、反例被当成通例、出处串到了另一篇头上。
+  // 静态断言判不了语义，但能逼着引用回到原文旁边。
+  const teachDocSrc = fs.readFileSync(path.join(ROOT, 'docs/30-ui/12-teach-boards.md'), 'utf8');
+  const researchPath = path.join(ROOT, 'docs/30-ui/13-teach-research.md');
+  if (!fs.existsSync(researchPath)) {
+    errors.push('缺少 docs/30-ui/13-teach-research.md：教学盘的外部引用没有原文存档');
+  } else {
+    checked += 1;
+    const researchSrc = fs.readFileSync(researchPath, 'utf8');
+    const extRe = /https?:\/\/[^\s)>\]]+/g;
+    const seenLink = {};
+    let ext = extRe.exec(teachDocSrc);
+    while (ext) {
+      const url = ext[0].replace(/[.,;，。；]+$/, '');
+      if (!seenLink[url]) {
+        seenLink[url] = true;
+        if (researchSrc.indexOf(url) < 0) {
+          errors.push('12-teach-boards.md 引了没留档的外部链接：' + url
+            + '（原文摘录要补进 docs/30-ui/13-teach-research.md）');
+        } else checked += 1;
+      }
+      ext = extRe.exec(teachDocSrc);
+    }
+    if (Object.keys(seenLink).length === 0) {
+      errors.push('12-teach-boards.md 一个外部链接都没有：结论没有可复查的出处');
+    } else checked += 1;
+  }
   // 有失败态的玩法必须在说明页给出 fail 线，缺了就等于玩家开局前不知道崩了会怎样。
   const failMods = ['lights', 'mines', 'memory', 'seal', 'link',
     'sudoku', 'merge', 'schulte', 'klotski', 'pushbox', 'biggest'];
@@ -1326,7 +1356,7 @@ if (!fs.existsSync(checklistPath)) {
 
 // 每套玩法都要导出 lines()：说明页的「C/B/A/S 各自要什么」从这里取，
 // 缺一门就退回一句「按总分评」——玩家问过的问题会原样回来。
-const SKIP_MG = ['index.js', 'common.js', 'theme.js', 'charge.js'];
+const SKIP_MG = ['index.js', 'common.js', 'theme.js', 'charge.js', 'teach-kit.js'];
 fs.readdirSync(path.join(ROOT, 'minigames'))
   .filter(function (f) { return /\.js$/.test(f) && SKIP_MG.indexOf(f) < 0; })
   .forEach(function (f) {

@@ -12,6 +12,7 @@
 // 准备页与说明页照同一份数写，局内只报下一条线。
 
 const C = require('./common.js');
+const K = require('./teach-kit.js');
 
 const WRONG_PENALTY = 10;   // 填错一格罚多少秒
 const MAX_TRIES = 60;       // 挖洞时最多试几次
@@ -452,11 +453,69 @@ function solveGrid(grid, size) {
   return board;
 }
 
+// 首局手把手：4×4、只挖一格。
+// 先点空位选中，再按数字键填——两下就是这一门的全部操作；
+// 填的那个数由「这一行只差它」推出来，规则自己会说话。
+const TEACH_GRID = [1, 2, 3, 4, 3, 4, 1, 2, 2, 1, 4, 3, 4, 3, 2, 1];
+const TEACH_HOLE = 3;
+const TEACH_SIZE = 4;
+const TEACH_ANSWER = 4;
+
+function createTeach(ctx) {
+  const cells = K.blank(TEACH_SIZE, TEACH_GRID.length);
+  const keys = [];
+  let selected = false;
+  let filled = false;
+  for (let v = 1; v <= TEACH_SIZE; v += 1) {
+    keys.push({ id: 'k' + v, dir: String(v), glyph: String(v), seen: false });
+  }
+  keys.push({ id: 'kx', dir: '0', glyph: '✕', seen: false });
+  return K.run(ctx, {
+    cols: TEACH_SIZE,
+    cells: cells,
+    status: '教学 · 每行每列每宫各填 1..4 一遍',
+    steps: [
+      {
+        at: [TEACH_HOLE],
+        text: '点这一格空位 · 每行每列每宫各要 1..4 一遍',
+        take: function () {
+          selected = true;
+          return { text: '选中了 · 这一行只差一个数' };
+        },
+      },
+      {
+        dir: [String(TEACH_ANSWER)],
+        text: '按这一行缺的那个数',
+        take: function () {
+          filled = true;
+          return { text: '填对了 · 每行、每列、每个宫各一遍，不重不漏' };
+        },
+      },
+    ],
+    paint: function (vm) {
+      for (let i = 0; i < TEACH_GRID.length; i += 1) {
+        const c = cells[i];
+        const given = i !== TEACH_HOLE || filled;
+        c.label = given ? String(TEACH_GRID[i]) : '';
+        c.cls = 'cell ' + (given ? 'cell--given' : 'cell--open');
+        if (i === TEACH_HOLE && selected && !filled) c.cls += ' cell--sel';
+        c.tone = 0;
+      }
+      vm.pad = { keys: keys, digits: true };
+      vm.extras.showPad = true;
+    },
+    doneText: '这一格填完，整盘就通了',
+  });
+}
+
+const teach = { create: createTeach };
+
 module.exports = {
   id: 'sudoku',
   name: '九宫填数',
   create: create,
   lines: lines,
+  teach: teach,
   makePuzzle: makePuzzle,
   solveGrid: solveGrid,
   countSolutions: countSolutions,

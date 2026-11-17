@@ -9,6 +9,7 @@
 // 无可行换位时会自动重排灵畦，绝不把玩家卡在死局里。
 
 const C = require('./common.js');
+const K = require('./teach-kit.js');
 
 // 八张灵纹牌都在 styles/crest.wxss 里有图；这里只留数据语义（测试与读屏），不上屏。
 // 绝境档会用到第 7 张，所以这一份必须和 sprite 的 8 格对齐。
@@ -381,7 +382,58 @@ function lines(p) {
   };
 }
 
+// 首局手把手：一板没有连线的苗，只差一次相邻互换。
+// 要教的是「换相邻两株、换完必须当场成三连」——所以只留一条成三连的路，
+// 换别的两株都会被拒绝（拒绝不是失败，只是还没换来一条线）。
+const TEACH_BOARD = [1, 2, 1, 3, 1, 3, 2, 3, 2];
+const TEACH_COLS = 3;
+const TEACH_SWAP = [4, 5];
+
+function createTeach(ctx) {
+  const board = TEACH_BOARD.slice();
+  const cells = K.blank(TEACH_COLS, board.length);
+  let sel = -1;
+  return K.run(ctx, {
+    cols: TEACH_COLS,
+    cells: cells,
+    status: '教学 · 换相邻两株，凑成三连',
+    steps: [
+      {
+        at: [TEACH_SWAP[0]],
+        text: '点中间这一株 · 再点它右边',
+        take: function (i) {
+          sel = i;
+          return { text: '选中了 · 只换相邻的两株' };
+        },
+      },
+      {
+        at: [TEACH_SWAP[1]],
+        text: '点右边那一株 · 换完要当场成三连',
+        take: function () {
+          const keep = board[TEACH_SWAP[0]];
+          board[TEACH_SWAP[0]] = board[TEACH_SWAP[1]];
+          board[TEACH_SWAP[1]] = keep;
+          sel = -1;
+          return { text: '三株连成一线 · 不成三连的话整手都会弹回' };
+        },
+      },
+    ],
+    paint: function () {
+      for (let i = 0; i < cells.length; i += 1) {
+        const c = cells[i];
+        c.crest = board[i];
+        c.tone = board[i];
+        c.label = '';
+        c.cls = i === sel ? 'cell cell--chip cell--sel' : 'cell cell--chip';
+      }
+    },
+    doneText: '换位是唯一的手：换完要成三连',
+  });
+}
+
+const teach = { create: createTeach };
+
 module.exports = {
-  id: 'match', name: '三秀同收', create: create, lines: lines,
+  id: 'match', name: '三秀同收', create: create, lines: lines, teach: teach,
   matchesOf: matchesOf, findMove: findMove, collapse: collapse, GLYPHS: GLYPHS,
 };

@@ -19,6 +19,7 @@
 //    这样不必处理「两指是否同一帧按下」，也就没有同时判定的容差问题。
 
 const C = require('./common.js');
+const K = require('./teach-kit.js');
 // tick / 下限 / 本门机制倍数与参数生成端共用一份（data/practice.js 的 TEMPO_FLOOR）。
 const F = require('../data/practice.js').TEMPO_FLOOR;
 // 段的首关就是这一段的门口（1 / 11 / 51 / 201 / 501），只有这里算不准段界。
@@ -511,8 +512,124 @@ function lines(p) {
   };
 }
 
+// 首局手把手：一只环、一拍，环压到红圈上点一下。
+// 这一门没有「怎么点」的问题，只有「什么时候点」的问题，所以教学不打折：
+// 环照真速度收，早了晚了都不算数，原地重来即可——教学里没有失败。
+const TEACH_TO_JUDGE_MS = 1200;
+const TEACH_TO_FLOOR_MS = 1750;
+const TEACH_WIN = 0.075;
+
+function createTeach(ctx) {
+  const cells = K.blank(0, 0);
+  const vm = K.base({
+    cols: 0,
+    cells: cells,
+    stage: 'ring',
+    status: '教学 · 环压到红圈上时点一下',
+    steps: [{ text: '等光环缩到红圈上，点一下盘面' }],
+  });
+  vm.extras.showRing = true;
+  vm.extras.showGrid = false;
+  vm.ringGeom = { orb: ORB_RPX, track: TRACK_RPX };
+  const bandBox = 2 * Math.round(ORB_RPX / 2 + ORB_RPX / 2 * TEACH_WIN);
+  const bandWidth = Math.round(ORB_RPX / 2 + ORB_RPX / 2 * TEACH_WIN)
+    - Math.round(ORB_RPX / 2 - ORB_RPX / 2 * TEACH_WIN);
+  const ring = {
+    id: 'r0',
+    hand: 0,
+    scale: START_SCALE,
+    judge: JUDGE_SCALE,
+    window: TEACH_WIN,
+    bandBox: bandBox,
+    bandWidth: bandWidth,
+    tone: 'idle',
+    caption: '',
+    total: 1,
+    index: 0,
+    beat: 1,
+  };
+  vm.rings = [ring];
+  vm.ring = ring;
+  vm.cue = {
+    show: true,
+    level: 'all',
+    bar: 4,
+    cursor: 0,
+    hands: [{ h: 0, cells: [{ i: 0, on: true }, { i: 1, on: false }, { i: 2, on: false }, { i: 3, on: false }] }],
+  };
+  vm.ringTip = '点按盘面 · 环压到红圈时点';
+  vm.timeText = '教学 · 不计步';
+
+  let elapsed = 0;
+  let timer = null;
+  let over = false;
+
+  function scaleAt(ms) {
+    if (ms <= TEACH_TO_JUDGE_MS) {
+      return START_SCALE - (START_SCALE - JUDGE_SCALE) * (ms / TEACH_TO_JUDGE_MS);
+    }
+    const k = (ms - TEACH_TO_JUDGE_MS) / (TEACH_TO_FLOOR_MS - TEACH_TO_JUDGE_MS);
+    return JUDGE_SCALE - (JUDGE_SCALE - FLOOR_SCALE) * Math.min(1, k);
+  }
+
+  function restart(text) {
+    if (over) return;
+    elapsed = 0;
+    ring.scale = START_SCALE;
+    ring.tone = 'idle';
+    if (text) C.flash(vm, text, 'bad');
+    ctx.render(vm);
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(tick, TICK_MS);
+  }
+
+  // 环的位置按「自己数过的拍」走，不按墙上时钟：玩家看到的那一格就是判定的那一格。
+  // 计时器抖一拍时，视觉与判定一起偏，不会出现「看着在红圈上，却判早」。
+  function tick() {
+    if (over) return;
+    elapsed += TICK_MS;
+    if (elapsed > TEACH_TO_FLOOR_MS + 260) {
+      // 整只环走完都没点：不算失败，从头再收一次。
+      restart('这一拍过去了 · 再看一次');
+      return;
+    }
+    ring.scale = scaleAt(elapsed);
+    ring.tone = Math.abs(ring.scale - JUDGE_SCALE) <= TEACH_WIN ? 'good' : 'idle';
+    ctx.render(vm);
+    timer = setTimeout(tick, TICK_MS);
+  }
+
+  ctx.render(vm);
+  timer = setTimeout(tick, TICK_MS);
+
+  return C.fillController({
+    start: function () { restart(null); },
+    // 单环：页面传进来的是环序号，这里恒为 0。
+    tap: function () {
+      if (over) return;
+      const d = Math.abs(ring.scale - JUDGE_SCALE);
+      if (d <= TEACH_WIN) {
+        over = true;
+        if (timer) { clearTimeout(timer); timer = null; }
+        vm.teachText = '就是这一下 · 环压到红圈才是这一拍';
+        C.flash(vm, '合拍', 'gold');
+        ctx.render(vm);
+        timer = setTimeout(function () { ctx.done(); }, 900);
+        return;
+      }
+      restart(ring.scale > JUDGE_SCALE ? '早了一点 · 等它压到红圈' : '晚了一点 · 一过红圈就点晚了');
+    },
+    destroy: function () {
+      over = true;
+      if (timer) { clearTimeout(timer); timer = null; }
+    },
+  });
+}
+
+const teach = { create: createTeach };
+
 module.exports = {
-  id: 'tempo', name: '节律判定', create: create, lines: lines,
+  id: 'tempo', name: '节律判定', create: create, lines: lines, teach: teach,
   score: score, bands: bands, metrics: metrics,
   MIN_WIN_MS: MIN_WIN_MS, MAX_WIN_FRAC: MAX_WIN_FRAC,
   TWIST_WIN: TWIST_WIN, GOOD_EARLY: GOOD_EARLY, GOOD_LATE: GOOD_LATE,

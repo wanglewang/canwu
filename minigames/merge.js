@@ -11,6 +11,7 @@
 // 评级看最大那一块合到多大，倍率之外不再看别的；得分（合并值累加）只用来破纪录。
 
 const C = require('./common.js');
+const K = require('./teach-kit.js');
 
 // 目标块按档递进：一块 128 大约三四十手，1024 要一路合到底。
 const TARGETS = [128, 256, 256, 512, 1024];
@@ -317,10 +318,60 @@ function lines(p) {
   };
 }
 
+// 首局手把手：底行两块同数肩并肩，往左一推就合成一块。
+// 要教的是「同数相撞才翻倍」——所以只摆两块 2，推一次就能看见 4。
+const TEACH_COLS = 4;
+const TEACH_ROWS = 4;
+const TEACH_BASE = (TEACH_ROWS - 1) * TEACH_COLS;
+
+function createTeach(ctx) {
+  const board = [];
+  for (let i = 0; i < TEACH_COLS * TEACH_ROWS; i += 1) board.push(0);
+  board[TEACH_BASE] = 2;
+  board[TEACH_BASE + 1] = 2;
+  const cells = K.blank(TEACH_COLS, board.length);
+  function tone(v) {
+    let t = 1;
+    let x = v;
+    while (x > 2 && t < 8) { x /= 2; t += 1; }
+    return t;
+  }
+  return K.run(ctx, {
+    cols: TEACH_COLS,
+    cells: cells,
+    status: '教学 · 同数相撞才翻倍',
+    steps: [{
+      dir: ['left'],
+      wrongText: '这一手往左推 · 两块 2 才撞得到一起',
+      text: '往左推 · 两块 2 撞在一起',
+      take: function () {
+        board[TEACH_BASE] = 4;
+        board[TEACH_BASE + 1] = 0;
+        return { text: '2 撞 2 合成 4 · 一次推盘每块只合一次' };
+      },
+    }],
+    paint: function (vm) {
+      for (let i = 0; i < board.length; i += 1) {
+        const c = cells[i];
+        c.label = board[i] ? String(board[i]) : '';
+        c.tone = board[i] ? tone(board[i]) : 0;
+        c.cls = board[i] ? 'cell cell--tile' : 'cell cell--slot';
+      }
+      // 推盘靠透明层收手势：不开这一层，往左划是划给空气看的。
+      vm.extras.swipeMove = true;
+      vm.merge = { board: board.slice(), cols: TEACH_COLS, rows: TEACH_ROWS, target: 4, best: 4 };
+    },
+    doneText: '同数才翻倍 · 一路往上合',
+  });
+}
+
+const teach = { create: createTeach };
+
 module.exports = {
   id: 'merge',
   name: '滑格相合',
   create: create,
   lines: lines,
+  teach: teach,
   TARGETS: TARGETS,
 };
