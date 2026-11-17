@@ -18,6 +18,24 @@ const L = require('../data/levels.js');
 
 const ROOT = path.join(__dirname, '..');
 
+// 内核 2026-11 起按关注点拆到 utils/game/ 下（state / profs / idle / settle / battle / realm / view）。
+// 读源码一律走下面两个：要整体就拼整个目录，要某一段就定向读子文件。
+// 只读门面 utils/game.js 的话，负向断言（「不许再出现 xxx」）会静默通过，闸门等于被拆掉。
+function engineSrc() {
+  const dir = path.join(ROOT, 'utils', 'game');
+  if (!fs.existsSync(dir)) return fs.readFileSync(path.join(ROOT, 'utils/game.js'), 'utf8');
+  return fs.readdirSync(dir)
+    .filter(function (f) { return f.endsWith('.js'); })
+    .map(function (f) { return fs.readFileSync(path.join(dir, f), 'utf8'); })
+    .join('\n');
+}
+
+function enginePart(name) {
+  const p = path.join(ROOT, 'utils', 'game', name);
+  if (fs.existsSync(p)) return fs.readFileSync(p, 'utf8');
+  return fs.readFileSync(path.join(ROOT, 'utils/game.js'), 'utf8');
+}
+
 let passed = 0;
 function check(name, fn) {
   fn();
@@ -408,7 +426,8 @@ check('参悟是纯支出：一百局里灵石一分不动，灵力只按 qiCost
   assert.strictEqual(s.resources.qi, 5000 - spent, '灵力账不平');
   // 机缘的概率常量只有一个出处，且确实是「百局一册」的量级。
   assert.strictEqual(economy.FORTUNE_SCROLL_RATE, 0.012);
-  const eng = fs.readFileSync(path.join(ROOT, 'utils/game.js'), 'utf8');
+  // applyPractice 在 settle.js 里；函数体切片必须在同一个文件内取，跨文件会切到 module.exports。
+  const eng = enginePart('settle.js');
   // 只在 applyPractice 的函数体里找：闭关与对战当然要给灵力灵石，参悟不许。
   const start = eng.indexOf('function applyPractice(');
   const end = eng.indexOf('\nfunction ', start + 10);
@@ -1287,7 +1306,7 @@ check('连 S 层数上限与存档版本对齐，三连晋级已彻底退役', f
   assert.strictEqual(game.createNewState().version, 9);
   assert.strictEqual(game.S_STREAK_GOAL, undefined, '旧的三连目标常量还在导出');
   assert.deepStrictEqual(game.createNewState().sCombo, {});
-  const engine = fs.readFileSync(path.join(ROOT, 'utils/game.js'), 'utf8');
+  const engine = engineSrc();
   assert.ok(!/promotion|sStreakGoal|S_STREAK_GOAL/.test(engine),
     '结算里还留着三连晋级的字段（迁移注释里的 sStreak 除外）');
 });
@@ -1408,7 +1427,7 @@ check('本场运功：养息能抵灵力，但抵不穿底线', function () {
 });
 
 check('本场运功：三处对战共用同一份掷骰，谁也不许自己拼战力', function () {
-  const src = fs.readFileSync(path.join(__dirname, '../utils/game.js'), 'utf8');
+  const src = engineSrc();
   // 直调 rollBattle 只有 rollWithMoves 一处：多一处就是「有一路没走运功」。
   const direct = src.match(/rollBattle\(/g) || [];
   assert.strictEqual(direct.length, 2, 'rollBattle 出现了 ' + direct.length + ' 次（定义 + 唯一调用点各一）');

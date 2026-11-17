@@ -4,14 +4,14 @@
 
 ## 1. 一句话
 
-`data/` 存所有数字，`minigames/` 只算盘面，`utils/game.js` 是唯一的规则执行者，页面只负责摆放与调用。**没有第二处算同一个数。**
+`data/` 存所有数字，`minigames/` 只算盘面，`utils/game/` 是唯一的规则执行者（对外仍只有 `utils/game.js` 这一个门面），页面只负责摆放与调用。**没有第二处算同一个数。**
 
 ## 2. 五层与依赖方向
 
 ```
 pages/  components/            ← 摆放与交互
    ↓
-utils/game.js                  ← 引擎：唯一改存档的地方
+utils/game/                    ← 引擎（七个业务文件 + 底座 + 门面）：唯一改存档的地方
    ↓
 utils/store.js                 ← 存档 / 同步 / 游客态
    ↓
@@ -25,7 +25,7 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 - `minigames/` **不许** `require` `data/visual.js`（玩法不知道自己的主题色）；
 - `minigames/` **不许** `require` `utils/game.js`（玩法不知道熟练度、货币、境界）；
 - `data/` **不许** `require` `pages/` 或 `utils/`（除了 `economy.js` 这类纯常量互相引用）；
-- 页面**不许**自己算熟练度、耗气、评级线——一律从 `utils/game.js` 或 `data/practice.js` 拿。
+- 页面**不许**自己算熟练度、耗气、评级线——一律从 `utils/game.js`（门面）或 `data/practice.js` 拿。
 
 ## 3. `data/` —— 十三个文件，各自管什么
 
@@ -68,11 +68,20 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 
 `charge.js` 是唯一只有 `{ id, name, create }` 的——它没有评级线（`gradeAt` 在内部），也不进参悟。
 
-## 5. `utils/` —— 引擎与存储（十一个文件）
+## 5. `utils/` —— 引擎与存储（十一个文件 + 一个内核目录）
 
 | 文件 | 行数 | 职责 |
 | --- | --- | --- |
-| `game.js` | 1897 | **唯一改存档的地方**：`applyPractice` / `battle` / `applyBreakthrough` / `claimDaily` / `meditate` / `settleOffline` / `checkTitles` / `computeMetrics` / `exportSaveCode` |
+| `game.js` | 5 | **门面**：一行转发到 `game/index.js`。导出面与拆分前逐键一致（70 个键），调用点一个字不用改 |
+| `game/index.js` | 96 | 逐键列出对外接口。内部小工具（`num` / `pad2` / `rollBattle`）留在目录内，不往公共面上漏 |
+| `game/base.js` | 82 | 底座：`data/` 依赖、存档常量、`readStorage` / `writeStorage`、`todayKey` / `checkCode` |
+| `game/state.js` | 277 | 存档：`createNewState` / `migrateState` / `normalizeState` / `load` / `save` / `checkDaily` |
+| `game/profs.js` | 280 | 熟练度 / 属性 / 战力：`tierIndex` / `computeAttributes` / `computePower` / `qiCap` / `effectValue` |
+| `game/idle.js` | 229 | 挂机与闭关：`idlePending` / `settleOffline` / `meditate` / `claimDaily` / `buffInfo` |
+| `game/settle.js` | 333 | 参悟结算：`applyPractice` / `practiceCostOf`、回关折减与连 S |
+| `game/battle.js` | 328 | 对战与本场运功：`battle` / `rollWithMoves` / `moveBoard` / `battleCode` / `parseBattleCode` |
+| `game/realm.js` | 271 | 境界 / 藏经阁 / 称号：`breakthroughInfo` / `applyBreakthrough` / `checkTitles` / `buySkill` |
+| `game/view.js` | 617 | 视图数据：`getOverview` / `getSkillList` / `getSkillDetail` / `orderLearned` / `getChallengeList` |
 | `store.js` | 359 | 读写存档、防抖上云、pending、冲突、游客态、`subscribe` |
 | `cloud.js` | 22 | 云 SDK 的初始化与「有没有云」的判断 |
 | `cloud-save.js` | 210 | 云端存档读写 |
@@ -86,15 +95,22 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 
 后两个是 **SDK 自带的**，不是本项目的分层设计产物：它们只被 `cloud-*.js` 调用，页面与引擎都不许直接 `require`。把这一条写下来是因为「`utils/` 里出现了不是自己写的文件」这件事本身需要解释——否则下一个人会以为云诊断逻辑是本项目的职责。
 
-### 5.1 `utils/game.js` 的 1897 行为什么不拆
+### 5.1 内核为什么在 2026-11 拆了
 
-它看起来该拆成 `practice.js` / `battle.js` / `realm.js` / `save.js`。不拆的理由：
+拆之前它是单文件 2306 行，本篇原来写着「不拆」，给了三条理由。复盘一下，**三条里有两条其实是「拆分方式」的问题，不是「要不要拆」的问题**：
 
-1. 所有函数都吃同一个 `state` 并原地改它——拆开就要传引用、要处理「谁先改」，反而更容易出错；
-2. 所有写入点都在一个文件里，`grep` 一次就能列全「哪些操作会改存档」；
-3. 存档迁移（`migrateState` / `normalizeState`）必须知道所有字段，散开就要跨文件维护。
+| 原来的理由 | 拆完之后 |
+| --- | --- |
+| 所有函数都吃同一个 `state` 并原地改，拆开要处理「谁先改」 | **没碰这一点**。拆分后仍然是「传 state 进来、原地改、返回」，只是文件换了。调用契约一个字没变，所以这条不构成反对 |
+| 所有写入点在一个文件里，`grep` 一次就能列全「哪些操作会改存档」 | 目标保住了，代价从「grep 一个文件」变成「grep 一个目录」。真正兜底的不是 grep，是 `save()` 仍是唯一写盘点 |
+| 存档迁移必须知道所有字段，散开要跨文件维护 | `migrateState` / `normalizeState` 整块留在 `state.js`，字段知识与迁移逻辑没有散开 |
 
-**代价**：单文件 1897 行，新人第一次读会迷路。所以文件里按「创建 → 迁移 → 概览 → 参悟 → 对战 → 突破 → 经济动作 → 序列化」分段，段间有空行与注释头。
+**真成本只有两笔**，都比想象中小：
+
+1. 有 12 处断言是直接读 `utils/game.js` 源码做正则匹配的。文件一拆，**负向的那些（「不许再出现 xxx」）会静默通过**——闸门没红，但也没在守。现在统一走「把 `utils/game/*.js` 全拼起来再匹配」（`verify.js` 的 `engineSrc()`、`layout.test.js` 的 `readEngine()`、`rank.test.js` 的 `engineSrc()` / `enginePart()`），并逐条反证过。
+2. 存档 ↔ 挂机 是真循环（`normalizeState` 要调 `checkDaily`）。把 `checkDaily` 归到 `state.js`（它本来就是「读档时的一次日历归零」）之后，依赖变成单向，环消失。
+
+**剩下的代价**：总行数从 2306 涨到 2518（多了 9 个文件头与导出块）。换来的是「改一处只读一处」——改参悟结算只读 333 行的 `settle.js`，而不是在 2000 行里找上下文。
 
 ## 6. 数据流：一次参悟的完整路径
 
@@ -159,7 +175,7 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 
 | 方案 | 为什么否掉 |
 | --- | --- |
-| 拆 `game.js` 成五个文件 | 所有函数吃同一个 `state`，拆开要处理「谁先改」 |
+| 拆 `game.js` 时顺手改成「对象式状态容器」（`this.state`） | 那是另一件事。拆分只搬文件、不动「传 state 进来原地改」的契约，才能用现有 1000+ 条断言兜住；两件事一起做，红了分不清是谁的错 |
 | 玩法模块自己算熟练度 | 数值改一处要动 16 个模块 |
 | 每页自己算耗气 | 一处不一致，玩家立刻发现「这页写的和气不一样」 |
 | 页面直接写存档 | 会绕过 `checkTitles` / `addLog` / 迁移 |
@@ -169,7 +185,7 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 ## 11. 代码指路
 
 - `app.js`（283 行）—— 启动、bootstrap、冲突、游客、错误记录
-- `utils/game.js` —— 引擎
+- `utils/game/`（十个文件）—— 引擎；`utils/game.js` 只是转发门面
 - `utils/store.js` —— 存档
 - `data/practice.js` / `data/economy.js` —— 数值
 - `minigames/index.js` —— 注册表

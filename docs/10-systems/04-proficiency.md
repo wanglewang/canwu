@@ -172,7 +172,7 @@ const gain = Math.min(rawGain, Math.max(0, worldData.PROF_MAX - rec.prof));
 
 ## 代码指路
 
-- `utils/game.js` —— `applyPractice()`（四种情况的判定顺序、`advanced` 推进关卡）、`tierIndex()`、`breakCombo()`
+- `utils/game/` —— `applyPractice()`（四种情况的判定顺序、`advanced` 推进关卡）、`tierIndex()`、`breakCombo()`
 - `data/world.js` —— `TIERS`（`desc` 只说属性与新法，不提难度）、`PROF_BASE`、`PROF_MAX`、`GRADE_FACTOR`、`comboGain()`
 - `data/practice.js` —— `levelFactor()` / `profByLevel()`（按 本关÷当前关 折）、`clearedOf()` / `curLevelOf()`
 - `tests/game.test.js` —— 1–14 连逐局入账、非 S / 结束 / 失败断连、跨功法、回关解耦、大圆满后层数照常、v7→v8 迁移

@@ -249,7 +249,7 @@ B / C 不改层，所以层恒为 1；`10 × 1/1000 = 0.01 → round = 0`。
 
 - `data/levels.js` —— 1000 关、五段 10/40/150/300/500、一局一关、`stageIndexOfCleared` / `stageOf` / `progressOf` / `tweakParams`
 - `data/practice.js` —— `STAGE_RULES`（8 门）
-- `utils/game.js` —— `applyPractice()`：`levelFromProf` 定关、越权夹回、连 S 与回关折减、F 作废
+- `utils/game/` —— `applyPractice()`：`levelFromProf` 定关、越权夹回、连 S 与回关折减、F 作废
 - `data/world.js:18` —— `PROF_BASE` / `COMBO_MAX` / `comboGain`
 - `docs/10-systems/07-difficulty.md` —— 五段、1000 关、段内递进与规格台阶
 - `docs/00-foundation/02-design-principles.md` —— 第二节（一个维度只管一件事）、第十一节（阶段新法加规则）

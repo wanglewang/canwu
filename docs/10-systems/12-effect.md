@@ -153,7 +153,7 @@ for each 已习得功法:
 ## 代码指路
 
 - `data/skills.js` —— 每门的 `effect: { type, value, text }`
-- `utils/game.js` —— `EFFECT_TIER_SCALE` / `effectScaleOf()` / `effectValue()` / `activeBattleEffects()`
+- `utils/game/` —— `EFFECT_TIER_SCALE` / `effectScaleOf()` / `effectValue()` / `activeBattleEffects()`
 - `data/economy.js` —— `PRACTICE_SAVE_MAX`（0.5）、`QI_CAP_SKILL_MAX`（0.3）
 - `scripts/verify.js` —— `qiCap` 只能挂心法、扩池总和 ≤ 30%
 - `tests/game.test.js` —— 特效 25% / 75% / 100%

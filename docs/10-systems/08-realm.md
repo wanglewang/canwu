@@ -107,7 +107,7 @@
 
 **为什么不能合成一个布尔**：金丹期（境界 3）练黄阶功法（上限 2）是**正常且鼓励**的——黄阶便宜、够用，只是「练到头了，该换更高阶」。若合成 `realmOk`，就会误判成「金丹期练不了黄阶」，把玩家的老功法全锁掉。
 
-这条在代码里留了注释（`utils/game.js` 的 `realmReady` / `realmAbove`），`tests/game.test.js` 有断言守着「超上限只加价不禁练」。
+这条在代码里留了注释（`utils/game/` 里的 `realmReady` / `realmAbove`：`settle.js` 与 `view.js` 各算一次），`tests/game.test.js` 有断言守着「超上限只加价不禁练」。
 
 ## 7. 界面表达
 
@@ -146,7 +146,7 @@
 ## 代码指路
 
 - `data/world.js` —— `realms[]`（power / bonus / qiCap / desc）
-- `utils/game.js` —— `breakthroughInfo()`（两个布尔）、`applyBreakthrough()`（扣灵石、进境、补满气海）、`powerDetail(state, realmIndex)`（可预告下一境战力）
+- `utils/game/` —— `breakthroughInfo()`（两个布尔）、`applyBreakthrough()`（扣灵石、进境、补满气海）、`powerDetail(state, realmIndex)`（可预告下一境战力）
 - `minigames/charge.js` —— 蓄力停区的评级
 - `pages/profile/` —— 突破清单与结算卡
 - `tests/game.test.js` —— 气海随境界单调、突破补满、结算与预告一致、失败退一半

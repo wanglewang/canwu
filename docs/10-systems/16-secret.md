@@ -82,7 +82,7 @@
 ## 代码指路
 
 - `data/opponents.js` —— `SECRET_REALMS`（3 处）、`getChallenge()`
-- `utils/game.js` —— `battle()`（`kind === 'secret'` 分支）
+- `utils/game/` —— `battle()`（`kind === 'secret'` 分支）
 - `pages/secret/` —— 秘境页
 - `components/duel-result/` —— 共用结算卡
 - `tests/game.test.js` —— 首过 +8、与切磋共用衰减计数

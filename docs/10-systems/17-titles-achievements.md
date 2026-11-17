@@ -135,7 +135,7 @@ getAchievements(state) → ACHIEVEMENTS.map(a => ({
 
 - `data/titles.js` —— `TITLES`（14）
 - `data/achievements.js` —— `ACHIEVEMENTS`（14）+ `getAchievement()`
-- `utils/game.js` —— `computeMetrics()`、`checkTitles()`、`equipTitle()`、`getAchievements()`、`achievementMetric()`
+- `utils/game/` —— `computeMetrics()`、`checkTitles()`、`equipTitle()`、`getAchievements()`、`achievementMetric()`
 - `pages/titles/` —— 称号簿
 - `pages/profile/` —— 成就区与人物卡片
 - `tests/game.test.js` —— 称号解锁与自动佩戴、成就实时计算

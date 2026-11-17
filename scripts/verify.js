@@ -26,6 +26,18 @@ function walk(dir, out) {
 const files = walk(ROOT, []);
 const rel = function (f) { return path.relative(ROOT, f).replace(/\\/g, '/'); };
 
+// 内核源码：2026-11 起按关注点拆到 utils/game/ 下（state / profs / idle / settle / battle / realm / view）。
+// 凡是「读内核源码找某个调用或字段」的断言，都必须扫整个目录。
+// 只读门面 utils/game.js 的话，拆一次就把这批闸门悄悄拆没了——它们会静默通过，比报红更坏。
+function engineSrc() {
+  const dir = path.join(ROOT, 'utils', 'game');
+  if (!fs.existsSync(dir)) return fs.readFileSync(path.join(ROOT, 'utils', 'game.js'), 'utf8');
+  return fs.readdirSync(dir)
+    .filter(function (f) { return f.endsWith('.js'); })
+    .map(function (f) { return fs.readFileSync(path.join(dir, f), 'utf8'); })
+    .join('\n');
+}
+
 // 1. 所有 JSON 可解析
 for (const f of files.filter(function (x) { return x.endsWith('.json'); })) {
   try {
@@ -415,7 +427,7 @@ for (const word of EFFECT_IMAGE_WORDS) {
 // 这条断言挡两手：字段名不许回头，门槛判定不许把上界掺进去。
 {
   const errsBeforeRealm = errors.length;
-  const gameSrc = fs.readFileSync(path.join(ROOT, 'utils/game.js'), 'utf8');
+  const gameSrc = engineSrc();
   if (/\.realmOk\b/.test(gameSrc)) errors.push('utils/game.js 又用回 realmOk：境界门槛与收益衰减必须分成两个字段');
   else checked += 1;
   // realmReady 的定义里不许出现 maxRealm：那会把「收益上限」重新变成「能不能练」。
@@ -1251,7 +1263,7 @@ if (!fs.existsSync(checklistPath)) {
   else checked += 1;
   if (doc.indexOf('走通段界关') < 0) errors.push('自检清单没写「走通段界关才进下一段」');
   else checked += 1;
-  const gameSrc = fs.readFileSync(path.join(ROOT, 'utils/game.js'), 'utf8');
+  const gameSrc = engineSrc();
   if (!/practiceData\.profByLevel\(/.test(gameSrc)) errors.push('utils/game.js 没走 profByLevel() 按关折减');
   else checked += 1;
   // 关号只许由「走通了几关」推进；段位只许由 stageIndexOfCleared 算。

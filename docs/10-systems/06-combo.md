@@ -115,7 +115,7 @@
 ## 代码指路
 
 - `data/world.js` —— `COMBO_STEP` / `COMBO_MAX` / `COMBO_TABLE` / `comboGain()` / `PROF_BASE`
-- `utils/game.js` —— `applyPractice` 里的 `comboNow` 分支、`breakCombo()`
+- `utils/game/` —— `applyPractice` 里的 `comboNow` 分支、`breakCombo()`
 - `pages/practice/` —— 十格圆点与「下一局 S 值」
 - `tests/game.test.js` —— 1–14 连逐局入账、非 S / 结束 / 失败断连、跨功法、回关解耦、大圆满后层数照常
 - `tests/rank.test.js` —— 曲线表、77 与 23 同向进位、第 4 连不累进相乘、封顶与 84 局

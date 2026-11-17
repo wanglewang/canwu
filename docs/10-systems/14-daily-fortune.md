@@ -110,7 +110,7 @@ function checkDaily(state) {
 
 - `data/world.js` —— `daily`（target 3 / qi 60 / stone 0）
 - `data/economy.js` —— `DAILY_QI` / `CROSS_QI` / `FORTUNE_SCROLL_RATE`
-- `utils/game.js` —— `checkDaily()`（单调日历）、`claimDaily()`（按空位领 / 零空位拒领）、`applyPractice` 的 `cross` 判定与机缘分支
+- `utils/game/` —— `checkDaily()`（单调日历）、`claimDaily()`（按空位领 / 零空位拒领）、`applyPractice` 的 `cross` 判定与机缘分支
 - `pages/index/` —— 份例入口与「今日之课」
 - `tests/game.test.js` —— 份例仅灵力、按空位领且报出散了多少、零空位拒领、改时间不重复领、机缘不给资源
 

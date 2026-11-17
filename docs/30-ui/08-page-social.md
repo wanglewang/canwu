@@ -187,7 +187,7 @@
 - `pages/secret/secret.wxml` / `.js` —— 三处秘境
 - `components/duel-result/` —— 结算卡
 - `utils/cloud-social.js` —— `refreshBoard()` / `pickRival()`
-- `utils/game.js` —— `battle()` / `battleRival()` / `battleMirror()` / `battleCode()`
+- `utils/game/` —— `battle()` / `battleRival()` / `battleMirror()` / `battleCode()`
 - `data/economy.js` —— `BATTLE_QI` / `BATTLE_STONE_DECAY` / `FIRST_CLEAR_STONE`
 
 ## 9. 待验

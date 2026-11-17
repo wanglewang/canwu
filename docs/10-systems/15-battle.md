@@ -191,7 +191,7 @@ rollBattle(power, c.power, effectValue(state, 'variance'), shenFloorBonus(state)
 
 ## 代码指路
 
-- `utils/game.js` —— `battle()`、`battleCode()` / `parseBattleCode()` / `battleMirror()`、`battleRival()`、`battleMoves()` / `pickMoves()` / `moveBoard()` / `rollWithMoves()`
+- `utils/game/` —— `battle()`、`battleCode()` / `parseBattleCode()` / `battleMirror()`、`battleRival()`、`battleMoves()` / `pickMoves()` / `moveBoard()` / `rollWithMoves()`
 - `data/moves.js` —— 十五式真源（招式名 / 出手时机 / 门规），数值仍取 `data/skills.js` 的 `effect`
 - `components/move-picker/` —— 选择面板（两页共用）
 - `components/duel-result/` —— 结算卡上的「本场运功」三行

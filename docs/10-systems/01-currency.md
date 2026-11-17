@@ -182,7 +182,7 @@
 ## 代码指路
 
 - `data/economy.js` —— 全部常量与三个核心函数：`practiceQiCost()`、`qiCapOf()`、`qiFromStone()`
-- `utils/game.js` —— `practiceCostOf()`（预判）、`applyPractice()`（实扣）、`battle()`（运功 2–5 点，另见 `moveBoard()` / `rollWithMoves()`）、`claimDaily()`、`settleOffline()`、`exchangeQuote()` / `exchangeQi()`（兑换的报价与执行，同一个 cap / room）
+- `utils/game/` —— `practiceCostOf()`（预判）、`applyPractice()`（实扣）、`battle()`（运功 2–5 点，另见 `moveBoard()` / `rollWithMoves()`）、`claimDaily()`、`settleOffline()`、`exchangeQuote()` / `exchangeQi()`（兑换的报价与执行，同一个 cap / room）
 - `pages/index/` —— 兑换面板：点主页「灵石」那一格，`onExchange` 走 `commitCritical` 立即回写
 - `data/skills.js` —— `source.cost.stone`（藏经阁价格）
 - `data/opponents.js` —— `OPPONENTS` / `SECRET_REALMS` 的 `reward.stone`

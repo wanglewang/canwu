@@ -157,7 +157,7 @@ meditate(state)             // 打坐 = 当场调一次 settleOffline
 ## 代码指路
 
 - `data/world.js` —— `idle`（0.5 / 8）
-- `utils/game.js` —— `idlePending()`、`settleOffline()`、`meditate()`、`buffInfo()`；`save()` 里有「不许写 lastSeen」的注释
+- `utils/game/` —— `idlePending()`、`settleOffline()`、`meditate()`、`buffInfo()`；`save()` 里有「不许写 lastSeen」的注释
 - `utils/store.js` —— `init()` 只读档不结算、`settle()` 才是结算入口
 - `app.js` —— `bootstrap()` 在 `hydrate()` 之后调 `store.settle()`
 - `pages/index/index.js` —— `refreshIdle()`（定时刷新那一行）、`maybeShowOffline()`（弹窗两个触发点）

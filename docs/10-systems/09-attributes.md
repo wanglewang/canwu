@@ -79,7 +79,7 @@ attrs[key] = baseAttributes[key]
 | 81（十五门全大圆满） | 2.7% | 最差打出 88% 战力 |
 | 300（封顶，当前不可达） | 10% | 最差打出 95% 战力 |
 
-**每 30 点 +1%**：系数 `1/3000`。这条换算在 `utils/game.js` 的注释、本篇、玩家指南第 55 行三处写着同一个数，
+**每 30 点 +1%**：系数 `1/3000`。这条换算在 `utils/game/profs.js` 的注释、本篇、玩家指南第 55 行三处写着同一个数，
 `tests/game.test.js` 用它反算每点系数，漂一度就红。
 
 它与 `variance` 特效（灯势 5%、毫厘 4%）走同一个出口，在 `rollBattle` 里相加，合计仍封顶 **98%**（`Math.min(0.98, 0.85 + reach)`）。
@@ -144,7 +144,7 @@ attrs[key] = baseAttributes[key]
 ## 代码指路
 
 - `data/world.js` —— `attributes`（含 `role`）、`baseAttributes`、`TIERS[].bonus`
-- `utils/game.js` —— `computeAttributes()`、`shenFloorBonus()`（`SHEN_FLOOR_PER = 1/3000`，每 30 点 +1%）、`powerDetail()`
+- `utils/game/` —— `computeAttributes()`、`shenFloorBonus()`（`SHEN_FLOOR_PER = 1/3000`，每 30 点 +1%）、`powerDetail()`
 - `data/economy.js` —— `QI_CAP_PER_LING`、`WU_SAVE_MAX`
 - `pages/profile/profile.js` / `.wxml` —— 属性格与第三行 role
 - `tests/game.test.js` —— 四属性 role 存在、真元换算 ×2、身法上限

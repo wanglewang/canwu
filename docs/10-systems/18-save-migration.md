@@ -132,7 +132,7 @@ importSaveCode(code)  → normalizeState(JSON.parse(...))
 
 ## 代码指路
 
-- `utils/game.js` —— `SAVE_VERSION`、`createNewState()`、`migrateState()`、`normalizeState()`、`exportSaveCode()` / `importSaveCode()`
+- `utils/game/` —— `SAVE_VERSION`、`createNewState()`、`migrateState()`、`normalizeState()`、`exportSaveCode()` / `importSaveCode()`
 - `utils/store.js` —— 本机读写、`pending` / `sync` / `sync_error` 键
 - `utils/cloud-save.js` —— 云端读写与版本
 - `tests/game.test.js` —— 存档码往返、迁移补值、v7→v8 每条线都拆对

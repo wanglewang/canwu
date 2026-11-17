@@ -19,6 +19,18 @@ function read(rel) {
   return fs.readFileSync(path.join(ROOT, rel), 'utf8');
 }
 
+// 内核源码：2026-11 起拆到 utils/game/ 下（state / profs / idle / settle / battle / realm / view）。
+// 读内核源码的断言一律走这里——只读门面 utils/game.js 的话，
+// 正向断言会报红（还算好），负向断言（「不许再出现 xxx」）会静默通过，闸门等于被拆掉。
+function readEngine() {
+  const dir = path.join(ROOT, 'utils', 'game');
+  if (!fs.existsSync(dir)) return readEngine();
+  return fs.readdirSync(dir)
+    .filter(function (f) { return f.endsWith('.js'); })
+    .map(function (f) { return fs.readFileSync(path.join(dir, f), 'utf8'); })
+    .join('\n');
+}
+
 function pageFiles(ext) {
   const out = [];
   const dir = path.join(ROOT, 'pages');
@@ -514,7 +526,7 @@ check('战力是阶梯：结算与主页都要说「跳到多少」，不能只�
   assert.ok(/k: '战力'/.test(page), '结算面板没摆战力');
   assert.ok(/距离「/.test(page), '结算面板没摆「离下一境还差多少」');
   assert.ok(/跨段才涨/.test(page), '战力没跳时没解释原因，玩家会以为白练');
-  assert.ok(/powerBefore: info\.power/.test(read('utils/game.js')), '突破结算没带战力前后值');
+  assert.ok(/powerBefore: info\.power/.test(readEngine()), '突破结算没带战力前后值');
 
   const index = read('pages/index/index.js');
   assert.ok(/powerGain/.test(index), '主页只报缺口，没说突破能得到什么');
@@ -743,7 +755,7 @@ check('连 S 叠倍率：准备页有十格点数、结算页有回执、指南�
   const wxml = read('pages/practice/practice.wxml');
   const css = read('pages/practice/practice.wxss');
   const guide = read('pages/guide/guide.js');
-  const engine = read('utils/game.js');
+  const engine = readEngine();
   const world = require('../data/world.js');
   assert.ok(/COMBO_MAX/.test(engine) && /comboNextGain/.test(engine), '内核没有连 S 层数');
   assert.ok(/comboDots/.test(js) && /comboText/.test(js), '准备页没算连 S 层数');
@@ -1309,7 +1321,7 @@ check('星罗点灯诀：简介对齐熄灯谜题，死门误触有独立触感'
 check('境界超限：文案只从 copy.js 出，讲清加价的是耗气而不是熟练度', function () {
   const copy = require('../data/copy.js');
   const page = read('pages/practice/practice.js');
-  const eng = read('utils/game.js');
+  const eng = readEngine();
   assert.ok(/copy\.decayText\('below'/.test(page) && /copy\.decayText\('above'/.test(page),
     '准备页又自己拼衰减文案');
   assert.ok(/copy\.decayText\(/.test(eng), '图鉴又自己拼衰减文案');
@@ -1345,9 +1357,8 @@ check('评级中文名只有一份真源，且避开段位词', function () {
   assert.ok(!/const GRADE_TITLE|GRADE_TITLE: GRADE_TITLE/.test(read('data/world.js')),
     'world.js 还留着第二份评级名');
   assert.ok(!/gradeName = \{/.test(read('pages/practice/practice.js')), '参悟页还自写一套评级名');
-  for (const f of ['pages/practice/practice.js', 'utils/game.js']) {
-    assert.ok(/copy\.GRADE_TITLE/.test(read(f)), f + ' 没走评级名真源');
-  }
+  assert.ok(/copy\.GRADE_TITLE/.test(read('pages/practice/practice.js')), '参悟页没走评级名真源');
+  assert.ok(/copy\.GRADE_TITLE/.test(readEngine()), 'utils/game/ 没走评级名真源');
 });
 
 check('15 套玩法的代价句在局内真的看得见（运行时探针）', function () {
@@ -1368,12 +1379,14 @@ check('15 套玩法的代价句在局内真的看得见（运行时探针）', f
 });
 
 check('只奖不罚：连练递减全站清零，换门的「省气」有单一真源', function () {
-  const files = ['utils/game.js', 'pages/practice/practice.js', 'pages/guide/guide.js',
+  const files = ['pages/practice/practice.js', 'pages/guide/guide.js',
     'data/help.js', 'data/world.js', 'data/copy.js'];
   for (const f of files) {
     assert.ok(!/心浮气躁|收益递减|restless|repeatCount/.test(read(f)),
       f + ' 还留着连练递减的旧口径');
   }
+  assert.ok(!/心浮气躁|收益递减|restless|repeatCount/.test(readEngine()),
+    'utils/game/ 还留着连练递减的旧口径');
   // 触类旁通从「多拿资源」换成了「少花灵力」，真源搬进了 data/economy.js。
   const economy = require('../data/economy.js');
   assert.strictEqual(economy.CROSS_QI, 0.92, '换门省气系数没进数值真源');
@@ -1398,7 +1411,7 @@ check('只奖不罚：连练递减全站清零，换门的「省气」有单一�
 
 check('已持玉简按最近练过的在前，藏经阁仍是兑换顺序', function () {
   const js = read('pages/skills/skills.js');
-  const engine = read('utils/game.js');
+  const engine = readEngine();
   // 列表的职责是「我手上有什么」，顺序就该按「我刚碰过谁」。
   // 「离下一段最近」是主页「今日之课」的判据；搬到列表上只会让列表天天变，
   // 玩家找不到昨天在练的那门——2026-11 按实际反馈改成「最近练过的在前」。
@@ -1659,7 +1672,7 @@ check('功法卡片紧凑单行：名字不竖排、按钮不抢宽度、阶段�
   assert.ok(/s\.profTierName \+ ' ' \+ s\.percent \+ '% · ' \+ \(gainText \|\| bonusText\)/.test(js),
     '已持卡片的元信息没写成「段位 进度 · 再练一段能换多少战力」一行');
   // 这个数必须从引擎来：页面自己再算一遍，就会与破境页各说各话。
-  assert.ok(/powerGain: rec\.unlocked \? skillPowerGain\(state, s\.id\) : 0/.test(read('utils/game.js')),
+  assert.ok(/powerGain: rec\.unlocked \? skillPowerGain\(state, s\.id\) : 0/.test(readEngine()),
     '战力增量没在引擎里算（页面自算会与破境页对不上）');
   assert.ok(js.indexOf("s.methodName + ' · ' + s.gameName") >= 0,
     '藏经阁卡片的元信息没写成「参悟方式 · 盘面」');
@@ -2223,6 +2236,30 @@ check('文案用现代汉语：仿古词不许进玩家文案', function () {
         + '口径见 docs/00-foundation/04-voice-and-copy.md §一');
     });
   });
+});
+
+// 2026-11-17 用户口径：品类名**不违法**，禁令只在正名层。理由从一开始就不是侵权——
+// 「连连看」这类词多是通用品类名（《商标法》49 条：成为核定商品的通用名称可被撤销），
+// 拿它描述玩法谁也拦不住；真要躲的是照抄某一款的美术、界面、关卡与音乐。
+// 所以这里只守「正名与系统标签必须自造」，人物口吻（flavor / 对白）里点出品类名是允许的。
+check('正名层不用现实游戏名，口语层允许（禁令只在名字上）', function () {
+  const skillData = require('../data/skills.js');
+  const practice = require('../data/practice.js');
+  const REAL = ['俄罗斯方块', '2048', '消消乐', '数独', '华容道', '推箱子', '连连看',
+    '舒尔特', '扫雷', '找最大', 'Tetris', 'Sokoban'];
+  skillData.SKILLS.forEach(function (s) {
+    const m = practice.getMethod(s.method);
+    const names = [s.name, s.desc, m && m.name, m && m.gameName].join(' ');
+    REAL.forEach(function (w) {
+      assert.ok(names.indexOf(w) < 0, '「' + s.name + '」的正名/玩法名/简介里还写着现实游戏名「'
+        + w + '」：正名必须自造，口径见 04-voice-and-copy.md 第三族');
+    });
+  });
+  // 口语层那句包袱要在：它是「师父叫并蒂、玩家觉得叫连连看」，认梗不是命名。
+  // 下一次整批清理文案时最容易顺手抹掉它——抹掉不等于更安全，只是把禁令又扩大了一圈。
+  const lingqi = skillData.SKILLS.filter(function (s) { return s.id === 'lingqi'; })[0];
+  assert.ok(lingqi && /连连看/.test(lingqi.flavor),
+    '并蒂那句「你觉得这叫连连看」被抹了：口语层允许点出品类名');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

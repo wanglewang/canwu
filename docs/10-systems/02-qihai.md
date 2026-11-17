@@ -128,7 +128,7 @@ if (base.resources.qi > cap) base.resources.qi = cap;
 
 - `data/economy.js` —— `QI_CAP_PER_LING` / `QI_CAP_SKILL_MAX` / `qiCapOf()`
 - `data/world.js` —— `realms[].qiCap`（150/260/420/620）
-- `utils/game.js` —— `qiCap(state)`、`idlePending()`（三分数）、`settleOffline()`、`meditate()`、`claimDaily()`、`applyBreakthrough()`、`normalizeState` 末尾夹平
+- `utils/game/` —— `qiCap(state)`、`idlePending()`（三分数）、`settleOffline()`、`meditate()`、`claimDaily()`、`applyBreakthrough()`、`normalizeState` 末尾夹平
 - `data/skills.js` —— `effect.type === 'qiCap'`（吐纳 10% / 太虚 15%）
 - `pages/index/index.js` —— `refreshIdle()` 的满池分支、`meditate` 回执文案
 - `tests/game.test.js` —— 气海随境界单调、真元换算严格 ×2、溢出三数对得上、满池打坐不静默、破境补满

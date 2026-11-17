@@ -141,7 +141,7 @@ minigames/index.js  gradeLines(gameId, params, gear)
 - `minigames/index.js` —— `gradeLines()`
 - `data/copy.js` —— `GRADE_TITLE`
 - `data/guides.js` —— `goal`（准备页一行）与 `scoring`（说明页）
-- `utils/game.js` —— `applyPractice` 里 `wiped` 的判定
+- `utils/game/` —— `applyPractice` 里 `wiped` 的判定
 - `tests/minigames.test.js` —— 逐门整局驱动、`lines` 存在性
 - `tests/layout.test.js` —— 局内只报下一条线、评级名真源
 

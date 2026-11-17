@@ -171,7 +171,7 @@
 - `pages/profile/profile.wxml` / `.js` —— 道牒、属性格、`breakList`（三类标记）、四个折叠块
 - `components/portrait/` —— 道相
 - `components/term/` —— 术语
-- `utils/game.js` —— `getOverview()` / `breakthroughInfo()`（`available` 与 `stoneReady` 分开）/ `getAchievements()` / `battleCode()` / `exportSaveCode()` / `importSaveCode()`
+- `utils/game/` —— `getOverview()` / `breakthroughInfo()`（`available` 与 `stoneReady` 分开）/ `getAchievements()` / `battleCode()` / `exportSaveCode()` / `importSaveCode()`
 - `utils/privacy.js` —— `guard()`，昵称与剪贴板的前置
 - `data/world.js` —— `attributes[].role`、四境界 `qiCap`
 

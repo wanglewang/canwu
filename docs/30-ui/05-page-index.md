@@ -165,7 +165,7 @@
 - `pages/index/index.wxml` —— 十段结构
 - `pages/index/index.js` —— `refresh()`（`hintText` 五级优先）、`refreshIdle()`、`onMeditate`、`onClaimDaily`、`onQuickPractice`
 - `data/navigation.js` —— `TILES` / `openTile()`
-- `utils/game.js` —— `getOverview()` / `recommend()` / `idlePending()` / `meditate()` / `claimDaily()`
+- `utils/game/` —— `getOverview()` / `recommend()` / `idlePending()` / `meditate()` / `claimDaily()`
 - `styles/immortal.wxss` —— `.imm-panel` / `.imm-grid` / `.imm-hint` / `.imm-stats`
 
 ## 13. 待验

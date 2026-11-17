@@ -186,7 +186,7 @@ win = playerRoll >= enemyRoll;
 
 ## 代码指路
 
-- `utils/game.js` —— `powerDetail()`、`computePower()`、`rollBattle()`、`shenFloorBonus()`、`battle()`、`battleCode()` / `parseBattleCode()` / `battleMirror()`、`battleRival()`
+- `utils/game/` —— `powerDetail()`、`computePower()`、`rollBattle()`、`shenFloorBonus()`、`battle()`、`battleCode()` / `parseBattleCode()` / `battleMirror()`、`battleRival()`
 - `data/opponents.js` —— `OPPONENTS` / `SECRET_REALMS` / `getChallenge()`
 - `data/economy.js` —— `BATTLE_QI` / `BATTLE_STONE_DECAY` / `FIRST_CLEAR_STONE` / `battleStoneFactor()`
 - `pages/battle/` —— 切磋页
