@@ -1376,10 +1376,9 @@ if (!demoTerm || !termKeys.has(demoTerm[1])) {
 
 // 跨页复用文案若再抄回 WXML，同一句话就会出现两种版本。
 const sharedCopy = [
-  copy.UI.footHint, copy.UI.loading, copy.UI.errorTitle, copy.UI.errorDesc,
+  copy.UI.loading, copy.UI.errorTitle, copy.UI.errorDesc,
   copy.UI.emptyLog, copy.UI.emptyBoard, copy.UI.emptySkills,
-  copy.UI.sections.today, copy.UI.sections.more,
-  copy.UI.sections.settings, copy.UI.sections.battleCode,
+  copy.UI.sections.today, copy.UI.sections.battleCode,
   // 切磋与秘境共用「我的战力」与对手列表标题：两页各抄一遍就会有一页先改。
   copy.UI.sections.myPower, copy.UI.sections.rivals,
   // 局内/结算/主页/人物页共用的短标签：散回 WXML 就会出现「本段盘面」和「本段」两套叫法。
@@ -1388,6 +1387,9 @@ const sharedCopy = [
   copy.UI.labels.progress, copy.UI.labels.rank,
 ];
 for (const text of sharedCopy) {
+  // 表里出现 undefined 等于这条闸门空转：indexOf('>undefined<') 永远 -1，
+  // 每次都「通过」，守的却是空。文案真源删了键、这里忘了同步，必须当场红。
+  if (typeof text !== 'string' || !text) { errors.push('共享文案表里有空项（copy 键已删但表没同步）'); continue; }
   if (allWxml.indexOf('>' + text + '<') >= 0) errors.push('WXML 又硬编码了共享文案：' + text);
   else checked += 1;
 }

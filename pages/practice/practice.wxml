@@ -103,8 +103,9 @@
       <text class="section__title">{{copy.sections.rule}}</text>
       <!-- 右边这个短词（「两折可连」「只推不拉」）是一门的关键约束名。
            以前裸放着，四个字挨着标题，读的人不知道它是什么、也不知道该拿它怎么办；
-           加个标签，它就从装饰变成一条能对上号的信息。 -->
-      <text class="tiny">本门规矩 · {{twistName}}</text>
+           加个标签，它就从装饰变成一条能对上号的信息。
+           冲关局没有功法，twistName 是空串——那时整段不出现，不能只留一个「本门规矩 ·」的尾巴。 -->
+      <text wx:if="{{twistName}}" class="tiny">本门规矩 · {{twistName}}</text>
     </view>
     <text class="body mt8">{{ruleText}}</text>
     <!-- 冲关要先备灵石：写在规则下面，而不是等打完才从结算里发现被扣了钱。 -->
