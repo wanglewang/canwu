@@ -911,42 +911,65 @@
 .cell--open.cell--t2 { color: #a83b32; }
 .cell--open.cell--t3 { color: #94661a; }
 
-/* ---------- 扫雷的盘面配色：暖米已探格 / 暖褐未探格 ----------
-   2026-11-18 照参照稿改，只挂扫雷：board--mines 由 practice.js 的 boardCls 按
-   method.game 发给盘面根节点，数独与其余十三门拿不到这个类。
-   先说清楚参照稿那两张资料打架的地方：它的文字规格写「未探=米色凸起、已探=深褐凹陷」，
-   但图上的数字全画在米色格上（扫雷里数字只出现在已探格），它给的「数字对比度 4.70」
-   也只有拿米色量才成立。按用户的意思以图为准，所以这里：
-     已探格 = 暖米 #e2d6b7（数字落在上面，1/2/3 三色实测 4.7 / 4.5 / 3.8）；
-     未探格 = 暖褐 #9a8d75，哑光无高光，像一块还没上釉的坯。
-   读法从「凸/凹」换成「亮/暗」：探明即点亮。这比原来那套更直白——原来未探暗灰、
-   已探亮纸，其实已经是这个方向，只是颜色偏冷（灰 #b3ab96 压冷紫黑的台 #191628）。
-   台换成参照稿的暖褐 #463d34，牌/台 7.35:1，正好落回文档那句「牌要比台亮六七倍」；
-   #463d34 与夜底 #08131c 是 1.77:1，还读得出一方玉台的边界（再暗到 #2b241d 就只剩 1.23，
-   整块盘会跟夜色糊在一起）。
-   未探与已探的明度差从 1.37 提到 2.26，扫雷最要紧的那一眼（哪些还没动过）才看得出来。 */
-.board--mines { --well: #463d34; }
+/* ---------- 探禁的盘面：炭坞 ----------
+   2026-11-18 第二版。board--mines 由 practice.js 的 boardCls 按 method.game 发给
+   盘面根节点，数独与其余十三门拿不到这个类，所以下面全部只作用于探禁。
+   上一版照参照稿取「已探 = 暖米 #e2d6b7 + 白釉光」，反馈是三条：未探格没有炭的
+   感觉、灰里发白、晃眼；数字要更粗更大；不要亮光闪光。这一版按这三条重做。
+
+   整套只做一件事：把「光」全撤掉，改成用「暗在哪一边」塑形。
+   哑光的东西没有高光，只有暗部——
+     未探（凸）= 炭块：只在底缘压一道内暗（光从上来，凸起物的下沿背光）；
+     已探（凹）= 烧穿的地方：只在上缘压一道更深的内暗（凹坑的上内壁背光）。
+   立体感还在，格子上却找不到任何一处反白。上一版两处「晃」的来源
+   （radial 白高光 0.6、inset 顶部白线 0.58）就地删掉。
+
+   明度整盘下压两档，这就是「炭」：
+     台   #463d34      → #362d24（与夜底 #08131c 1.34:1，仍读得出一方台沿）
+     未探 #9a8d75(53%) → #5b5040(32%)  ← 「灰中发白」主要在这块，它占满盘
+     已探 #e2d6b7(80%) → #a8946e(53%)  ← 压掉 27 个点，但仍要比未探亮
+   两者明度差 2.65:1，比上一版 2.26 还宽：暗下来反而更好分。
+
+   数字反过来加粗加大，暗底上细字最吃亏：
+     三色落在已探格上 4.37 / 4.27 / 4.10（都过 4:1），字重 800，各列字号 +4rpx。
+   保留三色分级，是因为「1 的边界在哪」是这一盘最常扫的一眼，统一近黑会丢掉这层。 */
+.board--mines { --well: #362d24; }
 
 .board--mines .cell--hidden {
-    background-color: #9a8d75;
-    background-image: linear-gradient(180deg, rgba(58, 44, 26, 0.14), rgba(58, 44, 26, 0) 58%);
-    color: #6d6350;
-    box-shadow: inset 0 0 0 1rpx rgba(46, 34, 18, 0.16);
+    background-color: #5b5040;
+    background-image: none;
+    color: #4a4032;
+    box-shadow: inset 0 -4rpx 6rpx rgba(18, 13, 8, 0.32);
 }
 
 .board--mines .cell--open {
-    background-color: #e2d6b7;
-    background-image:
-        radial-gradient(124% 96% at 50% -22%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 58%),
-        linear-gradient(180deg, rgba(255, 253, 244, 0) 52%, rgba(140, 108, 62, 0.16));
-    box-shadow:
-        0 3rpx 7rpx rgba(80, 62, 34, 0.24),
-        inset 0 3rpx 0 rgba(255, 255, 255, 0.58),
-        inset 0 -5rpx 9rpx rgba(122, 94, 54, 0.16);
+    background-color: #a8946e;
+    background-image: none;
+    color: #1a1409;
+    font-weight: 800;
+    box-shadow: inset 0 4rpx 7rpx rgba(30, 21, 11, 0.36);
 }
-.board--mines .cell--open.cell--t1 { color: #336454; }
-.board--mines .cell--open.cell--t2 { color: #9c4036; }
-.board--mines .cell--open.cell--t3 { color: #7d5a20; }
+
+.board--mines .cell--open.cell--t1 { color: #14382c; }
+.board--mines .cell--open.cell--t2 { color: #63180e; }
+.board--mines .cell--open.cell--t3 { color: #4d3004; }
+
+/* 数字加大：格高从 104 到 74，字给到格高的三成左右。
+   c9 那条必须连着 .board--mines 写，否则特异性和后面的 .grid--c9 .cell（字重 700）
+   打平、按先后顺序被它压回去。 */
+.board--mines.grid--c6 .cell { font-size: 30rpx; }
+.board--mines.grid--c7 .cell { font-size: 28rpx; }
+.board--mines.grid--c8 .cell { font-size: 28rpx; }
+.board--mines.grid--c9 .cell { font-size: 26rpx; font-weight: 800; }
+
+/* 旗子原来是一块亮米 #f6e7bf 加白釉，在炭坞上像一盏灯。改成一块暖金炭：
+   「插了旗」照样一眼看到（与未探 3.26:1），但不再是全盘最亮的那一格。 */
+.board--mines .cell--flag {
+    background-color: #c9a15a;
+    background-image: none;
+    color: #241a08;
+    box-shadow: inset 0 0 0 2rpx rgba(74, 50, 12, 0.45), inset 0 -3rpx 6rpx rgba(60, 40, 8, 0.28);
+}
 .cell--flag { background-color: #f6e7bf; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(196, 155, 74, 0.3)); color: #8a6524; box-shadow: inset 0 0 0 3rpx rgba(162, 118, 45, 0.5), 0 3rpx 8rpx rgba(0, 0, 0, 0.3); }
 .cell--mine { background: #b4453c; color: #fffdf7; animation: badShake 0.3s ease-out; box-shadow: 0 0 26rpx rgba(180, 69, 60, 0.55), inset 0 0 0 3rpx rgba(255, 214, 206, 0.5); }
 .cell--hint { background: #b8893b; color: #fffdf7; animation: litPop 0.5s ease-out infinite alternate; box-shadow: 0 0 24rpx rgba(184, 137, 59, 0.5), inset 0 2rpx 0 rgba(255, 255, 255, 0.3); }
