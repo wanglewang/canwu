@@ -198,6 +198,8 @@ Page({
     scoreNum: 0,
     burstList: [],
     sparkList: [],
+    // 探禁的盘面反馈：翻格涟漪 / 踩禁冲击环 / 连开扫光，只在这一门生成。
+    mineFxList: [],
     // 落石垒基专用：下一块预告 + 刚化的行。其余玩法恒为空数组，页面不为它们多画东西。
     nextList: [],
     holdCells: [],
@@ -231,6 +233,9 @@ Page({
     this.lastTones = [];
     this.lastClearKey = 0;
     this.sparkTimer = null;
+    // 探禁：上次演过的盘面特效序号与撤场定时器。
+    this.lastMineFxKey = 0;
+    this.mineFxTimer = null;
     // 落石垒基：上次演过的「化行」序号与行闪的撤场定时器。
     this.lastLineKey = 0;
     this.lineFlashTimer = null;
@@ -773,6 +778,8 @@ Page({
 
         // 迸溅要在 setData 之前算：它读的是上一帧的纹样快照。
         const sparks = self.sparksFrom(vm);
+        // 探禁的盘面反馈：玩法层带 key 的信号变了才重播，其余门读不到字段直接跳过。
+        const mineFx = self.mineFxFrom(vm);
 
         // 落石垒基：下一块预告与刚化的行。这两样只在这一门出现，
         // 别的玩法 vm.blocks 为 null，算出来是空数组，页面不会多摆一行。
@@ -833,6 +840,7 @@ Page({
           scoreNum: Number(String(vm.scoreText || '').replace(/\D/g, '')) || 0,
           burstList: burstList,
           sparkList: sparks || self.data.sparkList,
+          mineFxList: mineFx || self.data.mineFxList,
           nextList: nextList,
           holdCells: holdCells,
           lineFlashList: lineFlashList,
@@ -866,12 +874,14 @@ Page({
       stage: stage,
       burstList: [],
       sparkList: [],
+      mineFxList: [],
       settlePhase: 0,
     });
     // 换局 / 重开：上一局的迸溅游标必须归零，否则新局第一次收牌
     // 可能正好撞上旧 key，页面会以为「已经演过了」而不迸。
     this.lastClearKey = 0;
     this.lastTones = [];
+    this.lastMineFxKey = 0;
     this.syncBar();
   },
 
@@ -966,6 +976,70 @@ Page({
       if (!self.pageAlive) return;
       self.setData({ sparkList: [] });
     }, visual.MOTION.sparkMs + 80);
+  },
+
+  // 探禁的盘面反馈。玩法层只抛「哪一手、哪一格」，这里决定长什么样：
+  // 翻格是青石屑向外散、踩禁是朱砂冲击环、连开是金色扫光、钉旗是一枚小金圈。
+  // 颜色写成字面量是因为粒子靠内联 style 上色（跟 visual.CREST_HUE 同一条路），
+  // 不落进 wxss；只有这一门用，不进通用动效表。
+  mineFxFrom: function (vm) {
+    const f = vm && vm.mineFx;
+    if (!f || !f.key || f.key === this.lastMineFxKey) return null;
+    this.lastMineFxKey = f.key;
+    const n = vm.cells ? vm.cells.length : 0;
+    if (!n) return null;
+    const cols = vm.cols || 6;
+    const rows = Math.max(1, Math.round(n / cols));
+    // 环不越格：盘宽约 690rpx（750 设计稿扣掉页边距），每格 690/cols，再留 6rpx 给格缘。
+    // 写死一个直径在 6×6 上正好、到 12×12 就会压住邻格刚翻开的数字。
+    const ringSize = Math.min(92, Math.round(690 / cols) - 6);
+    const ringHalf = -Math.round(ringSize / 2);
+    const i = Math.max(0, Math.min(n - 1, f.index | 0));
+    const cfg = {
+      reveal: { dots: 7, dist: 88, size: 10, color: '#9fd8cf', life: 440, ring: true },
+      strike: { dots: 9, dist: 104, size: 13, color: '#e08a7e', life: 540, ring: true },
+      chord: { dots: 6, dist: 76, size: 9, color: '#e6cd8a', life: 380, ring: true },
+      flag: { dots: 0, dist: 0, size: 0, color: '#e6cd8a', life: 380, ring: true },
+      unflag: { dots: 0, dist: 0, size: 0, color: '#9fc3d4', life: 300, ring: true },
+      deny: { dots: 0, dist: 0, size: 0, color: '#e08a7e', life: 320, ring: true },
+      tap: { dots: 3, dist: 40, size: 7, color: '#9fd8cf', life: 380, ring: false },
+      win: { dots: 10, dist: 130, size: 11, color: '#e6cd8a', life: 900, ring: true },
+    }[f.type];
+    if (!cfg) return null;
+    const dots = [];
+    for (let d = 0; d < cfg.dots; d += 1) {
+      const size = cfg.size + (d % 3) * 2;
+      dots.push({
+        id: d,
+        a: Math.round(360 * d / cfg.dots + 11 + (d % 2 ? 8 : -5)),
+        d: cfg.dist - (d % 3) * 16,
+        size: size,
+        mt: -size / 2,
+        delay: (d % 4) * 18,
+      });
+    }
+    this.scheduleMineFxClear(cfg.life + 80);
+    return [{
+      id: f.key + '-' + f.type,
+      type: f.type,
+      x: ((i % cols + 0.5) / cols * 100).toFixed(2),
+      y: ((Math.floor(i / cols) + 0.5) / rows * 100).toFixed(2),
+      color: cfg.color,
+      ring: cfg.ring,
+      ringSize: ringSize,
+      ringHalf: ringHalf,
+      dots: dots,
+    }];
+  },
+
+  scheduleMineFxClear: function (ms) {
+    const self = this;
+    if (this.mineFxTimer) clearTimeout(this.mineFxTimer);
+    this.mineFxTimer = setTimeout(function () {
+      self.mineFxTimer = null;
+      if (!self.pageAlive) return;
+      self.setData({ mineFxList: [] });
+    }, ms);
   },
 
   // 结算五段演出：S/A 满 1.8 秒，B/C/F 压到 900ms；全程不用逐帧 setData。
@@ -1138,7 +1212,7 @@ Page({
     const stage = typeof this.teachStageIdx === 'number' ? this.teachStageIdx : 0;
     this.stopTeach();
     store.commitCritical(function (s) { return engine.markTaught(s, self.skillId, stage); });
-    this.setData({ tutorial: false, started: false, vm: null, burstList: [], sparkList: [] });
+    this.setData({ tutorial: false, started: false, vm: null, burstList: [], sparkList: [], mineFxList: [] });
     this.buildGame();
     if (skipped) sfx.play('tap');
     this.onStart();

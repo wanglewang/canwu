@@ -394,6 +394,12 @@
           <view class="spark__ring" style="border-color:{{item.color}}"></view>
           <view wx:for="{{item.dots}}" wx:key="id" wx:for-item="dot" class="spark__dot" style="background:{{item.color}};width:{{dot.size}}rpx;height:{{dot.size}}rpx;margin:{{dot.mt}}rpx 0 0 {{dot.mt}}rpx;--a:{{dot.a}}deg;--d:{{dot.d}}rpx;animation-delay:{{dot.delay}}ms"></view>
         </view>
+        <!-- 探禁的盘面反馈：翻格石屑 / 踩禁冲击环 / 连开扫光 / 钉旗金圈。
+             只由 mineFxList 驱动，其余玩法这一层恒为空。 -->
+        <view wx:for="{{mineFxList}}" wx:key="id" class="mine-fx mine-fx--{{item.type}}" style="left:{{item.x}}%;top:{{item.y}}%">
+          <view wx:if="{{item.ring}}" class="mine-fx__ring" style="border-color:{{item.color}};--fx-size:{{item.ringSize}}rpx;--fx-half:{{item.ringHalf}}rpx"></view>
+          <view wx:for="{{item.dots}}" wx:key="id" wx:for-item="dot" class="mine-fx__dot" style="background:{{item.color}};width:{{dot.size}}rpx;height:{{dot.size}}rpx;margin:{{dot.mt}}rpx 0 0 {{dot.mt}}rpx;--a:{{dot.a}}deg;--d:{{dot.d}}rpx;animation-delay:{{dot.delay}}ms"></view>
+        </view>
         <!-- 划刀玩法的透明触摸层：盖住静态格子，用手势坐标还原一条连续轨迹 -->
         <view wx:if="{{vm.extras.showSwipe && started && !boardHeld}}" class="swipe-layer" bindtouchstart="onBoardTouchStart" catchtouchmove="onBoardTouchMove" bindtouchend="onBoardTouchEnd" bindtouchcancel="onBoardTouchEnd"></view>
         <!-- 四向推盘：整盘就是一块滑块，往哪划就往哪挤。不摆方向键——

@@ -28,3 +28,6 @@ _gitee-sync-plus-log.md
 
 # JetBrains / IDEA 本地工程配置（每人一份，不入库）
 .idea/
+
+# 外部参考仓库（各自带 .git，共千余文件，仅供查阅，不属本项目源码）
+docs/90-reference/

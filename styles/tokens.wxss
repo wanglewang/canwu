@@ -148,6 +148,24 @@ page {
     --jade-ink:          #3c382a;   /* 牌上的字 */
     --gold-line:         rgba(201, 154, 30, 0.55);  /* 牌缘与盘框的金线 */
 
+    /* 探禁（数格辨禁）专属色板：整盘落低亮区的青灰石，不随功法变，昼夜各一套。
+       极性是死的——未探浅而凸、已探深而凹，已探永远是全盘最暗的一层；
+       数字是唯一亮起来的东西。色系可以从暖褐换成青灰，极性绝不翻。
+       夜里那一份原色写在下面的 --night-mine-*，由 .pg--t-night 逐键转接。 */
+    --mine-hidden-a:     #4b6472;   /* 未探石面上缘受光 */
+    --mine-hidden-b:     #384f5d;   /* 未探石面下缘 */
+    --mine-hidden-ink:   #d8e8ec;   /* 未探格上的符文（旗 / 禁制） */
+    --mine-open:         #1b2b35;   /* 已探凹处：全盘最暗 */
+    --mine-open-edge:    rgba(154, 201, 214, 0.20);
+    --mine-n1:           #8fd3c6;   /* 数字 1：青玉 */
+    --mine-n2:           #e9ad9b;   /* 数字 2：暖陶 */
+    --mine-n3:           #e0c788;   /* 数字 3+：旧金 */
+    --mine-flag:         #c9a24d;   /* 阵钉：全盘第二亮 */
+    --mine-flag-ink:     #241a08;
+    --mine-strike:       #a83b32;   /* 踩中的朱砂 */
+    --mine-strike-ink:   #f5d9d1;
+    --mine-vein:         rgba(216, 236, 241, 0.055);  /* 石纹：凑近才看得见 */
+
     /* ---------- 颜色：原生导航与 tabBar（与 theme.json 一一对应） ---------- */
     /* 原生栏与 tabBar 必须与页面同色，否则顶部会拼出一条异色横条。
        亮色段取宣纸白，暗色段取墨玉深底（#0f2030），theme.json 的 light / dark 两段照抄。
@@ -205,6 +223,13 @@ page {
     --night-ink-scrim:     rgba(0, 0, 0, 0.30);
     --night-ink-track:     rgba(227, 241, 248, 0.24);
     --night-ink-divider:   rgba(227, 241, 248, 0.18);
+    /* 探禁的夜色石盘：夜里页面是 #08131c，未探格仍要比它亮一档，
+       已探再压到近乎墨色——盘的边界靠「青石 vs 墨」自己撑住，不靠边框。 */
+    --night-mine-hidden-a: #2d4b59;
+    --night-mine-hidden-b: #203945;
+    --night-mine-open:     #101e27;
+    --night-mine-flag:     #d4af5e;
+    --night-mine-strike:   #d4695e;
 
     /* ---------- 字号阶梯（rpx，1sp ≈ 2rpx） ---------- */
     --fs-caption:        22rpx;     /* 角标 / 注脚，下限 */
@@ -335,6 +360,12 @@ page {
         /* 仙箓皮肤：同一支夜色，逐键映过去。 */
         --c-imm-bg:          var(--night-bg);
         --c-imm-bg-2:        var(--night-bg-2);
+        /* 探禁色板转接：原色只在 --night-mine-* 写一份，这里只做映射。 */
+        --mine-hidden-a:     var(--night-mine-hidden-a);
+        --mine-hidden-b:     var(--night-mine-hidden-b);
+        --mine-open:         var(--night-mine-open);
+        --mine-flag:         var(--night-mine-flag);
+        --mine-strike:       var(--night-mine-strike);
         --c-imm-panel:       var(--night-panel);
         --c-imm-panel-2:     var(--night-panel-2);
         --c-imm-tile:        var(--night-tile);

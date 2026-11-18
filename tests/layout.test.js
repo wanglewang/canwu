@@ -470,6 +470,42 @@ check('洞微勘禁诀按经典扫雷深耕：无猜、首点空白、连开、�
   assert.ok(/tanlei: \[/.test(p) && /洞玄/.test(p), '阶段新法没登记洞微勘禁诀');
 });
 
+check('洞微勘禁诀：推理深度真被生成端读走，盘面反馈有专属层', function () {
+  const m = read('minigames/mines.js');
+  const p = read('data/practice.js');
+  const w = read('pages/practice/practice.wxml');
+  const wxss = read('pages/practice/practice.wxss');
+  const tokens = read('styles/tokens.wxss');
+  assert.ok(/out\.deduce = lv\.deduce/.test(p), '段位表没把 deduce 注入 params');
+  assert.ok(/p\.deduce/.test(m) && /res\.deep/.test(m),
+    '生成端没读走 deduce，段差只是界面上的一行字');
+  assert.ok(/function pairStep/.test(m), '没有两处数字相减的推演');
+  assert.ok(/function globalStep/.test(m), '全局雷数约束没进求解器，可解性判定偏紧');
+  assert.ok(/if \(res\.deep < needDeep\) continue/.test(m), '没按段筛盘，高阶段可能发到基础盘');
+  assert.ok(/allowGuess \? res\.ok : !res\.ok/.test(m), '前段保证无猜、后段保证有猜的闸门没了');
+  assert.ok(/out\.allowGuess = lv\.allowGuess/.test(p), '猜局开关没注入 params');
+  assert.ok(/cols: 12, rows: 12/.test(p), '圆满段没推到手机可读上限');
+  assert.ok(/mineFxList/.test(w) && /mine-fx/.test(wxss), '探禁的盘面特效层没接上');
+  assert.ok(/--night-mine-hidden-a/.test(tokens), '夜色石盘没有令牌');
+});
+
+check('探禁特效不挡数字：翻片半秒内收、环随列数缩不越格', function () {
+  const wxss = read('pages/practice/practice.wxss');
+  const js = read('pages/practice/practice.js');
+  const wxml = read('pages/practice/practice.wxml');
+  const base = Number((wxss.match(/animation:\s*mineRing\s+(\d+)ms/) || [])[1]);
+  const strike = Number((wxss.match(/\.mine-fx--strike \.mine-fx__ring \{[^}]*animation-duration:\s*(\d+)ms/) || [])[1]);
+  const chord = Number((wxss.match(/\.mine-fx--chord \.mine-fx__ring \{[^}]*animation-duration:\s*(\d+)ms/) || [])[1]);
+  assert.ok(base > 0 && base <= 460, '翻片环又退回 600ms，压住刚翻开的数字');
+  assert.ok(strike > 0 && strike <= 560, '踩禁环超时');
+  assert.ok(chord > 0 && chord < base, '连开没有比石屑更快，读起来像烟花而不是扫光');
+  assert.ok(/--fx-size/.test(wxss) && /--fx-half/.test(wxss), '环尺寸没走 CSS 变量');
+  assert.ok(/item\.ringSize/.test(wxml) && /item\.ringHalf/.test(wxml), '玩法层没把逐段环尺寸下发');
+  assert.ok(/690 \/ cols/.test(js), '环尺寸不随列数收，12×12 末段必然跨格');
+  const reveal = (js.match(/reveal:\s*\{[^}]*\}/) || [''])[0];
+  assert.ok(/life:\s*440/.test(reveal), '翻片 life 没跟 CSS 时长对齐');
+});
+
 check('洞微勘禁诀局内只讲「在追哪一档」：不摆当前评级，HUD 不重复计数', function () {
   const m = read('minigames/mines.js');
   const g = read('data/guides.js');
@@ -477,7 +513,7 @@ check('洞微勘禁诀局内只讲「在追哪一档」：不摆当前评级，H
   // 评级只看用时，按当前用时反推出来的档，开局那一刻必是 S。摆进 HUD 等于告诉玩家
   // 「已经拿到 S 了」，之后只能看它一路往下掉。局内改成只报下一档的时限。
   assert.ok(/showGradeNow = false/.test(m), '洞微勘禁诀又把「当前评级」摆回 HUD 了');
-  // 时间线跟着盘面格数走（9×9 的 S 线是 56 秒而不是 25 秒），所以第二个实参
+  // 时间线跟着盘面格数走（12×12 的 S 线是 100 秒而不是 25 秒），所以第二个实参
   // 可能是 GRADE_LINE 也可能是本盘算出来的 line；两者都算「给了下一档的时限」。
   assert.ok(/C\.paceGoal\(elapsed,\s*(GRADE_LINE|line)\)/.test(m), '局内没给「下一档还差几秒」');
   // 同样的反推逻辑不止探禁一家：搭桥、翻牌也按用时评级。凡是这类玩法都不许摆当前档位。

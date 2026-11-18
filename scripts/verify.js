@@ -8,7 +8,10 @@ const { spawnSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 // .obsidian 是本地编辑器工作区（第三方插件），与 .workbuddy 同类，不进校验范围。
-const SKIP_DIRS = new Set(['.git', '.workbuddy', '.obsidian', 'node_modules', 'miniprogram_npm']);
+// docs/90-reference 是外部参考仓库（GDD 模板 / OpenGDD 规范 / game-forge），整目录连同上游
+// .git 一起被拉进来。它们是「读的资料」，不是本项目的代码与文档：不解析它的 JSON、
+// 不扫它的 WXML 引用、更不把一千多个第三方文件算进静态项数。
+const SKIP_DIRS = new Set(['.git', '.workbuddy', '.obsidian', 'node_modules', 'miniprogram_npm', '90-reference']);
 const errors = [];
 let checked = 0;
 
@@ -1334,8 +1337,10 @@ for (const f of TOKENIZED) {
 // CSS 变量拼错在小程序里是静默失效（不会报错，样式直接消失），必须静态兜住。
 // 运行时由 minigames/theme.js / data/visual.js 注入的盘面变量在这里白名单放行。
 // --fall / --fd 由消消乐按格写进 style（掉几格、这一格该花多久），同样属于运行时注入。
+// --fx-size / --fx-half 由探禁按盘面列数算好环直径再写进 style：6×6 到 12×12 每格差一倍，
+// 写死一个值必然在末段跨格压住数字。
 const tokenDefs = new Set([...tokenSrc.matchAll(/(--[\w-]+)\s*:/g)].map(function (m) { return m[1]; }));
-const runtimeVars = new Set(['--acc', '--soft', '--ink', '--bg', '--frame', '--glow', '--deep', '--well', '--a', '--d', '--fall', '--fd']);
+const runtimeVars = new Set(['--acc', '--soft', '--ink', '--bg', '--frame', '--glow', '--deep', '--well', '--a', '--d', '--fall', '--fd', '--fx-size', '--fx-half']);
 const styleFiles = ['app.wxss', 'styles/scene.wxss', 'styles/immortal.wxss', 'components/duel-result/duel-result.wxss'].concat(appJson.pages.map(function (pg) { return pg + '.wxss'; }));
 const undefinedVars = [];
 for (const f of styleFiles) {

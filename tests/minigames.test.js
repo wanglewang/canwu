@@ -1234,7 +1234,8 @@ function solveMines(ctx, cols) {
     }
     if (!acted) return false;
   }
-  return !!ctx.st.finished;
+  // 只认「探明秘境」：踩雷判 F 也是 finished，把它算成推完会让段差断言空转。
+  return !!(ctx.st.finished && /探明秘境/.test(ctx.st.finished.summary));
 }
 
 check('洞微勘禁诀：开局不先布雷，首点九宫格全开且盘面无汉字', function () {
@@ -1371,10 +1372,50 @@ check('洞微勘禁诀：五档禁制数与心神数真的分开，不再叠一�
       hearts.push(ctx.st.vm.hearts.max);
       ctx.c.destroy();
     }
-    assert.deepStrictEqual(hearts, [3, 3, 3, 2, 2], '心神数没随档收紧');
+    assert.deepStrictEqual(hearts, [3, 3, 2, 1, 1], '心神数没随档收紧到后两段零容错');
     assert.ok(mines[0] < mines[4], '绝境档的禁制数没比简单档多');
     for (let i = 1; i < mines.length; i += 1) {
       assert.ok(mines[i] >= mines[i - 1], '禁制数随档回退了：' + mines.join('/'));
+    }
+  } finally { restoreClock(); }
+});
+
+check('洞微勘禁诀：推理深度与猜局开关双段差——首段基础推得完，后段必须换推法', function () {
+  installClock();
+  try {
+    const method = data.getMethod('tanlei');
+    const keys = ['novice', 'entry', 'minor', 'major', 'full'];
+    let prev = -1;
+    for (let d = 0; d < keys.length; d += 1) {
+      const params = data.buildParams(method, keys[d]);
+      assert.strictEqual(params.deduce, d <= 1 ? 0 : d - 1,
+        keys[d] + ' 的推理深度没按段递进：' + params.deduce);
+      assert.ok(params.deduce >= prev, keys[d] + ' 推理深度比上一段还浅');
+      prev = params.deduce;
+      assert.strictEqual(params.allowGuess, d >= 3, keys[d] + ' 的猜局开关没按段放开');
+
+      // 行为反证：只用「单格数字」的求解器去推这一段的盘。
+      // 不能再拿 noGuess 当门闸——后两段它恒为 false，basicWins===0 会不证自明。
+      let basicWins = 0;
+      let noGuessCount = 0;
+      for (let r = 0; r < 4; r += 1) {
+        const ctx = makeCtx(method, {}, params);
+        ctx.c.start();
+        ctx.c.tap(Math.floor(params.cols * params.rows / 2));
+        if (ctx.st.vm.extras.noGuess) noGuessCount += 1;
+        if (solveMines(ctx, params.cols)) basicWins += 1;
+        ctx.c.destroy();
+      }
+      if (d <= 1) {
+        assert.strictEqual(basicWins, 4, keys[d] + ' 首段盘基础规则推不完，违背「一看就懂」');
+        assert.strictEqual(noGuessCount, 4, keys[d] + ' 前两段不再保证无猜');
+      } else if (d === 2) {
+        assert.strictEqual(basicWins, 0, keys[d] + ' 小成盘用基础规则就推完了，段差是假的');
+        assert.strictEqual(noGuessCount, 4, '小成段不再保证无猜');
+      } else {
+        assert.strictEqual(basicWins, 0, keys[d] + ' 后段盘用基础规则就推完了，段差是假的');
+        assert.strictEqual(noGuessCount, 0, keys[d] + ' 后两段没留出两难处，段差倒挂');
+      }
     }
   } finally { restoreClock(); }
 });

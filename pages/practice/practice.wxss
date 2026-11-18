@@ -970,8 +970,21 @@
    缝就是纸，看得见的是牌。所以沟槽直接取 --c-imm-bg，昼夜各拿各的页面底色：
    白天米色缝、夜里深青缝，盘永远跟页面是一整块，不再是一张贴上去的板。
    连带撤掉外圈那圈墨与旧金细线：它们是「盘浮在纸上」才需要的边框，
-   跟「盘就是纸的一部分」正相反。格的边界现在由「暖赭 vs 纸」自己的明度差撑住。 */
-.board--mines { --well: var(--c-imm-bg, #f2e9d6); }
+   跟「盘就是纸的一部分」正相反。格的边界现在由「牌色 vs 纸」自己的明度差撑住。
+   ⑥ 第 ⑤ 版极性、沟槽都对，却仍被说「土、脏、简陋」——病根在色系：
+   暖褐（#947b54 / #4c3f2a）铺满一整盘就是一块泥，夜里压在深青墨页上更是
+   两块不相干的颜色。这一版只换色系不换极性：暖褐 → 青灰石。白天像一方冷玉
+   摊在宣纸上，夜里是同一方玉沉进墨里；已探仍是全盘最暗，数字仍是唯一亮处。
+
+   死结没变，别再试：「已探」一旦做成全盘最亮，探开一片就是反光板，调什么色
+   都晃；数字落在亮格上才够对比，是个解不开的结。判据照旧——整盘没有一处
+   接近白，最亮的地方只有数字那么几个点。 */
+.board--mines {
+    --well: var(--c-imm-bg, #f2e9d6);
+    /* 盘面色板（--mine-* 十二键 + 夜色五键）定义在 styles/tokens.wxss，
+       跟其余 18 门的玉牌色住在一起；夜里由 .pg--t-night 转接。
+       亮度分档：未探 L≈37% > 已探 L≈15%，跟实体棋盘的「凸起 / 挖开」同极性。 */
+}
 
 /* 通用盘的「上缘暖光 + 底部暗角 + 内圈压黑」是给玉牌托底用的：牌是浅的，
    台要压暗牌才立得起来。探禁反着来——牌本来就压在中低亮度，这三道一叠，
@@ -995,33 +1008,42 @@
     letter-spacing: 0;
 }
 
-/* 未探是还没翻的牌，已探是挖开的地方：前者浅、后者深，差 2.27:1。
+/* 未探是还没翻的牌，已探是挖开的地方：前者浅、后者深，差 2.4:1。
    立体感仍只靠「暗在哪一边」，全盘零反白——凸的暗在下缘，凹的暗在上缘。
-   底色走同色系纵向渐变（上 #947b54 → 下 #7f6a4a），是为了让连成一片的未探区
-   像一块有厚度的暖玉，而不是一张填了色的纸。渐变两端都在暖赭里，
-   不产生白釉，所以不会回到①②两版「灰中发白」那件事上。 */
+   底色走同色系斜向渐变 + 一层极淡石纹，让连成一片的未探区像一块有厚度的青石，
+   而不是一张填了色的纸。渐变两端都在青灰里，不产生白釉。 */
 .board--mines .cell--hidden {
-    background-color: #8a7350;
-    background-image: linear-gradient(180deg, #947b54 0%, #7f6a4a 100%);
-    color: #3c3021;
-    box-shadow: inset 0 -4rpx 6rpx rgba(24, 17, 9, 0.30);
+    background-color: var(--mine-hidden-b);
+    background-image:
+        repeating-linear-gradient(116deg, var(--mine-vein) 0, var(--mine-vein) 1rpx, transparent 1rpx, transparent 9rpx),
+        linear-gradient(158deg, var(--mine-hidden-a) 0%, var(--mine-hidden-b) 100%);
+    color: var(--mine-hidden-ink);
+    /* 凸：顶缘一道青白细高光，底缘压深影——跟已探的上缘内暗正好反过来。 */
+    box-shadow:
+        inset 0 3rpx 0 rgba(212, 238, 244, 0.32),
+        inset 0 -7rpx 11rpx rgba(5, 13, 19, 0.52),
+        inset 0 0 0 1rpx rgba(196, 226, 235, 0.14);
 }
 
 .board--mines .cell--open {
-    background-color: #4c3f2a;
-    background-image: none;
-    color: #cbbda2;
+    background-color: var(--mine-open);
+    /* 凹：顶缘吃进深影，底缘留一道极细反光。全盘最暗的一层就是这里，
+       探开的越多盘越暗——亮处永远只有数字那几个点。 */
+    background-image: linear-gradient(180deg, rgba(2, 7, 11, 0.62) 0%, rgba(2, 7, 11, 0) 62%);
+    color: var(--mine-n1);
     font-weight: 800;
-    box-shadow: inset 0 4rpx 8rpx rgba(12, 8, 4, 0.40);
+    box-shadow:
+        inset 0 6rpx 11rpx rgba(2, 6, 10, 0.72),
+        inset 0 -2rpx 0 var(--mine-open-edge);
 }
 
-/* 数字反过来走浅色：底色压到 L18% 之后，深色字全掉到 3:1 以下，怎么调都发闷。
-   三色保住色相、只提明度，落在已探格上是 5.88 / 5.43 / 5.89——
+/* 数字反过来走浅色：已探底压到 L15% 之后，深色字全掉到 3:1 以下，怎么调都发闷。
+   三色保住色相、只提明度，落在已探格上是 7.6 / 6.5 / 7.0——
    看得清，但不是从盘上跳出来的白点。分级保留，因为「1 的边界在哪」
    是这一盘最常扫的一眼，统一一个颜色会把这层丢掉。 */
-.board--mines .cell--open.cell--t1 { color: #9ed0ac; }
-.board--mines .cell--open.cell--t2 { color: #e8b0a0; }
-.board--mines .cell--open.cell--t3 { color: #e3c07a; }
+.board--mines .cell--open.cell--t1 { color: var(--mine-n1); }
+.board--mines .cell--open.cell--t2 { color: var(--mine-n2); }
+.board--mines .cell--open.cell--t3 { color: var(--mine-n3); }
 
 /* 字号按格高的四成给：8 列格高 84rpx，字 34rpx。
    c9 那条必须连着 .board--mines 写（3 类），并且要重写 font-weight：
@@ -1032,21 +1054,25 @@
 .board--mines.grid--c8 .cell { font-size: 34rpx; }
 .board--mines.grid--c9 .cell { font-size: 30rpx; font-weight: 800; }
 
-/* 旗子原来是一块亮米 #f6e7bf 加白釉，在炭坞上像一盏灯。现在是一块暖金：
-   与未探格 2.40:1——「插了旗」照样一眼看到，但不再是全盘最亮的那一格。
-   真正让它可辨的是格子里的深色符文（inset 描边 + 下缘暗），背景只负责提示。 */
+/* 阵钉是一枚按进石面的旧金钉：比青石亮一档（2.4:1），「插了钉」一眼看到，
+   但仍是全盘第二亮，不抢数字。真正让它可辨的是深色符文 + 顶缘那道钉帽高光。 */
 .board--mines .cell--flag {
-    background-color: #e0b76a;
-    background-image: none;
-    color: #241a08;
-    box-shadow: inset 0 0 0 2rpx rgba(74, 50, 12, 0.45), inset 0 -3rpx 6rpx rgba(60, 40, 8, 0.28);
+    background-color: var(--mine-flag);
+    background-image: linear-gradient(158deg, rgba(255, 244, 210, 0.20), rgba(48, 30, 4, 0.14));
+    color: var(--mine-flag-ink);
+    box-shadow:
+        inset 0 2rpx 0 rgba(255, 238, 190, 0.42),
+        inset 0 -4rpx 7rpx rgba(52, 34, 6, 0.38),
+        inset 0 0 0 2rpx rgba(58, 38, 8, 0.5);
 }
-/* 踩中那一格是这一局唯一该刺眼的地方，但也不必绕一圈外发光：
-   换成深朱底 + 浅赭字，色相够狠，亮度仍留在盘面同一档。 */
+/* 踩中那一格是这一局唯一该刺眼的地方：朱砂底 + 浅赭字，色相够狠，
+   但亮度仍留在盘面同一档，不绕一圈外发光把整盘带亮。 */
 .board--mines .cell--mine {
-    background: #7a2a24;
-    color: #f2d3cb;
-    box-shadow: inset 0 0 0 2rpx rgba(255, 214, 206, 0.28);
+    background: var(--mine-strike);
+    color: var(--mine-strike-ink);
+    box-shadow:
+        inset 0 0 0 2rpx rgba(255, 226, 218, 0.34),
+        inset 0 -5rpx 9rpx rgba(50, 8, 5, 0.45);
 }
 
 /* ---------- 并蒂连枝引：盘形按「一屏放得下」重排 ----------
@@ -2158,6 +2184,87 @@
     100% { opacity: 0; transform: rotate(var(--a, 0deg)) translateX(var(--d, 148rpx)) scale(0.55); }
 }
 
+/* ---------- 探禁盘面反馈：石屑涟漪 / 朱砂冲击环 / 连开扫光 ----------
+   跟 .spark 一样是 .grid 里的独立浮层，坐标按格子序号算成百分比，不管格子尺寸档。
+   只有 board--mines 会拿到 mineFxList，其余门这一层恒空，不为它们多画节点。
+   特效是一次性的：类挂上播一遍，页面按每种 life 撤节点。
+   环直径由玩法层按列数下发（--fx-size / --fx-half）：盘从 6×6 推到 12×12，
+   每格从百来 rpx 收到五十几，写死一个直径必然在末段跨格。跨格就会把刚翻开的
+   数字压住——数字是这一盘唯一的信息载体，特效不许挡它。通关那圈 240rpx
+   是唯一例外：那时盘已走完，没有数字要读。 */
+.mine-fx {
+    position: absolute;
+    z-index: 4;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+    /* 兜底值：玩法层按列数下发真实值，这里只保证模板漏传时仍画得出来 */
+    --fx-size: 72rpx;
+    --fx-half: -36rpx;
+}
+
+.mine-fx__ring {
+    position: absolute;
+    left: var(--fx-half, -36rpx);
+    top: var(--fx-half, -36rpx);
+    box-sizing: border-box;
+    width: var(--fx-size, 72rpx);
+    height: var(--fx-size, 72rpx);
+    border-width: 4rpx;
+    border-style: solid;
+    border-radius: 50%;
+    opacity: 0;
+    animation: mineRing 420ms ease-out forwards;
+}
+
+.mine-fx__dot {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0;
+    animation: mineShard 420ms cubic-bezier(0.16, 0.8, 0.3, 1) forwards;
+}
+
+@keyframes mineRing {
+    0% { opacity: 0; transform: scale(0.32); }
+    14% { opacity: 0.9; }
+    48% { opacity: 0.5; }
+    100% { opacity: 0; transform: scale(1.46); }
+}
+
+/* 起点留 14rpx：碎屑从同一格中心出发会挤成一团，起步就该散开。 */
+@keyframes mineShard {
+    0% { opacity: 0; transform: rotate(var(--a, 0deg)) translateX(14rpx) scale(1); }
+    10% { opacity: 1; }
+    58% { opacity: 0.85; }
+    100% { opacity: 0; transform: rotate(var(--a, 0deg)) translateX(var(--d, 90rpx)) scale(0.4); }
+}
+
+/* 踩禁：环扩得更狠、更粗——这是这一局唯一该「刺眼」的一手。 */
+.mine-fx--strike .mine-fx__ring { animation-duration: 520ms; border-width: 6rpx; }
+.mine-fx--strike .mine-fx__dot { animation-duration: 520ms; }
+/* 连开：金光比石屑收得更快，读起来像一道扫过去的光，不是一朵烟花。 */
+.mine-fx--chord .mine-fx__ring { animation-duration: 360ms; }
+.mine-fx--chord .mine-fx__dot { animation-duration: 360ms; }
+/* 钉旗：一枚小金圈原地扣进石面，不往外弹——「钉」是往下按，不是撒开。 */
+.mine-fx--flag .mine-fx__ring,
+.mine-fx--unflag .mine-fx__ring,
+.mine-fx--deny .mine-fx__ring {
+    left: -28rpx; top: -28rpx; width: 56rpx; height: 56rpx;
+    border-width: 3rpx; animation-name: minePin; animation-duration: 360ms;
+}
+@keyframes minePin {
+    0% { opacity: 0; transform: scale(1.5); }
+    22% { opacity: 0.95; }
+    100% { opacity: 0; transform: scale(0.5); }
+}
+/* 只开一格：三粒小屑，不做环，免得每点一下都荡一圈。 */
+.mine-fx--tap .mine-fx__dot { animation-duration: 360ms; }
+/* 通关：金环铺开到整盘，是全盘唯一一次「大」特效。 */
+.mine-fx--win .mine-fx__ring {
+    left: -120rpx; top: -120rpx; width: 240rpx; height: 240rpx;
+    border-width: 3rpx; animation-duration: 880ms;
+}
+
 /* ---------- 灵纹牌：盘面上摆的是图案，不是字形（牵灵引线 / 灵植三秀） ----------
    牌面从深色块退回瓷白：深底上摆彩色的果子看不清，图案要有纸底才立得住。
    二十六个图案（四套主题各六格 + 果器八格）的 sprite 与切位在 styles/crest.wxss，
@@ -2242,6 +2349,30 @@
 .grid--c10.grid--compact .cell__crest {
   width: 52rpx;
   height: 52rpx;
+}
+
+/* ---------- 探禁的 10 / 12 列：满宽近正方，跟另两套 c10 都不同 ----------
+   `.grid--c10` 默认是落石的 408rpx 窄槽（每格 20px），`.grid--c10.grid--compact`
+   是三秀的满宽 76rpx 果器盘。探禁 10×10 / 12×12 要的是数字读得清的近正方格，
+   所以连 board--mines 一起写成三个类，既不串味，也不被后段的 c9/c10 规则盖掉。 */
+.grid--c10.board--mines,
+.grid--c12.board--mines {
+  width: 100%;
+  max-width: none;
+}
+.grid--c10.board--mines .cell {
+  width: 10%;
+  height: 68rpx;
+  font-size: 22rpx;
+  border-width: 3rpx;
+  border-radius: 8rpx;
+}
+.grid--c12.board--mines .cell {
+  width: 8.3333%;
+  height: 56rpx;
+  font-size: 20rpx;
+  border-width: 2rpx;
+  border-radius: 6rpx;
 }
 
 /* ---------- 落石垒基：暂存格与三块预告 ----------

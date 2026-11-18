@@ -1212,7 +1212,7 @@ check('三秀同收：五档整表同管盘面、时辰、罚息与 S 线，不�
 
 check('时辰尺子与四门补的档位参数都只收紧不放宽，且玩法层真的拿得到', function () {
   assert.deepStrictEqual(practice.TIME_LEVELS, [1, 0.97, 0.94, 0.91, 0.88], '时辰尺子被改了');
-  assert.deepStrictEqual(practice.MINES_HEARTS, [3, 3, 3, 2, 2]);
+  assert.deepStrictEqual(practice.MINES_HEARTS, [3, 3, 2, 1, 1]);
   assert.deepStrictEqual(practice.MERGE_START_TILES, [2, 2, 3, 3, 4]);
   assert.deepStrictEqual(practice.PUSHBOX_CAP_FACTORS, [2.2, 2.0, 1.9, 1.75, 1.6]);
   const mines = require('../minigames/mines.js');

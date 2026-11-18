@@ -453,17 +453,25 @@ const CLICK_LEVELS = [
   { grid: 25, cols: 5, lenStep: 5 },
 ];
 
-// 数格辨禁：旧版盘面恒 6×6，五段只动禁制数（5→8）与心神（3→2），评级又只看用时——
-// 复杂度几乎没有变化的空间，而 6×6 的扫雷本来就太浅。
-// 现在盘面 6×6→9×9（36→81 格，2.25 倍）、禁制 5→12（2.4 倍，密度稳在 14–17%）。
-// 时间线跟着格数走（见 mines.js 的 gradeLine），是「给足」不是「压缩」：
-// 9×9 的 S 线 56 秒。推理链变长才是这一门真正的难，不是秒表。
+// 数格辨禁：旧版盘面恒 6×6，五段只动禁制数与心神，评级又只看用时——复杂度没有变化空间。
+// 第二轮推到 9×9/12 禁制，但对照竞技扫雷（初级 9×9/10、中级 16×16/40、高级 30×16/99）
+// 才发现圆满段仍是「初级盘」，还比人家多两处容错、保证无猜——所谓顶峰是假的。
+// 这一版按手机可读上限重排：375px 竖屏每格不能低于 25px，12×12 已到边（约 28px），
+// 16×30 那类竞技盘在触屏上做不到，也不该冒充。
+//
+// 三段真变的东西，按收益排序：
+//   ① 推理深度 deduce：0 / 0 / 1 / 2 / 3 —— 至少逼你用几次「两处数字相减」
+//      （沿墙 1-2-1 是这一族的特例）。不是新规则，是盘逼不逼你用。
+//   ② 无猜保证 allowGuess：大成、圆满放开。推到卡住时留 50/50，玩家得读概率——
+//      这是竞技扫雷最难的一块，旧版整门保证无猜等于把它整块拿掉。
+//   ③ 心神 3 / 3 / 2 / 1 / 1 —— 后两段踩一次即 F，零容错。
+// 盘面 6×6 → 12×12 只是跟上手机上限，不再是难度的主承重轴。
 const MINES_LEVELS = [
-  { cols: 6, rows: 6, mines: 5, hearts: 3 },
-  { cols: 6, rows: 6, mines: 6, hearts: 3 },
-  { cols: 7, rows: 7, mines: 8, hearts: 3 },
-  { cols: 8, rows: 8, mines: 10, hearts: 2 },
-  { cols: 9, rows: 9, mines: 12, hearts: 2 },
+  { cols: 6, rows: 6, mines: 5, hearts: 3, deduce: 0, allowGuess: false },
+  { cols: 6, rows: 6, mines: 6, hearts: 3, deduce: 0, allowGuess: false },
+  { cols: 8, rows: 8, mines: 12, hearts: 2, deduce: 1, allowGuess: false },
+  { cols: 10, rows: 10, mines: 18, hearts: 1, deduce: 2, allowGuess: true },
+  { cols: 12, rows: 12, mines: 24, hearts: 1, deduce: 3, allowGuess: true },
 ];
 // 旧的 MINES_HEARTS 仍然导出（测试与文档引用它），但改成从表里派生，只留一份真源。
 const MINES_HEARTS = MINES_LEVELS.map(function (lv) { return lv.hearts; });
@@ -1039,6 +1047,12 @@ function rawParams(method, depthIndex) {
     out.rows = lv.rows;
     out.mines = lv.mines;
     out.hearts = lv.hearts;
+    // 段差主轴承载在盘上：这一段至少要用几次「两处数字相减」才能推完。
+    // 玩法层的无猜生成真读它（mines.js 的 generate），不是界面上写一行的装饰。
+    out.deduce = lv.deduce;
+    // 大成、圆满放开无猜：允许推到卡住时留 50/50，逼玩家读概率。
+    // 仍是玩法层真读的旋钮（mines.js 的 generate），不是界面文案。
+    out.allowGuess = lv.allowGuess;
   }
   // 落石垒基：盘面是标准场地，不进 params；五段只注入起始级、每级层数与 S 线。
   // 玩法层三样都真的读走（重力表按级取、meter 写「再 N 层进级」、评级看分）。

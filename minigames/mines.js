@@ -20,7 +20,7 @@ const C = require('./common.js');
 const K = require('./teach-kit.js');
 
 const LAYOUT_TRIES = 64;   // 单格可解布局约占十几分之一，64 次足够；找不到就接受最后一盘，绝不死循环
-const HEARTS_BY_DEPTH = [3, 3, 3, 2, 2];
+const HEARTS_BY_DEPTH = [3, 3, 2, 1, 1];
 const MINE_GLYPH = '✕';
 const FLAG_GLYPH = '⚑';   // 阵钉：长按钉下的记号，仍是个通用符号，不落汉字
 // 评级只看用时，所以「按当前用时换算出来的档」在开局那一刻一定是 S。那个字母摆在局内
@@ -64,7 +64,10 @@ function create(ctx) {
   // 提示区只留规则，操作速记交给 guides 的 inline（两行都在讲「长按钉阵钉」是重复的）。
   // 代价句来自准备页的 method.tip；「此盘已验过」是无猜保证，两者都是规则，一起留在提示区。
   const costText = ctx.tip || '误触折 1 盏心神，耗尽即失败';
-  const vm = C.makeVm(cols, n, '点开第一格，禁制才会显形', costText + ' · 此盘已验过，不必靠猜');
+  // 前段保「无猜」是承诺，后段放开就得说实话——开局就说「不必靠猜」，
+  // 玩家撞上 50/50 时只会以为是 bug。
+  const guessText = p.allowGuess === true ? '有处两难，得自己定夺' : '此盘已验过，不必靠猜';
+  const vm = C.makeVm(cols, n, '点开第一格，禁制才会显形', costText + ' · ' + guessText);
   vm.timeText = '00:00';
   vm.scoreText = '已探 0 / ' + (n - mineCount);
   vm.extras.showHearts = true;
@@ -90,6 +93,14 @@ function create(ctx) {
   let hearts = maxHearts;
   let done = false;
   let started = false;
+  let fxSeq = 0;
+
+  // 盘面特效信号：key 自增让页面认出「这是新的一次」重播动画（相邻两次可能点同一格）。
+  // 只报「哪一手、哪一格」，粒子与涟漪长什么样交给页面——玩法层不碰样式。
+  function fx(type, index) {
+    fxSeq += 1;
+    vm.mineFx = { key: fxSeq, type: type, index: index };
+  }
 
   function neighbors(i) {
     const r = Math.floor(i / cols);
@@ -119,12 +130,16 @@ function create(ctx) {
     }
   }
 
-  // ---------------------------------------------------------------- 无猜布局
-  // 只模拟「玩家看得见的信息」：从首点展开，反复用最基础的单格规则推进——
-  //   某数字格周围「未探格数 == 剩余禁制数」→ 全是禁制；剩余 0 → 全安全。
-  // 刻意不引入「1-2-1 / 两个数字格相减」这类高阶技巧：洞微勘禁诀是黄阶入门功法，
-  // 无猜就该是「认得数字就能推完」，不要求玩家先学会扫雷竞赛的推理。
-  // 判定只是验布局，不给玩家任何额外提示；不合格就重布。
+  // ---------------------------------------------------------------- 布局可解性
+  // 只模拟「玩家看得见的信息」，三档推法，都是经典扫雷本来就有的：
+  //   ① 单格规则：某数字格周围「未探格数 == 剩余禁制数」→ 全是禁制；剩余 0 → 全安全。
+  //   ② 全局约束：整盘「剩余禁制数 == 未探格数」→ 全是禁制；剩余 0 → 全安全。
+  //   ③ 两数相减：一处数字的未知格集合若被另一处完全包住，两数之差就是环带里的禁制数；
+  //      差 0 → 环带全安全；差 == 环带格数 → 环带全是禁制。沿墙的 1-2-1 是这一族的特例。
+  // ①②是「认得数字就会玩」的底线，首两段只用它们；③是真扫雷的进阶推法，
+  // 后面几段拿它当段差：规则一个字没加，变的是盘逼不逼你用。求解器记下用了几次。
+  // 大成、圆满另放开「无猜」保证：推到卡住时允许出现 50/50，玩家得读概率——
+  // 这恰恰是竞技扫雷最难的一块，旧版把它整个拿掉了。判定只验布局，不给玩家提示。
   function flood(rev, known, start) {
     if (mineSet[start] || known[start]) return;
     const stack = [start];
@@ -163,31 +178,118 @@ function create(ctx) {
     return true;
   }
 
-  function solvable(startIdx) {
-    const rev = new Array(n).fill(false);
-    const known = new Array(n).fill(false);
-    flood(rev, known, startIdx);
-    if (allSafeOpen(rev)) return true;
-    for (let pass = 0; pass < 16; pass += 1) {
-      let changed = false;
-      const cs = constraints(rev, known);
-      for (let k = 0; k < cs.length; k += 1) {
-        const c = cs[k];
-        if (c.rest === 0) {
-          for (let q = 0; q < c.set.length; q += 1) {
-            const j = c.set[q];
-            if (!rev[j] && !known[j]) { flood(rev, known, j); changed = true; }
+  // 一轮单格规则：返回这一轮有没有推进。
+  function basicStep(rev, known) {
+    let changed = false;
+    const cs = constraints(rev, known);
+    for (let k = 0; k < cs.length; k += 1) {
+      const c = cs[k];
+      if (c.rest === 0) {
+        for (let q = 0; q < c.set.length; q += 1) {
+          const j = c.set[q];
+          if (!rev[j] && !known[j]) { flood(rev, known, j); changed = true; }
+        }
+      } else if (c.rest === c.set.length) {
+        for (let q = 0; q < c.set.length; q += 1) {
+          if (!known[c.set[q]]) { known[c.set[q]] = true; changed = true; }
+        }
+      }
+    }
+    return changed;
+  }
+
+  // 一轮全局约束：剩余禁制数摊到全盘未探格上。这是玩家数一遍旗就能用的推法，
+  // 但在收尾阶段往往比逐格盯着数字更快——旧求解器漏了这一路，会把本可推完的盘
+  // 误判成「必须猜」，反过来让段差掺进运气。
+  function globalStep(rev, known) {
+    let flagged = 0;
+    let hidden = 0;
+    const open = [];
+    for (let i = 0; i < n; i += 1) {
+      if (known[i]) flagged += 1;
+      else if (!rev[i]) { hidden += 1; open.push(i); }
+    }
+    const rest = mineCount - flagged;
+    if (hidden === 0) return false;
+    let changed = false;
+    if (rest === 0) {
+      for (let q = 0; q < open.length; q += 1) {
+        if (!rev[open[q]]) { flood(rev, known, open[q]); changed = true; }
+      }
+    } else if (rest === hidden) {
+      for (let q = 0; q < open.length; q += 1) {
+        if (!known[open[q]]) { known[open[q]] = true; changed = true; }
+      }
+    }
+    return changed;
+  }
+
+  // 一轮「两数相减」：找两处数字的未知格集合的包含关系，用两数之差推外面那一圈。
+  // 沿墙的 1-2-1 在这里就是两处相邻数字的包含关系，不必另写一条模式匹配。
+  // 一次只落一处结论就返回，让外层按次数记账——段差用的就是这个 deep 计数。
+  function pairStep(rev, known) {
+    const cs = constraints(rev, known);
+    let changed = false;
+    for (let a = 0; a < cs.length && !changed; a += 1) {
+      for (let b = 0; b < cs.length && !changed; b += 1) {
+        if (a === b || cs[a].set.length >= cs[b].set.length) continue;
+        const small = cs[a];
+        const big = cs[b];
+        const bigSet = {};
+        for (let q = 0; q < big.set.length; q += 1) bigSet[big.set[q]] = true;
+        let subset = true;
+        for (let q = 0; q < small.set.length; q += 1) {
+          if (!bigSet[small.set[q]]) { subset = false; break; }
+        }
+        if (!subset) continue;
+        const smallSet = {};
+        for (let q = 0; q < small.set.length; q += 1) smallSet[small.set[q]] = true;
+        const ring = [];
+        for (let q = 0; q < big.set.length; q += 1) {
+          if (!smallSet[big.set[q]]) ring.push(big.set[q]);
+        }
+        if (ring.length === 0) continue;
+        const rest = big.rest - small.rest;
+        if (rest < 0) continue;
+        if (rest === 0) {
+          for (let q = 0; q < ring.length; q += 1) {
+            if (!rev[ring[q]] && !known[ring[q]]) { flood(rev, known, ring[q]); changed = true; }
           }
-        } else if (c.rest === c.set.length) {
-          for (let q = 0; q < c.set.length; q += 1) {
-            if (!known[c.set[q]]) { known[c.set[q]] = true; changed = true; }
+        } else if (rest === ring.length) {
+          for (let q = 0; q < ring.length; q += 1) {
+            if (!known[ring[q]]) { known[ring[q]] = true; changed = true; }
           }
         }
       }
-      if (allSafeOpen(rev)) return true;
-      if (!changed) return false;
     }
-    return allSafeOpen(rev);
+    return changed;
+  }
+
+  // 返回 { ok, deep }：deep 是这一盘逼玩家动用了几次「两数相减」。
+  // allowPair=false 时只走单格规则，首两段靠它保证「一眼就会」。
+  // allowGlobal 只给后两段：前段承诺「认得数字就能推完」，全局数旗要额外一步，
+  // 启用它会让标了无猜的盘纯单格推不完——承诺就破了。
+  function solvable(startIdx, allowPair, allowGlobal) {
+    const rev = new Array(n).fill(false);
+    const known = new Array(n).fill(false);
+    flood(rev, known, startIdx);
+    if (allSafeOpen(rev)) return { ok: true, deep: 0 };
+    let deep = 0;
+    for (let pass = 0; pass < 24; pass += 1) {
+      let guard = 0;
+      while (guard < 32) {
+        const g = allowGlobal && globalStep(rev, known);
+        const b = basicStep(rev, known);
+        if (!g && !b) break;
+        guard += 1;
+        if (allSafeOpen(rev)) return { ok: true, deep: deep };
+      }
+      if (allSafeOpen(rev)) return { ok: true, deep: deep };
+      if (!allowPair || !pairStep(rev, known)) return { ok: false, deep: deep };
+      deep += 1;
+      if (allSafeOpen(rev)) return { ok: true, deep: deep };
+    }
+    return { ok: allSafeOpen(rev), deep: deep };
   }
 
   function firstZone(i) {
@@ -224,21 +326,38 @@ function create(ctx) {
     if (candidates.length < mineCount) return false;
     C.shuffle(candidates);
     build(candidates.slice(0, mineCount));
-    return solvable(startIdx);
+    return true;
   }
 
   function generate(startIdx) {
-    for (let t = 0; t < LAYOUT_TRIES; t += 1) {
-      // 除了「能纯推理推完」，还要挡掉「首点就把整盘开完」的退化盘：
-      // 那种盘一落手就判胜、0 秒拿 S，玩家什么都没推演过。
-      if (tryLayout(startIdx) && floodCount(startIdx) < n - mineCount) {
-        noGuess = true;
-        break;
-      }
+    const needDeep = typeof p.deduce === 'number' ? Math.max(0, Math.min(3, p.deduce | 0)) : 0;
+    // 大成、圆满放开无猜：推到卡住时允许留下 50/50，玩家得自己读概率。
+    // 这是竞技扫雷最难的一块，旧版「整门保证无猜」等于把它整块拿掉。
+    const allowGuess = p.allowGuess === true;
+    // 高阶盘的命中率比基础盘低：单格规则刚卡住时未必凑得出包含关系。
+    // 按需要的步数放大尝试次数，但设硬上限，绝不死循环。
+    const tries = LAYOUT_TRIES * (needDeep > 0 ? (3 + needDeep) : 1);
+    for (let t = 0; t < tries; t += 1) {
+      if (!tryLayout(startIdx)) break;
+      // 首点就把整盘开完的退化盘照旧挡掉：0 秒拿 S 等于没参悟。
+      if (floodCount(startIdx) >= n - mineCount) continue;
+      const res = solvable(startIdx, needDeep > 0, allowGuess);
+      // 前段保证「纯推理能推完」；大成、圆满反过来保证推到卡住——求解器只剩
+      // 基础/全局/差分三招时推不动，玩家得用更活的约束或读概率。大成 10×10
+      // 实测 11/12 有猜，圆满 12×12 反而只有 4/12（盘大约束多），不强制就段差倒挂。
+      if (allowGuess ? res.ok : !res.ok) continue;
+      // 允许猜不等于放水：即使卡住，卡住前也必须逼出 needDeep 次两数相减，
+      // 否则「因为有猜所以随便通过」会把段差抹平。
+      if (res.deep < needDeep) continue;
+      noGuess = res.ok;
+      break;
     }
     generated = true;
     vm.extras.noGuess = noGuess;
-    vm.status = noGuess ? '此盘不必猜 · 逐格翻开' : '辨明禁制，逐格翻开';
+    vm.extras.deduce = needDeep;
+    vm.status = noGuess
+      ? (needDeep > 0 ? '此盘不必猜 · 两处数字合起来看' : '此盘不必猜 · 逐格翻开')
+      : '有处两难 · 先推能定的，余下再赌一把';
   }
 
   // ---------------------------------------------------------------- 视图与结算
@@ -350,6 +469,7 @@ function create(ctx) {
     for (let i = 0; i < n; i += 1) {
       if (!mineSet[i] && !revealed[i]) return false;
     }
+    fx('win', Math.floor(n / 2));
     finishOnce(gradeTime(elapsed), elapsed + ' 秒探明秘境');
     return true;
   }
@@ -359,6 +479,7 @@ function create(ctx) {
     exposed[index] = true;
     flags[index] = false;
     vm.status = theme.miss || '触了禁制';
+    fx('strike', index);
     C.flash(vm, '心神 -1 · 禁制显形', 'bad');
     paint();
     syncHud();
@@ -387,6 +508,7 @@ function create(ctx) {
       // 这句以前只写进 vm.status，而 HUD 那行是 goal || status —— goal 一直有值，
       // 所以它从来没露过面。改成浮字，玩家才知道为什么点了没动静。
       vm.status = '阵钉未合';
+      fx('deny', index);
       C.flash(vm, '阵钉未合 · 先钉再点数字格', 'bad');
       render();
       return;
@@ -400,7 +522,10 @@ function create(ctx) {
     if (done) return;
     paint();
     syncHud();
-    if (opened > 0) C.flash(vm, '阵光连开 ' + opened + ' 格', 'good');
+    if (opened > 0) {
+      fx('chord', index);
+      C.flash(vm, '阵光连开 ' + opened + ' 格', 'good');
+    }
     if (checkWin()) return;
     render();
   }
@@ -449,6 +574,7 @@ function create(ctx) {
     syncHud();
     // 开出一片与只开一格，是两种手感：前者该有「石面裂开」的分量，后者才是「无事」。
     // 以前两处都报「石格无事」，推对了一整片也看不出推对了。
+    fx(got > 1 ? 'reveal' : 'tap', index);
     C.flash(vm, got > 1 ? '石开 ' + got + ' 格' : (theme.hit || '石格无事'), 'good');
     if (checkWin()) return;
     render();
@@ -457,6 +583,7 @@ function create(ctx) {
   function longpress(index) {
     if (done || vm.phase !== 'playing' || revealed[index] || exposed[index] || sensedSet[index]) return;
     flags[index] = !flags[index];
+    fx(flags[index] ? 'flag' : 'unflag', index);
     paint();
     syncHud();
     render();
@@ -480,7 +607,8 @@ function lines(p) {
   const rows = (p && p.rows) || 6;
   const line = gradeLine(cols * rows, p && p.lineScale);
   return {
-    rule: '按探完全盘的用时（本段 ' + hearts + ' 盏心神，折了只扣结算分，不影响档位）',
+    rule: '按探完全盘的用时（本段 ' + hearts + ' 盏心神，'
+      + (hearts === 1 ? '折了即失败' : '折了扣结算分，耗尽即失败') + '）',
     items: ['本段 ' + cols + '×' + rows + ' 盘 · ' + ((p && p.mines) || 6) + ' 处禁制 · ' + hearts + ' 盏心神',
       'S ≤ ' + line[0] + ' 秒', 'A ≤ ' + line[1] + ' 秒',
       'B ≤ ' + line[2] + ' 秒', '其余为 C'],
@@ -605,7 +733,9 @@ function createTeach(ctx) {
     doneText: stage === 0
       ? '中心那个 1 说明八格里只有一颗禁制 · 就压在角上'
       : '这一段 ' + spec.cols + '×' + spec.rows + ' · ' + spec.mines + ' 颗禁制 · '
-        + spec.hearts + ' 盏心神，踩一次少一盏',
+        + spec.hearts + ' 盏心神，' + (spec.hearts === 1 ? '踩一次就结束' : '踩一次少一盏')
+        + (stage >= 2 ? ' · 小成起盘面会逼你用两处数字相减' : '')
+        + (stage >= 3 ? ' · 大成起留有两难处，得自己定夺' : ''),
   });
 }
 
