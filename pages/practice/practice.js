@@ -208,6 +208,9 @@ Page({
     this.controller = null;
     // 教学盘是独立控制器：它不结算、不进存档，只负责把「点一格翻五格」演一遍。
     this.teachController = null;
+    // 这一屏已经给过一盘教学没有。换页重进会重来（那是新的 onLoad），
+    // 同一屏里看一遍就够——否则走完教学回头调 onStart 会再判一次 canTeach。
+    this.teachGiven = false;
     this.countdownTimers = [];
     this.needsRebuild = false;
     this.lastFxKey = 0;
@@ -1053,17 +1056,23 @@ Page({
   },
 
   // 只对「模块自带 teach 脚本」的玩法生效；没脚本的玩法照旧开局，不硬塞过场。
+  // **不读存档里「这一段看过没有」**：弹不弹只看「是不是本段的第 1 关」。
+  // 记过一次就再也不弹的代价是「错过即永别」——教学盘整批重做过一次（75 盘），
+  // 而老档的标记还停在旧内容上，玩家回第一关再也见不到新盘。
+  // 不想看的人点右上「跳过指引」，跳过只对这一次有效，离开本页再进来还会给。
+  // `teachGiven` 是「这一屏已经给过一盘」：没有它，finishTeach 回头调 onStart
+  // 会再判一次 canTeach，而 hasTaught 已经不拦了 —— 直接死循环。
   canTeach: function () {
+    if (this.teachGiven) return false;
     if (this.mode !== 'practice' || !this.skillId) return false;
     if (!this.gameId || !minigames.hasTeach(this.gameId)) return false;
-    const stage = this.teachStage();
-    if (stage < 0) return false;
-    return !engine.hasTaught(store.get(), this.skillId, stage);
+    return this.teachStage() >= 0;
   },
 
   startTeach: function () {
     const self = this;
     const stage = this.teachStage();
+    this.teachGiven = true;
     this.teachStageIdx = stage < 0 ? 0 : stage;
     this.clearCountdown();
     this.stopTeach();
@@ -1108,8 +1117,9 @@ Page({
     if (this.data.tutorial) this.setData({ tutorial: false });
   },
 
-  // 跳过与走完同一条路：记下「这一段看过引导」，回准备页重建真局再起手。
+  // 跳过与走完同一条路：记一笔「这一段的教学他见过」，回准备页重建真局再起手。
   // 跳过不做二次确认——它本来就不是门槛，玩家说看懂了就该放他走。
+  // 这笔记录现在只做事后统计与旧接口兼容，**不再决定下一次弹不弹**（见 canTeach）。
   finishTeach: function (skipped) {
     const self = this;
     const stage = typeof this.teachStageIdx === 'number' ? this.teachStageIdx : 0;

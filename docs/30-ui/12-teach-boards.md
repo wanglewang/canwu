@@ -95,7 +95,7 @@ Sokoban 第 1 关是另一种做法（[逐格拆解](https://puzzlebyrinth.com/a
 
 ## 3. 规范（落成代码：`minigames/teach-kit.js`）
 
-### 3.1 什么时候教：每段的第 1 关各一次
+### 3.1 什么时候教：每段的第 1 关都给一盘
 
 | | 首段（第 1 关） | 段界（第 11 / 51 / 201 / 501 关） |
 | --- | --- | --- |
@@ -108,7 +108,13 @@ Sokoban 第 1 关是另一种做法（[逐格拆解](https://puzzlebyrinth.com/a
 
 **步数不是越少越好，也不是越多越好**。判据只有一条：**走完这几步，玩家能不能回答上表右列那个问题**。所以一眼就会的门（成对翻牌、顺序点格、数中取大）首段也给 2 步——不是为了教规则，是让他**在真按钮上按两下**：第一手证明「点得中」，第二手才证明「规则成立」；顺手把「一局有多少对 / 一局挑几轮 / 点错罚几秒」说出来。
 
-存档按段记：`state.skills[id].teachSeen = [bool × 5]`，读 `engine.hasTaught(state, id, stage)`、写 `engine.markTaught(...)`。老档只有布尔 `onboarded`，它等价于 `teachSeen[0]`（升级上来的老玩家仍会各看到一次段界引导，这是设计）。**跳过也算看过本段**——跳过按钮从第一帧就在，它不该被用来「留着以后再看」。
+**弹不弹只看关号，不看存档。** 判据只有一条：`level` 是不是本段的第 1 关（1 / 11 / 51 / 201 / 501）。是，就给一盘；不想看的人点右上「跳过指引」，跳过只结束这一次，下次进这一关还会给。
+
+> **2026-11-18 改口径**：原先是「每段各一次」，用 `teachSeen[5]` 记、`hasTaught` 拦，跳过也算看过。代价在内容整批重做之后暴露出来：75 盘全换了，而老档的标记还停在旧内容上——升级上来的玩家回第 1 关，**再也见不到新版首段**（`onboarded === true` 会迁成 `teachSeen[0]`）。教学是「带着玩一次」不是「读完才能玩」，那就每次都给，让玩家自己决定这一遍看不看。回打第 1 关会再弹一次，这是明码代价：一次点击换「不会错过」。
+
+存档仍记 `state.skills[id].teachSeen = [bool × 5]`（`engine.markTaught(...)`），但它现在只是**事后统计与旧接口兼容**，`canTeach()` 里不许再读 `hasTaught` —— 一读就退回「错过即永别」。老档只有布尔 `onboarded`，等于 `teachSeen[0]`。
+
+**同一屏只给一盘**（`this.teachGiven`）。它防的不是「玩家不想看」，是一个真会死循环的环：`finishTeach` 走完会回头调 `onStart`，`onStart` 又判 `canTeach()`——删掉存档那道闸之后，这里会无限重进教学。判据落在「这一屏给过没有」，不落存档：离开页面再进来是新的 `onLoad`，照样给一盘。
 
 ### 3.2 每一手的规矩
 
@@ -171,12 +177,12 @@ Sokoban 第 1 关是另一种做法（[逐格拆解](https://puzzlebyrinth.com/a
 | --- | --- |
 | `minigames/teach-kit.js` | 公用骨架：造 vm、压暗与呼吸、错点拒绝、走完交棒、自报 `vm.teachPlan`（供测试驱动） |
 | `minigames/<id>.js` 的 `teach` | 每门只提供 `cells` / `paint` / `steps` 三样；五段规格走各自的 `TEACH_*[5]` 表 |
-| `pages/practice/practice.js` | `teachStage / canTeach / startTeach / finishTeach`；`teachStage()` 只在本段第 1 关返回段号，其余返 -1；教学态把 tap **与 move / swipe / 长按**都转给教学控制器，并补音效 |
-| `utils/game/profs.js` | `hasTaught / markTaught(state, id, stage)`；`teachSeen[5]` 是存档真源，`onboarded` 保留为「首段」的旧别名 |
+| `pages/practice/practice.js` | `teachStage / canTeach / startTeach / finishTeach`；`teachStage()` 只在本段第 1 关返回段号，其余返 -1；`canTeach()` **只读关号，不读存档**；教学态把 tap **与 move / swipe / 长按**都转给教学控制器，并补音效 |
+| `utils/game/profs.js` | `markTaught(state, id, stage)` 记一笔「这一段见过」；`teachSeen[5]` 保留为统计口径，`onboarded` 是「首段」的旧别名。**两者都不再拦弹窗** |
 | `pages/practice/practice.wxml` `.teach` | 盘面上方的窄条 + 「跳过指引」 |
 | `tests/minigames.test.js` | 15 门 × 5 段逐盘按 `teachPlan` 走：错点不推进、只交棒一次、首段 ≥ 2 步、段界 ≤ 3 步、五段文案至少三种 |
 | `tests/game.test.js` | `teachSeen` 五格独立、老档 `onboarded` 迁到第 0 段、`markTaught` 不串门 |
-| `tests/layout.test.js` | 教学条的 DOM 位置、文案真源、不盖盘面、页面接的是 `hasTaught / markTaught` |
+| `tests/layout.test.js` | 教学条的 DOM 位置、文案真源、不盖盘面、`canTeach()` 函数体里不许出现 `hasTaught`（防「错过即永别」改回去） |
 
 ---
 
@@ -186,4 +192,4 @@ Sokoban 第 1 关是另一种做法（[逐格拆解](https://puzzlebyrinth.com/a
 2. 压暗 0.34 在深色底上是否够；`cell--teach-dim` 与盘面纸纹叠加后会不会发灰。
 3. 落石垒基与移星换斗诀的教学盘在 6 寸屏上，教学条 + 窄盘是否挤。
 4. 教学态补了音效之后，`tone` 与正式局的音量是否一致（教学不该更响）。
-5. 老档升级路径：真机上确认「首段不重弹、后四段各弹一次」，以及跳过之后杀进程重进不再弹（`markTaught` 是同步落存档，但真机冷启动读档才是最终判据）。
+5. 老档升级路径：真机上确认「第 1 关照样弹一次」（不再是「首段不重弹」），以及跳过之后杀进程重进**还会弹**——跳过只管这一次，这是本轮改口径后的预期行为，最容易被当成 bug 报回来。

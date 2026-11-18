@@ -1935,12 +1935,22 @@ check('首局手把手：盘上引导而不是全屏弹窗，跳过有入口、�
   assert.strictEqual(copy.UI.actions.skipTeach, '跳过指引');
   assert.ok(wxml.indexOf('跳过指引') < 0, '引导文案被写死在 WXML 里');
 
-  // 第一次开局先走教学，只对自带脚本的玩法生效；走完必须落存档，否则每次进来都弹。
-  // 存档标记按「段」记（一门五段各一次）：markTaught(state, skillId, stage)。
+  // 教学盘只对自带脚本的玩法生效，且**每次**进本段第 1 关都给一盘：
+  // 弹不弹只看「是不是段的第 1 关」，不看存档里「这一段看过没有」。
+  // 记过一次就再也不弹，代价是错过即永别（教学盘整批重做过一次，
+  // 老档标记还停在旧内容上，玩家回第一关再也见不到新盘）。
+  // 想不看的走「跳过指引」，跳过只对这一次有效——所以 canTeach 里不许再读 hasTaught。
   assert.ok(/canTeach: function/.test(js) && /minigames\.hasTeach/.test(js), '页面没接教学判断');
   assert.ok(/if \(this\.canTeach\(\)\) \{ this\.startTeach\(\); return; \}/.test(js), '开局没先走引导');
-  assert.ok(/engine\.markTaught/.test(js), '走完引导没写存档');
-  assert.ok(/engine\.hasTaught/.test(js), '没读存档判断是否已看过');
+  const canTeachBody = /canTeach: function \(\) \{([\s\S]*?)\n  \},/.exec(js);
+  assert.ok(canTeachBody, '没找到 canTeach 函数体');
+  assert.ok(canTeachBody[1].indexOf('hasTaught') < 0,
+    'canTeach 又拿「这一段看过没有」拦弹窗了：错过一次就永远看不到');
+  // 「这一屏给过没有」是防死循环的闸：走完教学会回头调 onStart，onStart 又判 canTeach，
+  // 而存档那道闸已经被拿掉了——少了它，教学盘会无限重进。
+  assert.ok(canTeachBody[1].indexOf('teachGiven') >= 0, 'canTeach 少了「这一屏给过」的闸');
+  assert.ok(/this\.teachGiven = true/.test(js), 'startTeach 没记「这一屏已经给过一盘」');
+  assert.ok(/engine\.markTaught/.test(js), '走完引导没留「这一段见过」的记录');
   assert.strictEqual(index.hasTeach('lights'), true, '星罗烛天诀没有教学脚本');
   assert.ok(game.markOnboarded && game.hasOnboarded, '引擎没有引导标记接口');
 
