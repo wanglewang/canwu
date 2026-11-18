@@ -360,7 +360,7 @@
 
       <!-- 落石垒基把暂存与预告摆在盘面右侧，其余玩法这一层不生效（普通 block）。 -->
       <view class="board-flex {{vm.blocks ? 'board-flex--tetris' : ''}}">
-      <view wx:if="{{(vm.stage === 'board' || vm.stage === 'lane') && vm.extras.showGrid}}" class="grid grid--c{{vm.cols}} {{vm.stage === 'lane' ? 'grid--lane' : ''}} {{vm.extras.compact ? 'grid--compact' : ''}}">
+      <view wx:if="{{(vm.stage === 'board' || vm.stage === 'lane') && vm.extras.showGrid}}" class="grid grid--c{{vm.cols}} {{vm.stage === 'lane' ? 'grid--lane' : ''}} {{vm.extras.compact ? 'grid--compact' : ''}} {{boardCls}}">
         <view wx:for="{{slashList}}" wx:key="key" class="grid__slash" style="transform:translate(-50%,-50%) rotate({{item.angle}}deg)">
           <view class="grid__slash-beam"></view>
         </view>

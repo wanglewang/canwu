@@ -568,6 +568,10 @@ Page({
       title: skill.name,
       subtitle: skill.desc,
       gameName: minigames.gameName(method.game),
+      // 盘面配色的作用域钩子。只有扫雷挂：它的「未探 / 已探」是正反两种牌面，
+      // 而数独的已填格虽同名（cell--open），语义是「这一格定了」，要留亮纸。
+      // 挂钩不入样式判断，只在 wxss 里挑一组色，别的门拿不到这个类。
+      boardCls: method.game === 'mines' ? 'board--mines' : '',
       // 与局内那一行同源：三秀同收的罚息按档变，这里不许留一句写死的「少 2 息」。
       tip: practiceData.tipFor(method, stageIdx),
       ruleText: ruleText,
