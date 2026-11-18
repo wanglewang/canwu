@@ -2146,53 +2146,41 @@ check('灵纹牌按剪影族取，不按 sprite 序号取；四套主题共用�
   assert.ok(/crestOf\(board\[i\], 0\)/.test(src), '教学盘没走族序映射（且没钉在第一套主题）');
 });
 
-check('并蒂引盘形：空位只挖边沿、段内对数恒定、每四关换一副', function () {
+check('并蒂引满盘：一格缺口都不许有、对数是格数一半、段内恒定', function () {
   const L = require('../minigames/link.js');
   const ld = require('../data/levels.js');
   const pd = require('../data/practice.js');
-  const src = read('minigames/link.js');
   const method = pd.PRACTICE_METHODS.filter(function (m) { return m.game === 'link'; })[0];
 
-  // 一、四副布局：id 与名字唯一。
-  const lays = ld.LINK_LAYOUTS;
-  assert.ok(lays.length >= 4, '盘形不足四副，段内轮换撑不住');
-  assert.strictEqual(new Set(lays.map(function (x) { return x.id; })).size, lays.length, '盘形 id 重复');
-  assert.strictEqual(new Set(lays.map(function (x) { return x.name; })).size, lays.length, '盘形名重复');
-
-  // 二、每段之内：空位数恒定（= 对数恒定），且空位只挖在边沿。
-  //     中腹挖空会变成一条免费通道（实测每对可连量 +43%），那是变松不是变样；
-  //     对数一变，floor(每对预算 × 对数) 还会在那一关把每对预算顶高 0.03 息——
-  //     盘上写着「每对时辰 5.42 → 5.45」，玩家读到的是这一关变松了。
+  // 一、盘面是一整块矩形：不许再带空位表，也不许留「盘形」这根假轴
+  //     （参数在动而盘上什么都没变，比没有这根轴更糟）。
   for (let st = 0; st < ld.STAGES.length; st += 1) {
     const range = ld.stageRange(st);
-    let gapCount = -1;
+    let pairs = -1;
     for (let lv = range.from; lv <= range.to; lv += 1) {
       const q = pd.buildParamsAt(method, lv);
-      assert.ok(Array.isArray(q.gaps), '第 ' + lv + ' 关的参数没带上盘形空位');
-      assert.deepStrictEqual(q.gaps, ld.linkGapsAt(lv, q.cols, q.rows),
-        '第 ' + lv + ' 关的空位不是生成端那一份');
-      if (gapCount < 0) gapCount = q.gaps.length;
-      assert.strictEqual(q.gaps.length, gapCount, '第 ' + lv + ' 关的空位数和本段别的关不一样');
-      assert.strictEqual((q.cols * q.rows - q.gaps.length) % 2, 0, '第 ' + lv + ' 关剩下奇数格，配不成对');
-      for (const g of q.gaps) {
-        const r = Math.floor(g / q.cols);
-        const c = g % q.cols;
-        assert.ok(r === 0 || r === q.rows - 1 || c === 0 || c === q.cols - 1,
-          '第 ' + lv + ' 关把空位挖到了中腹（第 ' + r + ' 行第 ' + c + ' 列）——那是一条免费通道，不是换盘');
-      }
+      assert.ok(!('gaps' in q), '第 ' + lv + ' 关的参数还带着空位表——盘上会有缺口');
+      assert.ok(!('layout' in q), '第 ' + lv + ' 关的参数还带着盘形轴——盘上没有东西会跟着变');
+      assert.strictEqual((q.cols * q.rows) % 2, 0, '第 ' + lv + ' 关整盘是奇数格，配不成对');
+      if (pairs < 0) pairs = (q.cols * q.rows) / 2;
+      // 对数一变，floor(每对预算 × 对数) 就会在那一关把每对预算顶高 0.03 息，
+      // 界面上写成「每对时辰 5.42 → 5.45」——玩家读到的是这一关变松了。
+      assert.strictEqual(pd.linkPairsAt(lv, q.cols, q.rows), pairs,
+        '第 ' + lv + ' 关的对数和本段别的关不一样——每对预算会被取整顶回松的一档');
     }
   }
 
-  // 三、节奏：段内每 4 关换一副，四副轮一圈后回到第一副。
-  const base = ld.stageRange(1).from;
-  const seq = [];
-  for (let lv = base; lv < base + 16; lv += 1) seq.push(ld.linkLayoutOf(lv));
-  assert.deepStrictEqual(seq, [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3],
-    '段内盘形不是每四关换一副：' + seq.join(','));
-  assert.strictEqual(ld.linkLayoutOf(base + 16), 0, '四副没有循环回第一副');
+  // 二、段间几何台阶：行数恒六，列数 4 → 6 → 8。
+  const specOf = function (lv) { return pd.buildParamsAt(method, lv); };
+  assert.deepStrictEqual([1, 100, 300, 700].map(function (lv) {
+    const q = specOf(lv);
+    return q.cols + '×' + q.rows;
+  }), ['4×6', '4×6', '6×6', '8×6'],
+    '段间盘面几何没按 4 / 6 / 8 列走，或行数不再是六');
 
-  // 四、玩法层只消费：p.gaps 决定盘上的空位，对数与数据层是同一把尺子。
-  for (const lv of [1, base, base + 4, 300, 700]) {
+  // 三、玩法层开出来就是满盘：没有透空格，牌数 = 对数 × 2。
+  const base = ld.stageRange(1).from;
+  for (const lv of [1, base, 300, 700]) {
     const q = pd.buildParamsAt(method, lv);
     let vm = null;
     const c = L.create({
@@ -2202,29 +2190,19 @@ check('并蒂引盘形：空位只挖边沿、段内对数恒定、每四关换�
     c.start();
     c.destroy();
     const holes = vm.cells.filter(function (x) { return x.cls.indexOf('cell--hole') >= 0; });
-    assert.strictEqual(holes.length, q.gaps.length, '第 ' + lv + ' 关盘上的空位数与参数不符');
-    for (const h of holes) {
-      assert.strictEqual(h.crest, 0, '第 ' + lv + ' 关空位上摆了纹样');
-      assert.ok(h.cls.indexOf('cell--lit') < 0, '第 ' + lv + ' 关的空位亮着，读起来像一张牌');
-    }
+    assert.strictEqual(holes.length, 0, '第 ' + lv + ' 关盘上还有透空缺口——连连看不该缺块');
+    assert.strictEqual(vm.cells.length, q.cols * q.rows, '第 ' + lv + ' 关盘上的格数不是整盘');
     assert.strictEqual(vm.link.pairs, pd.linkPairsOf(q),
       '第 ' + lv + ' 关玩法层与数据层算出的对数不一样（时辰的分母会跟着错）');
     const tokens = vm.cells.filter(function (x) { return x.crest; }).length;
     assert.strictEqual(tokens, vm.link.pairs * 2, '第 ' + lv + ' 关牌数不是对数的两倍');
   }
 
-  // 五、主题名只有一处：数据层的名字表与玩法层的 CREST_THEMES 必须同序同名，
+  // 四、主题名只有一处：数据层的名字表与玩法层的 CREST_THEMES 必须同序同名，
   //     否则「本关变化」会写着「纹样 甜点 → 海洋」而盘上换的是别的两套。
   assert.deepStrictEqual(ld.LINK_THEME_NAMES, L.CREST_THEMES.map(function (t) { return t.name; }),
     '主题名表与 CREST_THEMES 不同序');
   assert.strictEqual(ld.LINK_THEME_COUNT, L.CREST_THEMES.length, '主题数与纹样套数不一致');
-
-  // 六、空位不是「收走的牌」：.cell--gone 是牌位空掉（压暗留痕），
-  //     .cell--hole 是这里本来没有牌位（整格透空）。两种画法都得有。
-  const css = read('pages/practice/practice.wxss');
-  assert.ok(/\.cell--hole\s*\{/.test(css), '盘形空位没有样式');
-  assert.ok(/\.cell--hole\s*\{[\s\S]*?background:\s*none/.test(css), '空位还留着牌面底色，看起来像一张牌');
-  assert.ok(/hole\[i\]/.test(src), 'paint 没按空位表分叉');
 });
 
 check('并蒂引折数：生成端按段收紧、玩法层真读走、教学盘示范对在本段折数下可连', function () {

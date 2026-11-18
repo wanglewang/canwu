@@ -761,7 +761,8 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   } else checked += 1;
   // 段内布纹必须两头都有人管：levels.js 生成 weave，link.js 读走它去派牌。
   // 只在一头写参数，就是 8b-5d 守的「生成了没生效 / 消费了没生成」假变化。
-  // 盘形同理：levels.js 生成 gaps，link.js 按空位表派牌（空位不铺纹）。
+  // 满盘同理反过来钉：曾经 levels.js 生成 gaps、link.js 按空位派牌，
+  // 那副「盘上缺块」已经被否掉了，再有人加回来要当场红。
   const levelsSrc = fs.readFileSync(path.join(ROOT, 'data/levels.js'), 'utf8');
   if (!/game === 'link'[\s\S]{0,420}out\.weave\s*=/.test(levelsSrc)
       || !/(p|params)[ ]*[.][ ]*weave(?![a-zA-Z])/.test(linkSrc)
@@ -769,9 +770,8 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
       || typeof linkMod.pairCounts !== 'function') {
     errors.push('linkpair 的段内布纹没接成：levels.js 没生成，或 link.js 读了没派牌');
   } else checked += 1;
-  if (!/game === 'link'[\s\S]{0,520}out\.gaps\s*=/.test(levelsSrc)
-      || !/(p|params)[ ]*[.][ ]*gaps(?![a-zA-Z])/.test(linkSrc)) {
-    errors.push('linkpair 的盘形没接成：levels.js 没生成 gaps，或 link.js 没按空位派牌');
+  if (/out\.gaps\s*=/.test(levelsSrc) || /linkGapsAt|LINK_LAYOUTS|out\.layout\s*=/.test(levelsSrc)) {
+    errors.push('linkpair 又长出盘形空位了：并蒂引必须是满盘矩形，一格缺口都不许有');
   } else checked += 1;
   // 折数是段间难度轴：practice.js 生成 turns，link.js 的判定 / 提示 / 重排三处都得读。
   // 只生成不消费时盘面与提示会分叉（「照纹说能连、点上去连不上」），而界面不报错。
@@ -903,7 +903,7 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   // 「N 关有东西可报」不写字面量：N 就是上面逐关数出来的 reported。
   // 写死一个数字，改了轮换节奏之后文档会与代码各说各的，而且没有任何断言会红。
   if (!/收干净那一刻的剩余息/.test(doc) || doc.indexOf(reported + ' 关有东西可报') < 0
-      || !/布纹/.test(guide) || !/盘形/.test(guide) || !/盘形/.test(doc)) {
+      || !/布纹/.test(guide) || !/满盘/.test(guide) || !/满盘/.test(doc)) {
     errors.push('11-并蒂连枝引 的玩法文档 / 说明页又是旧版（应为「' + reported
       + ' 关有东西可报」）：改了机制必须同批改那一篇');
   } else checked += 1;

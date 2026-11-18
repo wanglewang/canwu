@@ -522,11 +522,11 @@ function matchLevelOf(stageIndex) {
 // 圆满 0.92→0.57；死局由玩法层的重排兜住（换盘不扣息、只断连收）。
 // 盘面尺寸决定「一对有几息」，折数决定「这一息里找得到几对」——两条轴互不顶替。
 const LINK_LEVELS = [
-  { cols: 4, rows: 6, kinds: 4, turns: 2 },   // 挖四格 = 20 格 · 10 对 · 4 种纹：段首多的一种 6 枚，路径好找
-  { cols: 4, rows: 6, kinds: 5, turns: 2 },   // 10 对 · 5 种纹
-  { cols: 4, rows: 6, kinds: 6, turns: 2 },   // 10 对 · 6 种纹：换段只换纹种，盘还是这一副
-  { cols: 6, rows: 6, kinds: 6, turns: 1 },   // 挖四格 = 32 格 · 16 对：大成第一次加列，同时收紧到一折
-  { cols: 8, rows: 6, kinds: 6, turns: 1 },   // 挖四格 = 44 格 · 22 对：圆满加到八列，行数不动
+  { cols: 4, rows: 6, kinds: 4, turns: 2 },   // 满盘 = 24 格 · 12 对 · 4 种纹：段首多的一种 6 枚，路径好找
+  { cols: 4, rows: 6, kinds: 5, turns: 2 },   // 12 对 · 5 种纹
+  { cols: 4, rows: 6, kinds: 6, turns: 2 },   // 12 对 · 6 种纹：换段只换纹种，盘还是这一副
+  { cols: 6, rows: 6, kinds: 6, turns: 1 },   // 满盘 = 36 格 · 18 对：大成第一次加列，同时收紧到一折
+  { cols: 8, rows: 6, kinds: 6, turns: 1 },   // 满盘 = 48 格 · 24 对：圆满加到八列，行数不动
 ];
 // 每对预算（息）：第 1 关 5.5 → 第 200 关 2.75，正好 2 倍。
 // 拿「每对」而不是「总秒数」当主承重：换章盘面变大，总秒数跟着变长是应该的，
@@ -582,18 +582,16 @@ function linkDurationAt(level) {
   return Math.max(20, out);
 }
 
-// 本关能接几对 = (格数 − 空位数) / 2。**这一门所有「每对」的分母都只从这一个函数出**
-// （时辰 / 规格串 / 末关跨度 / 本关变化），空位一加就有四处要改，各算一套必然对不上。
+// 本关能接几对 = 格数 / 2。盘面满盘无缺口，所以分母就是整盘格数的一半
+// （4×6=12 / 6×6=18 / 8×6=24）。**这一门所有「每对」的分母都只从这一个函数出**
+// （时辰 / 规格串 / 末关跨度 / 本关变化），别在各处写 cols*rows/2。
 function linkPairsAt(level, cols, rows) {
-  const gaps = levelData.linkGapsAt(level, cols, rows);
-  return Math.max(1, (cols * rows - gaps.length) / 2);
+  return Math.max(1, (cols * rows) / 2);
 }
 
-// 同一件事的「按参数算」版本：上面那个吃关号，这个吃已经算好的 params（q.gaps 在里头）。
+// 同一件事的「按参数算」版本：上面那个吃关号，这个吃已经算好的 params。
 function linkPairsOf(q) {
-  const cells = (q.cols || 0) * (q.rows || 0);
-  const holes = Array.isArray(q.gaps) ? q.gaps.length : 0;
-  return Math.max(1, (cells - holes) / 2);
+  return Math.max(1, ((q.cols || 0) * (q.rows || 0)) / 2);
 }
 
 // 局内那行代价句要跟着本段罚息走：以前写死「少 2 息」，改了档就变成假话。
@@ -957,8 +955,6 @@ function rawParams(method, depthIndex) {
     out.theme = levelData.linkThemeOf(levelData.stageRange(d.depth).from);
     // 盘形同理：段级读者拿到的是段首关那一副（未入门段是整块），段内轮换由 tweakParams 注入。
     // 空位列表要跟 duration 同源：时辰的分母是「本关能接几对」，挖了空位就不是 cols*rows/2。
-    out.layout = levelData.linkLayoutOf(levelData.stageRange(d.depth).from);
-    out.gaps = levelData.linkGapsAt(levelData.stageRange(d.depth).from, out.cols, out.rows);
   }
   // 阵灯推演按「比最优多走几步」评级，盘面规格、最优步数区间与步数余量由这一份表按档注入。
   if (method && method.game === 'lights') {
@@ -1347,13 +1343,6 @@ function levelDelta(method, level) {
       out.push({ key: 'turns', label: '转折',
         text: '连线只准转折 ' + now.turns + ' 次（原 ' + prev.turns + ' 次）' });
     }
-    // 盘形与纹样是段内一眼看得见的两件事：每四 / 五关换一副，所以排在最前，
-    // 优先于「布纹」（每 10 关才动一格）与「每对时辰」（几乎每关都在动）。
-    // 换段那关不报——段首本来就是整块 + 新纹种，前三条额度已经说完了。
-    if (!chStart && now.layout !== prev.layout) {
-      out.push({ key: 'layout', label: '盘形',
-        text: '盘形 ' + levelData.linkLayoutNameOf(prevLv) + ' → ' + levelData.linkLayoutNameOf(lv) });
-    }
     if (!chStart && now.theme !== prev.theme) {
       out.push({ key: 'theme', label: '纹样',
         text: '纹样 ' + linkThemeNameOf(prev.theme) + ' → ' + linkThemeNameOf(now.theme) });
@@ -1597,11 +1586,11 @@ function stageDetail(method, stageIndex) {
     // 这一门的难度不写在总秒数上（盘变大时辰就变长），写在「一对平均给几息」上。
     // 每对时辰从本段真实参数现算，不另抄一份 linkPerPairAt——向下取整之后两者会差到
     // 0.08 息，准备页说 5.50、局内却是 5.42，玩家一眼就看得出是两张嘴。
-    // 对数也要读 linkPairsOf：盘形挖掉四格之后，cols*rows/2 已经不是牌的对数了。
+    // 对数也要读 linkPairsOf：满盘时它恰好就是 cols*rows/2，但分母只许从这一处出。
     const pairs = linkPairsOf(now);
     brief = now.cols + '×' + now.rows + ' 盘 · ' + pairs + ' 对 · ' + now.kinds + ' 种灵纹 · '
       + now.duration + ' 息 · 每对 ' + (now.duration / pairs).toFixed(2) + ' 息 · 连线只准 '
-      + now.turns + ' 折 · 布纹由均匀渐至极偏 · 盘形四副轮换';
+      + now.turns + ' 折 · 布纹由均匀渐至极偏 · 满盘无缺口';
   } else if (method && method.game === 'tempo') {
     // 这一门的段差是「换了一副谱」，不是「快了几毫秒」：谱型 / 手数 / 提示三样写在一句里，
     // 准备页才不会写着「最快节奏」而玩家进局发现只是窗窄了一点。

@@ -218,7 +218,8 @@ function pairCounts(pairs, kinds, weave) {
   return counts;
 }
 
-// 盘形：空位由数据层按关号一次算清（`data/levels.js` 的 `linkGapsAt`），这里只消费。
+// 满盘：数据层不再给空位，hole 恒为空表。这里保留按 hole 生成的代码，
+// 是为了老参数里万一还带着 gaps 时不至于把盘弄坏；正常一局里 open 就是整盘。
 // 不写「没给就自己挖一个」的兜底：兜底一旦和生成端算得不一样，盘上就少一对，
 // 而时辰是按生成端的对数算出来的——界面上看不出是哪一步错了。
 function makeBoard(hole, kinds, weave) {

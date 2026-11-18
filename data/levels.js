@@ -128,85 +128,19 @@ function linkThemeOf(level) {
   return Math.floor((lv - 1) / LINK_THEME_EVERY) % LINK_THEME_COUNT;
 }
 
-// 并蒂引的盘形：段内每关都在收预算，屏幕上却几乎一样（相邻两关差 0.06%）。
-// 业界同类的做法不是加特效，是换盘形——麻将 solitaire 收了 650+ 套布局，
-// 宠物连连看的九关就是九套布局，三消也把 board geometry 单列为一项难度驱动。
-// 盘形是配对类真正的内容单位：牌面不变、规则不变，扫描路径换了。
+// 并蒂引：**满盘、无缺口**。
+// 这一门的盘面就该是一整块矩形——缺口只会被读成「盘被敲坏了」，不是「换了副形状」。
+// 曾经为了换盘形在边沿挖四格，四角那一副尤其像被敲掉两块；砍掉之后对数从
+// 10 / 16 / 22 变成 12 / 18 / 24（就是整盘格数除以二），时辰仍按同一条
+// 「每对预算 × 对数」公式算，每对预算一分没动，只是局时跟着对数一起长。
 //
-// 空位只挖在边上，不挖中腹：中腹挖空会变成一条免费通道（实测每对可连量 +43%），
-// 那是变松不是变样；边上挖口子只减「牌数」，通路结构几乎不动。四副的实测带宽
-// （kinds 6 / 6×4：每对可连 0.73–0.82；kinds 4：1.24–1.32）写在
-// docs/20-minigames/11-并蒂连枝引/总览.md。
+// 满盘不是死盘：`findPath` 本来就允许多走盘外一圈当走廊，开局与每次消除后
+// 若摆不出可连的一对，玩法层会自动重排（见 minigames/link.js 开头）。
+// 旧笔记里「满盘可连对数为 0」是拿固定条纹模板测出来的，不是真生成器——
+// 那个模板同纹全落在对角线上，跟有没有空位无关，别再拿它当反例。
 //
-// **每段之内空位数恒定（四格），一副不落**。不是舍不得挖，是因为对数就是时辰的分母：
-// 段内若有一关少一对，floor(每对预算 × 对数) 会在那一关把每对预算顶高 0.03 息——
-// 盘上写着「每对时辰 5.42 → 5.45」，玩家读到的是这一关变松了，而这纯是取整的回弹。
-// 空位数恒定，段内对数就不动，每对预算才会严格只减不增。
-const LINK_LAYOUTS = [
-  { id: 'both', name: '上下缺' },   // 上下两沿正中各缺两格
-  { id: 'side', name: '两侧缺' },   // 左右两边正中各缺两格
-  { id: 'cross', name: '四门缺' },  // 四边正中各缺一格（十字对称）
-  { id: 'corner', name: '角位缺' }, // 四角各缺一格
-];
-// 空位数：**每一段都挖四格，一格都不能省**。
-// 试过「盘形正好等于目标格数，不挖空位」（5×4 满盘），实测两折下可连对数为 0——
-// 开局就是一副死盘：连线要有一条空的行或列当走廊，满盘时任何两折路径都被牌堵死。
-// 空位不是装饰，是这一门成立的前提。
-// 四格也刚好让三副盘形都落在偶数上（24−4=20 / 36−4=32 / 48−4=44），
-// 不会出现「挖四个剩奇数、只能丢掉一个角」的三缺一——5×7 那一版就是这么残的。
-// 数量挂段不挂盘形：对数就是时辰的分母，段内必须恒定。
-const LINK_GAP_COUNT = [4, 4, 4, 4, 4];
-// 4 关一轮，按段内进度算（段首关是四副里的第一副，换段换的是盘面规格，不是布局）。
-// 与纹样的 5 关不同周期，所以大多数关只有一个轴在变，偶尔两件一起换。
-// 按段内进度而不是按全书关号：按全书算的话，段首关会从四副里随便一副开始，
-// 「换段」这件事在盘面上就看不出来了。
-const LINK_LAYOUT_EVERY = 4;
-
-function linkLayoutOf(level) {
-  const lv = Math.max(1, Math.round(Number(level) || 1));
-  const off = lv - stageRange(stageOfLevel(lv)).from;
-  return Math.floor(off / LINK_LAYOUT_EVERY) % LINK_LAYOUTS.length;
-}
-
-function linkLayoutNameOf(level) {
-  const spec = LINK_LAYOUTS[linkLayoutOf(level)];
-  return spec ? spec.name : LINK_LAYOUTS[0].name;
-}
-
-// 空位是「格子下标」，由数据层一次算清，玩法层只消费（p.gaps）。
-// 不给玩法层自己算的理由：对数（时辰的分母）也算在这里，两处各算一套迟早对不上。
-function linkGapsAt(level, cols, rows) {
-  const lv = Math.max(1, Math.round(Number(level) || 1));
-  const want = LINK_GAP_COUNT[stageOfLevel(lv)] || 0;
-  // 这一段的盘形不需要空位：直接给空表。调用方（对数、时辰、规格串）都从
-  // 返回值的长度反推，所以「不挖」和「挖四个」走的是同一条路，没有第二套算法。
-  if (!want) return [];
-  const spec = LINK_LAYOUTS[linkLayoutOf(lv)] || LINK_LAYOUTS[0];
-  const c = Math.max(3, Math.round(cols) || 6);
-  const r = Math.max(3, Math.round(rows) || 4);
-  const c0 = Math.floor((c - 2) / 2);
-  const r0 = Math.floor((r - 2) / 2);
-  const at = function (rr, cc) { return rr * c + cc; };
-  let gaps = [];
-  if (spec.id === 'both') gaps = [at(0, c0), at(0, c0 + 1), at(r - 1, c0), at(r - 1, c0 + 1)];
-  else if (spec.id === 'side') gaps = [at(r0, 0), at(r0 + 1, 0), at(r0, c - 1), at(r0 + 1, c - 1)];
-  else if (spec.id === 'cross') gaps = [at(0, c0), at(r - 1, c0), at(r0, 0), at(r0, c - 1)];
-  else if (spec.id === 'corner') gaps = [at(0, 0), at(0, c - 1), at(r - 1, 0), at(r - 1, c - 1)];
-  // 小盘上几种挖法可能撞格：去重、去越界，再保证剩下的格子仍是偶数
-  // （奇数就没法成对，玩法层会当场少一张牌）。
-  const uniq = [];
-  for (let i = 0; i < gaps.length; i += 1) {
-    const g = gaps[i];
-    if (g < 0 || g >= c * r) continue;
-    if (uniq.indexOf(g) >= 0) continue;
-    uniq.push(g);
-  }
-  // 上限就是本段该挖的数量：撞格去重后不够四个时宁可少挖，也不从别处补——
-  // 补出来的位置不在布局的形状里，盘面会变成一副谁也不认识的缺口。
-  while (uniq.length > want) uniq.pop();
-  if ((c * r - uniq.length) % 2) uniq.pop();
-  return uniq;
-}
+// 段内的视觉变化交给两件真在动的事：纹样每 5 关换一套、布纹在段内走三档；
+// 段间的几何台阶是列数 4 → 6 → 8（格子约 93 → 62 → 47px），行数恒六行。
 
 // 少数几门的参数表全是离散量（没有时辰、没有间隔），段内收紧乘不到任何东西，
 // 就给一门一个专属的连续旋钮。它们都真的被玩法层读走，不是给界面看的装饰：
@@ -270,10 +204,6 @@ function tweakParams(method, out, level) {
     // 纹样主题：每五关换一套（灵植 / 甜点 / 海洋 / 灵兽）。这是这一门「难度不变、
     // 手感变了」的第一条旋钮 —— 段内其余参数都是逐关微收，玩家看不出相邻两关的差别（D9）。
     out.theme = linkThemeOf(lv);
-    // 盘形：每四关换一副空位分布，与纹样错开。空位列表在这里一次算清，
-    // 玩法层只读 p.gaps；对数（时辰的分母）也由它的长度决定，两处不能各算一套。
-    out.layout = linkLayoutOf(lv);
-    out.gaps = linkGapsAt(lv, out.cols, out.rows);
   }
   return out;
 }
@@ -317,12 +247,6 @@ module.exports = {
   LINK_THEME_EVERY: LINK_THEME_EVERY,
   LINK_THEME_COUNT: LINK_THEME_COUNT,
   LINK_THEME_NAMES: LINK_THEME_NAMES,
-  LINK_LAYOUTS: LINK_LAYOUTS,
-  LINK_GAP_COUNT: LINK_GAP_COUNT,
-  LINK_LAYOUT_EVERY: LINK_LAYOUT_EVERY,
-  linkLayoutOf: linkLayoutOf,
-  linkLayoutNameOf: linkLayoutNameOf,
-  linkGapsAt: linkGapsAt,
   tweakParams: tweakParams,
   legacyLevelFromProf: legacyLevelFromProf,
 };
