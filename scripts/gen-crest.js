@@ -37,7 +37,7 @@ const zlib = require('zlib');
 const ROOT = path.join(__dirname, '..');
 const CELL = 96;           // 每格边长。72rpx 在 3x 屏上约 108 物理像素，96 已接近 1:1，不再发虚
 const SS = 4;              // 超采样倍数
-const EDGE = 2.05;         // 描边粗细（CELL 空间）
+const EDGE = 1.85;         // 描边粗细（CELL 空间）
 const BASE_CELLS = 8;      // 前八格是既有果器图
 const THEMES = ['sweet', 'sea', 'beast'];
 
@@ -68,16 +68,52 @@ function chunk(type, data) {
   return Buffer.concat([len, body, crc]);
 }
 
+// 逐行自适应选 filter（0–4 里挑绝对值和最小的那个）。
+// 这张图从平涂换成渐变之后，行内像素差变小、跨行差变大，只用 filter 0 时
+// deflate 基本压不动：140KB 里有一半是这么白扔的。走 Sub/Paeth 之后回到 90KB 量级。
 function encodePng(w, h, rgba) {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(w, 0);
   ihdr.writeUInt32BE(h, 4);
   ihdr[8] = 8;
   ihdr[9] = 6;
-  const raw = Buffer.alloc((w * 4 + 1) * h);
+  const stride = w * 4;
+  const raw = Buffer.alloc((stride + 1) * h);
+  const cand = [Buffer.alloc(stride), Buffer.alloc(stride), Buffer.alloc(stride), Buffer.alloc(stride), Buffer.alloc(stride)];
   for (let y = 0; y < h; y += 1) {
-    raw[y * (w * 4 + 1)] = 0;
-    rgba.copy(raw, y * (w * 4 + 1) + 1, y * w * 4, (y + 1) * w * 4);
+    const cur = y * stride;
+    const prev = (y - 1) * stride;
+    let best = 0;
+    let bestSum = Infinity;
+    for (let f = 0; f < 5; f += 1) {
+      const out = cand[f];
+      let sum = 0;
+      for (let i = 0; i < stride; i += 1) {
+        const x = rgba[cur + i];
+        const a = i >= 4 ? rgba[cur + i - 4] : 0;
+        const b = y > 0 ? rgba[prev + i] : 0;
+        const c = (i >= 4 && y > 0) ? rgba[prev + i - 4] : 0;
+        let v = x;
+        if (f === 1) v = x - a;
+        else if (f === 2) v = x - b;
+        else if (f === 3) v = x - ((a + b) >> 1);
+        else if (f === 4) {
+          const pp = a + b - c;
+          const pa = Math.abs(pp - a), pb = Math.abs(pp - b), pc = Math.abs(pp - c);
+          v = x - (pa <= pb && pa <= pc ? a : pb <= pc ? b : c);
+        }
+        v &= 255;
+        out[i] = v;
+        sum += v < 128 ? v : 256 - v;
+      }
+      if (sum < bestSum) {
+        bestSum = sum;
+        best = f;
+      }
+    }
+    const base = y * (stride + 1);
+    raw[base] = best;
+    cand[best].copy(raw, base + 1);
   }
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
@@ -193,7 +229,12 @@ function blend(cv, x, y, c) {
 const XS = [];
 const XC = [];
 
-function paint(cv, pts, spec, clip) {
+// k 是「画布像素 : 造型坐标」的倍率（= 超采样倍数）。几何被 fill 放大到画布上，
+// 但渐变控制点是按 CELL 空间的 0–96 写的 —— 采样时必须把像素坐标除回去。
+// 漏了这一步的后果不是「渐变弱一点」：径向距离全被顶到 ≥1，整块形体只剩最暗那一档，
+// 于是每个图案都是「平涂 + 压暗」，这正是那版看着灰扑扑、暗沉沉的原因。
+function paint(cv, pts, spec, clip, zoom) {
+  const inv = 1 / (zoom || 1);
   const p = pts;
   const n = p.length;
   if (n < 3) return;
@@ -235,7 +276,9 @@ function paint(cv, pts, spec, clip) {
       }
       const ia = Math.max(0, Math.ceil(xa - 0.5));
       const ib = Math.min(cv.w - 1, Math.floor(xb - 0.5));
-      for (let x = ia; x <= ib; x += 1) blend(cv, x, y, at(spec, x + 0.5, sy));
+      for (let x = ia; x <= ib; x += 1) {
+        blend(cv, x, y, Array.isArray(spec) ? spec : at(spec, (x + 0.5) * inv, sy * inv));
+      }
     }
   }
 }
@@ -284,7 +327,7 @@ function offsetPoly(pts, d) {
 }
 
 // 描边色：暖褐黑。纯黑会把整盘压死，原图那套果器用的也是这种低饱和深色。
-const OUTLINE = rgb('#3a2c22');
+const OUTLINE = rgb('#4a382c');
 
 // opts: { noEdge, edge, clip }；坐标空间恒为 CELL，内部乘 SS。
 function fill(cv, pts, spec, opts) {
@@ -303,10 +346,10 @@ function fill(cv, pts, spec, opts) {
     // 太小的细节（眼睛、糖粒）描一圈会糊成一团，直接不描。
     if (maxX - minX >= 8 && maxY - minY >= 8) {
       paint(cv, scale(offsetPoly(pts, o.edge === undefined ? EDGE : o.edge), SS), o.edgeColor || OUTLINE,
-        o.clip ? scale(o.clip, SS) : null);
+        o.clip ? scale(o.clip, SS) : null, SS);
     }
   }
-  paint(cv, scale(pts, SS), spec, o.clip ? scale(o.clip, SS) : null);
+  paint(cv, scale(pts, SS), spec, o.clip ? scale(o.clip, SS) : null, SS);
 }
 
 function scale(pts, k) {
@@ -584,21 +627,37 @@ function baseGrape(cv) {
 }
 
 function basePeach(cv) {
-  const pk = rgb('#f48fa4');
+  const pk = rgb('#f79cb0');
+  const pk2 = rgb('#df6f8c');
+  // 桃的剪影：**上宽下收 + 软尖底 + 双叶**。
+  // 早先与苹果同是「圆身 + 右上单叶 + 短柄」，摆上牌只剩颜色差，眯眼就分不开；
+  // 苹果改成「矮宽 + 顶凹深 + 单叶」，桃改成「高瘦 + 底收尖 + 双叶」，两格才算两族。
   const body = curve([
-    [48, 31], [39, 24], [30, 28], [23, 37],
-    [16, 49], [17, 64], [24, 77],
-    [34, 86], [48, 88], [62, 86],
-    [72, 77], [79, 64], [80, 49],
-    [73, 37], [66, 28], [57, 24],
+    [48, 27], [41, 21], [33, 24], [26, 33],
+    [22, 45], [22, 58], [27, 70],
+    [34, 80], [41, 87], [48, 92],
+    [55, 87], [62, 80], [69, 70],
+    [74, 58], [74, 45], [70, 33],
+    [63, 24], [55, 21],
   ]);
-  fill(cv, body, rad(37, 42, 40, 44, [[0, lighter(pk, 0.3)], [0.4, pk], [1, darker(rgb('#d4637d'), 0.16)]]));
-  // 桃沟
-  fill(cv, stroke(quad([48, 34], [42, 60], [48, 86], 14), 1.4, 2), fade(darker(rgb('#d4617e'), 0.18), 0.4), { noEdge: true });
-  glow(cv, 33, 46, 9, 14, [255, 255, 255, 255], 0.4);
-  const leaf = smoothPoly([[48, 26], [60, 16], [75, 19], [61, 29]], 0.24);
-  fill(cv, leaf, lin(48, 14, 74, 27, [[0, rgb('#86bd52')], [1, rgb('#4f8c30')]]));
-  fill(cv, stroke([[48, 28], [49, 17]], 2.2, 1.5), rgb('#6b4a2f'), { edge: 1.2 });
+  fill(cv, body, rad(39, 40, 36, 40, [[0, lighter(pk, 0.34)], [0.4, pk], [1, darker(pk2, 0.12)]]));
+  // 阳面红晕：桃与苹果的另一处分界，光从左上，晕在右下
+  fill(cv, ell(62, 70, 22, 24), rad(62, 70, 22, 24, [
+    [0, fade(darker(pk2, 0.06), 0.55)], [0.6, fade(darker(pk2, 0.06), 0.3)], [1, fade(darker(pk2, 0.06), 0)],
+  ]), { noEdge: true, clip: body });
+  // 桃沟：从顶凹一直划到尖底，比一根直线更有肉
+  fill(cv, stroke(quad([48, 31], [40, 58], [48, 89], 16), 1.5, 1),
+    fade(darker(pk2, 0.34), 0.34), { noEdge: true });
+  glow(cv, 33, 44, 9, 15, [255, 255, 255, 255], 0.5);
+  // 双叶：一左一右，压住果顶的两个瓣
+  const leafL = smoothPoly([[46, 23], [35, 14], [23, 17], [34, 26]], 0.26);
+  const leafR = smoothPoly([[50, 22], [64, 10], [79, 12], [64, 24]], 0.26);
+  fill(cv, leafL, lin(34, 12, 46, 25, [[0, rgb('#8cc456')], [1, rgb('#4f8c30')]]));
+  fill(cv, leafR, lin(50, 12, 77, 25, [[0, rgb('#8cc456')], [1, rgb('#4f8c30')]]));
+  fill(cv, stroke([[34, 18], [45, 23]], 0.8, 0.6), fade(rgb('#3d6b22'), 0.4), { noEdge: true });
+  fill(cv, stroke([[62, 18], [50, 23]], 0.8, 0.6), fade(rgb('#3d6b22'), 0.4), { noEdge: true });
+  // 短柄：只露一小截，长了会跟梨混
+  fill(cv, stroke([[48, 24], [48, 17]], 2.2, 1.8), rgb('#6b4a2f'), { edge: 1.2 });
 }
 
 function baseOrange(cv) {
@@ -690,96 +749,98 @@ const BASE8 = [baseApple, basePear, baseGrape, basePeach, baseOrange, baseCup, b
 // 甜点 · 0 圆润：马卡龙。上下两片圆壳（各是半个椭圆）+ 中间夹心 + 裙边褶皱。
 // 两片都画整椭圆会读成汉堡：关键是壳朝外的那一面圆、朝夹心的那一面平。
 function sweetMacaron(cv) {
-  const pinL = lighter(C.pink, 0.2);
-  const pinD = darker(C.pink2, 0.1);
-  const topCap = arc(48, 51, 31, 15, Math.PI, Math.PI * 2, 34);
-  const botCap = arc(48, 59, 31, 14, 0, Math.PI, 34);
-  // 下壳（背面那片）
-  fill(cv, botCap, rad(39, 64, 38, 26, [[0, pinL], [0.5, C.pink], [1, pinD]]));
-  fill(cv, arc(48, 59, 30, 13, 0.12, Math.PI - 0.12, 22), lin(0, 64, 0, 72, [[0, fade(darker(C.pink2, 0.12), 0)], [1, fade(darker(C.pink2, 0.12), 0.7)]]), { noEdge: true });
-  // 裙边：下壳上沿一排小扇贝
-  for (let i = 0; i < 13; i += 1) {
-    const x = 21 + i * 4.5;
-    fill(cv, ell(x, 59, 2.5, 2.8), lin(0, 56, 0, 62, [[0, lighter(C.pink, 0.1)], [1, C.pink2]]), { edge: 1.4 });
-  }
-  // 夹心
-  fill(cv, rrect(20, 47, 56, 14, 5), lin(20, 0, 76, 0, [[0, C.tofu], [0.5, C.cream], [1, darker(C.cream2, 0.12)]]));
-  fill(cv, [[24, 52], [72, 52], [72, 54], [24, 54]], fade(darker(C.cream2, 0.22), 0.45), { noEdge: true });
-  // 上壳上沿一排小扇贝（压住夹心上边）
-  for (let i = 0; i < 13; i += 1) {
-    const x = 21 + i * 4.5;
-    fill(cv, ell(x, 48, 2.5, 2.4), lin(0, 45, 0, 51, [[0, lighter(C.pink, 0.12)], [1, C.pink2]]), { edge: 1.4 });
+  const pinL = lighter(C.pink, 0.18);
+  const jam = darker(C.pink2, 0.26);
+  // 夹心：一条**深色**窄带，比壳宽 2 各伸出一线。
+  // 试过奶白夹心 —— 在 96px 上只剩两三像素，跟两片壳糊成一整块粉。
+  fill(cv, rrect(18, 47.4, 60, 9.6, 3.8), lin(18, 0, 78, 0, [[0, lighter(jam, 0.16)], [0.45, jam], [1, darker(jam, 0.14)]]));
+  fill(cv, [[26, 51], [70, 51], [70, 52.2], [26, 52.2]], fade([255, 255, 255, 255], 0.24), { noEdge: true });
+  // 下壳
+  fill(cv, arc(48, 57, 30, 15, 0, Math.PI, 34), rad(38, 62, 36, 26, [[0, pinL], [0.5, C.pink], [1, darker(C.pink2, 0.16)]]));
+  // 下壳裙边：向上鼓进夹心，不描边 —— 每瓣都描一圈会变成一排虚线
+  for (let i = 0; i < 11; i += 1) {
+    const x = 22 + i * 5.2;
+    fill(cv, ell(x, 57.4, 3, 2.6), lin(0, 54, 0, 60, [[0, lighter(C.pink, 0.12)], [1, darker(C.pink, 0.04)]]), { noEdge: true });
   }
   // 上壳
-  fill(cv, topCap, rad(38, 46, 38, 26, [[0, lighter(C.pink, 0.28)], [0.46, C.pink], [1, darker(C.pink2, 0.02)]]));
-  fill(cv, arc(48, 51, 30, 14, 0.1, Math.PI - 0.1, 22), lin(0, 42, 0, 51, [[0, fade(darker(C.pink2, 0.14), 0)], [1, fade(darker(C.pink2, 0.14), 0.55)]]), { noEdge: true });
-  glow(cv, 37, 42, 13, 5.6, [255, 255, 255, 255], 0.6);
-  glow(cv, 60, 47, 6, 2.6, [255, 255, 255, 255], 0.2);
+  fill(cv, arc(48, 48, 31, 16, Math.PI, Math.PI * 2, 34), rad(37, 42, 38, 28, [[0, lighter(C.pink, 0.3)], [0.44, C.pink], [1, darker(C.pink2, 0.08)]]));
+  fill(cv, arc(48, 48, 30, 15, 0.1, Math.PI - 0.1, 22), lin(0, 41, 0, 48, [[0, fade(darker(C.pink2, 0.16), 0)], [1, fade(darker(C.pink2, 0.16), 0.5)]]), { noEdge: true });
+  // 上壳裙边：向下鼓
+  for (let i = 0; i < 11; i += 1) {
+    const x = 22 + i * 5.2;
+    fill(cv, ell(x, 48, 3, 2.4), lin(0, 45.6, 0, 50.4, [[0, lighter(C.pink, 0.2)], [1, C.pink]]), { noEdge: true });
+  }
+  glow(cv, 36, 39, 13, 5.2, [255, 255, 255, 255], 0.5);
+  glow(cv, 62, 44, 6, 2.4, [255, 255, 255, 255], 0.18);
   // 糖粒
-  [[30, 39, 1.4], [44, 36.4, 1.2], [56, 39, 1.4], [62, 44, 1.1]].forEach(function (p) {
-    fill(cv, circ(p[0], p[1], p[2]), fade([255, 255, 255, 255], 0.72), { noEdge: true });
+  [[30, 37, 1.3], [44, 34.6, 1.1], [56, 37, 1.3], [62, 41, 1]].forEach(function (p) {
+    fill(cv, circ(p[0], p[1], p[2]), fade([255, 255, 255, 255], 0.66), { noEdge: true });
   });
 }
 
 // 甜点 · 1 方框：方蛋糕。顶面透视 + 侧面分层 + 裱花 + 樱桃。
 function sweetCake(cv) {
-  // 侧面
-  fill(cv, [[21, 34], [75, 34], [75, 82], [21, 82]], lin(21, 0, 75, 0, [[0, lighter(C.cream, 0.12)], [0.55, C.cream], [1, darker(C.cream2, 0.16)]]));
-  // 顶层奶油
-  fill(cv, [[21, 34], [75, 34], [75, 42], [21, 42]], lin(0, 34, 0, 42, [[0, C.tofu], [1, darker(C.tofu, 0.09)]]), { noEdge: true });
-  // 果酱层
-  fill(cv, [[21, 56], [75, 56], [75, 63], [21, 63]], lin(0, 56, 0, 63, [[0, lighter(C.pink, 0.1)], [1, C.pink2]]), { noEdge: true });
-  fill(cv, [[21, 72], [75, 72], [75, 76], [21, 76]], fade(C.tofu, 0.85), { noEdge: true });
-  fill(cv, [[21, 63], [75, 63], [75, 64], [21, 64]], fade(darker(C.cream2, 0.3), 0.45), { noEdge: true });
-  // 海绵颗粒
+  const L = 20, R = 76, T = 42, B = 83;
+  // 侧面：海绵 + 果酱 + 海绵。三条横带，缩到牌面也还读得出「切开的蛋糕」。
+  fill(cv, [[L, T], [R, T], [R, B], [L, B]], lin(L, 0, R, 0, [
+    [0, lighter(C.cream, 0.16)], [0.5, C.cream], [1, darker(C.cream2, 0.2)],
+  ]));
+  fill(cv, [[L, 60], [R, 60], [R, 67], [L, 67]], lin(0, 60, 0, 67, [[0, lighter(C.pink, 0.16)], [1, C.pink2]]), { noEdge: true });
+  fill(cv, [[L, 61], [R, 61], [R, 62.2], [L, 62.2]], fade([255, 255, 255, 255], 0.3), { noEdge: true });
+  fill(cv, [[L, 67], [R, 67], [R, 68.2], [L, 68.2]], fade(darker(C.cream2, 0.3), 0.42), { noEdge: true });
   for (let i = 0; i < 12; i += 1) {
-    const x = 25 + (i * 37) % 46;
-    const y = 46 + (i * 23) % 9;
-    fill(cv, circ(x, y, 1.1), fade(darker(C.cream2, 0.3), 0.45), { noEdge: true });
+    const x = L + 5 + (i * 37) % 44;
+    const y = 46 + (i * 23) % 12;
+    fill(cv, circ(x, y, 1.05), fade(darker(C.cream2, 0.32), 0.45), { noEdge: true });
   }
-  for (let i = 0; i < 8; i += 1) {
-    const x = 27 + (i * 29) % 42;
-    const y = 71 + (i * 17) % 8;
-    fill(cv, circ(x, y, 1.2), fade(darker(C.cream2, 0.26), 0.4), { noEdge: true });
+  for (let i = 0; i < 10; i += 1) {
+    const x = L + 6 + (i * 29) % 42;
+    const y = 71 + (i * 17) % 10;
+    fill(cv, circ(x, y, 1.15), fade(darker(C.cream2, 0.28), 0.4), { noEdge: true });
   }
-  // 侧面右缘压暗，把方块立起来
-  fill(cv, [[70, 34], [75, 34], [75, 82], [70, 82]], fade(darker(C.cream2, 0.3), 0.3), { noEdge: true });
-  // 顶面（菱形透视，高不过侧面三分之一）
-  const top = [[21, 34], [48, 25], [75, 34], [48, 41]];
-  fill(cv, top, lin(21, 25, 75, 41, [[0, C.tofu], [0.5, C.cream], [1, darker(C.cream2, 0.12)]]));
-  fill(cv, [[21, 34], [48, 25], [48, 33], [21, 34]], fade([255, 255, 255, 255], 0.35), { noEdge: true, clip: top });
-  // 顶边裱花：沿左右两条斜边一串小圆，压在顶面与侧面的接缝上
-  for (let i = 0; i < 5; i += 1) {
-    const t = (i + 0.5) / 5;
-    fill(cv, circ(21 + 27 * t, 34 - 9 * t, 3), lin(0, 30, 0, 38, [[0, C.tofu], [1, darker(C.tofu, 0.12)]]));
-    fill(cv, circ(75 - 27 * t, 34 - 9 * t, 3), lin(0, 30, 0, 38, [[0, C.tofu], [1, darker(C.tofu, 0.12)]]));
-  }
-  // 顶面糖粒
-  [[46, 32, 1.5], [51, 34, 1.3], [48, 36, 1.2]].forEach(function (p) {
-    fill(cv, circ(p[0], p[1], p[2]), fade(lighter(C.pink, 0.3), 0.9), { noEdge: true });
+  fill(cv, [[R - 6, T], [R, T], [R, B], [R - 6, B]], fade(darker(C.cream2, 0.32), 0.26), { noEdge: true });
+  // 奶油盖：一块比蛋糕体各宽 2、圆角收边的厚片压在上面。
+  // 走过两版都不成：完整菱形透视缩到牌面像「白布剪了个 V 口」，
+  // 一排各有描边的垂滴像「CCCO」——问题都出在「一条边画了太多次描边」。
+  const cap = rrect(L - 2, T - 9, (R - L) + 4, 15, 6.4);
+  fill(cv, cap, lin(0, T - 9, 0, T + 6, [[0, C.tofu], [0.58, C.cream], [1, darker(C.tofu, 0.18)]]));
+  fill(cv, ell(37, T - 4.6, 12, 3.2), fade([255, 255, 255, 255], 0.5), { noEdge: true, clip: cap });
+  // 盖沿投在蛋糕体上的浅影
+  fill(cv, [[L + 1, T + 4], [R - 1, T + 4], [R - 1, T + 7.4], [L + 1, T + 7.4]], fade(darker(C.cream2, 0.36), 0.28), { noEdge: true });
+  // 撒糖
+  [[34, T - 5, 1.4, C.pink], [44, T - 7, 1.2, C.lemon], [57, T - 4, 1.3, C.mint], [65, T - 7, 1.1, C.cherry]].forEach(function (q) {
+    fill(cv, circ(q[0], q[1], q[2]), q[3], { noEdge: true });
+    fill(cv, circ(q[0] - q[2] * 0.3, q[1] - q[2] * 0.3, q[2] * 0.4), fade([255, 255, 255, 255], 0.7), { noEdge: true });
   });
   // 樱桃
-  fill(cv, circ(48, 19, 7), rad(45, 16, 9.6, 9.6, [[0, lighter(C.cherry, 0.36)], [0.55, C.cherry], [1, darker(C.cherry, 0.28)]]));
-  fill(cv, stroke(quad([49, 12.6], [53, 6], [59, 5], 10), 1.4, 1.1), C.kelp, { noEdge: true });
-  fill(cv, circ(45.4, 16.4, 1.9), fade([255, 255, 255, 255], 0.75), { noEdge: true });
+  fill(cv, circ(48, T - 15, 6.4), rad(45.4, T - 17.6, 8.8, 8.8, [[0, lighter(C.cherry, 0.36)], [0.55, C.cherry], [1, darker(C.cherry, 0.28)]]));
+  fill(cv, stroke(quad([50, T - 20.4], [54, T - 27], [61, T - 29], 10), 1.4, 1.1), C.kelp, { noEdge: true });
+  fill(cv, circ(45.6, T - 17.4, 1.8), fade([255, 255, 255, 255], 0.75), { noEdge: true });
 }
 
 // 甜点 · 2 伞锥：冰淇淋。锥体格纹 + 双球 + 融化边。
 function sweetCone(cv) {
-  const cone = tri(22, 47, 74, 47, 48, 90);
-  fill(cv, cone, lin(22, 0, 74, 0, [[0, lighter(C.cone, 0.2)], [0.5, C.cone], [1, darker(C.cone2, 0.1)]]));
-  // 华夫格：两组斜带，裁在锥体内
+  const cone = tri(23, 50, 73, 50, 48, 92);
+  fill(cv, cone, lin(23, 0, 73, 0, [[0, lighter(C.cone, 0.22)], [0.5, C.cone], [1, darker(C.cone2, 0.12)]]));
   for (let i = -3; i < 4; i += 1) {
     const off = i * 8;
-    fill(cv, [[22 + off, 47], [27 + off, 47], [53 + off, 90], [48 + off, 90]], fade(C.cone2, 0.45), { noEdge: true, clip: cone });
-    fill(cv, [[74 - off, 47], [69 - off, 47], [43 - off, 90], [49 - off, 90]], fade(C.cone2, 0.45), { noEdge: true, clip: cone });
+    fill(cv, [[23 + off, 50], [28 + off, 50], [54 + off, 92], [49 + off, 92]], fade(C.cone2, 0.42), { noEdge: true, clip: cone });
+    fill(cv, [[73 - off, 50], [68 - off, 50], [42 - off, 92], [48 - off, 92]], fade(C.cone2, 0.42), { noEdge: true, clip: cone });
   }
-  // 球：奶油底球 + 侧粉球 + 顶薄荷球
-  orb(cv, 39, 32, 20, 18.5, C.cream, { hi: 0.55 });
-  orb(cv, 60, 27, 15, 14, C.mint, { hi: 0.45 });
-  orb(cv, 26, 28, 11.5, 10.5, C.pink, { hi: 0.4 });
+  // 锥底受光留白：整块渐变从左上到右下，锥尖不能跟锥口一样亮
+  fill(cv, [[23, 50], [73, 50], [72, 54], [24, 54]], fade(darker(C.cone2, 0.3), 0.35), { noEdge: true, clip: cone });
+  // 融化的奶油：先画，被球压住中间，只在两侧垂下来
+  for (let i = 0; i < 4; i += 1) {
+    const x = 34 + i * 9.4;
+    const k = i % 2 === 0 ? 1 : 0.72;
+    fill(cv, ell(x, 50, 5, 4.6 * k), lin(0, 46, 0, 56, [[0, C.cream], [1, darker(C.cream2, 0.18)]]));
+  }
+  // 三球：后薄荷、左粉、前奶油（前面的压住后两个的下缘，接缝才不散）
+  orb(cv, 63, 31, 13.6, 12.8, C.mint, { hi: 0.5 });
+  orb(cv, 30, 33, 12.6, 11.8, C.cream, { hi: 0.5 });
+  orb(cv, 47, 36, 15.4, 14.4, C.pink, { hi: 0.48 });
   // 糖珠
-  [[33, 21, 1.8, C.cherry], [50, 15, 1.6, C.lemon], [65, 21, 1.6, C.cherry], [45, 36, 1.4, C.grape]].forEach(function (p) {
+  [[35, 22, 1.8, C.cherry], [50, 16, 1.6, C.lemon], [65, 22, 1.6, C.cherry], [44, 40, 1.4, C.grape]].forEach(function (p) {
     fill(cv, circ(p[0], p[1], p[2] + 0.6), darker(p[3], 0.25), { noEdge: true });
     fill(cv, circ(p[0], p[1], p[2]), p[3], { noEdge: true });
     fill(cv, circ(p[0] - p[2] * 0.3, p[1] - p[2] * 0.35, p[2] * 0.42), fade([255, 255, 255, 255], 0.8), { noEdge: true });
@@ -890,41 +951,43 @@ function seaPuffer(cv) {
 
 // 海洋 · 1 方框：螃蟹。方壳 + 双钳 + 八腿 + 眼柱。
 function seaCrab(cv) {
-  const shell = rrect(25, 30, 46, 34, 13);
+  const shell = rrect(24, 32, 48, 33, 14);
   // 腿：左右各四条，向外下方折
   for (let i = 0; i < 4; i += 1) {
-    const y = 42 + i * 6.4;
+    const y = 42 + i * 6.2;
     const d = 1 - i * 0.12;
-    fill(cv, stroke([[26, y], [26 - 8 * d, y + 4], [26 - 14 * d, y + 12]], 2.6, 1.2),
+    fill(cv, stroke([[25, y], [25 - 8 * d, y + 4], [25 - 14 * d, y + 12]], 2.6, 1.2),
       lin(0, y, 0, y + 12, [[0, C.coral], [1, darker(C.coral2, 0.1)]]), { edge: 1.5 });
-    fill(cv, stroke([[70, y], [70 + 8 * d, y + 4], [70 + 14 * d, y + 12]], 2.6, 1.2),
+    fill(cv, stroke([[71, y], [71 + 8 * d, y + 4], [71 + 14 * d, y + 12]], 2.6, 1.2),
       lin(0, y, 0, y + 12, [[0, C.coral], [1, darker(C.coral2, 0.1)]]), { edge: 1.5 });
   }
-  fill(cv, shell, rad(34, 38, 40, 34, [[0, lighter(C.coral, 0.26)], [0.48, C.coral], [1, darker(C.coral2, 0.14)]]));
-  // 壳上花纹
-  fill(cv, arc(48, 38, 16, 8, Math.PI * 1.12, Math.PI * 1.88, 14), fade(darker(C.coral2, 0.14), 0.42), { noEdge: true });
-  fill(cv, arc(48, 45, 20, 10, Math.PI * 1.18, Math.PI * 1.82, 14), fade(darker(C.coral2, 0.14), 0.32), { noEdge: true });
-  [[36, 56, 2], [60, 56, 2], [48, 60, 1.7]].forEach(function (p) {
-    fill(cv, circ(p[0], p[1], p[2]), fade(lighter(C.coral, 0.28), 0.45), { noEdge: true, clip: shell });
+  fill(cv, shell, rad(33, 39, 42, 34, [[0, lighter(C.coral, 0.28)], [0.48, C.coral], [1, darker(C.coral2, 0.14)]]));
+  // 壳面：两道弧纹 + 三点斑
+  fill(cv, arc(48, 38, 17, 8.4, Math.PI * 1.14, Math.PI * 1.86, 14), fade(darker(C.coral2, 0.16), 0.4), { noEdge: true });
+  fill(cv, arc(48, 45, 21, 10, Math.PI * 1.2, Math.PI * 1.8, 14), fade(darker(C.coral2, 0.16), 0.3), { noEdge: true });
+  [[36, 57, 2], [60, 57, 2], [48, 61, 1.7]].forEach(function (p) {
+    fill(cv, circ(p[0], p[1], p[2]), fade(lighter(C.coral, 0.26), 0.4), { noEdge: true, clip: shell });
   });
-  // 钳：臂 + 手掌 + 两指，朝上外张开
+  // 钳：臂 + 掌 + 上下两指。旧版两指是两块三角，缩到牌面成了两只角；
+  // 现在指头用「变宽的折线」画，指根粗指尖细，中间留一道缝，才读得出是钳子。
   [[-1, 1], [1, 1]].forEach(function (s) {
     const d = s[0];
-    const hx = 48 + d * 30;
-    // 臂
-    fill(cv, stroke([[48 + d * 22, 40], [hx - d * 4, 32], [hx, 26]], 3.4, 2.6), lin(0, 40, 0, 24, [[0, C.coral], [1, darker(C.coral2, 0.06)]]), { edge: 1.6 });
-    // 手掌
-    fill(cv, ell(hx, 22, 7, 5.6), rad(hx - 2, 20, 9, 8, [[0, lighter(C.coral, 0.2)], [1, darker(C.coral2, 0.08)]]));
-    // 上指 / 下指
-    fill(cv, [[hx + d * 2, 18], [hx + d * 10, 10], [hx + d * 7, 19]], C.coral2);
-    fill(cv, [[hx + d * 2, 25], [hx + d * 11, 20], [hx + d * 6, 27]], darker(C.coral2, 0.06));
+    const hx = 48 + d * 29;
+    const hy = 27;
+    fill(cv, stroke([[48 + d * 18, 40], [48 + d * 23, 33], [hx - d * 2, hy + 5]], 4.4, 3.6),
+      lin(0, 40, 0, 22, [[0, C.coral], [1, darker(C.coral2, 0.06)]]), { edge: 1.7 });
+    fill(cv, ell(hx, hy + 2, 8.4, 7.2), rad(hx - 2.4, hy - 1.4, 10.4, 9.4, [[0, lighter(C.coral, 0.24)], [1, darker(C.coral2, 0.1)]]));
+    fill(cv, stroke([[hx + d * 3, hy - 3], [hx + d * 9, hy - 10], [hx + d * 13, hy - 7]], 4.4, 2),
+      lin(hx, 0, hx + d * 14, 0, [[0, C.coral], [1, darker(C.coral2, 0.04)]]), { edge: 1.6 });
+    fill(cv, stroke([[hx + d * 3, hy + 7], [hx + d * 11, hy + 3], [hx + d * 14, hy + 7]], 3.8, 1.7),
+      lin(hx, 0, hx + d * 14, 0, [[0, darker(C.coral, 0.06)], [1, darker(C.coral2, 0.14)]]), { edge: 1.6 });
   });
   // 眼柱
-  fill(cv, rrect(37, 22, 5, 10, 2), C.coral2, { noEdge: true });
-  fill(cv, rrect(54, 22, 5, 10, 2), C.coral2, { noEdge: true });
-  eye(cv, 39.5, 21, 5.2);
-  eye(cv, 56.5, 21, 5.2);
-  glow(cv, 38, 38, 12, 6, [255, 255, 255, 255], 0.36, { clip: shell });
+  fill(cv, rrect(37, 23, 5, 10, 2), C.coral2, { noEdge: true });
+  fill(cv, rrect(54, 23, 5, 10, 2), C.coral2, { noEdge: true });
+  eye(cv, 39.5, 22, 5.2);
+  eye(cv, 56.5, 22, 5.2);
+  glow(cv, 37, 39, 12, 6, [255, 255, 255, 255], 0.36, { clip: shell });
 }
 
 // 海洋 · 2 伞锥：水母。伞盖渐变 + 裙边波浪 + 细长触手。
@@ -958,43 +1021,43 @@ function seaJelly(cv) {
 
 // 海洋 · 3 竖长：鱿鱼。尖筒身 + 顶鳍 + 带吸盘的触手。
 function seaSquid(cv) {
-  const sqL = lighter(C.kelp, 0.26);
-  const sqD = darker(C.kelp2, 0.12);
-  // 触手
-  for (let i = 0; i < 5; i += 1) {
-    const x = 36 + i * 6;
-    const len = 26 + (i % 2) * 8;
+  const sqL = lighter(C.kelp, 0.3);
+  const sqD = darker(C.kelp2, 0.14);
+  // 触手先画，被筒身压住根部
+  for (let i = 0; i < 6; i += 1) {
+    const x0 = 31 + i * 5.6;
+    const len = 32 + (i % 3) * 6;
     const p = [];
-    for (let k = 0; k <= 6; k += 1) p.push([x + Math.sin(k * 0.7 + i * 1.3) * 2.4, 56 + k * len / 6]);
-    fill(cv, stroke(p, 2.8, 0.9), lin(0, 56, 0, 56 + len, [[0, C.kelp], [1, sqD]]), { edge: 1.3 });
+    for (let k = 0; k <= 7; k += 1) {
+      const t = k / 7;
+      p.push([x0 + Math.sin(t * 2.4 + i * 1.1) * (2 + t * 3), 46 + t * len]);
+    }
+    fill(cv, stroke(p, 2.9, 0.7), lin(0, 46, 0, 46 + len, [[0, C.kelp], [1, sqD]]), { edge: 1.25 });
     for (let k = 1; k <= 3; k += 1) {
-      fill(cv, circ(x + Math.sin(k * 1.2 + i) * 1.8, 60 + k * len / 4.2, 0.85), fade(sqD, 0.85), { noEdge: true });
+      fill(cv, circ(x0 + Math.sin(k * 0.8 + i) * 2.4, 54 + k * len / 4.2, 0.85), fade(sqD, 0.8), { noEdge: true });
     }
   }
-  // 筒身：上尖下圆
-  const bodyPts = [];
-  for (let i = 0; i <= 20; i += 1) {
-    const t = i / 20;
-    const y = 10 + t * 48;
-    const w = 5 + Math.sin(t * Math.PI * 0.82) * 14;
-    bodyPts.push([48 - w, y]);
-  }
-  for (let i = 20; i >= 0; i -= 1) {
-    const t = i / 20;
-    const y = 10 + t * 48;
-    const w = 5 + Math.sin(t * Math.PI * 0.82) * 14;
-    bodyPts.push([48 + w, y]);
-  }
-  fill(cv, bodyPts, rad(40, 26, 30, 34, [[0, sqL], [0.48, C.kelp], [1, sqD]]));
-  // 顶鳍
-  fill(cv, quad([48, 10], [30, 20], [30, 36]).concat([[48, 46]]), lin(48, 0, 30, 0, [[0, sqL], [1, C.kelp]]));
-  fill(cv, quad([48, 10], [66, 20], [66, 36]).concat([[48, 46]]), lin(48, 0, 66, 0, [[0, sqL], [1, sqD]]));
-  // 中缝
-  fill(cv, stroke([[48, 18], [48, 54]], 0.7, 1.4), fade(sqD, 0.35), { noEdge: true });
-  // 眼
-  eye(cv, 40, 34, 5.2, darker(C.deep, 0.12));
-  eye(cv, 56, 34, 5.2, darker(C.deep, 0.12));
-  glow(cv, 40, 20, 9, 7, [255, 255, 255, 255], 0.42);
+  // 双鳍：菱形，长在筒身最上两角（鱿鱼的鳍在「头顶」，这是它与鱼、章鱼最省事的分界）
+  // 鳍要「尖」：钝圆的一片会读成一顶兜帽，把筒身穿成盾牌
+  const finL = smoothPoly([[43, 16], [18, 12], [31, 28]], 0.1);
+  const finR = smoothPoly([[53, 16], [78, 12], [65, 28]], 0.1);
+  fill(cv, finL, lin(41, 10, 20, 28, [[0, sqL], [1, darker(C.kelp2, 0.02)]]));
+  fill(cv, finR, lin(55, 10, 76, 28, [[0, sqL], [1, darker(C.kelp2, 0.02)]]));
+  // 筒身：上尖、下收成短颈
+  const body = curve([
+    [48, 8], [55, 13], [61, 23], [64, 34],
+    [63, 44], [59, 48], [48, 49],
+    [37, 48], [33, 44], [32, 34],
+    [35, 23], [41, 13],
+  ]);
+  fill(cv, body, rad(41, 24, 32, 34, [[0, sqL], [0.46, C.kelp], [1, sqD]]));
+  // 中缝与侧棱
+  fill(cv, stroke([[48, 14], [48, 48]], 0.7, 1.6), fade(sqD, 0.34), { noEdge: true });
+  fill(cv, stroke([[38, 20], [36, 44]], 1, 0.7), fade(sqL, 0.3), { noEdge: true });
+  // 眼：长在筒身中段两侧，比旧版低一点，留出尖顶
+  eye(cv, 40, 35, 5.4, darker(C.deep, 0.14));
+  eye(cv, 56, 35, 5.4, darker(C.deep, 0.14));
+  glow(cv, 40, 20, 9, 7, [255, 255, 255, 255], 0.44);
 }
 
 // 海洋 · 4 成簇：珊瑚。主干 + 三分叉 + 顶端花球 + 枝上小孔。
@@ -1052,10 +1115,14 @@ function seaStar(cv) {
 
 // 灵兽 · 0 圆润：金蟾。球身 + 突眼 + 疣点 + 蹼。
 function beastToad(cv) {
-  // 后脚（带蹼）
-  [[22, 80], [74, 80]].forEach(function (p) {
-    fill(cv, [[p[0] - 5, p[1] - 12], [p[0] + 9, p[1] + 2], [p[0] + 7, p[1] + 8], [p[0] - 7, p[1] + 8]],
-      lin(0, p[1] - 12, 0, p[1] + 8, [[0, C.fawn2], [1, darker(C.fawn2, 0.2)]]), { edge: 1.7 });
+  // 后腿：鼓起的腿根 + 蹼足。旧版是一块梯形，缩到牌面读成两块砖。
+  [[26, 72, -1], [70, 72, 1]].forEach(function (p) {
+    const d = p[2];
+    fill(cv, ell(p[0], p[1], 9.6, 9), rad(p[0] - 2, p[1] - 3.4, 12, 11.4, [[0, lighter(C.fawn, 0.16)], [1, darker(C.fawn2, 0.22)]]));
+    fill(cv, ell(p[0] + d * 1.6, p[1] + 7.4, 9.4, 4.6), lin(0, p[1] + 3, 0, p[1] + 12, [[0, C.fawn2], [1, darker(C.fawn2, 0.26)]]));
+    for (let k = -1; k <= 1; k += 1) {
+      fill(cv, ell(p[0] + k * 5.2, p[1] + 10, 1.7, 2), darker(C.fawn2, 0.28), { noEdge: true });
+    }
   });
   // 身体
   fill(cv, ell(48, 54, 30, 24), rad(36, 42, 40, 34, [[0, lighter(C.fawn, 0.3)], [0.45, C.fawn], [1, darker(C.fawn2, 0.18)]]));
@@ -1158,10 +1225,12 @@ function beastCrane(cv) {
   // 腿：两节，膝弯朝后
   fill(cv, stroke([[44, 64], [42, 78], [36, 94]], 1.9, 1.4), lin(0, 64, 0, 94, [[0, C.orange], [1, darker(C.orange, 0.24)]]), { edge: 1.4 });
   fill(cv, stroke([[52, 66], [55, 80], [52, 94]], 1.9, 1.4), lin(0, 66, 0, 94, [[0, C.orange], [1, darker(C.orange, 0.24)]]), { edge: 1.4 });
-  // 黑尾羽
-  fill(cv, [[30, 54], [9, 60], [12, 72], [33, 66]], lin(30, 0, 9, 0, [[0, C.grey], [1, darker(C.grey, 0.3)]]));
+  // 黑尾羽：三片向后下方张开。旧版一块梯形，缩到牌面像插了面灰旗。
+  [[[32, 51], [16, 51], [7, 56]], [[32, 54], [17, 59], [6, 65]], [[32, 57], [19, 67], [10, 74]]].forEach(function (f, i) {
+    fill(cv, stroke(f, 4.6 - i * 0.5, 1.3), lin(32, 0, 6, 0, [[0, C.grey], [1, darker(C.grey, 0.34)]]), { edge: 1.5 });
+  });
   // 身体
-  fill(cv, ell(46, 54, 21, 15), rad(38, 44, 26, 20, [[0, [255, 255, 255, 255]], [0.55, C.white], [1, darker(C.grey, 0.12)]]));
+  fill(cv, ell(46, 53, 20, 14), rad(38, 43, 25, 19, [[0, [255, 255, 255, 255]], [0.55, C.white], [1, darker(C.grey, 0.12)]]));
   // 翅：三层羽片 + 弧线
   [[38, 54, 15, 9], [40, 60, 12.5, 6.5]].forEach(function (a) {
     fill(cv, ell(a[0], a[1], a[2], a[3]), fade(lighter(C.white, 0.26), 0.75), { noEdge: true });
