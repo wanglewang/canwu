@@ -49,9 +49,11 @@
         <text class="imm-check__mark {{item.markCls}}">{{item.mark}}</text>
         <text class="imm-check__text grow">{{item.text}}</text>
       </view>
+      <!-- 这一排只放「突破境界」。原来右边还并着一个「背包」按钮，它与下面折叠头
+           「背包 · 战力码」是同一个 onToggleMore、同一句词——同一屏两处入口，
+           删掉面板里那个，战力码只从折叠头进。 -->
       <view class="imm-btn-row">
         <button class="imm-btn {{ov.breakthrough.available && ov.breakthrough.stoneReady ? '' : 'imm-btn--off'}}" bindtap="onBreakthrough">突破境界</button>
-        <button class="imm-btn--ghost" bindtap="onToggleMore">背包</button>
       </view>
     </view>
 

@@ -196,6 +196,10 @@ Page({
       syncLabel: syncLabel,
       syncTone: syncTone,
       breakPercent: breakPercent,
+      // 条上只报「目标」——即突破要多少战力。以前写「战力 150 / 300」，与 30px 下面
+      // 那个大数「战 力 150」同词同值印两遍；而「还差多少」那一句由 hintText 负责，
+      // 这里再算一次差额就是同一件事两处各算。
+      // （注意别拿「还需 N」来避重复：power=150、need=300 时 N 也是 150，看着还是重了。）
       hintText: hintText,
       chance: engine.dailyChance(),
       dailyReady: dailyReady,

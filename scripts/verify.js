@@ -1666,6 +1666,13 @@ const helpSrc = fs.readFileSync(path.join(ROOT, 'data/help.js'), 'utf8');
 if (!/minigames\.gradeLines\(/.test(helpSrc)) errors.push('说明页没接 minigames.gradeLines，评级四条线写不出来');
 else checked += 1;
 
+// 说明页讲的是「怎么玩」，不是「这东西怎么被命名出来的」。
+// 曾经有一节「功法命名」把 NAME_RULE 的字段（体裁字、字数区间、同族共用一个字）
+// 抄给玩家看，还写着已经被撤掉的那一族体裁字——玩家读不懂，改规则时也没人记得来改它。
+// 命名规范只有一处真源：docs/10-systems/11-skill-taxonomy.md。
+if (/体裁字/.test(helpSrc)) errors.push('说明页又在讲命名规范（体裁字），那是设计文档的事，不是玩家规则');
+else checked += 1;
+
 if (errors.length > 0) {
   console.error('静态校验失败（' + errors.length + ' 项）:');
   for (const e of errors) console.error('  - ' + e);

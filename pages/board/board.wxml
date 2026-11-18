@@ -24,6 +24,11 @@
     <text class="state__desc">{{error}}</text>
     <text class="text-link" bindtap="onRefresh">重试</text>
   </view>
+  <!-- 榜是空的要说一句，不能只剩一个「前 十」标题下面一片白：
+       文案原文一直在 copy.emptyBoard 里躺着，没人接。 -->
+  <view wx:elif="{{!rows.length}}" class="state state--inline">
+    <text class="state__desc">{{copy.emptyBoard}}</text>
+  </view>
 
   <view wx:else class="imm-list">
     <view class="imm-row {{item.isMe ? 'imm-row--on' : ''}}" wx:for="{{rows}}" wx:key="uid">

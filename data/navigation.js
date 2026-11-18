@@ -54,7 +54,8 @@ const PAGE_TITLES = [
     '称号簿',
 ];
 
-// 说明页按主题取内容（见 data/help.js）；guide 是完整手册，help 是「这一页」。
+// 说明页按主题取内容（见 data/help.js）；guide 是完整手册，本身不再挂「本页说明」——
+// 它原来那一册只讲「怎么读这本手册」，正文全在目录里，已删（见 2026-11-18 文案盘点）。
 const HELP_TOPICS = {
     index: 'home',
     skills: 'skills',
@@ -64,7 +65,6 @@ const HELP_TOPICS = {
     board: 'board',
     titles: 'titles',
     log: 'log',
-    guide: 'guide',
 };
 
 function helpUrl(pageKey) {

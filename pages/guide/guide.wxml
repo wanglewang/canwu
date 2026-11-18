@@ -32,9 +32,7 @@
     </view>
   </view>
 
-  <view class="pg__foot">
-    <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onGoHelp">本页说明 ›</text>
-  </view>
-
+  <!-- 指南页不在页尾挂「本页说明」：它本身就是那一册手册，
+       原来指向的「玩法与数值 / 这份指南怎么用」只讲怎么读手册，已删。 -->
   <view class="pg__foot">{{copy.footGuide}}</view>
 </view>

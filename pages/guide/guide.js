@@ -11,9 +11,6 @@ const pageTheme = require('../../utils/theme.js');
 const store = require('../../utils/store.js');
 const share = require('../../utils/share.js');
 const copy = require('../../data/copy.js');
-const nav = require('../../data/navigation.js');
-
-const A = copy.UI.actions;
 
 const SECTIONS = [
     {
@@ -46,7 +43,7 @@ const SECTIONS = [
             '一场切磋或秘境都要先运功，不论胜负扣 5 点灵力；赢了才掉灵石，且当日第 n 场按 0.85 的 n-1 次方衰减（第 1 场全额、第 5 场约 52%、第 10 场约 23%）。首胜与首次走通另给 8 枚，不受衰减管——那算「走通这条路」的赏。',
             '灵石三个去处：藏经阁买功法（12 门，16 到 70 枚不等）、布阵破境（筑基 60 / 金丹 120 / 元婴 240，冲关不成退一半）、洞府里换灵力（1 枚换 100 点）。灵力只有一个去处：参悟与对战的运功。灵力换不回灵石——只此一向。',
         ],
-        action: { label: A.goSkills, kind: 'tabSkills', tab: 'shop' },
+        action: { label: copy.UI.actions.goSkills, kind: 'tabSkills', tab: 'shop' },
     },
     {
         title: '四 · 战力从哪来',
@@ -94,7 +91,7 @@ const SECTIONS = [
             '每门功法记一个局内最佳分数，结算会显示得分与是否破纪录。高分本身不额外加熟练度，也不省灵力——熟练度只由评级与连 S 层数给，灵力只由这一关所在段的基数与上面那几个系数决定，与段内第几关无关。',
             '阵眼感应与入定照见每局各两次；数格辨禁误触时扣一盏心神并让那处禁制显形（未入门到小成三盏、大成与圆满两盏），耗尽才结束。',
         ],
-        action: { label: A.goSkills, kind: 'tabSkills', tab: 'learned' },
+        action: { label: copy.UI.actions.goSkills, kind: 'tabSkills', tab: 'learned' },
     },
     {
         title: '七 · 连 S 叠倍率',
@@ -117,7 +114,7 @@ const SECTIONS = [
             '秘境同理：三处秘境各有门槛，首次走通给 8 枚灵石，之后按同一套当日衰减算。落败不赔灵石，但运功那 5 点灵力照扣。',
             '道牒页的战力码以 CW1- 开头，复制给朋友，对方粘贴后就能和你的镜像过招。',
         ],
-        action: { label: A.goBattle, kind: 'page', url: '/pages/battle/battle' },
+        action: { label: copy.UI.actions.goBattle, kind: 'page', url: '/pages/battle/battle' },
     },
     {
         title: '九 · 称号与道牒',
@@ -237,8 +234,6 @@ Page({
         }
         wx.navigateTo({ url: act.url });
     },
-
-    onGoHelp: function () { wx.navigateTo({ url: nav.helpUrl('guide') }); },
 
     onShareAppMessage: function () { return share.appMessage(store.get()); },
     onShareTimeline: function () { return share.timeline(store.get()); },

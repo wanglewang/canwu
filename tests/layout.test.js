@@ -775,14 +775,16 @@ check('连 S 叠倍率：准备页有十格点数、结算页有回执、指南�
 
 check('页面骨架统一：三 tab + 子页用仙箓皮肤，导航只留原生一层', function () {
   const main = ['index', 'skills', 'profile', 'battle', 'board', 'titles', 'guide', 'help', 'log'];
+  // 说明页是解释本身；指南页是整本手册，它的「本页说明」指向的那一册只讲
+  // 「怎么读这本手册」，2026-11-18 随文案盘点一起删了，两页都不再挂页尾入口。
+  const noHelpFoot = ['help', 'guide'];
   for (const name of main) {
     const wxml = read('pages/' + name + '/' + name + '.wxml');
     assert.ok(/^<view class="pg pg--imm/m.test(wxml), name + ' 根节点不是 .pg--imm');
     // 返回箭头与标题都由小程序原生导航栏承担。
     // 页面里再画一遍就是两层导航：用户看到两个返回，点哪个、回到哪一层都说不清。
     assert.ok(!/imm-head/.test(wxml), name + ' 又在顶部留了一条只放「说明」的空行');
-    // 说明页自己就是解释，不需要再嵌一个说明入口。
-    if (name !== 'help') {
+    if (noHelpFoot.indexOf(name) < 0) {
       assert.ok(/class="pg__foot"[\s\S]*本页说明/.test(wxml), name + ' 页尾缺「说明」入口');
       assert.ok(/bindtap="onGoHelp"/.test(wxml), name + ' 缺「说明」入口');
     }
@@ -792,9 +794,9 @@ check('页面骨架统一：三 tab + 子页用仙箓皮肤，导航只留原生
   // 每个页面只有一个说明入口，不再有重复的页脚口号。
   for (const name of main) {
     const wxml = read('pages/' + name + '/' + name + '.wxml');
-    assert.strictEqual((wxml.match(/bindtap="onGoHelp"/g) || []).length, name === 'help' ? 0 : 1,
+    assert.strictEqual((wxml.match(/bindtap="onGoHelp"/g) || []).length, noHelpFoot.indexOf(name) < 0 ? 1 : 0,
       name + ' 的说明入口不唯一');
-    assert.ok(!/copy\.footHint/.test(wxml), name + ' 还留着重复页脚口号');
+    assert.ok(!/copy\.footHint|BRAND\.slogan/.test(wxml), name + ' 还留着重复页脚口号');
   }
   assert.ok(/\{\{copy\.footGuide\}\}/.test(read('pages/guide/guide.wxml')), '指南页页脚品牌行丢了');
   assert.ok(/class="pg--imm pg--t-\{\{themeTone\}\} login-page"/.test(read('pages/login/login.wxml')), '登录页根节点没接上墨金映射');
@@ -932,10 +934,9 @@ check('文案真源：跨页复用文案只在 data/copy.js 写一次', function
   const copy = require('../data/copy.js');
   const all = WXML.map(read).join('\n');
   const shared = [
-    copy.UI.footHint, copy.UI.loading, copy.UI.errorTitle, copy.UI.errorDesc,
+    copy.UI.loading, copy.UI.errorTitle, copy.UI.errorDesc,
     copy.UI.emptyLog, copy.UI.emptyBoard, copy.UI.emptySkills,
-    copy.UI.sections.today, copy.UI.sections.more,
-    copy.UI.sections.settings, copy.UI.sections.battleCode,
+    copy.UI.sections.today, copy.UI.sections.battleCode,
     copy.UI.labels.boardSpec, copy.UI.labels.boardChange,
     copy.UI.labels.todayDone, copy.UI.labels.dailyLeft, copy.UI.labels.times,
     copy.UI.labels.progress, copy.UI.labels.rank,
@@ -1161,7 +1162,7 @@ check('图鉴文案走文案真源，解释统一收进「说明」页', functio
   assert.ok(codex && /未习得也能查全本/.test(codex.lines.join('')), '说明真源没讲清图鉴的锁与不锁');
   assert.ok(!/copy\.hints\./.test(wxml), '功法页又把提示长句印回列表');
   assert.ok(copy.UI.states.learned && copy.UI.states.buyable, '状态文案没进真源');
-  assert.ok(copy.UI.actions.viewDetail && copy.UI.actions.goBattle, '动作文案没进真源');
+  assert.ok(copy.UI.actions.goSkills && copy.UI.actions.goBattle, '动作文案没进真源');
 });
 
 check('主页宫格各进各的子页，不再借道别的 tab', function () {
@@ -1726,8 +1727,8 @@ check('参悟页带 ?skillId 认门，「这一门」与换门都在页内', fun
 });
 
 check('玩家可见文案不写「看详情 / 去看看」这类口语前缀', function () {
-  const copy = require('../data/copy.js');
-  assert.strictEqual(copy.UI.actions.viewDetail, '详情 ›', '详情按钮仍带「看」字');
+  // 曾经这里钉着一个「详情 ›」按钮的措辞；那个按钮随功法列表改版一起没了，
+  // 键也一并删掉，只留下面这条全局扫写法的闸门。
   const files = [
     'pages/practice/practice.wxml', 'pages/profile/profile.wxml',
     'pages/skills/skills.wxml', 'pages/skills/skills.js',
@@ -2511,6 +2512,56 @@ check('上层只许走门面，不许直接 require 内核里的子文件', func
   assert.strictEqual(offenders.length, 0,
     '这些文件绕过了门面直接 require 内核子文件：' + offenders.join(', ')
     + '（分层靠路径守住，不靠自觉；要新接口就往 game/index.js 上加）');
+});
+
+// 文案是会「自己死掉」的：删一个页面、换一个入口，引用的那几条就没人读了，
+// 但键还躺在 copy.js 里，看着像还在用。2026-11 清过一批（删 pages/cultivate 后
+// 六个 hints 有五个成了孤儿），这条断言让它们死不了第二回。
+// 判据只看「页面/组件/数据层有没有人静态引用」，不看键名长短——
+// 因此页面里不许对 copy.UI 取别名（如 const A = copy.UI.actions），必须写全路径。
+check('文案真源不留死键：copy.UI 每一条都得有人引用', function () {
+  const copy = require('../data/copy.js');
+  let all = '';
+  (function walk(rel) {
+    fs.readdirSync(path.join(ROOT, rel), { withFileTypes: true }).forEach(function (e) {
+      const r = rel + '/' + e.name;
+      if (e.isDirectory()) walk(r);
+      else if (/\.(js|wxml)$/.test(e.name)) all += read(r) + '\n';
+    });
+  })('pages');
+  ['utils', 'components', 'minigames'].forEach(function (d) {
+    (function walk(rel) {
+      fs.readdirSync(path.join(ROOT, rel), { withFileTypes: true }).forEach(function (e) {
+        const r = rel + '/' + e.name;
+        if (e.isDirectory()) walk(r);
+        else if (/\.(js|wxml)$/.test(e.name)) all += read(r) + '\n';
+      });
+    })(d);
+  });
+  ['data/help.js', 'data/practice.js', 'data/navigation.js'].forEach(function (f) {
+    if (fs.existsSync(path.join(ROOT, f))) all += read(f) + '\n';
+  });
+
+  const dead = [];
+  (function scan(obj, prefix) {
+    Object.keys(obj).forEach(function (k) {
+      // brand 是 BRAND 的副本，真正引用走 copy.BRAND.x，按 BRAND 单独查。
+      if (k === 'brand') return;
+      const v = obj[k];
+      const p = prefix ? prefix + '.' + k : k;
+      if (v && typeof v === 'object' && !Array.isArray(v)) return scan(v, p);
+      if (typeof v !== 'string') return;
+      if (all.indexOf('copy.UI.' + p) < 0 && all.indexOf('copy.' + p) < 0) {
+        dead.push(p + '（' + v + '）');
+      }
+    });
+  })(copy.UI, '');
+  Object.keys(copy.BRAND).forEach(function (k) {
+    if (all.indexOf('BRAND.' + k) < 0) dead.push('BRAND.' + k + '（' + copy.BRAND[k] + '）');
+  });
+
+  assert.strictEqual(dead.length, 0,
+    '这些文案没人读了，删掉或接上：' + dead.join(' / '));
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');
