@@ -1189,7 +1189,7 @@ check('触雷不再一击出局，只扣一盏心神并显形', function () {
   } finally { restoreClock(); }
 });
 
-// ---------------------------------------------------------------- 循数勘禁诀：经典扫雷深耕
+// ---------------------------------------------------------------- 洞微勘禁诀：经典扫雷深耕
 // 只读 vm.cells 的推理器，与 mines.js「无猜」判定同用最基础的单格规则。
 // 它看不到 mineSet，推得完就说明这一盘真的不用猜，而不是玩法层自己说了算。
 function mineNeighbors(i, cols, rows) {
@@ -1237,7 +1237,7 @@ function solveMines(ctx, cols) {
   return !!ctx.st.finished;
 }
 
-check('循数勘禁诀：开局不先布雷，首点九宫格全开且盘面无汉字', function () {
+check('洞微勘禁诀：开局不先布雷，首点九宫格全开且盘面无汉字', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('tanlei'));
@@ -1260,7 +1260,7 @@ check('循数勘禁诀：开局不先布雷，首点九宫格全开且盘面无�
   } finally { restoreClock(); }
 });
 
-check('循数勘禁诀：无猜布局能纯靠数字零失误翻完全盘', function () {
+check('洞微勘禁诀：无猜布局能纯靠数字零失误翻完全盘', function () {
   installClock();
   try {
     let guessed = 0;
@@ -1281,7 +1281,7 @@ check('循数勘禁诀：无猜布局能纯靠数字零失误翻完全盘', func
   } finally { restoreClock(); }
 });
 
-check('循数勘禁诀：首点不会把整盘开完（否则 0 秒拿 S，等于没参悟）', function () {
+check('洞微勘禁诀：首点不会把整盘开完（否则 0 秒拿 S，等于没参悟）', function () {
   installClock();
   try {
     for (let round = 0; round < 30; round += 1) {
@@ -1294,7 +1294,7 @@ check('循数勘禁诀：首点不会把整盘开完（否则 0 秒拿 S，等�
   } finally { restoreClock(); }
 });
 
-check('循数勘禁诀：阵钉数对上点数字格可连开，压错位置照样踩禁制', function () {
+check('洞微勘禁诀：阵钉数对上点数字格可连开，压错位置照样踩禁制', function () {
   installClock();
   try {
     const ctx = makeCtx(data.getMethod('tanlei'));
@@ -1339,7 +1339,7 @@ check('循数勘禁诀：阵钉数对上点数字格可连开，压错位置照�
   } finally { restoreClock(); }
 });
 
-check('循数勘禁诀：结算分数越大越好，玩得快不会反而输给磨洋工', function () {
+check('洞微勘禁诀：结算分数越大越好，玩得快不会反而输给磨洋工', function () {
   installClock();
   try {
     function abandonScore(seconds) {
@@ -1357,7 +1357,7 @@ check('循数勘禁诀：结算分数越大越好，玩得快不会反而输给�
   } finally { restoreClock(); }
 });
 
-check('循数勘禁诀：五档禁制数与心神数真的分开，不再叠一次 hard +3', function () {
+check('洞微勘禁诀：五档禁制数与心神数真的分开，不再叠一次 hard +3', function () {
   installClock();
   try {
     const keys = ['novice', 'entry', 'minor', 'major', 'full'];
@@ -1379,7 +1379,7 @@ check('循数勘禁诀：五档禁制数与心神数真的分开，不再叠一�
   } finally { restoreClock(); }
 });
 
-check('循数勘禁诀：章内 lineScale 真被读走，S 线随段收紧而不是只写在界面上', function () {
+check('洞微勘禁诀：章内 lineScale 真被读走，S 线随段收紧而不是只写在界面上', function () {
   installClock();
   try {
     const m = data.getMethod('tanlei');
@@ -1405,7 +1405,7 @@ check('循数勘禁诀：章内 lineScale 真被读走，S 线随段收紧而不
   } finally { restoreClock(); }
 });
 
-check('循数勘禁诀：阵钉读数常驻，钉超了照实报 7 / 6', function () {
+check('洞微勘禁诀：阵钉读数常驻，钉超了照实报 7 / 6', function () {
   installClock();
   try {
     const m = data.getMethod('tanlei');
@@ -1427,7 +1427,7 @@ check('循数勘禁诀：阵钉读数常驻，钉超了照实报 7 / 6', functio
   } finally { restoreClock(); }
 });
 
-check('循数勘禁诀：开出一片要报格数，不能一律「石格无事」', function () {
+check('洞微勘禁诀：开出一片要报格数，不能一律「石格无事」', function () {
   installClock();
   try {
     const m = data.getMethod('tanlei');
@@ -1441,7 +1441,7 @@ check('循数勘禁诀：开出一片要报格数，不能一律「石格无事�
   } finally { restoreClock(); }
 });
 
-check('循数勘禁诀：大成勘出 3 处、大圆满 5 处，已勘出的禁制点了不再扣心神', function () {
+check('洞微勘禁诀：大成勘出 3 处、大圆满 5 处，已勘出的禁制点了不再扣心神', function () {
   installClock();
   try {
     for (const pair of [[3, 3], [5, 5]]) {
@@ -2091,7 +2091,7 @@ check('阵灯推演：首局手把手两步走完就全亮，点错不推进', f
   installClock();
   try {
     const teach = index.MODULES.lights.teach;
-    assert.ok(teach, '星罗点灯诀没有教学脚本');
+    assert.ok(teach, '星罗烛天诀没有教学脚本');
     assert.deepStrictEqual(teach.steps, [4, 0], '教学步骤被改了（第一手必须先点正中）');
     const startBoard = teach.board();
     assert.strictEqual(startBoard.filter(Boolean).length, 5,

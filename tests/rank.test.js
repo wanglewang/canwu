@@ -906,13 +906,13 @@ check('换承重轴的两门：变的是复杂度与盘面，不是时间', func
     const lv = practice.MINES_LEVELS[d.depth];
     const cells = lv.cols * lv.rows;
     // 前两档同为 6×6，靠禁制数（5→6）区分；盘面只许变大，不许缩回去。
-    assert.ok(cells >= prevCells, d.name + ' 循数勘禁诀盘面反而变小');
-    assert.ok(lv.mines > prevMines, d.name + ' 循数勘禁诀禁制数没有增加');
+    assert.ok(cells >= prevCells, d.name + ' 洞微勘禁诀盘面反而变小');
+    assert.ok(lv.mines > prevMines, d.name + ' 洞微勘禁诀禁制数没有增加');
     const density = lv.mines / cells;
     // 密度必须稳在一个区间里：密度太低是空盘、太高是无处下脚，
     // 两种都不叫「变难」，叫「换了一盘棋」。
     assert.ok(density > 0.12 && density < 0.20,
-      d.name + ' 循数勘禁诀禁制密度 ' + (density * 100).toFixed(1) + '% 超出 12–20%');
+      d.name + ' 洞微勘禁诀禁制密度 ' + (density * 100).toFixed(1) + '% 超出 12–20%');
     prevCells = cells;
     prevMines = lv.mines;
   }
@@ -920,11 +920,11 @@ check('换承重轴的两门：变的是复杂度与盘面，不是时间', func
   const mineSizes = {};
   for (const lv of practice.MINES_LEVELS) mineSizes[lv.cols] = true;
   assert.ok(Object.keys(mineSizes).length >= 4,
-    '循数勘禁诀盘面只有 ' + Object.keys(mineSizes).length + ' 种规格，撑不起五档阶梯');
+    '洞微勘禁诀盘面只有 ' + Object.keys(mineSizes).length + ' 种规格，撑不起五档阶梯');
   const m0 = practice.MINES_LEVELS[0];
   const m4 = practice.MINES_LEVELS[4];
   assert.ok((m4.cols * m4.rows) / (m0.cols * m0.rows) >= 2.2,
-    '循数勘禁诀盘面跨度只有 ' + ((m4.cols * m4.rows) / (m0.cols * m0.rows)).toFixed(2) + ' 倍');
+    '洞微勘禁诀盘面跨度只有 ' + ((m4.cols * m4.rows) / (m0.cols * m0.rows)).toFixed(2) + ' 倍');
 
 });
 
@@ -1074,7 +1074,7 @@ check('getFamilies 四档刻度齐全，缺变体的档位标空档', function (
     assert.ok(!fams.some(function (f) { return f.type === gone; }),
       gone + '族已经一门不剩，谱系里还挂着空壳');
   }
-  // 丹道 2026-11 起有门了（同源叠元诀）：空壳走了，真门要进得来。
+  // 丹道 2026-11 起有门了（同源归一诀）：空壳走了，真门要进得来。
   assert.ok(fams.some(function (f) { return f.type === '丹道'; }),
     '丹道已有功法，谱系里却没有这一族');
   // 心法族两门黄阶（吐纳周天诀 / 太虚照见诀）必须都看得见：同阶并列，不许盖掉后一门。
@@ -1132,7 +1132,7 @@ check('v3 存档升到 v9，熟练度与纪录原样保留，灵力补到身家�
   assert.strictEqual(typeof n.daily.battleWins, 'number');
 });
 
-check('九套经典 + 循数勘禁诀默认已习得，藏经阁只留非经典', function () {
+check('九套经典 + 洞微勘禁诀默认已习得，藏经阁只留非经典', function () {
   // 经典盘面（连连看 / 俄罗斯方块 / 三消 / 数独 / 2048 / 舒尔特 / 华容道 / 推箱子 / 挑最大）
   // 加上扫雷，是「点进去就知道怎么玩」的那一批。这一批不该拿去卖：
   // 玩家第一次打开游戏，最想玩的正是它们，摆一道灵石墙只会把人挡在门口。

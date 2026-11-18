@@ -157,7 +157,7 @@ Page({
     }].concat(bt.maxed || bt.available || !bt.fastest ? [] : [{
       // 「还差 2 点」如果不说该练哪门，玩家只能把十五门挨个试一遍。
       // 这里给的是「离下一段最近的那门」，不是加成最大的那门——今天就能动的那一步。
-      // 只用短名：一行里塞不下「阵法·星罗点灯诀到入门」。
+      // 只用短名：一行里塞不下「阵法·星罗烛天诀到入门」。
       text: '还差 ' + bt.lack + ' 点 · 最近：「'
         + String(bt.fastest.name).split(skillsData.NAME_RULE.sep).pop()
         + '」到' + bt.fastest.nextName + '（+' + bt.fastest.gain + '）',

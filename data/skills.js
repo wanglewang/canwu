@@ -32,8 +32,9 @@ const practiceData = require('./practice.js');
 //   · 正名四到六字，末字用体裁字（诀 / 步 / 引），按载体取，不按品阶取；
 //   · 正名走「意象 + 体裁字」：前几字给一个说得出口的意象或典故，末字是体裁字。
 //     盘上具体做什么，写在方法页与说明页，不写进名字——名字是门派里对这门功课的叫法，
-//     不是关卡目标。反例：移山开路诀（华容道的胜利条件）、移石归阵诀（推箱子的目标）、
-//     摘星辨魁诀（操作提示）——读完就知道怎么玩，反而不像功法；现有 15 门统一五字；
+//     不是关卡目标。反例：移山开路诀（华容道的胜利条件，2026-11-18 改为移星换斗诀）、
+//     移石归阵诀（推箱子的目标）、摘星辨魁诀（操作提示）——读完就知道怎么玩，反而不像功法；
+//     现有 15 门统一五字；
 //   · 正名不得与参悟方式名、玩法名重复（三层命名各管一件事）；
 //   · 不用「入门 / 基础 / 小」这类等级词，品阶由 tier 与卡片角标表达，不写进名字。
 // id 是存档主键，改名字一律不动 id。对白 / 行文里可用简称，正式名只认这里的 name。
@@ -44,7 +45,8 @@ const practiceData = require('./practice.js');
 // 的 `.sk-name` 单行截断，五字在 320px 上也放得下），于是把字数让给意象：
 //   三秀连收诀 = 三株灵苗 · 连成一线收取；同源叠元诀 = 两枚同数 · 相叠成更高一元；
 //   摘星辨魁诀 = 一批数里 · 一眼挑出最大的那个。
-// （这三行是「看到名字该想到什么」的释义，不是起名的公式——按新规则，名字本身不许说怎么玩。）
+// （这三行是当时「看到名字该想到什么」的释义，不是起名的公式；2026-11-18 三秀连收 /
+//   同源叠元又改成意象正名三秀撷英 / 同源归一，按现行规则名字本身不许说怎么玩。）
 //
 // 2026-11 整批重归：这十五门原来的类别叫「术数 / 合术 / 目术 / 辨术 / 机巧 / 挪移 / 土术」，
 // 那是按「玩家在屏幕上做什么」分的（扫视 / 比较 / 合并 / 推箱），读着像《封神演义》里
@@ -123,7 +125,7 @@ const SKILLS = [
     // 阵灯推演是十五门里最费脑的一门，挂在黄阶会让「练得最苦、拿得最少」；
     // 提到地阶后运功耗气 ×1.30、属性 ×1.7、可修上限抬到元婴；代价是超出上限时再 ×1.5。
     // 名字去掉「入门」：地阶功法再叫入门，就是玩家一眼看得见的名实相斥。
-    id: 'zhen', name: '阵法·星罗点灯诀', type: '阵法', kind: 'skill', tier: 'di', method: 'arrayEye',
+    id: 'zhen', name: '阵法·星罗烛天诀', type: '阵法', kind: 'skill', tier: 'di', method: 'arrayEye',
     desc: '一灯明，四面翻；落子一处，自身与上下左右四格明暗相易，全阵齐明，阵破功成。',
     flavor: '一步推错，满盘皆要重来。',
     bonus: { ling: 3, wu: 1 },
@@ -158,7 +160,7 @@ const SKILLS = [
     // 归「阵法」才与玩法同源：黄阶勘禁（静态推理）→ 玄阶五行（动态连锁）→ 地阶点灯（步数最省），
     // 一族三档正好补齐，族内也是「盘上推演」这一个共同点。
     // 难度低于另两门阵法，所以仍在黄阶；可修上限只到筑基，练到头该换地阶那门。
-    id: 'leifu', name: '阵法·循数勘禁诀', type: '阵法', kind: 'skill', tier: 'huang', method: 'tanlei',
+    id: 'leifu', name: '阵法·洞微勘禁诀', type: '阵法', kind: 'skill', tier: 'huang', method: 'tanlei',
     desc: '禁制埋在石格下，只有周围几格露出的数字能看。按数字把禁位一处处勘出来。',
     flavor: '禁制不响，只数数给你听。',
     bonus: { ling: 4, wu: 1 },
@@ -197,7 +199,7 @@ const SKILLS = [
     source: { kind: 'start' },
   },
   {
-    id: 'sanxiu', name: '灵植·三秀连收诀', type: '灵植', kind: 'skill', tier: 'huang', method: 'harvest',
+    id: 'sanxiu', name: '灵植·三秀撷英诀', type: '灵植', kind: 'skill', tier: 'huang', method: 'harvest',
     desc: '灵畦植苗：互换相邻两株灵苗，三株同色连成一线即可采收；采收后新苗落下，还能再连锁。',
     flavor: '一畦三秀，收完又长，长得比你收得还快。',
     bonus: { wu: 3, ti: 2 },
@@ -217,11 +219,11 @@ const SKILLS = [
     source: { kind: 'start' },
   },
   {
-    id: 'heyuan', name: '丹道·同源叠元诀', type: '丹道', kind: 'skill', tier: 'huang', method: 'heyuan',
+    id: 'heyuan', name: '丹道·同源归一诀', type: '丹道', kind: 'skill', tier: 'huang', method: 'heyuan',
     desc: '同数两块一撞就合成双倍，越往上越重；合出本档那一块即完成。',
     flavor: '一加一的道理，练到最后是 1024 加 1024。',
     bonus: { ling: 3, ti: 1 },
-    effect: { type: 'power', value: 0.05, text: '叠元：对战战力 +5%' },
+    effect: { type: 'power', value: 0.05, text: '归一：对战战力 +5%' },
     source: { kind: 'start' },
   },
   {
@@ -233,11 +235,11 @@ const SKILLS = [
     source: { kind: 'start' },
   },
   {
-    id: 'rongdao', name: '机关·移山开路诀', type: '机关', kind: 'skill', tier: 'huang', method: 'rongdao',
+    id: 'rongdao', name: '机关·移星换斗诀', type: '机关', kind: 'skill', tier: 'huang', method: 'rongdao',
     desc: '滑块一次挪一格，把主块一路让到盘底出口；走的路越省越算功夫。',
     flavor: '让一步不是退，是给别人腾地方。',
     bonus: { wu: 3, shen: 2 },
-    effect: { type: 'qiSave', value: 0.08, text: '开路：参悟耗灵力 −8%' },
+    effect: { type: 'qiSave', value: 0.08, text: '移星：参悟耗灵力 −8%' },
     source: { kind: 'start' },
   },
   {

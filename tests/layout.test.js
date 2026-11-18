@@ -456,7 +456,7 @@ check('战力明细收进「说明」真源，首屏只留数值；指南保留�
   assert.ok(/title: '二 · 离线吐纳之规'/.test(guide), '插了新专节，后面章节编号没顺延');
 });
 
-check('循数勘禁诀按经典扫雷深耕：无猜、首点空白、连开、分数方向', function () {
+check('洞微勘禁诀按经典扫雷深耕：无猜、首点空白、连开、分数方向', function () {
   const m = read('minigames/mines.js');
   const g = read('data/guides.js');
   const p = read('data/practice.js');
@@ -467,16 +467,16 @@ check('循数勘禁诀按经典扫雷深耕：无猜、首点空白、连开、�
   assert.ok(!/hard \? 3/.test(m), '还在 ctx.difficulty 上叠 +3，三档会挤成一盘');
   assert.ok(/MINE_GLYPH = '✕'/.test(m) && /FLAG_GLYPH = '⚑'/.test(m), '盘面还在写汉字');
   assert.ok(/不必猜/.test(g) && /连开/.test(g) && /⚑/.test(g), '玩法说明没讲无猜与连开');
-  assert.ok(/tanlei: \[/.test(p) && /洞玄/.test(p), '阶段新法没登记循数勘禁诀');
+  assert.ok(/tanlei: \[/.test(p) && /洞玄/.test(p), '阶段新法没登记洞微勘禁诀');
 });
 
-check('循数勘禁诀局内只讲「在追哪一档」：不摆当前评级，HUD 不重复计数', function () {
+check('洞微勘禁诀局内只讲「在追哪一档」：不摆当前评级，HUD 不重复计数', function () {
   const m = read('minigames/mines.js');
   const g = read('data/guides.js');
   const w = read('pages/practice/practice.wxml');
   // 评级只看用时，按当前用时反推出来的档，开局那一刻必是 S。摆进 HUD 等于告诉玩家
   // 「已经拿到 S 了」，之后只能看它一路往下掉。局内改成只报下一档的时限。
-  assert.ok(/showGradeNow = false/.test(m), '循数勘禁诀又把「当前评级」摆回 HUD 了');
+  assert.ok(/showGradeNow = false/.test(m), '洞微勘禁诀又把「当前评级」摆回 HUD 了');
   // 时间线跟着盘面格数走（9×9 的 S 线是 56 秒而不是 25 秒），所以第二个实参
   // 可能是 GRADE_LINE 也可能是本盘算出来的 line；两者都算「给了下一档的时限」。
   assert.ok(/C\.paceGoal\(elapsed,\s*(GRADE_LINE|line)\)/.test(m), '局内没给「下一档还差几秒」');
@@ -601,7 +601,7 @@ check('阶段新法可关：只有「改规矩」的才给开关，关了真的�
   assert.ok(practice.STAGE_RULES.arrayEye.some(function (r) { return r.hard; }),
     '死门没被标成可关');
   assert.ok(!practice.STAGE_RULES.tanlei.some(function (r) { return r.hard; }),
-    '循数勘禁诀的纯加成也被给了开关');
+    '洞微勘禁诀的纯加成也被给了开关');
   assert.ok(!practice.STAGE_RULES.stackstone.some(function (r) { return r.hard; }),
     '万石成岳诀的纯加成也被给了开关');
 
@@ -1311,7 +1311,7 @@ check('阵灯推演：代价句按阶段出现，盘面只画图形不写汉字'
   assert.ok(/阵溃/.test(gd.scoring), '评级口径没写清阵溃');
 });
 
-check('星罗点灯诀：简介对齐熄灯谜题，死门误触有独立触感', function () {
+check('星罗烛天诀：简介对齐熄灯谜题，死门误触有独立触感', function () {
   const sk = require('../data/skills.js').SKILLS.filter(function (s) { return s.method === 'arrayEye'; })[0];
   assert.ok(/上下左右四格/.test(sk.desc), '功法简介没讲清翻转四格');
   assert.ok(/上下左右四格/.test(read('data/practice.js')), '准备页副标题没讲清翻转四格');
@@ -1940,7 +1940,7 @@ check('首局手把手：盘上引导而不是全屏弹窗，跳过有入口、�
   assert.ok(/if \(this\.canTeach\(\)\) \{ this\.startTeach\(\); return; \}/.test(js), '开局没先走引导');
   assert.ok(/engine\.markTaught/.test(js), '走完引导没写存档');
   assert.ok(/engine\.hasTaught/.test(js), '没读存档判断是否已看过');
-  assert.strictEqual(index.hasTeach('lights'), true, '星罗点灯诀没有教学脚本');
+  assert.strictEqual(index.hasTeach('lights'), true, '星罗烛天诀没有教学脚本');
   assert.ok(game.markOnboarded && game.hasOnboarded, '引擎没有引导标记接口');
 
   // 教学盘不该出现评级、重置与结束：那是一局才有的压力。

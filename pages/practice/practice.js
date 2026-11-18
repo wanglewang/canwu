@@ -530,7 +530,7 @@ Page({
     // 开局卡那一行：整篇规则在说明页，首屏只留「这一局做什么」。
     const guideData = guides.guideOf(method.game);
     const ruleText = guideData ? guideData.goal : method.desc;
-    // 入门卡：第一次进这一门先摆三句「怎么玩」。教学盘（只有阵法·星罗点灯诀有）是跟着走一遍，
+    // 入门卡：第一次进这一门先摆三句「怎么玩」。教学盘（只有阵法·星罗烛天诀有）是跟着走一遍，
     // 入门卡是进门前读三行——十五门都得有，不然新门道只能靠试错。
     const introOn = !rec.introed && !!guideData;
     const intro = introOn ? {
@@ -1407,7 +1407,7 @@ Page({
   // 只有 stage === 'klotski' 会用到，别的玩法照旧走格子。
   onBlockTap: function (event) {
     // 华容道的块不在 cells 里，点击走的是这条口子：教学态必须同样转发，
-    // 否则「移山开路诀」的教学盘上摆着块，玩家点上去毫无反应。
+    // 否则「移星换斗诀」的教学盘上摆着块，玩家点上去毫无反应。
     if (this.data.tutorial) {
       if (!this.teachController || this.data.showResult) return;
       this.teachController.tap(Number(event.currentTarget.dataset.i || 0));
@@ -1550,7 +1550,7 @@ Page({
   onMoveTouchEnd: function (event) {
     const from = this.moveFrom;
     this.moveFrom = null;
-    // 教学态没有真 controller：推盘这一门（同源叠元诀）的教学要能划得动。
+    // 教学态没有真 controller：推盘这一门（同源归一诀）的教学要能划得动。
     const ctl = this.data.tutorial ? this.teachController : this.controller;
     if (!from || !ctl || !ctl.move) return;
     const pt = this.touchPoint(event);
@@ -1760,7 +1760,7 @@ Page({
         if (r.newTitles && r.newTitles.length) milestones.push('得名号：' + r.newTitles.map(function (t) { return t.name; }).join('、'));
       }
 
-      // 玩法层可以带自己的评级依据（星罗点灯诀写「走了几步 / 最优几步 / 为什么不是 S」）。
+      // 玩法层可以带自己的评级依据（星罗烛天诀写「走了几步 / 最优几步 / 为什么不是 S」）。
       // 它排在最前：玩家最先想知道的是这一局本身，而不是连 S 进度。
       const notes = Array.isArray(res.notes) ? res.notes.slice() : [];
       // 失败不是「成绩差」，是没走完：先把理由摆在最前，玩家才知道这一局到底栽在哪。
