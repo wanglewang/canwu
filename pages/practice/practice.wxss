@@ -1051,18 +1051,26 @@
     box-shadow: inset 0 0 0 2rpx rgba(255, 214, 206, 0.28);
 }
 
-/* ---------- 并蒂连枝引：盘面按「手机是竖的」重排 ----------
-   原来是 6×4 / 7×5 / 8×6，横着长。手机是竖的，横盘只能占满宽度、高度只用掉
-   屏幕的一小截，底下全是空；而格子宽度又被列数锁死——7 列时每格只有 49px，
-   再怎么调边距也大不了一格像素。唯一的旋钮是列数。
+/* ---------- 并蒂连枝引：盘形按「一屏放得下」重排 ----------
+   这一门来回栽在同一个算式上：**盘面总高 = 行数 × 格高**，改列数时没人算它。
+   ① 6×4 / 7×5 / 8×6 横盘：高度只用掉一截，底下全是空；
+   ② 4×6 / 5×7 / 6×8 竖盘：格子是大了一档，可 7 行 × 118rpx = 826rpx、
+      8 行 × 110rpx = 880rpx，加上面那几行说明，盘底直接顶出屏幕外。
+   列数只是「格子多大」的旋钮，**行数才是「占多高」的那个**，两者必须一起看。
 
-   盘形改成 4×6 / 5×7 / 6×8（见 data/practice.js 的 LINK_LEVELS）：
-   列少下去、行长上去，格子当场大一档（49 → 85px），而对数一枚没动
-   （10 / 16 / 22），每对预算还是原来那把尺子，难度不跟着变。
-   高度按格子宽度给成近正方。只挂 board--link——c4 / c6 在刀法、九宫
-   那几门还是原来的尺寸，不许被这里带跑。 */
-.board--link.grid--c4 .cell { height: 136rpx; }
-.board--link.grid--c6 .cell { height: 110rpx; }
+   现在三段都是 6 行（见 data/practice.js 的 LINK_LEVELS），盘高统一 708rpx：
+     4×6 挖四角 = 20 格 · 10 对
+     6×6 挖四角 = 32 格 · 16 对
+     8×6 挖四角 = 44 格 · 22 对
+   708rpx ≈ 354px，顶部信息区约 300px、底部按钮约 80px，812px 屏留得下。
+   行数不动、只加列，是这一门最省事的段差：格子由 93px 缩到 47px，一眼看得出换了盘，
+   而对数一枚没动（10 / 16 / 22），每对预算还是原来那把尺子，难度不跟着变。
+   小屏（667px 一档）装不下 354px，所以再压一道 min()：六行 + 上下固定区 ≈ 720rpx，
+   剩下的高度平分给六行。不支持 min() 的机型回落到前一行写的 118rpx。
+   只挂 board--link——同样列数的刀法、九宫那几门还是原来的尺寸，不许被带跑。 */
+.board--link.grid--c4 .cell { height: 118rpx; height: min(118rpx, calc((100vh - 720rpx) / 6)); }
+.board--link.grid--c6 .cell { height: 118rpx; height: min(118rpx, calc((100vh - 720rpx) / 6)); }
+.board--link.grid--c8 .cell { height: 118rpx; height: min(118rpx, calc((100vh - 720rpx) / 6)); }
 .cell--flag { background-color: #f6e7bf; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(196, 155, 74, 0.3)); color: #8a6524; box-shadow: inset 0 0 0 3rpx rgba(162, 118, 45, 0.5), 0 3rpx 8rpx rgba(0, 0, 0, 0.3); }
 .cell--mine { background: #b4453c; color: #fffdf7; animation: badShake 0.3s ease-out; box-shadow: 0 0 26rpx rgba(180, 69, 60, 0.55), inset 0 0 0 3rpx rgba(255, 214, 206, 0.5); }
 .cell--hint { background: #b8893b; color: #fffdf7; animation: litPop 0.5s ease-out infinite alternate; box-shadow: 0 0 24rpx rgba(184, 137, 59, 0.5), inset 0 2rpx 0 rgba(255, 255, 255, 0.3); }

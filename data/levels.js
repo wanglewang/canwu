@@ -145,9 +145,17 @@ function linkThemeOf(level) {
 const LINK_LAYOUTS = [
   { id: 'both', name: '上下缺' },   // 上下两沿正中各缺两格
   { id: 'side', name: '两侧缺' },   // 左右两边正中各缺两格
-  { id: 'stair', name: '对角缺' },  // 对角两处斜切
-  { id: 'corner', name: '角位缺' }, // 角上各缺一格；奇数格盘会去掉最后一格（三个角），所以名字不写「四」
+  { id: 'cross', name: '四门缺' },  // 四边正中各缺一格（十字对称）
+  { id: 'corner', name: '角位缺' }, // 四角各缺一格
 ];
+// 空位数：**每一段都挖四格，一格都不能省**。
+// 试过「盘形正好等于目标格数，不挖空位」（5×4 满盘），实测两折下可连对数为 0——
+// 开局就是一副死盘：连线要有一条空的行或列当走廊，满盘时任何两折路径都被牌堵死。
+// 空位不是装饰，是这一门成立的前提。
+// 四格也刚好让三副盘形都落在偶数上（24−4=20 / 36−4=32 / 48−4=44），
+// 不会出现「挖四个剩奇数、只能丢掉一个角」的三缺一——5×7 那一版就是这么残的。
+// 数量挂段不挂盘形：对数就是时辰的分母，段内必须恒定。
+const LINK_GAP_COUNT = [4, 4, 4, 4, 4];
 // 4 关一轮，按段内进度算（段首关是四副里的第一副，换段换的是盘面规格，不是布局）。
 // 与纹样的 5 关不同周期，所以大多数关只有一个轴在变，偶尔两件一起换。
 // 按段内进度而不是按全书关号：按全书算的话，段首关会从四副里随便一副开始，
@@ -168,7 +176,12 @@ function linkLayoutNameOf(level) {
 // 空位是「格子下标」，由数据层一次算清，玩法层只消费（p.gaps）。
 // 不给玩法层自己算的理由：对数（时辰的分母）也算在这里，两处各算一套迟早对不上。
 function linkGapsAt(level, cols, rows) {
-  const spec = LINK_LAYOUTS[linkLayoutOf(level)] || LINK_LAYOUTS[0];
+  const lv = Math.max(1, Math.round(Number(level) || 1));
+  const want = LINK_GAP_COUNT[stageOfLevel(lv)] || 0;
+  // 这一段的盘形不需要空位：直接给空表。调用方（对数、时辰、规格串）都从
+  // 返回值的长度反推，所以「不挖」和「挖四个」走的是同一条路，没有第二套算法。
+  if (!want) return [];
+  const spec = LINK_LAYOUTS[linkLayoutOf(lv)] || LINK_LAYOUTS[0];
   const c = Math.max(3, Math.round(cols) || 6);
   const r = Math.max(3, Math.round(rows) || 4);
   const c0 = Math.floor((c - 2) / 2);
@@ -177,7 +190,7 @@ function linkGapsAt(level, cols, rows) {
   let gaps = [];
   if (spec.id === 'both') gaps = [at(0, c0), at(0, c0 + 1), at(r - 1, c0), at(r - 1, c0 + 1)];
   else if (spec.id === 'side') gaps = [at(r0, 0), at(r0 + 1, 0), at(r0, c - 1), at(r0 + 1, c - 1)];
-  else if (spec.id === 'stair') gaps = [at(0, 1), at(1, 0), at(r - 1, c - 2), at(r - 2, c - 1)];
+  else if (spec.id === 'cross') gaps = [at(0, c0), at(r - 1, c0), at(r0, 0), at(r0, c - 1)];
   else if (spec.id === 'corner') gaps = [at(0, 0), at(0, c - 1), at(r - 1, 0), at(r - 1, c - 1)];
   // 小盘上几种挖法可能撞格：去重、去越界，再保证剩下的格子仍是偶数
   // （奇数就没法成对，玩法层会当场少一张牌）。
@@ -188,6 +201,9 @@ function linkGapsAt(level, cols, rows) {
     if (uniq.indexOf(g) >= 0) continue;
     uniq.push(g);
   }
+  // 上限就是本段该挖的数量：撞格去重后不够四个时宁可少挖，也不从别处补——
+  // 补出来的位置不在布局的形状里，盘面会变成一副谁也不认识的缺口。
+  while (uniq.length > want) uniq.pop();
   if ((c * r - uniq.length) % 2) uniq.pop();
   return uniq;
 }
@@ -302,6 +318,7 @@ module.exports = {
   LINK_THEME_COUNT: LINK_THEME_COUNT,
   LINK_THEME_NAMES: LINK_THEME_NAMES,
   LINK_LAYOUTS: LINK_LAYOUTS,
+  LINK_GAP_COUNT: LINK_GAP_COUNT,
   LINK_LAYOUT_EVERY: LINK_LAYOUT_EVERY,
   linkLayoutOf: linkLayoutOf,
   linkLayoutNameOf: linkLayoutNameOf,

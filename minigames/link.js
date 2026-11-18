@@ -585,8 +585,8 @@ const TEACH_STAGE = [
   { cols: 3, rows: 2, kinds: 4, turns: 2 },
   { cols: 4, rows: 6, kinds: 5, turns: 2 },
   { cols: 4, rows: 6, kinds: 6, turns: 2 },
-  { cols: 5, rows: 7, kinds: 6, turns: 1 },
-  { cols: 6, rows: 8, kinds: 6, turns: 1 },
+  { cols: 6, rows: 6, kinds: 6, turns: 1 },
+  { cols: 8, rows: 6, kinds: 6, turns: 1 },
 ];
 
 // 一段一副盘：同纹两枚取「第一枚」与「按本段折数真能连到的最远一枚」——折线要真的走一遍。
@@ -608,24 +608,26 @@ function teachLayout(stage) {
   } else {
     for (let i = 0; i < n; i += 1) board.push(i % spec.kinds + 1);
   }
-  let b = -1;
-  for (let i = n - 1; i > 0; i -= 1) {
-    if (board[i] === board[0] && findPath(board, spec.cols, spec.rows, 0, i, spec.turns)) {
-      b = i;
-      break;
+  // 示范对由真判定选出：先试首枚，首枚在整盘上一对都兑不出时换下一枚。
+  // 5×4 配 6 种纹这一副里，同纹全落在对角线上（列数与纹种数互质），首枚两折内
+  // 一条路都走不出去——盘摆得没错，是「示范对一定含首枚」这个假设不成立了。
+  // 换成「谁连得出就用谁」：任何列/纹组合都能给出一个真能点的一对。
+  const pick = function (from) {
+    for (let i = n - 1; i > from; i -= 1) {
+      if (board[i] === board[from] && findPath(board, spec.cols, spec.rows, from, i, spec.turns)) return i;
     }
-  }
-  // 兜底只防模板本身摆坏：同纹相邻永远可连，所以正常情况下走不到这里。
+    return -1;
+  };
+  let a = 0;
+  let b = pick(0);
   if (b < 0) {
-    for (let i = 1; i < n; i += 1) {
-      if (board[i] === board[0] && findPath(board, spec.cols, spec.rows, 0, i, spec.turns)) {
-        b = i;
-        break;
-      }
+    for (let s = 1; s < n && b < 0; s += 1) {
+      const t = pick(s);
+      if (t >= 0) { a = s; b = t; }
     }
   }
   return { board: board, cols: spec.cols, rows: spec.rows, kinds: spec.kinds,
-    turns: spec.turns, a: 0, b: b };
+    turns: spec.turns, a: a, b: b };
 }
 
 function createTeach(ctx) {
