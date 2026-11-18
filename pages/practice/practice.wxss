@@ -962,10 +962,29 @@
      未探 = 还没翻的牌（浅一点、凸起，底缘压内暗）
      已探 = 挖开的地方（更暗、凹，上缘压内暗）
    于是「探开的越多，盘面越暗」，亮的地方永远只有数字那么几个点。
-   实测：台与夜底 1.13、未探/台 2.53、已探/未探 1.91。
-   台压到 #241d15 之后与夜色几乎同亮，盘的边界靠 .grid 那道旧金细线撑住，
-   不再靠明度——这也是「不晃」的一半来源。 */
-.board--mines { --well: #241d15; }
+   ④ 极性翻对之后仍然被判「灰不溜秋、黑不溜秋」——这一版的病根不在格子上，
+   在 --well：格子之间那道沟槽取的就是 --well，它被压到近黑 #241d15，
+   等于在暖赭格上罩了一张黑网，远看既灰又碎。
+   参照图「网格线跟背景一个颜色」说的就是这件事：那条线本该是**盘面自己的**
+   颜色，是同一块料上凿出来的缝，不是另一种材料。所以台色抬回暖褐，
+   整盘只剩「暖赭 — 深暖褐」一个色系，明暗差还在，黑白差去掉。
+   实测：台/夜底 1.40、未探/台 2.96、已探/未探 2.27。
+   盘的边界仍有 .grid 那道旧金细线，双重保险。 */
+.board--mines { --well: #3a2d1d; }
+
+/* 通用盘的「上缘暖光 + 底部暗角 + 内圈压黑」是给玉牌托底用的：牌是浅的，
+   台要压暗牌才立得起来。探禁反着来——牌本来就压在中低亮度，这三道一叠，
+   台的上半截发灰、下半截发黑，整盘又回到「灰不溜秋」。所以这里只留一道
+   1rpx 旧金细线和外圈墨，台面做成一块平的暖褐，明暗全交给格子自己。
+   注意选择器要写两类（.grid.board--mines）：.grid 的 box-shadow 在文件前段，
+   单类压不住。 */
+.grid.board--mines {
+    background-image: none;
+    box-shadow:
+        0 0 0 1rpx rgba(207, 174, 109, 0.5),
+        0 0 0 8rpx rgba(5, 10, 9, 0.55),
+        0 26rpx 56rpx rgba(0, 0, 0, 0.55);
+}
 
 /* 「字加不粗」的真正原因不在色值，在字体栈。
    全局是 "Songti SC" / "STSong" / "SimSun"（app.wxss 的 page 级），宋体族没有 800
@@ -978,30 +997,33 @@
     letter-spacing: 0;
 }
 
-/* 未探是还没翻的牌，已探是挖开的地方：前者浅、后者深，差 1.91:1。
-   立体感仍只靠「暗在哪一边」，全盘零反白——凸的暗在下缘，凹的暗在上缘。 */
+/* 未探是还没翻的牌，已探是挖开的地方：前者浅、后者深，差 2.27:1。
+   立体感仍只靠「暗在哪一边」，全盘零反白——凸的暗在下缘，凹的暗在上缘。
+   底色走同色系纵向渐变（上 #947b54 → 下 #7f6a4a），是为了让连成一片的未探区
+   像一块有厚度的暖玉，而不是一张填了色的纸。渐变两端都在暖赭里，
+   不产生白釉，所以不会回到①②两版「灰中发白」那件事上。 */
 .board--mines .cell--hidden {
-    background-color: #6a5b43;
-    background-image: none;
-    color: #453a29;
-    box-shadow: inset 0 -4rpx 6rpx rgba(18, 13, 8, 0.34);
+    background-color: #8a7350;
+    background-image: linear-gradient(180deg, #947b54 0%, #7f6a4a 100%);
+    color: #3c3021;
+    box-shadow: inset 0 -4rpx 6rpx rgba(24, 17, 9, 0.30);
 }
 
 .board--mines .cell--open {
-    background-color: #3b3226;
+    background-color: #4c3f2a;
     background-image: none;
-    color: #c7bda6;
+    color: #cbbda2;
     font-weight: 800;
-    box-shadow: inset 0 4rpx 8rpx rgba(10, 7, 4, 0.44);
+    box-shadow: inset 0 4rpx 8rpx rgba(12, 8, 4, 0.40);
 }
 
-/* 数字反过来走浅色：底色压到 L19% 之后，深色字全掉到 3:1 以下，怎么调都发闷。
-   三色保住色相、只提明度，落在已探格上是 4.96 / 4.56 / 4.82——
+/* 数字反过来走浅色：底色压到 L18% 之后，深色字全掉到 3:1 以下，怎么调都发闷。
+   三色保住色相、只提明度，落在已探格上是 5.88 / 5.43 / 5.89——
    看得清，但不是从盘上跳出来的白点。分级保留，因为「1 的边界在哪」
    是这一盘最常扫的一眼，统一一个颜色会把这层丢掉。 */
-.board--mines .cell--open.cell--t1 { color: #86ab97; }
-.board--mines .cell--open.cell--t2 { color: #c98d81; }
-.board--mines .cell--open.cell--t3 { color: #bb9c65; }
+.board--mines .cell--open.cell--t1 { color: #9ed0ac; }
+.board--mines .cell--open.cell--t2 { color: #e8b0a0; }
+.board--mines .cell--open.cell--t3 { color: #e3c07a; }
 
 /* 字号按格高的四成给：8 列格高 84rpx，字 34rpx。
    c9 那条必须连着 .board--mines 写（3 类），并且要重写 font-weight：
@@ -1012,10 +1034,11 @@
 .board--mines.grid--c8 .cell { font-size: 34rpx; }
 .board--mines.grid--c9 .cell { font-size: 30rpx; font-weight: 800; }
 
-/* 旗子原来是一块亮米 #f6e7bf 加白釉，在炭坞上像一盏灯。改成一块暖金炭：
-   「插了旗」照样一眼看到（与未探 2.54:1），但不再是全盘最亮的那一格。 */
+/* 旗子原来是一块亮米 #f6e7bf 加白釉，在炭坞上像一盏灯。现在是一块暖金：
+   与未探格 2.40:1——「插了旗」照样一眼看到，但不再是全盘最亮的那一格。
+   真正让它可辨的是格子里的深色符文（inset 描边 + 下缘暗），背景只负责提示。 */
 .board--mines .cell--flag {
-    background-color: #c49a52;
+    background-color: #e0b76a;
     background-image: none;
     color: #241a08;
     box-shadow: inset 0 0 0 2rpx rgba(74, 50, 12, 0.45), inset 0 -3rpx 6rpx rgba(60, 40, 8, 0.28);
