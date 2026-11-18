@@ -819,7 +819,7 @@ check('藏经阁按品阶拦境界：炼气买不了玄阶', function () {
 check('难度档缩放不碰盘面尺寸，且各档参数确有区分', function () {
   // 规格按档递增的几门由各自的档位表管（lights / sudoku / klotski / click / mines / link），
   // 见下面的专条断言。它们的盘面「该变」，所以不在这条里被判。
-  // link 的 6×4 → 7×5 → 8×6 是 LINK_LEVELS 显式表：连连看加行加列买的是搜索空间，
+  // link 的 4×6 → 5×7 → 6×8 是 LINK_LEVELS 显式表：连连看加行加列买的是搜索空间，
   // 与「缩场地把手感挤成手速」不是一回事。
   // match 也进表了：MATCH_LEVELS 五段各给一副盘，不经通用缩放。
   const tableGames = ['lights', 'sudoku', 'klotski', 'click', 'mines', 'link', 'match'];
@@ -1266,11 +1266,11 @@ check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备�
   // 档差的判据不是「秒表差几秒」，是这一档换了哪种盘、纹种多了几种。
   const specs = ps.map(function (p) { return p.cols + '×' + p.rows + '/' + p.kinds + ' 种'; });
   assert.ok(new Set(specs).size >= 4, '五档盘面或纹种没换够：' + specs.join(' '));
-  assert.ok(ps[4].cols > ps[0].cols, '圆满段没加列：五段又是同一张 6×4');
+  assert.ok(ps[4].cols > ps[0].cols, '圆满段没加列：五段又是同一张 4×6');
   assert.ok(ps[2].kinds > ps[0].kinds, '小成段没加纹种');
   for (let i = 1; i < ps.length; i += 1) {
     // 分母必须走 linkPairsOf：盘形挖了空位，cols*rows/2 不是对数。
-    // 旧版自己算分母，奇数格盘（大成 7×5 留 3 空）会被误读成「每对预算放宽」。
+    // 旧版自己算分母，奇数格盘（大成 5×7 留 3 空）会被误读成「每对预算放宽」。
     const before = ps[i - 1].duration / practice.linkPairsOf(ps[i - 1]);
     const after = ps[i].duration / practice.linkPairsOf(ps[i]);
     assert.ok(after < before, keys[i] + ' 的每对预算反而宽了（' + before.toFixed(3) + ' → ' + after.toFixed(3) + '）');

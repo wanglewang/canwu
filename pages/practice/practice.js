@@ -23,6 +23,13 @@ function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
 }
 
+// 盘面样式的作用域钩子：只有这几门在 wxss 里有自己的一套尺寸或配色。
+// 不挂到钩子上的门，`.grid--cN .cell` 那套通用规格照旧生效。
+const BOARD_CLS = {
+  mines: 'board--mines',   // 哑光低亮的一套色（探禁）
+  link: 'board--link',     // 竖屏盘形的格子高度（并蒂连枝引）
+};
+
 function heartsToFlags(h) {
   const out = [];
   if (!h) return out;
@@ -568,10 +575,12 @@ Page({
       title: skill.name,
       subtitle: skill.desc,
       gameName: minigames.gameName(method.game),
-      // 盘面配色的作用域钩子。只有扫雷挂：它的「未探 / 已探」是正反两种牌面，
-      // 而数独的已填格虽同名（cell--open），语义是「这一格定了」，要留亮纸。
-      // 挂钩不入样式判断，只在 wxss 里挑一组色，别的门拿不到这个类。
-      boardCls: method.game === 'mines' ? 'board--mines' : '',
+      // 盘面配色的作用域钩子。扫雷挂 board--mines：它的「未探 / 已探」是正反两种
+      // 牌面，而数独的已填格虽同名（cell--open），语义是「这一格定了」，要留亮纸。
+      // 并蒂引挂 board--link：只有这一门的盘面按竖屏重排过（5×5 / 6×6 / 6×8），
+      // 格子高度必须跟着列数走；别的门拿到这个类会被带歪。
+      // 两个钩子都只在 wxss 里挑一组尺寸与颜色，不入样式判断。
+      boardCls: BOARD_CLS[method.game] || '',
       // 与局内那一行同源：三秀同收的罚息按档变，这里不许留一句写死的「少 2 息」。
       tip: practiceData.tipFor(method, stageIdx),
       ruleText: ruleText,

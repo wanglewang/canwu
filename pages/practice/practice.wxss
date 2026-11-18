@@ -434,6 +434,41 @@
     margin-top: 8rpx;
 }
 
+/* ---------- 局内一屏：把「剩下的高度」交给盘面 ----------
+   原来整页是自然流（.pg 只有 min-height: 100vh），HUD、提示、盘面依次往下排，
+   盘面按固定 rpx 画完就截止，剩下的高度全堆在页面底部——手机上看到的就是
+   「盘面缩在上半截、下半屏四百多 px 死白」。
+   而且盘面已经放大不了了：格子是方的、宽度撑满，7×5 画出来只能是那么高。
+   能用的只有垂直空间，所以这一屏改成纵向 flex，盘面层吃掉剩余高度并居中。
+
+   根容器仍是 min-height 而不是 height，小屏内容挤不下时自然生长，不会被裁。 */
+.pg--scene {
+    display: flex;
+    flex-direction: column;
+}
+
+/* 局内那张「卡」只是包裹层：背景、边框、内边距在 .pg--scene .pr-play 里已经清空，
+   它在这里的作用就是把剩下的高度往下传。 */
+.pg--scene .pr-play {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* 盘面层。这里故意不写 align-items：交叉轴保持 stretch，
+   否则 .board-flex / .grid 会收缩成内容宽，而 .cell 的宽度是百分比——整盘会塌。
+   margin-top 从 8rpx 提到 40rpx：上面那行「点两枚同纹 · 前两段两折…」是个带底的框，
+   原来框底离盘沿只有 20px，看着是压上去的。 */
+.pg--scene .stage {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 0;
+    margin-top: 40rpx;
+}
+
 /* 盘外一圈本族柔光：让盘面像被一盏灯从底下托着，而不是贴在一块黑纸上。
    只挂在 .stage 的伪元素上，盘面本身的层叠一分不动。 */
 .stage::before {
@@ -911,65 +946,100 @@
 .cell--open.cell--t2 { color: #a83b32; }
 .cell--open.cell--t3 { color: #94661a; }
 
-/* ---------- 探禁的盘面：炭坞 ----------
-   2026-11-18 第二版。board--mines 由 practice.js 的 boardCls 按 method.game 发给
-   盘面根节点，数独与其余十三门拿不到这个类，所以下面全部只作用于探禁。
-   上一版照参照稿取「已探 = 暖米 #e2d6b7 + 白釉光」，反馈是三条：未探格没有炭的
-   感觉、灰里发白、晃眼；数字要更粗更大；不要亮光闪光。这一版按这三条重做。
+/* ---------- 探禁的盘面：整盘落进低亮区 ----------
+   board--mines 由 practice.js 的 boardCls 按 method.game 发给盘面根节点，
+   数独与其余十三门拿不到这个类，所以下面全部只作用于探禁。
 
-   整套只做一件事：把「光」全撤掉，改成用「暗在哪一边」塑形。
-   哑光的东西没有高光，只有暗部——
-     未探（凸）= 炭块：只在底缘压一道内暗（光从上来，凸起物的下沿背光）；
-     已探（凹）= 烧穿的地方：只在上缘压一道更深的内暗（凹坑的上内壁背光）。
-   立体感还在，格子上却找不到任何一处反白。上一版两处「晃」的来源
-   （radial 白高光 0.6、inset 顶部白线 0.58）就地删掉。
+   走过的弯路记在这里，免得第四次又往回改：
+   ① 照参照稿取「已探 = 暖米 + 白釉光」→ 反馈「晃眼、灰中发白」；
+   ② 把白高光撤掉、整盘压暗 → 反馈「数字还是细」「颜色总感觉不对」；
+   ③ 数字换无衬线真的加粗、底色从灰改成土 → 仍然「晃」。
 
-   明度整盘下压两档，这就是「炭」：
-     台   #463d34      → #362d24（与夜底 #08131c 1.34:1，仍读得出一方台沿）
-     未探 #9a8d75(53%) → #5b5040(32%)  ← 「灰中发白」主要在这块，它占满盘
-     已探 #e2d6b7(80%) → #a8946e(53%)  ← 压掉 27 个点，但仍要比未探亮
-   两者明度差 2.65:1，比上一版 2.26 还宽：暗下来反而更好分。
+   真正的问题在极性，不在色号：把「已探」做成全盘最亮的那一层，探开一片就是
+   一片反光板，无论怎么调都刺眼。参照图之所以「不用仔细盯着看」，不是因为它
+   米色好看，而是它整盘没有一处接近白——最亮的地方也只有中等亮度。
+   所以这一版把极性翻过来，跟实体棋盘一致：
+     未探 = 还没翻的牌（浅一点、凸起，底缘压内暗）
+     已探 = 挖开的地方（更暗、凹，上缘压内暗）
+   于是「探开的越多，盘面越暗」，亮的地方永远只有数字那么几个点。
+   实测：台与夜底 1.13、未探/台 2.53、已探/未探 1.91。
+   台压到 #241d15 之后与夜色几乎同亮，盘的边界靠 .grid 那道旧金细线撑住，
+   不再靠明度——这也是「不晃」的一半来源。 */
+.board--mines { --well: #241d15; }
 
-   数字反过来加粗加大，暗底上细字最吃亏：
-     三色落在已探格上 4.37 / 4.27 / 4.10（都过 4:1），字重 800，各列字号 +4rpx。
-   保留三色分级，是因为「1 的边界在哪」是这一盘最常扫的一眼，统一近黑会丢掉这层。 */
-.board--mines { --well: #362d24; }
+/* 「字加不粗」的真正原因不在色值，在字体栈。
+   全局是 "Songti SC" / "STSong" / "SimSun"（app.wxss 的 page 级），宋体族没有 800
+   字重可用，只能靠系统合成伪粗体——小程序 text 节点里这招基本不生效，所以上一版
+   写了 font-weight: 800，真机上那排数字还是细的。数字换无衬线，800 才真的粗。
+   只作用于探禁：别的门该走宋体的继续走宋体。 */
+.board--mines .cell {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    font-weight: 800;
+    letter-spacing: 0;
+}
 
+/* 未探是还没翻的牌，已探是挖开的地方：前者浅、后者深，差 1.91:1。
+   立体感仍只靠「暗在哪一边」，全盘零反白——凸的暗在下缘，凹的暗在上缘。 */
 .board--mines .cell--hidden {
-    background-color: #5b5040;
+    background-color: #6a5b43;
     background-image: none;
-    color: #4a4032;
-    box-shadow: inset 0 -4rpx 6rpx rgba(18, 13, 8, 0.32);
+    color: #453a29;
+    box-shadow: inset 0 -4rpx 6rpx rgba(18, 13, 8, 0.34);
 }
 
 .board--mines .cell--open {
-    background-color: #a8946e;
+    background-color: #3b3226;
     background-image: none;
-    color: #1a1409;
+    color: #c7bda6;
     font-weight: 800;
-    box-shadow: inset 0 4rpx 7rpx rgba(30, 21, 11, 0.36);
+    box-shadow: inset 0 4rpx 8rpx rgba(10, 7, 4, 0.44);
 }
 
-.board--mines .cell--open.cell--t1 { color: #14382c; }
-.board--mines .cell--open.cell--t2 { color: #63180e; }
-.board--mines .cell--open.cell--t3 { color: #4d3004; }
+/* 数字反过来走浅色：底色压到 L19% 之后，深色字全掉到 3:1 以下，怎么调都发闷。
+   三色保住色相、只提明度，落在已探格上是 4.96 / 4.56 / 4.82——
+   看得清，但不是从盘上跳出来的白点。分级保留，因为「1 的边界在哪」
+   是这一盘最常扫的一眼，统一一个颜色会把这层丢掉。 */
+.board--mines .cell--open.cell--t1 { color: #86ab97; }
+.board--mines .cell--open.cell--t2 { color: #c98d81; }
+.board--mines .cell--open.cell--t3 { color: #bb9c65; }
 
-/* 数字加大：格高从 104 到 74，字给到格高的三成左右。
-   c9 那条必须连着 .board--mines 写，否则特异性和后面的 .grid--c9 .cell（字重 700）
-   打平、按先后顺序被它压回去。 */
-.board--mines.grid--c6 .cell { font-size: 30rpx; }
-.board--mines.grid--c7 .cell { font-size: 28rpx; }
-.board--mines.grid--c8 .cell { font-size: 28rpx; }
-.board--mines.grid--c9 .cell { font-size: 26rpx; font-weight: 800; }
+/* 字号按格高的四成给：8 列格高 84rpx，字 34rpx。
+   c9 那条必须连着 .board--mines 写（3 类），并且要重写 font-weight：
+   .grid--c9 .cell 写在 2500 行之后、自带 700，两类对两类按先后顺序它赢，
+   不显式写回 800，九列盘的探禁就还是细字。 */
+.board--mines.grid--c6 .cell { font-size: 40rpx; }
+.board--mines.grid--c7 .cell { font-size: 36rpx; }
+.board--mines.grid--c8 .cell { font-size: 34rpx; }
+.board--mines.grid--c9 .cell { font-size: 30rpx; font-weight: 800; }
 
 /* 旗子原来是一块亮米 #f6e7bf 加白釉，在炭坞上像一盏灯。改成一块暖金炭：
-   「插了旗」照样一眼看到（与未探 3.26:1），但不再是全盘最亮的那一格。 */
+   「插了旗」照样一眼看到（与未探 2.54:1），但不再是全盘最亮的那一格。 */
 .board--mines .cell--flag {
-    background-color: #c9a15a;
+    background-color: #c49a52;
     background-image: none;
     color: #241a08;
     box-shadow: inset 0 0 0 2rpx rgba(74, 50, 12, 0.45), inset 0 -3rpx 6rpx rgba(60, 40, 8, 0.28);
 }
+/* 踩中那一格是这一局唯一该刺眼的地方，但也不必绕一圈外发光：
+   换成深朱底 + 浅赭字，色相够狠，亮度仍留在盘面同一档。 */
+.board--mines .cell--mine {
+    background: #7a2a24;
+    color: #f2d3cb;
+    box-shadow: inset 0 0 0 2rpx rgba(255, 214, 206, 0.28);
+}
+
+/* ---------- 并蒂连枝引：盘面按「手机是竖的」重排 ----------
+   原来是 6×4 / 7×5 / 8×6，横着长。手机是竖的，横盘只能占满宽度、高度只用掉
+   屏幕的一小截，底下全是空；而格子宽度又被列数锁死——7 列时每格只有 49px，
+   再怎么调边距也大不了一格像素。唯一的旋钮是列数。
+
+   盘形改成 4×6 / 5×7 / 6×8（见 data/practice.js 的 LINK_LEVELS）：
+   列少下去、行长上去，格子当场大一档（49 → 85px），而对数一枚没动
+   （10 / 16 / 22），每对预算还是原来那把尺子，难度不跟着变。
+   高度按格子宽度给成近正方。只挂 board--link——c4 / c6 在刀法、九宫
+   那几门还是原来的尺寸，不许被这里带跑。 */
+.board--link.grid--c4 .cell { height: 136rpx; }
+.board--link.grid--c6 .cell { height: 110rpx; }
 .cell--flag { background-color: #f6e7bf; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(196, 155, 74, 0.3)); color: #8a6524; box-shadow: inset 0 0 0 3rpx rgba(162, 118, 45, 0.5), 0 3rpx 8rpx rgba(0, 0, 0, 0.3); }
 .cell--mine { background: #b4453c; color: #fffdf7; animation: badShake 0.3s ease-out; box-shadow: 0 0 26rpx rgba(180, 69, 60, 0.55), inset 0 0 0 3rpx rgba(255, 214, 206, 0.5); }
 .cell--hint { background: #b8893b; color: #fffdf7; animation: litPop 0.5s ease-out infinite alternate; box-shadow: 0 0 24rpx rgba(184, 137, 59, 0.5), inset 0 2rpx 0 rgba(255, 255, 255, 0.3); }
