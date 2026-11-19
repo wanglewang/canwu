@@ -541,7 +541,7 @@ Page({
     // 好处就在 world.TIERS[].desc 里（属性加成 / 本门新法），原样搬一句，不另编。
     const nextTier = info.maxed ? null : worldData.TIERS[info.index + 1];
     // S 线只写在准备页：局内只报「还差几分」，这里给出本档门槛与评级口径。
-    // 分数线（三秀同收）与盘数线（阵灯推演）都由 practiceData 同源生成，换段跟着变。
+    // 分数线（三连互换）与盘数线（阵灯推演）都由 practiceData 同源生成，换段跟着变。
     const sLine = practiceData.sLineText(method, level);
     // 开局卡那一行：整篇规则在说明页，首屏只留「这一局做什么」。
     const guideData = guides.guideOf(method.game);
@@ -587,7 +587,7 @@ Page({
       // 格子高度必须跟着列数走；别的门拿到这个类会被带歪。
       // 两个钩子都只在 wxss 里挑一组尺寸与颜色，不入样式判断。
       boardCls: BOARD_CLS[method.game] || '',
-      // 与局内那一行同源：三秀同收的罚息按档变，这里不许留一句写死的「少 2 息」。
+      // 与局内那一行同源：三连互换的罚息按档变，这里不许留一句写死的「少 2 息」。
       tip: practiceData.tipFor(method, stageIdx),
       ruleText: ruleText,
       introOn: introOn,
@@ -713,7 +713,7 @@ Page({
       // 一关一副参数，按本关所在段 + 段内进度现算。
       params = practiceData.buildParamsAt(method, this.data.level);
       methodName = method.name;
-      // 代价句里的罚息随段变（三秀同收），不能用写死在功法表里的那一句。
+      // 代价句里的罚息随段变（三连互换），不能用写死在功法表里的那一句。
       tip = practiceData.tipFor(method, this.data.stageIndex);
       tier = engine.tierIndex(state.skills[this.skillId].prof);
     }
@@ -749,7 +749,7 @@ Page({
         if (vm.fx && vm.fx.key !== self.lastFxKey) {
           self.lastFxKey = vm.fx.key;
           sfx.tone(vm.fx.tone);
-          // 触感分两档：金招（重斩 / 连锁）中量；误判只给轻震——三秀同收的无效互换、
+          // 触感分两档：金招（重斩 / 连锁）中量；误判只给轻震——三连互换的无效互换、
           // 阵灯推演触了死门或提示用尽都算。灵植与阵法要温润沉敛，别跟着刀法猛震。
           if (typeof wx !== 'undefined' && wx.vibrateShort) {
             const strong = vm.fx.tone === 'gold';

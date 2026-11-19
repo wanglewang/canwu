@@ -20,7 +20,7 @@ const schulteMod = require('../minigames/schulte.js');
 // 三秀的两个测试都要真参数，所以取法门时当场验 game，取错就红。
 const sanxiu = function () {
   const m = data.getMethod('harvest');
-  assert.ok(m && m.game === 'match', 'getMethod(\'harvest\') 取到的不是三秀同收：' + (m && m.game));
+  assert.ok(m && m.game === 'match', 'getMethod(\'harvest\') 取到的不是三连互换：' + (m && m.game));
   return m;
 };
 
@@ -385,7 +385,7 @@ check('每门玩法都给出本档 S/A/B/C 四条线，说明页与局内同源'
       assert.ok(/C/.test(text), m.id + ' 没写 C 的条件');
     }
     // 数值型门槛要随档重标定——但方向不统一：按用时的玩法收时间，按分数的玩法
-    // 也可能**降**线（三秀同收按本档可得分标定，7 色 52 息的 950 分比 5 色 68 息
+    // 也可能**降**线（三连互换按本档可得分标定，7 色 52 息的 950 分比 5 色 68 息
     // 的 1900 分更难拿）。所以这里只验「五档写的是不是同一行」，不验谁大谁小；
     // 谁大谁小由 tests/rank.test.js 的 MATCH_LEVELS 专条守。
     // 段数与步数类（步法 / 点灯）本身不随档变，只能靠盘面规格变难，这里不强行要求。
@@ -2999,7 +2999,7 @@ check('牵灵引线：照纹按段位收费、双照一次照见两对、点空�
   } finally { restoreClock(); }
 });
 
-check('三秀同收：一手分成「留空」与「落下」两个拍子，中间不许塌成一帧', function () {
+check('三连互换：一手分成「留空」与「落下」两个拍子，中间不许塌成一帧', function () {
   // 这一门收完立刻补满，盘面前后两帧都是满的：玩家靠什么知道「刚才收在哪儿」？
   // 只有中间真的空过一段。全压进一次渲染，盘面从满的跳到满的，
   // 看得见的只有浮字——连锁三层和一层在屏幕上长得一模一样。
@@ -3094,8 +3094,8 @@ check('三秀同收：一手分成「留空」与「落下」两个拍子，中�
   } finally { restoreClock(); }
 });
 
-check('三秀同收：石皮封印格换不动、不扣息、收走才解封，重排用尽只变贵不判负', function () {
-  // 这两条是第四段才上的规则。它们的共同失败方式是「生成了但没生效」：
+check('三连互换：石皮封印格换不动、不扣息、收走才解封，重排用尽只变贵不判负', function () {
+  // 这两条从第二段起逐段加密。它们的共同失败方式是「生成了但没生效」：
   // 参数进了表、盘上没画、点了没反应，或者反过来——点了就扣息，玩家会以为自己换错了。
   const mod = require('../minigames/match.js');
   const fs = require('fs');
@@ -3122,17 +3122,24 @@ check('三秀同收：石皮封印格换不动、不扣息、收走才解封，�
     };
     const secs = function (vm) { return vm.timeText; };
 
-    // 前三段一格都不许封：规则加法从大成起，早了就是「第一天就学不会」。
-    const early = mk(51);
-    assert.strictEqual(sealedIdx(early.vm).length, 0, '小成段就出现了石皮（规则加法提前了）');
+    // 首段一格都不许封：第一段要先把「换两株凑三连」教会，加点石头就是干扰。
+    const early = mk(1);
+    assert.strictEqual(sealedIdx(early.vm).length, 0, '首段就出现了石皮（规则加法提前了）');
     early.ctrl.destroy();
 
-    // 大成 4 格、圆满 8 格：数量必须是「本段一直是这样」，不是逐关随机。
+    // 段二起逐段加密（2 / 5 / 9 / 14）：数量必须是「本段一直是这样」，不是逐关随机。
+    const entry = mk(11);
+    assert.strictEqual(sealedIdx(entry.vm).length, 2, '入门段封印格数不是 2');
+    entry.ctrl.destroy();
+    const minor = mk(51);
+    assert.strictEqual(sealedIdx(minor.vm).length, 5, '小成段封印格数不是 5');
+    minor.ctrl.destroy();
+
     const major = mk(201);
     const sealed = sealedIdx(major.vm);
-    assert.strictEqual(sealed.length, 4, '大成段封印格数是 ' + sealed.length + '，不是 4');
+    assert.strictEqual(sealed.length, 9, '大成段封印格数是 ' + sealed.length + '，不是 9');
     const full = mk(501);
-    assert.strictEqual(sealedIdx(full.vm).length, 8, '圆满段封印格数不是 8');
+    assert.strictEqual(sealedIdx(full.vm).length, 14, '圆满段封印格数不是 14');
     full.ctrl.destroy();
 
     // 点石皮：不选中、不扣息、当场说清是哪一格。
@@ -3167,7 +3174,7 @@ check('三秀同收：石皮封印格换不动、不扣息、收走才解封，�
     major.ctrl.tap(move[0]);
     major.ctrl.tap(move[1]);
     advance(14000);
-    assert.ok(sealedIdx(major.vm).length <= 4, '收牌之后封印格反而变多了');
+    assert.ok(sealedIdx(major.vm).length <= 9, '收牌之后封印格反而变多了');
     assert.ok(major.vm.timeText !== left0, '一手打完时辰没有动（表没在走）');
     major.ctrl.destroy();
 

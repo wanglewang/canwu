@@ -521,6 +521,18 @@ for (const f of files.filter(function (x) { return (x.endsWith('.js') || x.endsW
   // 扫形状只会误伤。真正的闸在 validateNames()：它逐门读 SKILLS，正名短于 titleMin 直接红。
 }
 
+// 8b-1. 玩法名同样会过期。旧功法「三秀连收诀」退役成「三秀撷英诀」之后，玩法名还留着
+// 「三秀同收」——准备页就成了「三秀撷英诀 · 三秀同收」，同一门功课看着像两门
+// （前者是门派里的叫法，后者是盘面上的动作，两层本该各说各的）。
+// 只查真源（practice.GAME_LABELS 与各模块导出的 name），不扫全文：
+// 文档与注释里的旧名要留着，否则历史叙述会变成「从 X 改成 X」。
+const LEGACY_GAME_NAMES = ['三秀同收'];
+for (const g of Object.keys(practiceMod.GAME_LABELS)) {
+  const label = practiceMod.GAME_LABELS[g];
+  if (LEGACY_GAME_NAMES.indexOf(label) >= 0) errors.push('玩法名还是旧名：' + g + ' → ' + label);
+  else checked += 1;
+}
+
 // 8b-2. effect.text 的前缀是这门功法的门面（'九宫：参悟熟练度 +9%'），改名时最易漏。
 // 规则：门面词必须出现在这一门的正名里，只有两个意象词可以例外——刀意（开锋斩桩诀）、
 // 灯势（点灯破阵诀），它们说的是「这一门的气」，不是动作。白名单同样反向自检：
@@ -934,7 +946,7 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   const lvMod = require(path.join(ROOT, 'data/levels.js'));
   if (!sx || sx.game !== 'match') errors.push('getMethod(harvest) 取不到三秀同法');
   else checked += 1;
-  // 石皮按段给、段内恒定：前三段 0 格，第四段 4 格，第五段 8 格。
+  // 石皮按段给、段内恒定：首段 0 格，之后逐段加密（2 / 5 / 9 / 14）。
   // 「段内恒定」是关键——逐关随机封格会让同一段里凭空多出假台阶。
   const sealSeq = [];
   for (let st = 0; st < 5; st += 1) {
@@ -949,8 +961,8 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
     }
     sealSeq.push(q0.seals);
   }
-  if (sealSeq.join(',') !== '0,0,0,4,8') {
-    errors.push('三秀的石皮格数不是 0/0/0/4/8：' + sealSeq.join(','));
+  if (sealSeq.join(',') !== '0,2,5,9,14') {
+    errors.push('三秀的石皮格数不是 0/2/5/9/14：' + sealSeq.join(','));
   } else checked += 1;
   // S 线现算：表里不许再写 sLine。写死绝对分就会与时辰脱钩——第 10 关时辰少 3 息、
   // S 线却一样，玩家读到的「本关更紧」就是假的。公式是唯一出处。

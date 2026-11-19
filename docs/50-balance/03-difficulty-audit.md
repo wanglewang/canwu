@@ -88,7 +88,7 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 6. 透传 `depth`，再由**六份按段整表覆盖**（三秀 / 阵灯 / 九宫 / 滑块各一份，加上四门「补第二个参数」的单值注入）；
 7. `steps` 每段 +1；`speed` 除以 `pace`（越快的段 speed 越大，方向与其他键相反）。
 
-顺序决定了一件事：**整表覆盖发生在缩放之后**，所以三秀同收的 `duration`（68/66/64/62/60）不是 `base × TIME_LEVELS` 算出来的，而是表里直接写的。改的时候要改表，不是改系数。
+顺序决定了一件事：**整表覆盖发生在缩放之后**，所以三连互换的 `duration`（68/63/57/51/45）不是 `base × TIME_LEVELS` 算出来的，而是表里直接写的。改的时候要改表，不是改系数。
 
 `TIME_LEVELS` 的用意也在注释里写着：时辰收紧是「这一段到底紧在哪」最直白的一条，玩家一进局就看见倒计时在少。
 
@@ -106,7 +106,7 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 | 成对翻牌 | 3 | 4 种 | 1.69× `flipMs` | `pairs`, `flipMs`, `timeLimit` |
 | 灵纹连线 | 9 | 5 种 | 49.50× `hints` | `cols`, `rows`, `kinds`, `turns`, `duration`, `theme`, `reshuffles`, `shuffleCost`, `hints` |
 | 落石垒基 | 4 | 5 种 | 8.00× `startLevel` | `duration`, `startLevel`, `linesPerLevel`, `sLine` |
-| 三秀同收 | 12 | 5 种 | 33.00× `shuffleCap` | `duration`, `cols`, `rows`, `kinds`, `flashMs`, `missCost`, `shuffleCost`, `hintCost`, `perMove`, `seals`, `shuffleCap`, `sLine` |
+| 三连互换 | 12 | 5 种 | 33.00× `shuffleCap` | `duration`, `cols`, `rows`, `kinds`, `flashMs`, `missCost`, `shuffleCost`, `hintCost`, `perMove`, `seals`, `shuffleCap`, `sLine` |
 | 九宫填数 | 6 | 5 种 | 5.75× `holes` | `size`, `holes`, `timeLimit`, `tS`, `tA`, `tB` |
 | 滑格相合 | 2 | 4 种 | 8.00× `target` | `target`, `startTiles` |
 | 顺序点格 | 3 | 5 种 | 3.00× `penaltySec` | `size`, `fade`, `penaltySec` |
@@ -223,14 +223,15 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 | 落石垒基 | `duration` 息 | 70 | 68 | 66 | 64 | 62 |
 | | `startLevel` 级 | 1 | 2 | 4 | 6 | 8 |
 | | `linesPerLevel` 层 | 10 | 9 | 8 | 7 | 6 |
-| 三秀同收 | `cols × rows` | 6×6 | 7×7 | 8×8 | 9×9 | 10×10 |
-| | `duration` 息 | 68 | 66 | 64 | 62 | 60 |
-| | `kinds` 色 | 5 | 5 | 6 | 6 | 7 |
+| 三连互换 | `cols × rows` | 6×6 | 7×7 | 8×8 | 9×9 | 10×10 |
+| | `duration` 息 | 68 | 63 | 57 | 51 | 45 |
+| | `kinds` 色 | 5 | 6 | 7 | 7 | 7 |
+| | `seals` 格 | 0 | 2 | 5 | 9 | 14 |
 | | `flashMs` | 896.8 | 760 | 668.8 | 592.8 | 532 |
 | | `missCost` 息 | 1 | 2 | 2 | 3 | 3 |
 | | `shuffleCost` 息 | 2 | 3 | 3 | 4 | 4 |
 | | `hintCost` 息 | 1 | 2 | 2 | 3 | 3 |
-| | `sLine` 分（现算） | 2661 | 2614 | 2137 | 2056 | 1800 |
+| | `sLine` 分（现算） | 2661 | 2321 | 1624 | 1512 | 1412 |
 | | `perMove` 分/手 | 66 | 66 | 56 | 56 | 50 |
 | | `seals` 格（石皮） | 0 | 0 | 0 | 4 | 8 |
 | | `shuffleCap` 次（原价重排） | 99 | 99 | 99 | 3 | 3 |

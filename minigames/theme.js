@@ -53,7 +53,7 @@ const THEMES = {
   harvest: {
     key: 'harvest', name: '灵畦', accent: '#4e8b5b', soft: '#dfeedf', ink: '#2c5b38',
     bg: '#e6f1e5', frame: '#f7fcf6', glyph: '苗', motif: '秀',
-    hit: '三秀同收', miss: '换不出三连', banner: '灵畦初开', praise: '一畦三秀',
+    hit: '三株齐收', miss: '换不出三连', banner: '灵畦初开', praise: '一畦三秀',
   },
   shudu: {
     key: 'shudu', name: '九宫', accent: '#3f5d8a', soft: '#e2e9f3', ink: '#26405f',

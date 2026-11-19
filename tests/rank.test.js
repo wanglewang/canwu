@@ -1165,7 +1165,7 @@ check('九套经典 + 洞微勘禁诀默认已习得，藏经阁只留非经典'
 // 这一组是「简单 / 普通 / 困难 / 极难 / 绝境」到底有没有真的分档的常驻守卫。
 // scripts/difficulty-audit.js 是给人看的只读报告，这里才是 npm run check 会跑的断言。
 
-check('三秀同收：五档整表同管盘面、时辰、罚息与 S 线，不再只改分数线', function () {
+check('三连互换：五档整表同管盘面、时辰、罚息与 S 线，不再只改分数线', function () {
   const lv = practice.MATCH_LEVELS;
   assert.strictEqual(lv.length, 5, '五档表不是五档');
   for (let i = 1; i < lv.length; i += 1) {

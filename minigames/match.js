@@ -1,6 +1,6 @@
 'use strict';
 
-// 三秀同收（换苗引秀 / 灵植·三秀撷英诀专属）：经典三消。
+// 三连互换（换苗引秀 / 灵植·三秀撷英诀专属）：经典三消。
 // 点相邻两株灵草换位，让三株同色的连成一线即可收走；上面的落下来、顶上补新苗，
 // 落下来又凑成一线的算连锁，一层比一层值钱。
 //
@@ -376,7 +376,7 @@ function create(ctx) {
     // 浮字只落在 HUD 那一层，不往盘面里塞汉字。
     const bright = chain > 1 || hits.length >= 4;
     const label = chain > 1 ? '连锁 ' + chain + ' 层'
-      : (hits.length >= 4 ? hits.length + ' 株齐收' : '三秀同收');
+      : (hits.length >= 4 ? hits.length + ' 株齐收' : '三株齐收');
     C.flash(vm, label + ' +' + gain, bright ? 'gold' : 'good');
     paint();
     syncHud();
@@ -556,12 +556,14 @@ const TEACH_BOARD = [1, 2, 1, 3, 1, 3, 2, 3, 2];
 const TEACH_COLS = 3;
 const TEACH_SWAP = [4, 5];
 // 五段的盘面与色数：与 data/practice 的 MATCH_LEVELS 同值。
+// 段界教学盘按本段真实规格摆：盘面、花色、罚息、石皮格数全部取本段的值。
+// 段二起就有石皮（2 / 5 / 9 / 14），所以教学盘从段二起就得让玩家看见一格封住的牌。
 const TEACH_LEVELS = [
   { cols: 6, rows: 6, kinds: 5, missCost: 1, seals: 0 },
-  { cols: 7, rows: 7, kinds: 5, missCost: 2, seals: 0 },
-  { cols: 8, rows: 8, kinds: 6, missCost: 2, seals: 0 },
-  { cols: 9, rows: 9, kinds: 6, missCost: 3, seals: 4 },
-  { cols: 10, rows: 10, kinds: 7, missCost: 3, seals: 8 },
+  { cols: 7, rows: 7, kinds: 6, missCost: 2, seals: 2 },
+  { cols: 8, rows: 8, kinds: 7, missCost: 2, seals: 5 },
+  { cols: 9, rows: 9, kinds: 7, missCost: 3, seals: 9 },
+  { cols: 10, rows: 10, kinds: 7, missCost: 3, seals: 14 },
 ];
 
 // 段界那几盘按本段规格现铺：色按 (行+列) 取模铺开，再把底行三格摆成
@@ -591,7 +593,7 @@ function teachLayout(stage) {
   const right = b + 1 < spec.cols ? b + 1 : 0;
   board[(spec.rows - 1) * spec.cols + right] = 2;
   const swap = [(spec.rows - 1) * spec.cols + a, (spec.rows - 1) * spec.cols + b];
-  // 大成起教学盘上摆一格石皮：只演示「封住的不能换」这一件事，
+  // 段二起教学盘上摆一格石皮：只演示「封住的不能换」这一件事（真盘上不止一格），
   // 所以挑一格不在示范换位上的，也不挡底行那组三连（否则示范第一步就做不成）。
   let seal = -1;
   if (spec.seals) {
@@ -621,7 +623,7 @@ function createTeach(ctx) {
     status: stage === 0
       ? '教学 · 换相邻两株，凑成三连'
       : '教学 · 这一段 ' + lay.cols + '×' + lay.rows + ' · ' + lay.kinds + ' 色'
-        + (seal >= 0 ? ' · 石皮封住的不能换' : ''),
+        + (seal >= 0 ? ' · 石皮 ' + TEACH_LEVELS[stage].seals + ' 格（这里只摆一格）' : ''),
     steps: [
       {
         at: [lay.swap[0]],
@@ -656,7 +658,7 @@ function createTeach(ctx) {
     doneText: stage === 0
       ? '换位是唯一的手：换完要成三连'
       : '这一段 ' + lay.cols + '×' + lay.rows + ' · ' + lay.kinds + ' 色'
-        + (seal >= 0 ? ' · 石皮格先收走它上面的牌才解封' : '')
+        + (seal >= 0 ? ' · 真盘上封 ' + TEACH_LEVELS[stage].seals + ' 格' : '')
         + ' · 换不出三连少 ' + TEACH_LEVELS[stage].missCost + ' 息',
   });
 }
@@ -664,6 +666,6 @@ function createTeach(ctx) {
 const teach = { create: createTeach };
 
 module.exports = {
-  id: 'match', name: '三秀同收', create: create, lines: lines, teach: teach,
+  id: 'match', name: '三连互换', create: create, lines: lines, teach: teach,
   matchesOf: matchesOf, findMove: findMove, collapse: collapse, GLYPHS: GLYPHS,
 };

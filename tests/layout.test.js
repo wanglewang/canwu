@@ -771,7 +771,7 @@ check('九套经典玩法落地：注册、黄阶定位、盘面与方向键都�
   const js = read('pages/practice/practice.js');
   const guides = read('data/guides.js');
   const classics = [
-    ['lingqi', 'link', '灵纹连线'], ['leiyue', 'blocks', '落石垒基'], ['sanxiu', 'match', '三秀同收'],
+    ['lingqi', 'link', '灵纹连线'], ['leiyue', 'blocks', '落石垒基'], ['sanxiu', 'match', '三连互换'],
     ['shudu', 'sudoku', '九宫填数'], ['heyuan', 'merge', '滑格相合'], ['shumu', 'schulte', '顺序点格'],
     ['rongdao', 'klotski', '滑块让路'], ['tuisuo', 'pushbox', '推石入位'], ['zeda', 'biggest', '数中取大'],
   ];
@@ -1238,7 +1238,7 @@ check('主页宫格各进各的子页，不再借道别的 tab', function () {
   assert.ok(/onGoBoard/.test(read('pages/battle/battle.js')), '仙门切磋页缺少去仙榜的指路');
 });
 
-check('三秀同收：局内 hint 必须留住代价句，不许被纯计数覆盖', function () {
+check('三连互换：局内 hint 必须留住代价句，不许被纯计数覆盖', function () {
   const m = read('minigames/match.js');
   const pd = require('../data/practice.js');
   const tip = pd.getMethod('harvest').tip;
@@ -1268,7 +1268,7 @@ check('「错换」已统一为「无效互换」：玩家可见文件不留旧�
   assert.ok(/无效互换/.test(read('minigames/match.js')), '局内 HUD 没用新词');
 });
 
-check('三秀同收：S 线与提示按钮名各只有一份真源', function () {
+check('三连互换：S 线与提示按钮名各只有一份真源', function () {
   const pd = require('../data/practice.js');
   const method = pd.getMethod('harvest');
   // S 线不是一张写死的分表：它按「每手均分 × 可用手数 × 利用率」从本关参数现算。

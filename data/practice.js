@@ -167,7 +167,7 @@ const GAME_LABELS = {
   seal: '成对翻牌',
   link: '灵纹连线',
   blocks: '落石垒基',
-  match: '三秀同收',
+  match: '三连互换',
   sudoku: '九宫填数',
   merge: '滑格相合',
   schulte: '顺序点格',
@@ -177,7 +177,7 @@ const GAME_LABELS = {
 };
 
 // 提示按钮各门叫法不同：跟着玩法名走，别在页面 JS 里散着写三元。
-// 三秀同收的「照畦」必须和局内 HUD、名词速查同名叫法，不许一处写「提示」一处写「照畦」。
+// 三连互换的「照畦」必须和局内 HUD、名词速查同名叫法，不许一处写「提示」一处写「照畦」。
 const HINT_LABELS = {
   match: '照畦',
   lights: '阵眼感应',
@@ -203,7 +203,7 @@ const FAMILIES = {
   身法: { core: '步法连环', note: '照卷轴踏位（暂无功法）', kind: 'skill' },
   御灵: { core: '灵纹连线', note: '牵两枚同纹灵石，找一条通路；越往后越紧', kind: 'skill' },
   土行: { core: '落石垒基', note: '挪石转石垒满一层，是唯一持续下落的盘面', kind: 'skill' },
-  灵植: { core: '三秀同收', note: '互换相邻两株凑三连，采收后新苗落下还能连锁', kind: 'skill' },
+  灵植: { core: '三连互换', note: '互换相邻两株凑三连，采收后新苗落下还能连锁', kind: 'skill' },
   // 类别按「修士靠什么手段」分，不按「玩家在屏幕上做什么」分——
   // 后者会生出「目术 / 辨术 / 合术」这种读着像《封神演义》左道旁门的门类。
   // 同族同阶可并列（心法两门黄阶在先），谱系照 chainsOf() 全列出来，不按阶取槽。
@@ -386,7 +386,7 @@ function factorText(f) {
 
 // 五段的「时辰」共用一根尺子：所有带 duration / timeLimit 的玩法逐档收 3%。
 // 以前档位只拧动画速度（flashMs / dropMs），时辰一动不动——玩家看不出这一档紧在哪。
-// 三秀同收 / 九宫填数各有自己的整表（下面会覆盖），其余限时玩法一律走这里。
+// 三连互换 / 九宫填数各有自己的整表（下面会覆盖），其余限时玩法一律走这里。
 // 收 3% 而不是一成，是为了不把「高档」变成「来不及看清盘」；逐档累计到绝境是 88%。
 const TIME_LEVELS = [1, 0.97, 0.94, 0.91, 0.88];
 
@@ -480,22 +480,36 @@ const MINES_HEARTS = MINES_LEVELS.map(function (lv) { return lv.hearts; });
 // 旧版只有「S 线 620 + depth×150」在变，60 息 / 5 色 / 罚 2 息四档全写死——
 // 真控制器跑 12 局的结果：高手五段 12/12 全 S、常人绝境 10/12 S，等于同一局打五遍。
 // 后来补了花色与罚息，但盘面仍是 6×6：换段只多一张果器纹、少几息，玩家一眼看不出来。
-// 现在换段先换盘——6×6 → 7×7 → 8×8 → 9×9 → 10×10，这是长线里唯一一次
-// 「不用读字就知道换段了」的台阶；花色、时辰、罚息、封印继续各管一档的松紧。
-// 时辰没有跟着旧表继续大收，是因为盘变大后扫一圈要更久：68/66/64/62/60 递减。
+// 换段先换盘——6×6 → 7×7 → 8×8 → 9×9 → 10×10，让「不用读字就知道换段了」有一级台阶。
+//
+// **2026-11-19 第二轮：盘面变大不是难度轴，是容量轴。**
+// 模拟（随机合法手，每档 400 局）实测每手均分：6×6/5 色 77.9、7×7/5 色 105.9、
+// 8×8/6 色 79.9、9×9/6 色 88.5、10×10/7 色 68.3。盘大了同色更多，「一手能成的换位」
+// 从 8.9 处涨到 17.8 处，玩家更好找手——于是段二（7×7/5 色）实际比段一更容易 22%，
+// 段四（9×9/6 色）又比段三回升 10%。原来五段里只有段五真的更难，
+// 段二、段四都是「盘子长大、难度回落」——玩家说「变化太小」就是这个。
+// 所以段二起两条硬台阶一起上：
+//   · 花色 +1（5 / 6 / 7 / 7 / 7）。7 色是上限：`GLYPHS` 与器纹族只有 7 个能分开的剪影，
+//     第 8 色必然与某族撞形状，玩家读不出「这是第 8 种」。
+//   · 石皮封印（0 / 2 / 5 / 9 / 14）。它压在「可行换位数」上——封住的牌不能换但仍能被收走，
+//     收走即解封。这是三段之后唯一还在增长的复杂度轴，也是盘面上看得见的东西。
+// 时辰跟着砍得更狠：68 / 63 / 57 / 51 / 45（-34%）。旧表只收 12%，因为当时以为
+// 「盘大了扫一圈要更久」；实测把这个理由推翻了：大盘每手产出更高，扫得并不更慢。
+// 现在五段的「一局理论总分」（每手均分 × 可用手数）是 1.00 / 0.87 / 0.61 / 0.57 / 0.53，
+// 单调下降，段与段之间才有真的落差。
 //
 // 2026-11-19 把 S 线从「写死的绝对分」改成**按本盘产出派生**。旧表 1900/1750/1400/1300/950
 // 是照旧盘标定的；盘换成 9×9 / 10×10 后，每手能收的株数与连锁都变了，同一条绝对分
 // 在最后一段只剩「三秒动一手也能 S」：实测第 1000 关 42 息、随机合法手 3 秒一手仍得 1021 分，
 // 而 S 线是 950——评级线形同虚设，越到后面越松。
 // 现在 sLine = 每手均分 × 本局可用手数 × 目标利用率：
-//   perMove 是「每手平均得分」的实测值（每档 40 局，随机合法手、假时钟跑到 400 手，
-//   取「总得分 ÷ 总手数」）：66 / 66 / 56 / 56 / 50。它是**每手**的产出，与外挂多少息无关——
-//   所以段内时辰收紧时 S 线跟着收，不会出现「时辰收了、分数线没动」的段末放水。
+//   perMove 是「每手平均得分」的实测值（随机合法手跑满一手到无连锁为止，取总得分 ÷ 总手数），
+//   再按第一段锚到 66 等比缩放：66 / 62 / 48 / 50 / 53。
+//   它**不随段单调下降**（10×10 一次能消更多株），这是实的——别拿它当难度看，看总分。
 //   MATCH_MOVE_SEC 是「一手从看到落定」的节奏，含 0.4 息动画；
 //   MATCH_S_UTIL 是 S 线要求的操作窗口利用率——0.72 意味着约 1.7 息必须落一手。
-// 盘越大、色越多，perMove 越低；但可用手数也跟着时辰变，所以 S 线不会再「越难越低」，
-// 而是「每一段都要求同样强度的操作」——这才是玩家能自己算出来的那条线。
+// 盘越大、色越多，每手落的株数变了；但可用手数跟着时辰变，所以 S 线守的是
+// 「每一段都要求同样强度的操作」——这才是玩家能自己算出来的那条线。
 // 标定口径不变：高手约 75–95% 拿得到、常人 5–25%，由 tests/rank.test.js 守。
 // 同上探针复核过分离度：1.2 息一手五档全 S；3 息一手五档全不 S。中间那一档才是评级该分的地方。
 const MATCH_MOVE_SEC = 1.2;
@@ -503,14 +517,14 @@ const MATCH_S_UTIL = 0.72;
 const MATCH_LEVELS = [
   { cols: 6, rows: 6, kinds: 5, duration: 68, missCost: 1, shuffleCost: 2, hintCost: 1,
     perMove: 66, seals: 0, shuffleCap: 99 },
-  { cols: 7, rows: 7, kinds: 5, duration: 66, missCost: 2, shuffleCost: 3, hintCost: 2,
-    perMove: 66, seals: 0, shuffleCap: 99 },
-  { cols: 8, rows: 8, kinds: 6, duration: 64, missCost: 2, shuffleCost: 3, hintCost: 2,
-    perMove: 56, seals: 0, shuffleCap: 99 },
-  { cols: 9, rows: 9, kinds: 6, duration: 62, missCost: 3, shuffleCost: 4, hintCost: 3,
-    perMove: 56, seals: 4, shuffleCap: 3 },
-  { cols: 10, rows: 10, kinds: 7, duration: 60, missCost: 3, shuffleCost: 4, hintCost: 3,
-    perMove: 50, seals: 8, shuffleCap: 3 },
+  { cols: 7, rows: 7, kinds: 6, duration: 63, missCost: 2, shuffleCost: 3, hintCost: 2,
+    perMove: 62, seals: 2, shuffleCap: 99 },
+  { cols: 8, rows: 8, kinds: 7, duration: 57, missCost: 2, shuffleCost: 3, hintCost: 2,
+    perMove: 48, seals: 5, shuffleCap: 99 },
+  { cols: 9, rows: 9, kinds: 7, duration: 51, missCost: 3, shuffleCost: 4, hintCost: 3,
+    perMove: 50, seals: 9, shuffleCap: 3 },
+  { cols: 10, rows: 10, kinds: 7, duration: 45, missCost: 3, shuffleCost: 4, hintCost: 3,
+    perMove: 53, seals: 14, shuffleCap: 3 },
 ];
 
 // 本局 S 线。吃已经算好的 params（duration / perMove），所以段内时辰收紧时它跟着收紧，
@@ -660,7 +674,7 @@ function linkPairsOf(q) {
 }
 
 // 局内那行代价句要跟着本段罚息走：以前写死「少 2 息」，改了档就变成假话。
-// 只有三秀同收的罚息按档变，其余门沿用 method.tip 这一份真源。
+// 只有三连互换的罚息按档变，其余门沿用 method.tip 这一份真源。
 function tipFor(method, stageIndex) {
   if (!method) return '';
   if (method.game === 'match') {
@@ -771,7 +785,7 @@ const BIGGEST_LEVELS = [
   { count: 16, rounds: 16 },
 ];
 
-// 三秀同收的 S 线与它那行文案。两者都吃**关号**，与局内同一个 buildParamsAt——
+// 三连互换的 S 线与它那行文案。两者都吃**关号**，与局内同一个 buildParamsAt——
 // 段内时辰收紧时 S 线跟着收。段级读者（图鉴 / 结算里说「这一段」）传本段首关即可；
 // 别另开一条按段索引的路径，两套口径一定会在某个段末差几分，而玩家只在局内看得见那个数。
 function sLineOf(method, level) {
@@ -987,14 +1001,14 @@ function rawParams(method, depthIndex) {
     if (typeof out[k] === 'number') out[k] = Math.max(1, Math.min(capFor(k, out), Math.round(out[k] * d.goal)));
   }
   // 时辰按档收紧：这是「这一档到底紧在哪」最直白的一条，玩家一进局就看得见倒计时。
-  // 放在各门整表注入之前，好让三秀同收 / 九宫填数用自己那张表覆盖。
+  // 放在各门整表注入之前，好让三连互换 / 九宫填数用自己那张表覆盖。
   const timeScale = TIME_LEVELS[d.depth];
   if (typeof out.duration === 'number') out.duration = Math.max(8, Math.round(out.duration * timeScale));
   if (typeof out.timeLimit === 'number') out.timeLimit = Math.max(8, Math.round(out.timeLimit * timeScale));
   // depth 是「第几档」（0–4），不做任何缩放，直接透传。
   // gear 只有 normal / hard 两值，玩法拿它分不出困难与绝境，容易一档一个样。
   out.depth = d.depth;
-  // 三秀同收的五段整表注入：玩法层只读 params，不再自己拼 620 + depth×150。
+  // 三连互换的五段整表注入：玩法层只读 params，不再自己拼 620 + depth×150。
   // 这几个键不在 PACE / GOAL 缩放名单里，免得被 pace 又乘一遍（花色与罚息是整数）。
   if (method && method.game === 'match') {
     const lv = MATCH_LEVELS[d.depth];
@@ -1626,7 +1640,7 @@ function fmtField(key, value) {
 function labelOf(method, key) {
   if (key === 'capFactor') return method && method.game === 'klotski' ? '步数预算' : '推数预算';
   if (key === 'lineScale') return lineLabelOf(method, key);
-  // 同一个键在不同门里不是同一件事：三秀同收的 kinds 是花色，灵纹连线的是纹样。
+  // 同一个键在不同门里不是同一件事：三连互换的 kinds 是花色，灵纹连线的是纹样。
   if (key === 'kinds') return method && method.game === 'match' ? '花色' : '灵纹';
   if (key === 'cols') return '盘面宽';
   if (key === 'rows') return '盘面高';
