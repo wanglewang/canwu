@@ -476,25 +476,51 @@ const MINES_LEVELS = [
 // 旧的 MINES_HEARTS 仍然导出（测试与文档引用它），但改成从表里派生，只留一份真源。
 const MINES_HEARTS = MINES_LEVELS.map(function (lv) { return lv.hearts; });
 
-// 三秀同收的五段：盘面规格、花色、时辰、三处罚息与评级线，一张表管全。
+// 三秀撷英的五段：盘面规格、花色、时辰、三处罚息与封印格，一张表管全。
 // 旧版只有「S 线 620 + depth×150」在变，60 息 / 5 色 / 罚 2 息四档全写死——
 // 真控制器跑 12 局的结果：高手五段 12/12 全 S、常人绝境 10/12 S，等于同一局打五遍。
 // 后来补了花色与罚息，但盘面仍是 6×6：换段只多一张果器纹、少几息，玩家一眼看不出来。
 // 现在换段先换盘——6×6 → 7×7 → 8×8 → 9×9 → 10×10，这是长线里唯一一次
-// 「不用读字就知道换段了」的台阶；花色、时辰、罚息继续各管一档的松紧。
-// 时辰没有跟着旧表继续大收，是因为盘变大后扫一圈要更久：68/66/64/62/60 递减，
-// 每格预算却从 1.89 息一路收到 0.60 息，主承重轴从「快」挪回「看得清」。
-// sLine 保持原五值：用同一套启发式玩家在旧盘与新盘各跑 15 局，快手得分比是
-// 0.99 / 1.17 / 1.06 / 0.97 / 0.94，常人 1.20 / 0.91 / 0.98 / 1.02 / 0.83，
-// 换盘没有改变可得分的量级，动分数线只会把已标定的档位打乱。
-// 标定口径仍是「高手约 75–95% 拿得到、常人 5–25%」，由 tests/rank.test.js 守。
+// 「不用读字就知道换段了」的台阶；花色、时辰、罚息、封印继续各管一档的松紧。
+// 时辰没有跟着旧表继续大收，是因为盘变大后扫一圈要更久：68/66/64/62/60 递减。
+//
+// 2026-11-19 把 S 线从「写死的绝对分」改成**按本盘产出派生**。旧表 1900/1750/1400/1300/950
+// 是照旧盘标定的；盘换成 9×9 / 10×10 后，每手能收的株数与连锁都变了，同一条绝对分
+// 在最后一段只剩「三秒动一手也能 S」：实测第 1000 关 42 息、随机合法手 3 秒一手仍得 1021 分，
+// 而 S 线是 950——评级线形同虚设，越到后面越松。
+// 现在 sLine = 每手均分 × 本局可用手数 × 目标利用率：
+//   perMove 是「每手平均得分」的实测值（每档 40 局，随机合法手、假时钟跑到 400 手，
+//   取「总得分 ÷ 总手数」）：66 / 66 / 56 / 56 / 50。它是**每手**的产出，与外挂多少息无关——
+//   所以段内时辰收紧时 S 线跟着收，不会出现「时辰收了、分数线没动」的段末放水。
+//   MATCH_MOVE_SEC 是「一手从看到落定」的节奏，含 0.4 息动画；
+//   MATCH_S_UTIL 是 S 线要求的操作窗口利用率——0.72 意味着约 1.7 息必须落一手。
+// 盘越大、色越多，perMove 越低；但可用手数也跟着时辰变，所以 S 线不会再「越难越低」，
+// 而是「每一段都要求同样强度的操作」——这才是玩家能自己算出来的那条线。
+// 标定口径不变：高手约 75–95% 拿得到、常人 5–25%，由 tests/rank.test.js 守。
+// 同上探针复核过分离度：1.2 息一手五档全 S；3 息一手五档全不 S。中间那一档才是评级该分的地方。
+const MATCH_MOVE_SEC = 1.2;
+const MATCH_S_UTIL = 0.72;
 const MATCH_LEVELS = [
-  { cols: 6, rows: 6, kinds: 5, duration: 68, missCost: 1, shuffleCost: 2, hintCost: 1, sLine: 1900 },
-  { cols: 7, rows: 7, kinds: 5, duration: 66, missCost: 2, shuffleCost: 3, hintCost: 2, sLine: 1750 },
-  { cols: 8, rows: 8, kinds: 6, duration: 64, missCost: 2, shuffleCost: 3, hintCost: 2, sLine: 1400 },
-  { cols: 9, rows: 9, kinds: 6, duration: 62, missCost: 3, shuffleCost: 4, hintCost: 3, sLine: 1300 },
-  { cols: 10, rows: 10, kinds: 7, duration: 60, missCost: 3, shuffleCost: 4, hintCost: 3, sLine: 950 },
+  { cols: 6, rows: 6, kinds: 5, duration: 68, missCost: 1, shuffleCost: 2, hintCost: 1,
+    perMove: 66, seals: 0, shuffleCap: 99 },
+  { cols: 7, rows: 7, kinds: 5, duration: 66, missCost: 2, shuffleCost: 3, hintCost: 2,
+    perMove: 66, seals: 0, shuffleCap: 99 },
+  { cols: 8, rows: 8, kinds: 6, duration: 64, missCost: 2, shuffleCost: 3, hintCost: 2,
+    perMove: 56, seals: 0, shuffleCap: 99 },
+  { cols: 9, rows: 9, kinds: 6, duration: 62, missCost: 3, shuffleCost: 4, hintCost: 3,
+    perMove: 56, seals: 4, shuffleCap: 3 },
+  { cols: 10, rows: 10, kinds: 7, duration: 60, missCost: 3, shuffleCost: 4, hintCost: 3,
+    perMove: 50, seals: 8, shuffleCap: 3 },
 ];
+
+// 本局 S 线。吃已经算好的 params（duration / perMove），所以段内时辰收紧时它跟着收紧，
+// 不会出现「时辰收了、分数线没动」的段末放水。
+function matchSLineOf(q) {
+  if (!q) return 1;
+  const moves = Math.max(1, Math.floor((q.duration || 60) / MATCH_MOVE_SEC));
+  const per = q.perMove || 76;
+  return Math.max(1, Math.round(per * moves * MATCH_S_UTIL));
+}
 
 function matchLevelOf(stageIndex) {
   return MATCH_LEVELS[stageIndexLike(stageIndex)];
@@ -512,41 +538,67 @@ function matchLevelOf(stageIndex) {
 // 会让第 40 关（约 39 秒）比第 41 关（约 51 秒）还紧——界面上白纸黑字写着
 // 「时辰 39 秒 → 51 秒」，等于承认上一章更难。所以时辰改按「每对预算」沿关号
 // 连续收，见下面的 linkPerPairAt / linkDurationAt。
-// 五段规格：前三段 4×6（24 格 − 4 空位 = 20 格 · 10 对），大成 5×7（35 − 3 = 32 格 · 16 对），
-// 圆满 6×8（48 − 4 = 44 格 · 22 对）。行数不是摆设：业界连连看的简单 / 中等 / 困难是
-// 10×6 / 12×8 / 16×9，行列一起长；麻将接龙的 12 副布局从 60 张到 144 张。
+// 五段规格：前三段 4×6（24 格 · 12 对），大成 7×6（42 格 · 21 对），圆满 10×7（70 格 · 35 对）。
+// 行数不是摆设：业界连连看的简单 / 中等 / 困难是 10×6 / 12×8 / 16×9，行列一起长；
+// 麻将接龙的 12 副布局从 60 张到 144 张。
 //
-// 2026-11-18 把盘形转成竖的。原来是 6×4 / 7×5 / 8×6——横着长，而手机是竖的：
-// 横盘只能占满宽度、高度只用掉一屏的三分之一，底下全是空；而格子宽度被列数锁死，
-// 7 列时每格只有 49px，再怎么调边距也大不了一格像素。**列数是格子大小的唯二旋钮**
-// （另一个是屏宽），减列才是真的放大格子。
-// 只转盘形、不动对数：10 / 16 / 22 一枚没变，所以每对预算这把尺子、评级线、
-// 全书的难度台阶全部照旧——盘形只改「看起来多大」，不改「有多难」。
-// 段间台阶也保住了：4 列 → 5 列 → 6 列，格子一级级缩小、行长一级级加上去。
-// 但「盘变大」不等于「变难」——难度只由每对预算这把尺子管，大盘只是玩家最先看见的变化。
+// 2026-11-19 把后两段真推大一档。原来大成 6×6（18 对）、圆满 8×6（24 对），
+// 到第 1000 关仍是「中等盘」：业界困难档 16×9 = 144 张 / 72 对，规模差 3 倍。
+// 竖屏做不到 16 列（375px 屏上 10 列已到每格 37.5px 的可点下限），但 35 对能把
+// 规模差压到 2 倍，同时每对预算收到 2.3 息——两条轴一起到顶，才配叫这一门的极处。
+// 段界台阶因此变成 12 / 12 / 12 / 21 / 35 对，对应 4 / 4 / 4 / 7 / 10 列，
+// 格子 93 / 93 / 93 / 53 / 37px：不用读字，一眼看得出换了盘。
+//
+// 2026-11-18 那次是 6×4 → 4×6 的竖屏重排，只转盘形、对数一枚没动。
+// 这次是**真的加了对数**，所以每对预算、评级线、全书台阶都要跟着重算——
+// 别把上一次「盘变大不改难度」的结论照抄到这一次。
 // 换盘时对数变了，时辰由 linkDurationAt 按本段对数现算，不许在表里写死总秒数。
 // 折数上限是并蒂引的复杂度轴：前三段 2 折（能绕盘外），大成起 1 折。
-// 实测（150 局 × 各段盘）1 折把「每对可连量」压掉约四成：大成 0.88→0.53、
-// 圆满 0.92→0.57；死局由玩法层的重排兜住（换盘不扣息、只断连收）。
+// 实测（每段 60–150 局）一折把「每对可连量」压掉四成：7×6 0.52（2 折 0.95）、
+// 10×7 0.54（2 折 0.99）；死局由玩法层的重排兜住（有次数与代价，见 LINK_FAIR）。
 // 盘面尺寸决定「一对有几息」，折数决定「这一息里找得到几对」——两条轴互不顶替。
 const LINK_LEVELS = [
-  { cols: 4, rows: 6, kinds: 4, turns: 2 },   // 满盘 = 24 格 · 12 对 · 4 种纹：段首多的一种 6 枚，路径好找
+  { cols: 4, rows: 6, kinds: 4, turns: 2 },   // 24 格 · 12 对 · 4 种纹：段首多的一种 6 枚，路径好找
   { cols: 4, rows: 6, kinds: 5, turns: 2 },   // 12 对 · 5 种纹
   { cols: 4, rows: 6, kinds: 6, turns: 2 },   // 12 对 · 6 种纹：换段只换纹种，盘还是这一副
-  { cols: 6, rows: 6, kinds: 6, turns: 1 },   // 满盘 = 36 格 · 18 对：大成第一次加列，同时收紧到一折
-  { cols: 8, rows: 6, kinds: 6, turns: 1 },   // 满盘 = 48 格 · 24 对：圆满加到八列，行数不动
+  { cols: 7, rows: 6, kinds: 6, turns: 1 },   // 42 格 · 21 对：大成第一次加列，同时收紧到一折
+  { cols: 10, rows: 7, kinds: 6, turns: 1 },  // 70 格 · 35 对：圆满到十列七行，竖屏可点上限
 ];
-// 每对预算（息）：第 1 关 5.5 → 第 200 关 2.75，正好 2 倍。
+// 每对预算（息）：第 1 关 5.50 → 第 1000 关 2.30，**段内也收**。
+// 每一段自己是一条从 start 收到 end 的直线，段末的值正好接上下一段的段首——
+// 换段不会在预算上留台阶，台阶全由盘形与折数给，两条轴各管一件事。
+// 旧版只有一条 5.5 → 2.3 的全书直线，段内 10 关只收 1.5%（5.50 → 5.42），
+// 第一段实际上「越打越松」：布纹偏斜把可连对数抬高 46%，比时钟收紧的那点狠得多。
+// 现在段内收 9%–23%，玩家每打几关就能在准备页上看见每对少了几厘息。
+// 2.30 照业界困难档标定：16×9 / 72 对在 3–5 分钟里是 2.5–4.2 秒一对，这一门取更紧的一端
+// （1 折本身已经比业界通行的 2 折严一档）。
 // 拿「每对」而不是「总秒数」当主承重：换章盘面变大，总秒数跟着变长是应该的，
 // 玩家比较难度的尺子只能是「一对平均给几息」。
-const LINK_BUDGET = [5.5, 2.75];
+const LINK_BUDGET = [
+  [5.50, 5.00],   // 未入门：12 对 · 66 → 60 息
+  [5.00, 4.50],   // 入门：12 对 · 60 → 54 息
+  [4.50, 3.70],   // 小成：12 对 · 54 → 44 息
+  [3.70, 2.85],   // 大成：21 对 · 77 → 59 息
+  [2.85, 2.30],   // 圆满：35 对 · 99 → 80 息
+];
 
-// 段内布纹的名字。weave 由 levels.js 的 tweakParams 按段内进度生成（0–3），
-// 玩法层按它决定每种纹各有几对；这里只管怎么把同一件事说给玩家听。
-const WEAVE_NAMES = ['均匀', '微偏', '偏斜', '极偏'];
+// 容错按段收。前两段把自移当兜底（死局是运气，罚息等于罚运气），
+// 大成起改成「有限次数 + 明码代价」：盘越大，一次自移越像一次免费重开。
+//   reshuffles 每局能按原价用几次；用尽后仍可自移，但代价翻倍——绝不把玩家卡死在死盘前。
+//               次数照实测标定：一盘 35 对打下来，自然死局平均 0.4 次、最多 2 次
+//               （60 局实测），所以 2 次是「够用但要珍惜」，不是「运气决定成败」。
+//   shuffleCost 原价每次扣几息；hints 每局照纹上限（99 = 不设限）。
+// 这三条都是结构量（按段不变），换段那关由 stageSpec 单独说，不抢 levelDelta 的三条额度。
+const LINK_FAIR = [
+  { reshuffles: 4, shuffleCost: 0, hints: 99 },   // 未入门：随便自移，先学会看盘
+  { reshuffles: 3, shuffleCost: 0, hints: 99 },   // 入门
+  { reshuffles: 3, shuffleCost: 0, hints: 99 },   // 小成
+  { reshuffles: 2, shuffleCost: 1, hints: 3 },    // 大成：自移要付息，照纹只剩三次
+  { reshuffles: 2, shuffleCost: 2, hints: 2 },    // 圆满：两次自移、两次照纹，其余全靠自己
+];
 
-function weaveNameOf(weave) {
-  return WEAVE_NAMES[Math.max(0, Math.min(WEAVE_NAMES.length - 1, Math.round(Number(weave) || 0)))];
+function linkFairOf(level) {
+  return LINK_FAIR[levelData.stageOfLevel(level)];
 }
 
 // 纹样主题的名字：真源在 data/levels.js 的 LINK_THEME_NAMES（数据层要拿它写「本关变化」），
@@ -557,12 +609,16 @@ function linkThemeNameOf(theme) {
   return names[i];
 }
 
-// 这一关每对给几息：沿全书进度线性收，不按章回卷——「章内收三成、换章复位」
-// 正是倒挂的来源。
+// 这一关每对给几息：段内沿直线收，段末接上下一段段首，全书一路只紧不松。
+// 段内进度取 0–1（段首正好是 start、段末正好是 end），不沿用 levels.js 的
+// `progressOf`——那个是「第几关 / 段长」的含首写法，段首会先扣掉一格。
 function linkPerPairAt(level) {
   const lv = Math.max(1, Math.min(levelData.LEVEL_MAX, Math.round(level) || 1));
-  const f = (lv - 1) / (levelData.LEVEL_MAX - 1);
-  return LINK_BUDGET[0] + (LINK_BUDGET[1] - LINK_BUDGET[0]) * f;
+  const stage = levelData.stageOfLevel(lv);
+  const row = LINK_BUDGET[stage] || LINK_BUDGET[LINK_BUDGET.length - 1];
+  const range = levelData.stageRange(stage);
+  const f = range.to > range.from ? (lv - range.from) / (range.to - range.from) : 1;
+  return row[0] + (row[1] - row[0]) * f;
 }
 
 // 这一关的时辰 = 本段对数 × 每对预算（消费端在 minigames/link.js 的 p.duration）。
@@ -577,10 +633,11 @@ function linkDurationAt(level) {
   const pairs = linkPairsAt(lv, board.cols, board.rows);
   let out = Math.floor(linkPerPairAt(lv) * pairs);
   if (stage > 0) {
-    // 换段封顶：新盘的对数变了，floor 的取整粒度也变了（10 对是 0.1 息、16 对是 0.0625）。
-    // 名义每对明明在降，实际每对却可能因为「这次少扣了一点零头」看起来松了 0.037 息——
-    // 这正是之前反复踩的假回弹。拿上一段末关的**实际**每对（不是名义值）封顶，
-    // 玩家看到的「每对几息」就永远只紧不松。封顶只作用在新盘，不改段内逐关收紧。
+    // 换段封顶：新盘的对数变了，floor 的取整粒度也变了（12 对是 0.083 息、21 对是 0.048 息、
+    // 35 对是 0.029 息）。名义每对明明在降，实际每对却可能因为「这次少扣了一点零头」
+    // 看起来松了 0.02 息——这正是之前反复踩的假回弹。拿上一段末关的**实际**每对
+    // （不是名义值）封顶，玩家看到的「每对几息」就永远只紧不松。
+    // 封顶只作用在新盘，不改段内逐关收紧。
     const prev = levelData.stageRange(stage - 1).to;
     const prevBoard = LINK_LEVELS[stage - 1];
     const prevPairs = linkPairsAt(prev, prevBoard.cols, prevBoard.rows);
@@ -591,7 +648,7 @@ function linkDurationAt(level) {
 }
 
 // 本关能接几对 = 格数 / 2。盘面满盘无缺口，所以分母就是整盘格数的一半
-// （4×6=12 / 6×6=18 / 8×6=24）。**这一门所有「每对」的分母都只从这一个函数出**
+// （4×6=12 / 7×6=21 / 10×7=35）。**这一门所有「每对」的分母都只从这一个函数出**
 // （时辰 / 规格串 / 末关跨度 / 本关变化），别在各处写 cols*rows/2。
 function linkPairsAt(level, cols, rows) {
   return Math.max(1, (cols * rows) / 2);
@@ -714,22 +771,28 @@ const BIGGEST_LEVELS = [
   { count: 16, rounds: 16 },
 ];
 
-function sLineOf(method, stageIndex) {
+// 三秀同收的 S 线与它那行文案。两者都吃**关号**，与局内同一个 buildParamsAt——
+// 段内时辰收紧时 S 线跟着收。段级读者（图鉴 / 结算里说「这一段」）传本段首关即可；
+// 别另开一条按段索引的路径，两套口径一定会在某个段末差几分，而玩家只在局内看得见那个数。
+function sLineOf(method, level) {
   if (!method || method.game !== 'match') return 0;
-  return matchLevelOf(stageIndexLike(stageIndex)).sLine;
+  return buildParamsAt(method, level || 1).sLine;
 }
 
 // 准备页那一整行 S 线文案：分数线与盘数线口径不同，别在页面 JS 里各拼一遍。
-function sLineText(method, stageIndex) {
+function sLineText(method, level) {
   if (!method) return '';
   if (method.game === 'match') {
-    const lv = matchLevelOf(stageIndexLike(stageIndex));
-    // 评级线随盘面变难而略降，这句必须当场说明，不然玩家会以为算错了。
-    return '本段 ' + lv.kinds + ' 色 · ' + lv.duration + ' 息 · 换不出少 ' + lv.missCost + ' 息'
-      + ' · S 线 ' + lv.sLine + ' 分（盘面越难，同样分数越难得）；评级只看总分';
+    // 这里必须用本关那一份（不是段表里的基准值）：段内已按 LEVEL_TIGHTEN 收过一刀，
+    // 照表写会和准备页的倒计时差几息。种类 / 罚息 / 封印也一并从 params 取，不再回头读表。
+    const q = buildParamsAt(method, level || 1);
+    // 评级线随盘面重标定，这句要说清「它是按本盘产出算的」，不然玩家会以为在放水。
+    return '本关 ' + q.kinds + ' 色 · ' + q.duration + ' 息 · 换不出少 ' + q.missCost + ' 息'
+      + (q.seals ? ' · 封印 ' + q.seals + ' 格' : '')
+      + ' · S 线 ' + q.sLine + ' 分（按本盘每手产出与时辰现算）；评级只看总分';
   }
   if (method.game === 'lights') {
-    const lv = lightsLevelOf(stageIndexLike(stageIndex));
+    const lv = lightsLevelOf(levelData.stageOfLevel(Math.max(1, Math.round(level) || 1)));
     // 预算不再是固定秒数 / 步数，是本盘最优 + 余量，所以这里只能说「余量」，
     // 说死一个绝对数会和局内「余 N 步」对不上（最优是区间，两盘能差一步）。
     return '本段 ' + lv.size + '×' + lv.size + ' 盘 · 最优 ' + lv.min + '～' + lv.hi
@@ -943,7 +1006,13 @@ function rawParams(method, depthIndex) {
     out.missCost = lv.missCost;
     out.shuffleCost = lv.shuffleCost;
     out.hintCost = lv.hintCost;
-    out.sLine = lv.sLine;
+    // 每手均分与大成的封印格是这一门的两根新轴，玩法层真读（见 minigames/match.js）。
+    out.perMove = lv.perMove;
+    out.seals = lv.seals;
+    out.shuffleCap = lv.shuffleCap;
+    // 段基准的 S 线：buildParamsAt 会在段内收紧 duration 之后重算，这里只给
+    // buildParams（段级读者）一个同源的起点，不写死绝对分。
+    out.sLine = matchSLineOf({ duration: lv.duration, perMove: lv.perMove });
   }
   // 灵纹连线：盘面规格、纹种、时辰全部按整表 + 关号现算，不通用缩放。
   // 时辰特意放在 TIME_LEVELS 与 LEVEL_TIGHTEN 之外：盘变大时本该多给息，
@@ -956,13 +1025,15 @@ function rawParams(method, depthIndex) {
     out.kinds = lv.kinds;
     out.turns = lv.turns;
     out.duration = linkDurationAt(levelData.stageRange(d.depth).from);
-    // 段基准是「均匀布纹」，段内一级一级偏过去（tweakParams）。写在这里是为了
-    // buildParams(method, stage) 那些段级读者也有同一个起点，不会出现 undefined。
-    out.weave = 0;
     // 纹样主题同理：段首关（1/11/51/201/501）都给第一套，按关号的轮换由 tweakParams 注入。
     out.theme = levelData.linkThemeOf(levelData.stageRange(d.depth).from);
     // 盘形同理：段级读者拿到的是段首关那一副（未入门段是整块），段内轮换由 tweakParams 注入。
     // 空位列表要跟 duration 同源：时辰的分母是「本关能接几对」，挖了空位就不是 cols*rows/2。
+    // 容错三条按段给：次数与代价都是结构量，段内不变，换段由 stageSpec 说。
+    const fair = linkFairOf(levelData.stageRange(d.depth).from);
+    out.reshuffles = fair.reshuffles;
+    out.shuffleCost = fair.shuffleCost;
+    out.hints = fair.hints;
   }
   // 阵灯推演按「比最优多走几步」评级，盘面规格、最优步数区间与步数余量由这一份表按档注入。
   if (method && method.game === 'lights') {
@@ -1079,7 +1150,12 @@ function rawParams(method, depthIndex) {
 // 段基准参数：按段序取这一段的原始参数（不做段内收紧）。
 // 准备页「本段换了什么」与说明页的对照表都走它。
 function buildParams(method, stageIndex) {
-  return rawParams(method, stageIndexLike(stageIndex));
+  const idx = stageIndexLike(stageIndex);
+  const out = rawParams(method, idx);
+  // 段级读者（说明页 / 图鉴）拿到的是「表里的基准那一份」，与别的门同一条约定：
+  // buildParams 是基准，buildParamsAt 才是某一关的实际值（段首已经按 LEVEL_TIGHTEN 收过一刀）。
+  // 玩家真正照着打的那个数由 buildParamsAt / sLineOf(关号) 给，两者不混用。
+  return out;
 }
 
 // 章内收紧：一章 40 关，末关比首关紧三成。这个数只乘「越短越难」的量，
@@ -1141,6 +1217,8 @@ function buildParamsAt(method, level) {
   if (method.game === 'tempo') tempoAt(tuned, lv);
   // 灵纹连线的时辰在这一步统一收口：一关一个数，沿全书连续收，不按章回卷。
   if (linkGame) tuned.duration = linkDurationAt(lv);
+  // 三秀的 S 线跟着本关时辰走：段内时辰收了三成，分数线不收就是段末放水。
+  if (method && method.game === 'match') tuned.sLine = matchSLineOf(tuned);
   return tuned;
 }
 
@@ -1161,7 +1239,8 @@ const LEVEL_STRUCT_KEYS = ['cols', 'rows', 'size', 'grid', 'kinds', 'holes', 'co
   'target', 'minOpt', 'maxOpt', 'boxes', 'walls', 'startTiles', 'hearts', 'steps',
   'minSteps', 'hiSteps', 'startLevel', 'linesPerLevel', 'lenStep', 'decoys', 'pairs',
   'mines', 'beats', 'segments', 'chainGoal', 'maxRound', 'scramble', 'startLen',
-  'baseLen', 'budgetSlack', 'missCost', 'nearGap', 'hands', 'bar', 'bars', 'turns'];
+  'baseLen', 'budgetSlack', 'missCost', 'nearGap', 'hands', 'bar', 'bars', 'turns',
+  'seals', 'reshuffles', 'hints'];
 // 沿全书关号连续收的结构旋钮不属于「本段换了哪一副盘」，换段时不与盘面规格抢那两条额度。
 const CONTINUOUS_STRUCT_KEYS = ['nearGap'];
 
@@ -1331,7 +1410,7 @@ function levelDelta(method, level) {
     }
     return finalLine();
   }
-  // 灵纹连线只报四样玩家真看得见的东西：换段、换盘、换纹种、布纹与每对时辰。
+  // 灵纹连线只报四样玩家真看得见的东西：换段、换盘、换纹种、每对时辰。
   // 总时辰在换章时会因盘变大而变长，直接报「时辰 46 → 54 息」等于说这一关变松了；
   // 玩家该看的是「一对平均给几息」，那个数永远只减不增。
   // 照纹高亮时长（hintMs）恒定，旧版的 flashMs 会报出一百多关「0.75 → 0.74 秒」——
@@ -1361,19 +1440,19 @@ function levelDelta(method, level) {
       out.push({ key: 'theme', label: '纹样',
         text: '纹样 ' + linkThemeNameOf(prev.theme) + ' → ' + linkThemeNameOf(now.theme) });
     }
-    // 布纹只在段内报：下一段首关会从「极偏」回到「均匀」，那是新段的起手牌阵，
-    // 不是这一关变松了。换段那关前三条额度留给换段 / 换盘 / 换纹种。
-    if (!chStart && now.weave !== prev.weave) {
-      out.push({ key: 'weave', label: '布纹',
-        text: '布纹 ' + weaveNameOf(prev.weave) + ' → ' + weaveNameOf(now.weave) });
-    }
     const perPair = function (q) { return (q.duration / linkPairsOf(q)).toFixed(2); };
     const a = perPair(prev);
     const b = perPair(now);
     // 只报「变紧」。换段时对数从 12 跳到 14，总时辰是整数秒、每对的粒度跟着变细，
     // 四舍五入后可能高 0.01 息——那是取整的回弹，不是这一关变松了。
     // 把回弹写成「每对时辰 5.42 → 5.43」等于告诉玩家这一关更好过，比不报更糟。
-    if (Number(b) < Number(a)) out.push({ key: 'perPair', label: '每对时辰', text: '每对时辰 ' + a + ' → ' + b + ' 息' });
+    // 换段那一关一律不报：每对预算本来就是「段末接下一段段首」，跨段是连续的，
+    // 于是这段交界处的差只剩取整抖动（实测第 501 关 2.81 → 2.80，一条 0.4% 的假台阶，
+    // 排在「盘面 7×6 → 10×7」旁边的三名之内，玩家只会读成写错了）。
+    // 段内逐关的 0.04–0.05 息是真台阶（21 对的取整粒度就是 1/21），照报。
+    if (!chStart && Number(b) < Number(a)) {
+      out.push({ key: 'perPair', label: '每对时辰', text: '每对时辰 ' + a + ' → ' + b + ' 息' });
+    }
     return out.slice(0, chStart ? 3 : 2);
   }
 
@@ -1460,14 +1539,32 @@ function stageSpec(method, level) {
   const d = levelDelta(method, c.from);
   const spec = d.filter(function (x) { return x.key !== 'chapter' && x.key !== 'sameBoard'; })
     .map(function (x) { return x.text; }).join(' · ');
-  return c.label + '（' + c.name + '）· '
+  let out = c.label + '（' + c.name + '）· '
     + (spec ? '本段换了一副：' + spec : '沿用上一副盘，改的是时辰与节奏');
+  // 并蒂引的容错按段收（见 LINK_FAIR），它不是「本关变化」，所以不进 levelDelta 的额度，
+  // 挂在这一句常驻规格里：玩家一进段就知道这一段的死局与照纹各有几次。
+  if (method && method.game === 'link') {
+    const f = linkFairOf(level);
+    out += ' · 自移 ' + f.reshuffles + ' 次' + (f.shuffleCost ? '（每次 ' + f.shuffleCost + ' 息）' : '')
+      + ' · 照纹 ' + (f.hints >= 99 ? '不限' : f.hints + ' 次');
+  }
+  // 三秀的石皮封印与原价重排是同一性质：按段给、段内恒定，不是「这一关比上一关变了什么」。
+  // 它们比「换不出少 2 息 → 3 息」更像新规则（牌被钉住了，照老习惯换不动），
+  // 所以放在常驻规格里，不去抢 levelDelta 那三条额度。
+  if (method && method.game === 'match') {
+    const q = buildParamsAt(method, level);
+    if (q.seals) out += ' · 石皮封住 ' + q.seals + ' 格';
+    // 前三段重排不限次，不必单说一句；从第四段起限次了，进段第一眼就得知道还剩几次。
+    if (q.shuffleCap < 99) out += ' · 重排原价 ' + q.shuffleCap + ' 次（用尽翻倍）';
+  }
+  return out;
 }
 
 // 关卡表里独有的两个旋钮（丹道起手 4 的比例、勘禁 S 线系数）没有通用标签。
 const LEVEL_LABELS = { fourRate: '起手给 4', lineScale: 'S 线', startLevel: '起手级数', linesPerLevel: '每级层数',
   unitMs: '格长', winMs: '判定窗', bar: '每小节', bars: '小节数', hands: '手数', bpm: '速度',
-  meter: '拍号', cue: '提示', scoreLabel: '谱型' };
+  meter: '拍号', cue: '提示', scoreLabel: '谱型',
+  seals: '封印', reshuffles: '自移', hints: '照纹' };
 // lineScale 在勘禁诀里只缩 S 线，在遍观毫厘诀里缩的是整条尺子（S/A/B 与时辰）——同一个键，两种口径。
 // 写错一边，第 3 关的「本关小变化」就会说「S 线 96% → 95%」，而实际连 A 线也收了。
 function lineLabelOf(method, key) {
@@ -1497,6 +1594,11 @@ function levelFmt(key, value) {
   if (key === 'capFactor') return '×' + value.toFixed(2);
   if (key === 'startLevel') return '第 ' + Math.round(value) + ' 级';
   if (key === 'linesPerLevel') return Math.round(value) + ' 层';
+  if (key === 'seals') return Math.round(value) + ' 格';
+  // 99 在数据层是「不设限」的哨兵值；照抄成「99 次」玩家会以为是九十九次。
+  if (key === 'reshuffles' || key === 'hints') {
+    return Math.round(value) >= 99 ? '不限' : Math.round(value) + ' 次';
+  }
   return fmtField(key, value);
 }
 
@@ -1561,8 +1663,11 @@ function stageDetail(method, stageIndex) {
   let brief;
   if (method && method.game === 'match') {
     const lv = matchLevelOf(idx);
-    brief = lv.cols + '×' + lv.rows + ' 盘 · ' + lv.kinds + ' 色 · ' + lv.duration + ' 息'
-      + ' · 换不出少 ' + lv.missCost + ' 息 · 重排少 ' + lv.shuffleCost + ' 息 · S ' + lv.sLine + ' 分';
+    const q = buildParamsAt(method, levelData.stageRange(idx).from);
+    brief = lv.cols + '×' + lv.rows + ' 盘 · ' + lv.kinds + ' 色 · ' + q.duration + ' 息'
+      + ' · 换不出少 ' + lv.missCost + ' 息 · 重排少 ' + lv.shuffleCost + ' 息'
+      + (lv.seals ? ' · 封印 ' + lv.seals + ' 格' : '')
+      + ' · S ' + q.sLine + ' 分';
   } else if (method && method.game === 'lights') {
     const lv = lightsLevelOf(idx);
     brief = lv.size + '×' + lv.size + ' 盘 · 最优 ' + lv.min + '～' + lv.hi + ' 步'
@@ -1604,7 +1709,7 @@ function stageDetail(method, stageIndex) {
     const pairs = linkPairsOf(now);
     brief = now.cols + '×' + now.rows + ' 盘 · ' + pairs + ' 对 · ' + now.kinds + ' 种灵纹 · '
       + now.duration + ' 息 · 每对 ' + (now.duration / pairs).toFixed(2) + ' 息 · 连线只准 '
-      + now.turns + ' 折 · 布纹由均匀渐至极偏 · 满盘无缺口';
+      + now.turns + ' 折 · 满盘无缺口';
   } else if (method && method.game === 'tempo') {
     // 这一门的段差是「换了一副谱」，不是「快了几毫秒」：谱型 / 手数 / 提示三样写在一句里，
     // 准备页才不会写着「最快节奏」而玩家进局发现只是窗窄了一点。
@@ -1726,8 +1831,11 @@ module.exports = {
   matchLevelOf: matchLevelOf,
   LINK_LEVELS: LINK_LEVELS,
   LINK_BUDGET: LINK_BUDGET,
-  WEAVE_NAMES: WEAVE_NAMES,
-  weaveNameOf: weaveNameOf,
+  LINK_FAIR: LINK_FAIR,
+  MATCH_MOVE_SEC: MATCH_MOVE_SEC,
+  MATCH_S_UTIL: MATCH_S_UTIL,
+  linkFairOf: linkFairOf,
+  matchSLineOf: matchSLineOf,
   linkPerPairAt: linkPerPairAt,
   linkDurationAt: linkDurationAt,
   // 本关对数（= 时辰的分母）：盘上挖了空位就不再是 cols*rows/2。

@@ -54,15 +54,20 @@ function adjacent(a, b, cols) {
 }
 
 // 找一个真能凑出三连的相邻换位；纯函数，也供「死局重排」判定使用。
-function findMove(board, cols, rows) {
+// sealed 是「石皮封住的格子」：封住的牌不能换，但仍能被三连收走。
+// 这个参数是可选的——老调用方（测试 / 重排）不传就是「整盘都能换」。
+function findMove(board, cols, rows, sealed) {
+  const lock = sealed || null;
   for (let r = 0; r < rows; r += 1) {
     for (let c = 0; c < cols; c += 1) {
       const a = r * cols + c;
+      if (lock && lock[a]) continue;
       for (const d of [[0, 1], [1, 0]]) {
         const nr = r + d[0];
         const nc = c + d[1];
         if (nr >= rows || nc >= cols) continue;
         const b = nr * cols + nc;
+        if (lock && lock[b]) continue;
         if (board[a] === board[b]) continue;
         const va = board[a];
         const vb = board[b];
@@ -132,6 +137,28 @@ function makeBoard(cols, rows, kinds) {
   return board;
 }
 
+// 石皮封印：大成起盘上多出几格「换不动」的牌。它不挡匹配、不挡下落，
+// 只挡换位——压的是「可行换位数」，不是「能不能消」。
+// 选位置时每封一格都要确认盘上还有可行换位；封到没有可行换位就撤掉这一格，
+// 否则开局就是死局，而玩家看到的只是「盘摆得怪」。
+// 封印绑格，不绑牌：牌被收走时这一格解封（石皮碎掉），之后下落补苗都正常。
+function sealCells(board, cols, rows, count, sealed) {
+  const n = cols * rows;
+  if (!count) return 0;
+  const cand = [];
+  for (let i = 0; i < n; i += 1) cand.push(i);
+  C.shuffle(cand);
+  let placed = 0;
+  for (let k = 0; k < cand.length && placed < count; k += 1) {
+    const i = cand[k];
+    if (sealed[i]) continue;
+    sealed[i] = true;
+    if (findMove(board, cols, rows, sealed)) placed += 1;
+    else sealed[i] = false;
+  }
+  return placed;
+}
+
 // 一手的演出节拍。消消乐的一手不是一个瞬间，是「收走 → 落下 → 再查一轮」三个拍子：
 // 全压进一次渲染，盘面就从满的跳到满的，中间没有一帧是空的，玩家只能靠浮字知道收了东西。
 // 数值比业界通行量级（消除 200–250ms）再紧一档，因为这一门是限时计分而不是步数制：
@@ -162,6 +189,10 @@ function create(ctx) {
   const duration = Math.max(25, p.duration || 60);
   const missCost = Math.max(1, p.missCost || 2);
   const shuffleCost = Math.max(1, p.shuffleCost || 3);
+  // 大成起的两个新旋钮：石皮封印格数与「原价重排」的次数（99 = 不限，前三段就是 99）。
+  // 都由 data/practice.js 的 MATCH_LEVELS 按段注入，段内不变；玩法层不写死。
+  const sealCount = Math.max(0, Math.round(p.seals || 0));
+  const shuffleCap = typeof p.shuffleCap === 'number' ? Math.max(0, Math.round(p.shuffleCap)) : 99;
   const hintMs = Math.max(200, p.flashMs || 760);
   // 阶段新法只把代价打薄，不取消代价（十二原则第十一节：便利必须有明码代价）。
   const hintCost = Math.max(1, (p.hintCost || 2) - (stage >= 3 ? 1 : 0));
@@ -194,6 +225,11 @@ function create(ctx) {
   let harvested = 0;
   let mistakes = 0;
   let shuffles = 0;
+  // 原价重排只剩几次：用尽后仍可重排（绝不把玩家卡死），但代价翻倍。
+  // 注意「原价」不是「免费」——前三段每次重排本来就扣 shuffleCost，这里只是不涨价。
+  let shufflesLeft = shuffleCap;
+  // 石皮封印绑格：true 表示这一格的牌不能换。收走这一格的牌即解封。
+  const sealed = new Array(n).fill(false);
   let maxChain = 0;
   // 这一手的动效状态：无效互换抖哪两格、哪几格刚被收走、哪几格刚从上面掉下来。
   // 用 0/1 交替的类名，相邻两手才会各自重播一次（同名类连挂两帧不播动画）。
@@ -232,6 +268,7 @@ function create(ctx) {
         + (i === selected ? ' cell--sel' : '')
         + (hintPair && (hintPair[0] === i || hintPair[1] === i) ? ' cell--hintpair' : '')
         + (gone ? ' cell--clear' : '')
+        + (sealed[i] && !gone ? ' cell--sealed' : '')
         + (fall ? ' cell--fall' + alt : '')
         + (shakeAt.indexOf(i) >= 0 ? ' cell--shake' + alt : '');
       // 空格子不许回落到第一张牌：v 为 0 时原来写 GLYPHS[v-1] || GLYPHS[0]，
@@ -260,7 +297,13 @@ function create(ctx) {
     vm.gradeNow = C.gradeBy(score, sLimit, aLimit, bLimit);
     vm.goal = C.goalFor(vm.gradeNow, Math.max(0, sLimit - score), '分');
     vm.meter = { label: '已收灵草', value: Math.min(100, harvested), max: 100 };
-    vm.hint = costText + ' · 无效互换 ' + mistakes + ' · 重排 ' + shuffles;
+    // 封印剩几格与原价重排剩几次要一直看得见：收走封印格的牌才解封，
+    // 玩家得知道自己是在跟一副「换不动」的盘较劲。
+    let sealLeft = 0;
+    for (let i = 0; i < n; i += 1) if (sealed[i]) sealLeft += 1;
+    vm.hint = costText + ' · 无效互换 ' + mistakes + ' · 重排 ' + shuffles
+      + (shuffleCap < 99 ? '（原价 ' + shufflesLeft + '）' : '')
+      + (sealLeft ? ' · 石皮 ' + sealLeft : '');
   }
 
   function finishOnce(grade, summary) {
@@ -294,17 +337,22 @@ function create(ctx) {
     hintPair = null;
   }
 
-  // 死局重排：保留颜色数量，只换位置；重排到有可行换位为止。
+  // 死局重排：保留颜色数量与石皮位置，只换牌位；重排到有可行换位为止。
+  // shuffleCap 是「能以原价重排几次」，不是「总共能重排几次」：用尽后代价翻倍，
+  // 但绝不拒绝——把玩家卡在一个死盘前，比多扣两息坏得多。
   function reshuffle() {
+    const cost = shufflesLeft > 0 ? realShuffleCost : realShuffleCost * 2;
+    if (shufflesLeft > 0) shufflesLeft -= 1;
     const vals = board.slice();
     for (let t = 0; t < 40; t += 1) {
       C.shuffle(vals);
       board = vals.slice();
-      if (!matchesOf(board, cols, rows).length && findMove(board, cols, rows)) break;
+      if (!matchesOf(board, cols, rows).length && findMove(board, cols, rows, sealed)) break;
     }
     shuffles += 1;
-    left = Math.max(0, left - realShuffleCost);
-    C.flash(vm, '灵畦自整 · 少 ' + realShuffleCost + ' 息', 'good');
+    left = Math.max(0, left - cost);
+    C.flash(vm, '灵畦自整 · 少 ' + cost + ' 息'
+      + (shuffleCap < 99 && shufflesLeft <= 0 ? '（原价重排已尽）' : ''), 'good');
   }
 
   // 收走这几株：牌从盘面撤掉，格子凹下去，「这一手收在哪几格」就此留在盘上 240ms。
@@ -317,7 +365,7 @@ function create(ctx) {
     const gain = Math.round(hits.length * 12 * mult);
     score += gain;
     if (chain > maxChain) maxChain = chain;
-    for (let i = 0; i < hits.length; i += 1) board[hits[i]] = 0;
+    for (let i = 0; i < hits.length; i += 1) { board[hits[i]] = 0; sealed[hits[i]] = false; }
     // 交出去的是「哪几格」：页面据此在原位迸一小把，颜色取上一帧那张牌的纹样。
     C.markCleared(vm, hits);
     goneAt = hits.slice();
@@ -365,7 +413,7 @@ function create(ctx) {
     fallAt = [];
     const hits = matchesOf(board, cols, rows);
     if (hits.length && chain < MAX_CHAIN) { stageClear(hits, chain + 1); return; }
-    if (!findMove(board, cols, rows)) reshuffle();
+    if (!findMove(board, cols, rows, sealed)) reshuffle();
     busy = false;
     paint();
     syncHud();
@@ -377,6 +425,18 @@ function create(ctx) {
     // 演出中不收输入：牌还在飞的时候点下一手，点到的是「即将被换掉」的位置。
     if (done || busy || vm.phase !== 'playing' || index < 0 || index >= n) return;
     clearHint();
+    // 石皮封住的牌不能换：不扣息（玩家没做错事，是规则不让换），但必须当场说清是哪一格。
+    if (sealed[index]) {
+      selected = -1;
+      fxSeq += 1;
+      shakeAt = [index];
+      goneAt = [];
+      fallAt = [];
+      C.flash(vm, '石皮封住 · 这一株换不动', 'bad');
+      paint();
+      render();
+      return;
+    }
     if (selected < 0) { selected = index; shakeAt = []; goneAt = []; fallAt = []; paint(); render(); return; }
     if (selected === index) { selected = -1; shakeAt = []; goneAt = []; fallAt = []; paint(); render(); return; }
     const a = selected;
@@ -412,7 +472,7 @@ function create(ctx) {
 
   function hint() {
     if (done || busy || vm.phase !== 'playing') return;
-    const move = findMove(board, cols, rows);
+    const move = findMove(board, cols, rows, sealed);
     if (!move) { reshuffle(); paint(); syncHud(); render(); return; }
     clearHint();
     hintPair = move;
@@ -437,6 +497,9 @@ function create(ctx) {
     vm.status = '换两株相邻灵草，三株同色连成一线就收走';
     vm.banner = theme.banner || '';
     board = makeBoard(cols, rows, kinds);
+    // 石皮封印：大成起按段注入格数。封印只压「可行换位数」，不改匹配与下落。
+    for (let i = 0; i < n; i += 1) sealed[i] = false;
+    sealCells(board, cols, rows, sealCount, sealed);
     paint();
     syncHud();
     render();
@@ -470,9 +533,19 @@ function gradeLimits(p) {
 
 function lines(p) {
   const lim = gradeLimits(p);
+  const seals = p && typeof p.seals === 'number' ? p.seals : 0;
+  const cap = p && typeof p.shuffleCap === 'number' ? p.shuffleCap : 99;
   return {
     rule: '按本局总分（无效互换只少息、不扣分；本段盘面与时辰见准备页难度栏）',
-    items: ['S ≥ ' + lim.s + ' 分', 'A ≥ ' + lim.a + ' 分', 'B ≥ ' + lim.b + ' 分', '其余为 C'],
+    items: [
+      'S ≥ ' + lim.s + ' 分',
+      'A ≥ ' + lim.a + ' 分',
+      'B ≥ ' + lim.b + ' 分',
+      '其余为 C',
+      // 两条新机制必须写进评级卡旁边：玩家看到盘上的石皮，要能当场查到它是什么意思。
+      seals ? '石皮封印 ' + seals + ' 格：封住的牌不能换，收走它才解封' : '',
+      cap < 99 ? '重排前 ' + cap + ' 次原价，之后每次双倍扣息' : '',
+    ].filter(Boolean),
   };
 }
 
@@ -484,11 +557,11 @@ const TEACH_COLS = 3;
 const TEACH_SWAP = [4, 5];
 // 五段的盘面与色数：与 data/practice 的 MATCH_LEVELS 同值。
 const TEACH_LEVELS = [
-  { cols: 6, rows: 6, kinds: 5, missCost: 1 },
-  { cols: 7, rows: 7, kinds: 5, missCost: 2 },
-  { cols: 8, rows: 8, kinds: 6, missCost: 2 },
-  { cols: 9, rows: 9, kinds: 6, missCost: 3 },
-  { cols: 10, rows: 10, kinds: 7, missCost: 3 },
+  { cols: 6, rows: 6, kinds: 5, missCost: 1, seals: 0 },
+  { cols: 7, rows: 7, kinds: 5, missCost: 2, seals: 0 },
+  { cols: 8, rows: 8, kinds: 6, missCost: 2, seals: 0 },
+  { cols: 9, rows: 9, kinds: 6, missCost: 3, seals: 4 },
+  { cols: 10, rows: 10, kinds: 7, missCost: 3, seals: 8 },
 ];
 
 // 段界那几盘按本段规格现铺：色按 (行+列) 取模铺开，再把底行三格摆成
@@ -517,10 +590,21 @@ function teachLayout(stage) {
   // 右侧再留一格不同色，免得本来就三连。
   const right = b + 1 < spec.cols ? b + 1 : 0;
   board[(spec.rows - 1) * spec.cols + right] = 2;
+  const swap = [(spec.rows - 1) * spec.cols + a, (spec.rows - 1) * spec.cols + b];
+  // 大成起教学盘上摆一格石皮：只演示「封住的不能换」这一件事，
+  // 所以挑一格不在示范换位上的，也不挡底行那组三连（否则示范第一步就做不成）。
+  let seal = -1;
+  if (spec.seals) {
+    for (let i = 0; i < board.length; i += 1) {
+      if (i === swap[0] || i === swap[1]) continue;
+      if (Math.floor(i / spec.cols) === spec.rows - 1) continue;
+      seal = i;
+      break;
+    }
+  }
   return {
     board: board, cols: spec.cols, rows: spec.rows,
-    swap: [(spec.rows - 1) * spec.cols + a, (spec.rows - 1) * spec.cols + b],
-    kinds: spec.kinds,
+    swap: swap, kinds: spec.kinds, seal: seal,
   };
 }
 
@@ -528,6 +612,7 @@ function createTeach(ctx) {
   const stage = Math.max(0, Math.min(4, (ctx && ctx.stage) | 0));
   const lay = teachLayout(stage);
   const board = lay.board;
+  const seal = typeof lay.seal === 'number' ? lay.seal : -1;
   const cells = K.blank(lay.cols, board.length);
   let sel = -1;
   return K.run(ctx, {
@@ -535,7 +620,8 @@ function createTeach(ctx) {
     cells: cells,
     status: stage === 0
       ? '教学 · 换相邻两株，凑成三连'
-      : '教学 · 这一段 ' + lay.cols + '×' + lay.rows + ' · ' + lay.kinds + ' 色',
+      : '教学 · 这一段 ' + lay.cols + '×' + lay.rows + ' · ' + lay.kinds + ' 色'
+        + (seal >= 0 ? ' · 石皮封住的不能换' : ''),
     steps: [
       {
         at: [lay.swap[0]],
@@ -564,12 +650,14 @@ function createTeach(ctx) {
         c.tone = board[i];
         c.label = '';
         c.cls = i === sel ? 'cell cell--chip cell--sel' : 'cell cell--chip';
+        if (i === seal) c.cls += ' cell--sealed';
       }
     },
     doneText: stage === 0
       ? '换位是唯一的手：换完要成三连'
-      : '这一段 ' + lay.cols + '×' + lay.rows + ' · ' + lay.kinds + ' 色 · 换不出三连少 '
-        + TEACH_LEVELS[stage].missCost + ' 息',
+      : '这一段 ' + lay.cols + '×' + lay.rows + ' · ' + lay.kinds + ' 色'
+        + (seal >= 0 ? ' · 石皮格先收走它上面的牌才解封' : '')
+        + ' · 换不出三连少 ' + TEACH_LEVELS[stage].missCost + ' 息',
   });
 }
 

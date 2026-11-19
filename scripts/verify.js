@@ -762,16 +762,15 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   if (/(p|params)[ ]*[.][ ]*flashMs(?![a-zA-Z])/.test(linkSrc)) {
     errors.push('minigames/link.js 还在读 flashMs：提示变短不是玩家本事要求变高');
   } else checked += 1;
-  // 段内布纹必须两头都有人管：levels.js 生成 weave，link.js 读走它去派牌。
-  // 只在一头写参数，就是 8b-5d 守的「生成了没生效 / 消费了没生成」假变化。
-  // 满盘同理反过来钉：曾经 levels.js 生成 gaps、link.js 按空位派牌，
-  // 那副「盘上缺块」已经被否掉了，再有人加回来要当场红。
+  // 布纹偏斜已退役（实测方向反了：同纹成堆会把可连量抬高）。反过来钉住它不许回来：
+  // 生成端不再出 weave，玩法层不再读 weave，派牌只按纹种均分。
+  // 满盘同理：曾经 levels.js 生成 gaps、link.js 按空位派牌，那副「盘上缺块」已被否掉。
   const levelsSrc = fs.readFileSync(path.join(ROOT, 'data/levels.js'), 'utf8');
-  if (!/game === 'link'[\s\S]{0,420}out\.weave\s*=/.test(levelsSrc)
-      || !/(p|params)[ ]*[.][ ]*weave(?![a-zA-Z])/.test(linkSrc)
-      || !/board\s*=\s*makeBoard\(hole, kinds, weave\)/.test(linkSrc)
+  if (/out\.weave\s*=/.test(levelsSrc)
+      || /(p|params)[ ]*[.][ ]*weave(?![a-zA-Z])/.test(linkSrc)
+      || /makeBoard\(hole, kinds, weave/.test(linkSrc)
       || typeof linkMod.pairCounts !== 'function') {
-    errors.push('linkpair 的段内布纹没接成：levels.js 没生成，或 link.js 读了没派牌');
+    errors.push('linkpair 又长出布纹偏斜了：它把同纹组合数抬高一截，可连量反而变多（实测 14.3 → 20.0）');
   } else checked += 1;
   if (/out\.gaps\s*=/.test(levelsSrc) || /linkGapsAt|LINK_LAYOUTS|out\.layout\s*=/.test(levelsSrc)) {
     errors.push('linkpair 又长出盘形空位了：并蒂引必须是满盘矩形，一格缺口都不许有');
@@ -783,7 +782,7 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   if (!/LINK_LEVELS[\s\S]{0,900}turns/.test(practiceSrc)
       || !/const turnsLimit = turnsOf\(p\)/.test(linkSrc)
       || turnCalls.length < 6
-      || turnCalls.some(function (s) { return s.indexOf('turnsLimit') < 0; })) {
+      || turnCalls.some(function (s) { return !/turns(Limit)?\b/.test(s); })) {
     errors.push('linkpair 的折数没接成：生成端 turns 没到判定 / 提示 / 重排');
   } else checked += 1;
   let hintStable = true;
@@ -827,42 +826,36 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   if (reported < 30) errors.push('linkpair 全书只有 ' + reported + ' 关有规格台阶，低于 30 级下限');
   else checked += 1;
 
-  // 布纹：每一段都从「均匀」走到「极偏」，段内不许回卷；换段首关回到均匀是新段起手，
-  // levelDelta 在那一关不报布纹，否则玩家会读成「这一关变松了」。
+  // 段内台阶：每一段的每对预算都要「段首最宽、段末最紧」，五段首尾相接（段末 = 下段首），
+  // 且段内至少收 5%。旧版全书一条直线，第一段 10 关只收 1.5%——名义在收、体感是平的。
+  // 布纹偏斜退役后，这一段内唯一在动的量就是它，所以逐段都要钉住。
   const levelsMod = require(path.join(ROOT, 'data/levels.js'));
-  let weaveOk = true;
-  for (const s of levelsMod.STAGES) {
-    if (practiceMod.buildParamsAt(m, s.from).weave !== 0
-        || practiceMod.buildParamsAt(m, s.to).weave !== 3) weaveOk = false;
-    let last = 0;
-    for (let lv = s.from + 1; lv <= s.to; lv += 1) {
-      const w = practiceMod.buildParamsAt(m, lv).weave;
-      if (w < last || w > 3) weaveOk = false;
-      last = w;
+  let rampOk = true;
+  let rampWorst = 9;
+  for (let i = 0; i < levelsMod.STAGES.length; i += 1) {
+    const st = levelsMod.STAGES[i];
+    const a = practiceMod.linkPerPairAt(st.from);
+    const b = practiceMod.linkPerPairAt(st.to);
+    const shrink = (a - b) / a;
+    if (!(b < a) || shrink < 0.05) rampOk = false;
+    if (shrink < rampWorst) rampWorst = shrink;
+    if (i > 0) {
+      const prevEnd = practiceMod.linkPerPairAt(levelsMod.STAGES[i - 1].to);
+      if (Math.abs(a - prevEnd) > 1e-9) rampOk = false;
     }
   }
-  let weaveReported = 0;
-  for (let lv = 2; lv <= linkMax; lv += 1) {
-    const d = practiceMod.levelDelta(m, lv);
-    const hasWeave = d.some(function (x) { return x.key === 'weave'; });
-    if (hasWeave) weaveReported += 1;
-    if (hasWeave && levelsMod.stageOfLevel(lv) !== levelsMod.stageOfLevel(lv - 1)) weaveOk = false;
-  }
-  if (!weaveOk) errors.push('linkpair 的布纹段内回卷了，或段首/段末不是均匀/极偏');
-  else checked += 1;
-  if (weaveReported !== 15) errors.push('linkpair 全书布纹变化 ' + weaveReported + ' 关，应为五段各三级');
+  if (!rampOk) errors.push('linkpair 的段内每对预算断了：段末没收紧（最少一档 ' + (rampWorst * 100).toFixed(1)
+    + '%），或段首与上一段段末接不上（会凭空多出一个台阶）');
   else checked += 1;
   // 派牌的总对数守恒，每种纹至少留一对——否则「纹种数不变」是句假话。
   let countsOk = true;
-  for (const spec of [[12, 4], [12, 5], [12, 6], [14, 6], [16, 6]]) {
-    for (let w = 0; w <= 3; w += 1) {
-      const cs = linkMod.pairCounts(spec[0], spec[1], w);
-      if (cs.length !== spec[1] || cs.reduce(function (a, b) { return a + b; }, 0) !== spec[0]
-          || cs.some(function (x) { return x < 1; })) countsOk = false;
-      if (w === 3 && Math.max.apply(null, cs) - Math.min.apply(null, cs) < 3) countsOk = false;
-    }
+  for (const spec of [[12, 4], [12, 5], [12, 6], [21, 6], [35, 6]]) {
+    const cs = linkMod.pairCounts(spec[0], spec[1]);
+    if (cs.length !== spec[1] || cs.reduce(function (a, b) { return a + b; }, 0) !== spec[0]
+        || cs.some(function (x) { return x < 1; })) countsOk = false;
+    if (Math.max.apply(null, cs) - Math.min.apply(null, cs) > 1) countsOk = false;
   }
-  if (!countsOk) errors.push('linkpair 的布纹派牌不守恒，或偏到把纹种挤没了');
+  if (!countsOk) errors.push('linkpair 的派牌不守恒，或又开始偏斜了（只许均分，余数各加一对）');
   else checked += 1;
 
   // 评级四条线逐档可达，且 C 带非空；失败线必须单独给（C 与 F 是两个结论）。
@@ -874,7 +867,8 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
     const got = [g.s, g.a, g.b, g.b - 1].map(function (x) { return linkMod.gradeByLeft(x, p.duration); });
     if (got.join('') !== 'SABC') { gradesOk = false; break; }
     const ls = linkMod.lines(p);
-    if (ls.items.length !== 4 || !ls.fail) { gradesOk = false; break; }
+    // 前四条是 S/A/B/C，第五条是「本段容错」——评级的四条必须在最前面。
+    if (ls.items.length !== 5 || !ls.fail) { gradesOk = false; break; }
   }
   if (!gradesOk) errors.push('linkpair 的 S/A/B/C 有一档取不到，或 lines() 缺失败线');
   else checked += 1;
@@ -882,10 +876,21 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   if (/已入 S/.test(linkCode) || /goalFor\s*\(/.test(linkCode) || !/showGradeNow = false/.test(linkCode)) {
     errors.push('link.js 把局内评级摆回 HUD 了：收完之前评级定不下来，旧版会报「已入 S」再结算 F');
   } else checked += 1;
+  // 死局自移：前两段必须免费（死局是运气），大成起收明码代价但**不许判负**——
+  // 把玩家卡在死盘前，比多扣几息坏得多。三条一起钉：次数与代价来自 LINK_FAIR、
+  // 用尽后翻倍而不是结束、扣息走「剩余息」且断连收。
   if (/function reshuffle\(\)[\s\S]*?\n  }/.test(linkSrc)) {
     const body = /function reshuffle\(\)[\s\S]*?\n  }/.exec(linkSrc)[0];
-    if (/left\s*=/.test(body) || !/combo = 0/.test(body)) {
-      errors.push('link.js 的死局重排又罚息了，或没断连收：死局是运气，罚息是罚运气');
+    const fair = practiceMod.LINK_FAIR;
+    const freeOk = fair[0].shuffleCost === 0 && fair[1].shuffleCost === 0 && fair[2].shuffleCost === 0;
+    if (/finishOnce\('F'/.test(body) || /finishOnce\('F'/.test(body)) {
+      errors.push('link.js 的自移用尽会判负：死局是运气，罚到 F 就是罚运气');
+    } else if (!/const over = reshufflesLeft <= 0/.test(body) || !/\* \(over \? 2 : 1\)/.test(body)) {
+      errors.push('link.js 的自移没做成「原价 N 次、用尽翻倍」：有限次数的代价只剩一种写法');
+    } else if (!/combo = 0/.test(body) || !/left = Math.max\(0, left - cost\)/.test(body)) {
+      errors.push('link.js 的自移没扣剩余息或没断连收：代价看不见等于没代价');
+    } else if (!freeOk) {
+      errors.push('LINK_FAIR 的前三段开始收自移费了：死局是盘面随机摆的，罚息等于罚运气');
     } else checked += 1;
   }
   // 阶段新法要「加规则」不是「减难度」；旧版「照纹 / 自移不再扣息」两条都已退役。
@@ -906,10 +911,91 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   // 「N 关有东西可报」不写字面量：N 就是上面逐关数出来的 reported。
   // 写死一个数字，改了轮换节奏之后文档会与代码各说各的，而且没有任何断言会红。
   if (!/收干净那一刻的剩余息/.test(doc) || doc.indexOf(reported + ' 关有东西可报') < 0
-      || !/布纹/.test(guide) || !/满盘/.test(guide) || !/满盘/.test(doc)) {
+      || !/每对时辰/.test(guide) || !/满盘/.test(guide) || !/满盘/.test(doc)
+      || /布纹/.test(guide)) {
     errors.push('11-并蒂连枝引 的玩法文档 / 说明页又是旧版（应为「' + reported
       + ' 关有东西可报」）：改了机制必须同批改那一篇');
   } else checked += 1;
+}
+// 8b-6a-2. 三秀撷英诀：石皮封印 / 重排计次 / S 线现算，三件事都容易「生成了但没生效」。
+{
+  const mgSrc = fs.readFileSync(path.join(ROOT, 'data/guides.js'), 'utf8');
+  const mgAt = mgSrc.indexOf('  match: {');
+  const mgEnd = mgAt >= 0 ? mgSrc.indexOf('\n  },', mgAt) : -1;
+  const mg = mgAt >= 0 && mgEnd > mgAt ? mgSrc.slice(mgAt, mgEnd) : '';
+  // 三秀每次重排本来就要扣息，写成「免费重排」是假话——玩家会以为前几次不要钱。
+  // 这条不是文字洁癖：「原价 N 次」与「免费 N 次」是两条不同的规则。
+  if (!mg || /免费(重排|\s*\d+\s*次)/.test(mg)) {
+    errors.push('data/guides.js 的 match 段把「原价重排」写成了免费，重排每次都要扣息');
+  } else checked += 1;
+  if (!/石皮/.test(mg)) errors.push('说明页没讲石皮封印，玩家在盘上看到石壳查不到是什么意思');
+  else checked += 1;
+  const sx = practiceMod.getMethod('harvest');
+  const lvMod = require(path.join(ROOT, 'data/levels.js'));
+  if (!sx || sx.game !== 'match') errors.push('getMethod(harvest) 取不到三秀同法');
+  else checked += 1;
+  // 石皮按段给、段内恒定：前三段 0 格，第四段 4 格，第五段 8 格。
+  // 「段内恒定」是关键——逐关随机封格会让同一段里凭空多出假台阶。
+  const sealSeq = [];
+  for (let st = 0; st < 5; st += 1) {
+    const r0 = lvMod.stageRange(st);
+    const q0 = practiceMod.buildParamsAt(sx, r0.from);
+    const q1 = practiceMod.buildParamsAt(sx, r0.to);
+    if (q0.seals !== q1.seals) {
+      errors.push('三秀第 ' + (st + 1) + ' 段的石皮格数段内变了：' + q0.seals + ' → ' + q1.seals);
+    }
+    if (q0.shuffleCap !== q1.shuffleCap) {
+      errors.push('三秀第 ' + (st + 1) + ' 段的重排次数段内变了：' + q0.shuffleCap + ' → ' + q1.shuffleCap);
+    }
+    sealSeq.push(q0.seals);
+  }
+  if (sealSeq.join(',') !== '0,0,0,4,8') {
+    errors.push('三秀的石皮格数不是 0/0/0/4/8：' + sealSeq.join(','));
+  } else checked += 1;
+  // S 线现算：表里不许再写 sLine。写死绝对分就会与时辰脱钩——第 10 关时辰少 3 息、
+  // S 线却一样，玩家读到的「本关更紧」就是假的。公式是唯一出处。
+  const prSrc = fs.readFileSync(path.join(ROOT, 'data/practice.js'), 'utf8');
+  const tblAt = prSrc.indexOf('const MATCH_LEVELS');
+  const tbl = prSrc.slice(tblAt, prSrc.indexOf('];', tblAt));
+  if (tblAt < 0 || /sLine/.test(tbl)) {
+    errors.push('MATCH_LEVELS 里又写死了 sLine；它必须由 matchSLineOf 按本关时辰现算');
+  } else checked += 1;
+  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/20-minigames/13-三秀撷英诀/总览.md'), 'utf8');
+  // reported 不写字面量：改了时辰曲线或 S 线公式，这个数就变，文档必须同批改。
+  let mReported = 0;
+  for (let lv = 2; lv <= lvMod.LEVEL_MAX; lv += 1) {
+    const ds = practiceMod.levelDelta(sx, lv);
+    if (ds.some(function (x) { return x.key !== 'start' && x.key !== 'final'; })) mReported += 1;
+  }
+  if (!/石皮/.test(mDoc) || mDoc.indexOf(mReported + ' 关真的变了') < 0
+      || /S 线随游戏变难而降低|S 线随难度反而|越难越低的线/.test(mDoc)) {
+    errors.push('13-三秀撷英诀/总览.md 又是旧版（应为「' + mReported + ' 关真的变了」）：'
+      + '石皮、重排计次与 S 线现算必须同批改那一篇');
+  } else checked += 1;
+}
+// 8b-6a-3. `getMethod(id)` 对未知 id 会静默回落到第一门。
+// 写错一个字母不会报错，取到的是循光斩桩的参数，而调用方照样跑得通：
+// 三秀那次是 `getMethod('sanxiu')`（真 id 是 harvest），测试拿点击的参数开了半年消消乐盘；
+// 模拟脚本那次是 `getMethod('jian')`，取到的是 forge 的基数。两处都不报红。
+// 所以逐处核 id：扫描范围内的每一处 getMethod('x')，x 必须在 PRACTICE_METHODS 里。
+for (const f of files) {
+  const name = rel(f);
+  if (!/\.js$/.test(name)) continue;
+  if (!/^(scripts|minigames|pages|utils|tests|components)\//.test(name)) continue;
+  if (name === 'scripts/verify.js') continue;
+  const src = fs.readFileSync(f, 'utf8');
+  const re = /getMethod\(\s*['"]([A-Za-z_$][\w$]*)['"]\s*\)/g;
+  let m = re.exec(src);
+  let hits = 0;
+  while (m) {
+    hits += 1;
+    if (!practiceMod.PRACTICE_METHODS.some(function (x) { return x.id === m[1]; })) {
+      errors.push(name + ' 里 getMethod(\'' + m[1] + '\') 不是真法门 id——'
+        + '它会静默回落到第一门（循光斩桩），取到的参数是错的，而代码照样跑得通');
+    }
+    m = re.exec(src);
+  }
+  if (hits) checked += 1;
 }
 // 8b-6b. 玩法文档目录名 = 编号 + 功法正名（照 05-吐纳周天诀），单门六篇齐全。
 // 目录名是 skills.js 里 name 的抄写，必须钉住：整批改回英文 stem 时不能静默过关。

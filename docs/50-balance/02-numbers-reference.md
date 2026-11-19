@@ -171,7 +171,8 @@ SPEED_KEY   = 'speed'   // 方向相反：除以 pace
 
 | 表 | 谁 | 内容 |
 | --- | --- | --- |
-| `MATCH_LEVELS` | 三秀同收 | cols / rows（6×6→10×10，换段各换一副盘）/ kinds / duration / missCost / shuffleCost / hintCost / sLine |
+| `MATCH_LEVELS` | 三秀同收 | cols / rows（6×6→10×10，换段各换一副盘）/ kinds / duration / missCost / shuffleCost / hintCost / perMove / seals / shuffleCap |
+| `MATCH_MOVE_SEC` / `MATCH_S_UTIL` | 三秀同收 | 1.2 息 / 0.72 —— S 线的两个标定常数，`matchSLineOf()` 是唯一出处（S 线不再写进表里） |
 | `LIGHTS_LEVELS` | 阵灯推演 | size / min / hi / slack（最优步数区间 / 步数余量） |
 | `SUDOKU_LEVELS` | 九宫填数 | size / holes / timeLimit / tS / tA / tB |
 | `KLOTSKI_LEVELS` | 滑块让路 | minOpt / maxOpt |

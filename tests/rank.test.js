@@ -1180,16 +1180,22 @@ check('三秀同收：五档整表同管盘面、时辰、罚息与 S 线，不�
     assert.ok(lv[i].missCost >= lv[i - 1].missCost, '第 ' + (i + 1) + ' 档罚息反而轻了');
     assert.ok(lv[i].hintCost >= lv[i - 1].hintCost && lv[i].shuffleCost >= lv[i - 1].shuffleCost,
       '第 ' + (i + 1) + ' 档辅助代价反而轻了');
-    // 按本档实测标定：盘面更难，同样分数更难得，S 线应当略降而不是 +150。
-    assert.ok(lv[i].sLine < lv[i - 1].sLine, '第 ' + (i + 1) + ' 档 S 线还在随档抬高');
+    // S 线不再是一张绝对分表：它 = 每手均分 × 可用手数 × 0.72，按本盘产出现算。
+    // 所以「越难越低」这条旧口径作废——真正要守的是「每一档要求的操作强度相同」。
+    assert.ok(lv[i].perMove > 0, '第 ' + (i + 1) + ' 档没有每手均分：S 线没有依据');
+    assert.ok(lv[i].seals >= lv[i - 1].seals, '第 ' + (i + 1) + ' 档封印反而少了');
+    assert.ok(lv[i].shuffleCap <= lv[i - 1].shuffleCap, '第 ' + (i + 1) + ' 档免费重排反而更多');
   }
   assert.ok(lv[4].kinds > lv[0].kinds && lv[0].duration > lv[4].duration,
     '绝境与简单的盘面拉不开：花色 / 时辰都没变');
+  assert.ok(lv[3].seals > 0 && lv[4].seals > lv[3].seals, '大成起才有石皮，且圆满要多于大成');
+  assert.ok(lv[4].perMove < lv[0].perMove, '每手均分没有随盘面变大而降');
 
   const keys = ['novice', 'entry', 'minor', 'major', 'full'];
   const method = practice.getMethod('harvest');
   assert.strictEqual(method.tip, practice.tipFor(method, 'novice'),
     '功法表里的兜底代价句和简单档罚息分叉了');
+  const util = [];
   keys.forEach(function (k, i) {
     const p = practice.buildParams(method, k);
     assert.strictEqual(p.cols, lv[i].cols, k + ' 的盘面列没送进玩法层');
@@ -1197,13 +1203,25 @@ check('三秀同收：五档整表同管盘面、时辰、罚息与 S 线，不�
     assert.strictEqual(p.kinds, lv[i].kinds, k + ' 的花色没送进玩法层');
     assert.strictEqual(p.duration, lv[i].duration, k + ' 的时辰没送进玩法层');
     assert.strictEqual(p.missCost, lv[i].missCost, k + ' 的罚息没送进玩法层');
-    assert.strictEqual(p.sLine, lv[i].sLine, k + ' 的 S 线没送进玩法层');
-    assert.strictEqual(practice.sLineOf(method, k), lv[i].sLine, k + ' 的 S 线不是同一份真源');
+    assert.strictEqual(p.seals, lv[i].seals, k + ' 的封印格没送进玩法层');
+    // 关级 S 线（玩家真照着打的那个数）与 buildParamsAt 同源，不再另算一套。
+    assert.strictEqual(practice.sLineOf(method, { novice: 1, entry: 11, minor: 51, major: 201, full: 501 }[k]),
+      practice.buildParamsAt(method, { novice: 1, entry: 11, minor: 51, major: 201, full: 501 }[k]).sLine,
+      k + ' 的 S 线不是同一份真源');
+    // S 线必须真由「每手均分 × 可用手数」推出来，且五档的利用率一致。
+    const moves = Math.floor(p.duration / practice.MATCH_MOVE_SEC);
+    const want = Math.round(p.perMove * moves * practice.MATCH_S_UTIL);
+    assert.ok(Math.abs(p.sLine - want) <= 1, k + ' 的 S 线没按本盘产出算：' + p.sLine + ' vs ' + want);
+    util.push(p.sLine / (p.perMove * moves));
     assert.ok(practice.tipFor(method, k).indexOf('少 ' + lv[i].missCost + ' 息') >= 0,
       k + ' 的代价句还在写别的档的罚息');
-    assert.ok(practice.sLineText(method, k).indexOf('盘面越难') >= 0,
-      k + ' 的说明没讲清「S 线为什么反而低」');
+    assert.ok(practice.sLineText(method, { novice: 1, entry: 11, minor: 51, major: 201, full: 501 }[k])
+      .indexOf('按本盘每手产出') >= 0,
+      k + ' 的说明没讲清 S 线是怎么来的');
   });
+  // 「每一段都要求同样强度的操作」= 五档的利用率同值。这条比「五档分数线各不相同」重要。
+  assert.ok(util.every(function (u) { return Math.abs(u - practice.MATCH_S_UTIL) < 0.02; }),
+    '五档的 S 线利用率不一致：' + util.map(function (u) { return u.toFixed(2); }).join('/'));
   // 代价句按档变，不许五档共用一句写死的「少 2 息」。
   assert.strictEqual(new Set(keys.map(function (k) { return practice.tipFor(method, k); })).size, 3);
   assert.strictEqual(practice.tipFor(practice.getMethod('forge'), 'novice'),
@@ -1300,7 +1318,7 @@ check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备�
   // 分项账本：文档「总览 §5」引用的那串拆解必须与本表逐项相等。
   // 关数 ≠ 条数——一关最多报三条（换段那关报换段 / 换盘 / 换纹种），
   // 把 500 条当成 500 关、或把拆解当成「加起来正好 435」，都是把这份账读错。
-  const tally = { chapter: 0, cols: 0, kinds: 0, turns: 0, theme: 0, weave: 0, perPair: 0 };
+  const tally = { chapter: 0, cols: 0, kinds: 0, turns: 0, theme: 0, perPair: 0 };
   let multi = 0;
   let prev = practice.buildParamsAt(m, 1);
   let prevPP = prev.duration / practice.linkPairsOf(prev);
@@ -1316,10 +1334,10 @@ check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备�
     } else {
       assert.ok(pp <= prevPP + 0.02, '第 ' + lv + ' 关换段时每对预算松了 ' + (pp - prevPP).toFixed(3) + ' 息');
     }
-    // 「真变」= 玩家在盘上看得见的东西变了：盘面 / 纹种 / 布纹 / 纹样 / 时辰。
-    // 盘面满盘无缺口，不再有盘形这根轴；纹样是段内唯一换外观的旋钮。
+    // 「真变」= 玩家在盘上看得见的东西变了：盘面 / 纹种 / 折数 / 纹样 / 时辰。
+    // 盘面满盘无缺口，不再有盘形这根轴；布纹偏斜已退役（它把可连量抬高，方向反了）。
     if (q.duration !== prev.duration || q.cols !== prev.cols || q.rows !== prev.rows
-      || q.kinds !== prev.kinds || q.turns !== prev.turns || q.weave !== prev.weave
+      || q.kinds !== prev.kinds || q.turns !== prev.turns
       || q.theme !== prev.theme) changed += 1;
     const ds = practice.levelDelta(m, lv);
     // 「本门第一关」与「本门最后一关」回答的是起点/终点，不是「这一关比上一关变了什么」，
@@ -1335,18 +1353,20 @@ check('灵纹连线：五档换盘换纹种，每对预算只减不增，准备�
     prevPP = pp;
   }
   assert.strictEqual(changed, reported, '逐关真变 ' + changed + ' 关、界面可报 ' + reported + ' 关，两者对不上');
-  // 这张表是「段内那根换外观的轴真的有在换」的唯一硬证据：纹样每 5 关一套 → 195 条。
-  // 改纹样周期 / 布纹档数 / 对数（时辰取整跳变的次数），这里必须跟着改，
-  // 不顺带改就是文档与代码各说一套。
+  // 这张表是「段内那根轴真的有在动」的唯一硬证据：纹样每 5 关一套 → 195 条，
+  // 每对预算按整秒取整跳变 → 58 条（段内自己一条直线之后从 54 涨到 59，再剪掉
+  // 第 501 关那条跨段的 2.81 → 2.80：段界每对预算是连续的，那条是取整抖动）。
+  // 改纹样周期 / 预算曲线 / 对数（取整粒度），这里必须跟着改，不顺带改就是文档与代码各说一套。
   assert.deepStrictEqual(tally,
-    { chapter: 4, cols: 2, kinds: 2, turns: 1, theme: 195, weave: 15, perPair: 54 },
+    { chapter: 4, cols: 2, kinds: 2, turns: 1, theme: 195, perPair: 58 },
     '分项账本变了：总览 §5 的拆解要同批改');
-  // 七项合计 273 条 + 末关那条「圆满」= 274 条，落在 260 关上（有 11 关报了多条）。
+  // 六项合计 262 条 + 末关那条「圆满」= 263 条，落在 246 关上（有 15 关报了多条）。
   // 关数、条数、拆解是三个不同的数，写成「加起来正好 438」就是一笔假账。
-  assert.strictEqual(Object.keys(tally).reduce(function (a, k) { return a + tally[k]; }, 0), 273,
-    '分项条目数变了（七项 273 + 末关 1 = 274 条）');
-  assert.strictEqual(reported, 260, '有东西可报的关数变了（末关那条「本门最后一关」是终点总结，不计入）');
-  assert.strictEqual(multi, 11, '一关报多条的次数变了（盘形轴拿掉后，两轴撞同一关的机会少了很多）');
+  // 布纹偏斜退役后少了一项（原七项），段内每对预算自己走一条直线 → perPair 54→59。
+  assert.strictEqual(Object.keys(tally).reduce(function (a, k) { return a + tally[k]; }, 0), 262,
+    '分项条目数变了（六项 262 + 末关 1 = 263 条）');
+  assert.strictEqual(reported, 246, '有东西可报的关数变了（末关那条「本门最后一关」是终点总结，不计入）');
+  assert.strictEqual(multi, 15, '一关报多条的次数变了（每对预算逐关收紧后，与纹样换套撞同一关的机会变多）');
   assert.ok(changed >= 30, '规格台阶掉到 ' + changed + ' 级');
   assert.strictEqual(m.tip, practice.tipFor(m, 'novice'), '功法表的兜底代价句与简单档分叉了');
   assert.ok(!/flashMs/.test(JSON.stringify(m.params)), '种子参数里还有 flashMs');

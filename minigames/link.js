@@ -194,27 +194,21 @@ function findPair(board, cols, rows, avoid, turnsLimit) {
   return null;
 }
 
-// 段内布纹：同一副盘、同样多的纹种，但每种纹各有几对会随关号偏斜。
-// weave=0 是均匀铺开（段首），每往后一级就从最少的一种挪一对给最多的一种：
-// 6×4 / 4 种纹从 3/3/3/3 对走到 6/2/3/1 对，盘上就是「一种纹成堆、另一种只剩两枚」。
-// 这是段内唯一看得见的牌阵台阶：段首找同纹容易，段末得先分辨哪种纹已经稀了。
-// 不管哪一级，每种纹至少留一对——纹种数不能悄悄变，那是换段才动的事。
-function pairCounts(pairs, kinds, weave) {
+// 一副盘上每种纹各有几对：均分，余数从第一种往后各加一对。
+//
+// 这里曾经有一个 `weave` 参数，按段内进度把「最少的一种」挪给「最多的一种」，
+// 想让段末的牌阵看起来更偏。实测（4×6 / 4 纹，各 60 局）方向是反的：
+// 一种纹堆到 6 对，同纹组合数从 15 变 66，**开局可连线对从 14.3 条涨到 20.0 条**——
+// 越偏越好找，第一段于是「越打越松」。同批还试过用「筛低可连量的布局」去压它，
+// 但抽样估分与真值的相关系数只有 0.06–0.37（20 次抽样对 0.23 的比率，标准误 0.09，
+// 比副间差异还大），筛出来的其实是噪声。两条都撤了：段内难度交给每对预算逐关收紧
+// （见 data/practice.js 的 LINK_BUDGET），牌阵只按纹样主题轮换。
+// 偏斜还留着反例价值：想让盘更难，只能让同纹更少，不能让同纹成堆。
+function pairCounts(pairs, kinds) {
   const counts = [];
   const base = Math.floor(pairs / kinds);
   for (let i = 0; i < kinds; i += 1) counts.push(base);
   for (let i = 0; i < pairs - base * kinds; i += 1) counts[i] += 1;
-  for (let step = 0; step < weave; step += 1) {
-    let lo = -1;
-    let hi = 0;
-    for (let i = 0; i < kinds; i += 1) {
-      if (counts[i] > 1 && counts[i] <= (lo < 0 ? Infinity : counts[lo])) lo = i;
-      if (counts[i] > counts[hi]) hi = i;
-    }
-    if (lo < 0 || lo === hi) break;
-    counts[lo] -= 1;
-    counts[hi] += 1;
-  }
   return counts;
 }
 
@@ -222,10 +216,10 @@ function pairCounts(pairs, kinds, weave) {
 // 是为了老参数里万一还带着 gaps 时不至于把盘弄坏；正常一局里 open 就是整盘。
 // 不写「没给就自己挖一个」的兜底：兜底一旦和生成端算得不一样，盘上就少一对，
 // 而时辰是按生成端的对数算出来的——界面上看不出是哪一步错了。
-function makeBoard(hole, kinds, weave) {
+function makeBoard(hole, kinds) {
   const open = [];
   for (let i = 0; i < hole.length; i += 1) if (!hole[i]) open.push(i);
-  const counts = pairCounts(open.length / 2, kinds, weave || 0);
+  const counts = pairCounts(open.length / 2, kinds);
   const deck = [];
   for (let i = 0; i < counts.length; i += 1) {
     for (let k = 0; k < counts[i]; k += 1) deck.push(i + 1, i + 1);
@@ -259,9 +253,6 @@ function create(ctx) {
   // 不写「没给就自己算」的兜底：兜底一旦和生成端算得不一样，盘面就会悄悄跳主题，
   // 而且换皮不换难度，界面上看不出是哪一步错了。
   const crestTheme = Math.max(0, Math.min(CREST_THEMES.length - 1, Math.round(p.theme || 0)));
-  // 段内布纹：生成端在 data/practice.js，这里只消费。不写兜底默认值以外的换算，
-  // 否则「参数在动、盘面没动」会在这里被悄悄托住。
-  const weave = Math.max(0, Math.min(3, Math.round(p.weave || 0)));
   const stage = typeof perks.tier === 'number' ? perks.tier : 0;
   // 折数上限：生成端按段注入（1/11/51 段 2 折、201/501 段 1 折），这里只消费。
   // 不写「按 stage 自己算」的兜底：生成端算错时盘面与提示会分叉，界面上看不出是哪一步。
@@ -273,6 +264,12 @@ function create(ctx) {
   const hintMs = Math.max(200, p.hintMs || 900);
   const hintCost = stage >= 3 ? 1 : 2;     // 大成「照纹」：少扣 1 息，仍要付
   const twinHint = stage >= 5;             // 大圆满「双照」：一次照见两对
+  // 容错三条按段注入（data/practice.js 的 LINK_FAIR）：自移次数、每次代价、照纹次数。
+  // 前两段仍是「自移免费、照纹不限」；大成起收紧，用尽后代价翻倍（不判负）。
+  // 99 是「不设限」的哨兵值，与数据层 levelFmt 的写法同一口径。
+  const reshuffleCap = typeof p.reshuffles === 'number' ? Math.max(0, Math.round(p.reshuffles)) : 4;
+  const shuffleCost = typeof p.shuffleCost === 'number' ? Math.max(0, Math.round(p.shuffleCost)) : 0;
+  const hintCap = typeof p.hints === 'number' ? Math.max(1, Math.round(p.hints)) : 99;
   const pairs = (n - openCount) / 2;
   const leftLine = gradeLefts(duration);
 
@@ -283,7 +280,6 @@ function create(ctx) {
   vm.linkTurns = turnsLimit;
   vm.timeText = C.mmss(duration);
   vm.scoreText = '得分 0';
-  vm.weave = weave;
   vm.extras.showHint = true;
   vm.extras.compact = true;
   // 评级只看「收干净时剩几息」，而倒计时一开始就是满的——摆一个「当前评级」必然是 S，
@@ -303,13 +299,23 @@ function create(ctx) {
   let done = false;
   let started = false;
   let hintTimer = null;
+  // 本局还剩几次自移与照纹。次数按段注入，段内不变——换段才改，玩家在准备页就能读到。
+  let reshufflesLeft = reshuffleCap;
+  let hintsLeft = hintCap;
   // 连线的自增序号：相邻两次收的路径完全可能一模一样，页面靠 key 变化才知道要重播。
   let pathSeq = 0;
 
   function render() { ctx.render(vm); }
 
   function reshuffle() {
-    // 重排不记数：它既不动息也不进评级，只负责把死局摆活（评级只看收干净时剩几息）。
+    // 次数是「按原价自移几次」，不是「总共能自移几次」：用尽后代价翻倍，但绝不拒绝。
+    // 一盘 35 对打下来自然死局平均 0.4 次、最多 2 次（60 局实测），原价次数照这个标定；
+    // 真撞上第三次时多扣一倍的息就够了——**把玩家卡在死盘前比多扣几息坏得多**，
+    // 而死局本身是运气，罚到判负就是罚运气。
+    const over = reshufflesLeft <= 0;
+    if (!over) reshufflesLeft -= 1;
+    const cost = shuffleCost * (over ? 2 : 1);
+    // 重排不记数：它不进评级，只负责把死局摆活（评级只看收干净时剩几息）。
     const rest = [];
     for (let i = 0; i < n; i += 1) if (board[i]) rest.push(board[i]);
     C.shuffle(rest);
@@ -329,10 +335,15 @@ function create(ctx) {
         k += 1;
       }
     }
-    // 死局是盘面随机摆出来的，玩家管不着——罚息等于罚运气。代价改成「连收断掉」：
-    // 盘面都换了，链子本来就该断，玩家也看得见自己在为哪件事付账。
+    // 死局本身是运气，所以前两段仍免费；大成起才明码扣息，且扣的是剩余息、不进评级线。
+    // 代价改成「连收断掉」这一条一直保留：盘面都换了，链子本来就该断。
     combo = 0;
-    C.flash(vm, '灵纹自移 · 连收断了', 'bad');
+    if (cost > 0) left = Math.max(0, left - cost);
+    const tail = (cost > 0 ? ' · 少 ' + cost + ' 息' : '')
+      + ' · 剩 ' + reshufflesLeft + ' 次';
+    C.flash(vm, '灵纹自移' + tail, 'bad');
+    if (left <= 0) { finish(); return false; }
+    return true;
   }
 
   function marked(i) {
@@ -394,7 +405,11 @@ function create(ctx) {
       ? '还差 ' + need + ' 对，S 线要剩 ' + leftLine.s + ' 息'
       : '已收干净';
     vm.meter = { label: '已收灵契', value: pairsDone, max: pairs };
-    vm.hint = vm.costText + ' · 照纹 ' + hintCost + ' 息 · 剩 ' + need + ' 对';
+    // 容错剩几次要一直看得见：段末只有一次自移，玩家不该等到点下去才知道没了。
+    const hintCapText = hintCap >= 99 ? '' : '（剩 ' + hintsLeft + '）';
+    const shuffleText = reshuffleCap >= 99 ? '' : ' · 自移 ' + reshufflesLeft;
+    vm.hint = vm.costText + ' · 照纹 ' + hintCost + ' 息' + hintCapText
+      + shuffleText + ' · 剩 ' + need + ' 对';
   }
 
   function finishOnce(grade, summary) {
@@ -482,7 +497,10 @@ function create(ctx) {
         finish();
         return;
       }
-      if (!findPair(board, cols, rows, null, turnsLimit)) reshuffle();
+      // 自移用尽会当场判负：不再 paint 一张已经结束的盘。
+      if (!findPair(board, cols, rows, null, turnsLimit)) {
+        if (!reshuffle()) return;
+      }
     }
     paint();
     syncHud();
@@ -492,9 +510,15 @@ function create(ctx) {
 
   function hint() {
     if (done || vm.phase !== 'playing') return;
+    // 照纹按段限次：用尽就只报一句，不扣息也不高亮——「点了没反应」是最差的一种反馈。
+    if (hintsLeft <= 0) { C.flash(vm, '照纹已尽 · 本段只剩自己找', 'bad'); return; }
     const pair = findPair(board, cols, rows, null, turnsLimit);
-    if (!pair) { reshuffle(); paint(); syncHud(); render(); return; }
+    if (!pair) {
+      if (reshuffle()) { paint(); syncHud(); render(); }
+      return;
+    }
     clearHint();
+    hintsLeft -= 1;
     hintPairs = [pair];
     if (twinHint) {
       const skip = {};
@@ -507,8 +531,10 @@ function create(ctx) {
     // 明码代价要当场看得见：HUD 那行取的是 goal || status，goal 一直有值，
     // 光改 vm.status 等于把「少 2 息」写进一个不显示的字段。倒计时确实少了，
     // 但玩家得自己把两件事连起来；浮字直接说出来，且与错配的代价反馈同一套。
-    const costText = (hintPairs.length > 1 ? '双照' : '照纹') + ' · 少 ' + hintCost + ' 息';
-    vm.status = (hintPairs.length > 1 ? '双照：两对都连得上' : '照纹：这两枚连得上') + ' · 少 ' + hintCost + ' 息';
+    const costText = (hintPairs.length > 1 ? '双照' : '照纹') + ' · 少 ' + hintCost + ' 息'
+      + (hintCap >= 99 ? '' : ' · 剩 ' + hintsLeft + ' 次');
+    vm.status = (hintPairs.length > 1 ? '双照：两对都连得上' : '照纹：这两枚连得上') + ' · 少 ' + hintCost + ' 息'
+      + (hintCap >= 99 ? '' : ' · 剩 ' + hintsLeft + ' 次');
     C.flash(vm, costText, 'bad');
     paint();
     syncHud();
@@ -529,8 +555,11 @@ function create(ctx) {
     vm.phase = 'playing';
     vm.status = '点两枚同纹灵石，能连起来就收走一对';
     vm.banner = theme.banner || '';
+    // 开局摆一副有解的盘：满盘随机摆出来偶尔会一对都连不上（一折时更容易），
+    // 洗到有解为止，绝不把玩家摆在死盘前。派牌只按纹种均分，不再按关号偏斜
+    // （偏斜会把可连量抬高，见 pairCounts 上面那段实测）。
     for (let t = 0; t < 40; t += 1) {
-      board = makeBoard(hole, kinds, weave);
+      board = makeBoard(hole, kinds);
       if (findPair(board, cols, rows, null, turnsLimit)) break;
     }
     paint();
@@ -559,6 +588,9 @@ function create(ctx) {
 function lines(p) {
   const duration = Math.max(20, (p && p.duration) || 55);
   const g = gradeLefts(duration);
+  const cap = p && typeof p.reshuffles === 'number' ? p.reshuffles : 4;
+  const cost = p && typeof p.shuffleCost === 'number' ? p.shuffleCost : 0;
+  const hints = p && typeof p.hints === 'number' ? p.hints : 99;
   return {
     rule: '走完之后按剩余息评级：收得越快，剩得越多（错配与连不上各少 2 息，直接吃掉剩余）',
     items: [
@@ -566,8 +598,12 @@ function lines(p) {
       'A：收干净且剩 ≥ ' + g.a + ' 息',
       'B：收干净且剩 ≥ ' + g.b + ' 息',
       'C：收干净，但剩不到 ' + g.b + ' 息',
+      // 容错是这一门的明码代价，必须摆在评级旁边：段末只有两次自移，玩家得提前知道。
+      '本段容错：自移 ' + (cap >= 99 ? '不限' : cap + ' 次')
+        + (cost ? '（每次少 ' + cost + ' 息，用尽后翻倍）' : '') + ' · 照纹 '
+        + (hints >= 99 ? '不限' : hints + ' 次'),
     ],
-    fail: '时辰到还剩对子没接上 → 失败 F，这一局没有收益',
+    fail: '时辰到还剩对子没接上 → 失败 F，这一局没有收益（自移用尽不判负，只是代价翻倍）',
   };
 }
 
@@ -575,19 +611,18 @@ function lines(p) {
 // 这一门与翻牌、消消乐的分水岭是「折线不超过两下、还能绕到盘外」，
 // 所以第二枚故意不挨着第一枚——就为了让那条折线在盘面上真的走一遍。
 //
-// 段界那四盘摆本段的真实盘面：前三段 4×6，大成 5×7（第一次加列），圆满 6×8。
+// 段界那四盘摆本段的真实盘面：前三段 4×6，大成 7×6（第一次加列），圆满 10×7。
 // 教学盘只铺纹、不挖空位——段界要讲清的是「这一段盘长什么样、同纹候选少多少」，
-// 空位那条规则在第一段的准备页单独说。奇数盘（5×7）会多一枚纹，不影响「连一对」这一步。
-// 值域是族序号（1 圆润 / 2 方框 / 3 伞状 / 4 竖长 / 5 成簇 / 6 带尖），
-// 教学盘按「i 对 kinds 取余」铺纹——同一段每次进来都一样，不现洗。
+// 空位那条规则在第一段的准备页单独说。段末的容错次数同样在这四盘里讲一句：
+// 大成起自移与照纹都有限，玩家第一次进段就该知道。
 const TEACH_BOARD = [1, 3, 2, 4, 5, 1];
 const TEACH_COLS = 3;
 const TEACH_STAGE = [
   { cols: 3, rows: 2, kinds: 4, turns: 2 },
   { cols: 4, rows: 6, kinds: 5, turns: 2 },
   { cols: 4, rows: 6, kinds: 6, turns: 2 },
-  { cols: 6, rows: 6, kinds: 6, turns: 1 },
-  { cols: 8, rows: 6, kinds: 6, turns: 1 },
+  { cols: 7, rows: 6, kinds: 6, turns: 1 },
+  { cols: 10, rows: 7, kinds: 6, turns: 1 },
 ];
 
 // 一段一副盘：同纹两枚取「第一枚」与「按本段折数真能连到的最远一枚」——折线要真的走一遍。

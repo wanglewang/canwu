@@ -28,6 +28,7 @@ function toast(title) {
 const BOARD_CLS = {
   mines: 'board--mines',   // 哑光低亮的一套色（探禁）
   link: 'board--link',     // 竖屏盘形的格子高度（并蒂连枝引）
+  match: 'board--match',   // 石皮封印那一档牌的底色（三秀撷英诀·大成起）
 };
 
 function heartsToFlags(h) {
@@ -541,7 +542,7 @@ Page({
     const nextTier = info.maxed ? null : worldData.TIERS[info.index + 1];
     // S 线只写在准备页：局内只报「还差几分」，这里给出本档门槛与评级口径。
     // 分数线（三秀同收）与盘数线（阵灯推演）都由 practiceData 同源生成，换段跟着变。
-    const sLine = practiceData.sLineText(method, stageIdx);
+    const sLine = practiceData.sLineText(method, level);
     // 开局卡那一行：整篇规则在说明页，首屏只留「这一局做什么」。
     const guideData = guides.guideOf(method.game);
     const ruleText = guideData ? guideData.goal : method.desc;
@@ -622,14 +623,17 @@ Page({
           return (list[0].chapter || list[0].start || list[0].final) ? '' : '本关变化：';
         };
         const text = function (list) { return list.map(function (x) { return x.text; }).join(' · '); };
-        // 并蒂连枝引的布纹是段内唯一的牌阵台阶。就算这一关没换，也要写出本关是哪一副：
-        // 只写「与上一关相同」，玩家会以为这一段从头到尾都是同一张盘。
+        // 并蒂连枝引的段内台阶是「每对时辰」，levelDelta 平时就报出来了；
+        // 偶有两档舍入后一样（大对数时每对只差几厘），也要写出本关每对是多少——
+        // 只写「与上一关相同」，玩家会以为这一段从头到尾都是同一张盘、同一个时限。
         if (method && method.game === 'link') {
-          const weave = '本关布纹 ' + practiceData.weaveNameOf(
-            practiceData.buildParamsAt(method, level).weave);
-          if (!d.length) return weave + ' · 与上一关规格相同（盘面换段才换，段内只收时辰与布纹）';
+          if (!d.length) {
+            const q = practiceData.buildParamsAt(method, level);
+            const pairs = practiceData.linkPairsOf(q);
+            return '每对 ' + (q.duration / pairs).toFixed(2) + ' 息 · 与上一关规格相同（盘面换段才换）';
+          }
           if (d[0].start || d[0].final) return text(d);
-          return head(d) + text(d) + ' · ' + weave;
+          return head(d) + text(d);
         }
         // 兜底那句不再重复本段第几关：同一屏里已经说过两次，第三遍只会让这一行像噪音。
         if (!d.length) return '与上一关规格相同（盘面换段才换，段内只收时辰与评级线）';

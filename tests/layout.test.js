@@ -1271,14 +1271,26 @@ check('「错换」已统一为「无效互换」：玩家可见文件不留旧�
 check('三秀同收：S 线与提示按钮名各只有一份真源', function () {
   const pd = require('../data/practice.js');
   const method = pd.getMethod('harvest');
-  assert.strictEqual(pd.sLineOf(method, 'novice'), 1900, '简单档 S 线变了');
-  assert.strictEqual(pd.sLineOf(method, 'minor'), 1400, '困难档 S 线没按本档盘面标定');
-  // 盘面越难，绝对分数线越低；这不是倒退，是同一把尺子量不同盘会骗人。
-  const lines = ['novice', 'entry', 'minor', 'major', 'full'].map(function (k) { return pd.sLineOf(method, k); });
-  assert.ok(lines.every(function (v, i) { return i === 0 || v <= lines[i - 1]; }), '评级线没按盘面难度逐档标定');
-  assert.strictEqual(new Set(lines).size, 5, '五档评级线还有并列的');
-  assert.strictEqual(pd.sLineOf(pd.getMethod('linkpair'), 'novice'), 0, '非三消玩法不该有 S 线');
-  assert.strictEqual(pd.buildParams(method, 'minor').sLine, pd.sLineOf(method, 'minor'), '玩法层没拿到同源 S 线');
+  // S 线不是一张写死的分表：它按「每手均分 × 可用手数 × 利用率」从本关参数现算。
+  // 所以要守的是「同源」与「利用率恒定」，不是某个绝对数。
+  const LV = { novice: 1, entry: 11, minor: 51, major: 201, full: 501 };
+  const keys = Object.keys(LV);
+  const utils = [];
+  for (const k of keys) {
+    const p = pd.buildParams(method, k);
+    assert.strictEqual(pd.sLineOf(method, LV[k]), pd.buildParamsAt(method, LV[k]).sLine, k + ' 的 S 线不是同一份真源');
+    const moves = Math.floor(p.duration / pd.MATCH_MOVE_SEC);
+    const want = Math.round(p.perMove * moves * pd.MATCH_S_UTIL);
+    assert.ok(Math.abs(p.sLine - want) <= 1, k + ' 的 S 线没按本盘产出算');
+    utils.push(p.sLine / (p.perMove * moves));
+  }
+  assert.ok(utils.every(function (u) { return Math.abs(u - pd.MATCH_S_UTIL) < 0.02; }),
+    '五档 S 线的操作强度不一致：' + utils.map(function (u) { return u.toFixed(2); }).join('/'));
+  assert.strictEqual(pd.sLineOf(pd.getMethod('linkpair'), 1), 0, '非三消玩法不该有 S 线');
+  assert.strictEqual(pd.buildParams(method, 'minor').sLine,
+    Math.round(pd.buildParams(method, 'minor').perMove
+      * Math.floor(pd.buildParams(method, 'minor').duration / pd.MATCH_MOVE_SEC) * pd.MATCH_S_UTIL),
+    '段级 S 线没按「每手均分 × 可用手数」算');
   // 门槛只能出现在 gradeLimits 一处：create 里只许调它，不许再自己写 620 / 150 这种数。
   assert.ok(/lim = gradeLimits\(p\)/.test(read('minigames/match.js')),
     'match.js 又把 S 线写死在玩法层');
@@ -2206,13 +2218,13 @@ check('并蒂引满盘：一格缺口都不许有、对数是格数一半、段�
     }
   }
 
-  // 二、段间几何台阶：行数恒六，列数 4 → 6 → 8。
+  // 二、段间几何台阶：前三段行数六、列数 4；大成 7×6；圆满 10×7（行数第一次变七）。
   const specOf = function (lv) { return pd.buildParamsAt(method, lv); };
   assert.deepStrictEqual([1, 100, 300, 700].map(function (lv) {
     const q = specOf(lv);
     return q.cols + '×' + q.rows;
-  }), ['4×6', '4×6', '6×6', '8×6'],
-    '段间盘面几何没按 4 / 6 / 8 列走，或行数不再是六');
+  }), ['4×6', '4×6', '7×6', '10×7'],
+    '段间盘面几何没按 4 / 7 / 10 列走，或圆满的行数不再是七');
 
   // 三、玩法层开出来就是满盘：没有透空格，牌数 = 对数 × 2。
   const base = ld.stageRange(1).from;

@@ -1082,19 +1082,35 @@
       8 行 × 110rpx = 880rpx，加上面那几行说明，盘底直接顶出屏幕外。
    列数只是「格子多大」的旋钮，**行数才是「占多高」的那个**，两者必须一起看。
 
-   现在三段都是 6 行（见 data/practice.js 的 LINK_LEVELS），盘高统一 708rpx：
-     4×6 挖四角 = 20 格 · 10 对
-     6×6 挖四角 = 32 格 · 16 对
-     8×6 挖四角 = 44 格 · 22 对
-   708rpx ≈ 354px，顶部信息区约 300px、底部按钮约 80px，812px 屏留得下。
-   行数不动、只加列，是这一门最省事的段差：格子由 93px 缩到 47px，一眼看得出换了盘，
-   而对数一枚没动（10 / 16 / 22），每对预算还是原来那把尺子，难度不跟着变。
-   小屏（667px 一档）装不下 354px，所以再压一道 min()：六行 + 上下固定区 ≈ 720rpx，
-   剩下的高度平分给六行。不支持 min() 的机型回落到前一行写的 118rpx。
-   只挂 board--link——同样列数的刀法、九宫那几门还是原来的尺寸，不许被带跑。 */
+   2026-11-19 起后两段真放大：4×6（12 对）→ 7×6（21 对）→ 10×7（35 对），
+   行数也从 6 走到 7。盘高 = 行数 × 格高，所以七行那一段必须换算式：
+     4×6 / 7×6 六行，格高 min(118rpx, (100vh − 720rpx) / 6)
+     10×7 七行，格高 min(104rpx, (100vh − 720rpx) / 7)
+   10 列在 375px 屏上每格 37.5px，正好压住可点下限（业界 25–30px）；再宽一格就点不准。
+   小屏（667px 一档）装不下，所以都再压一道 min()：上下固定区约 720rpx，
+   剩下的高度按行数平分。不支持 min() 的机型回落到前一行写的固定值。
+   只挂 board--link——同样列数的刀法、九宫那几门还是原来的尺寸，不许被带跑。
+   c10 还必须连 board--mines / grid--compact 的规则一起压过：那两套 .grid--c10
+   一个给落石的 408rpx 窄槽、一个给三秀的 76rpx 矮格，权重都是两类。这里写三类。 */
 .board--link.grid--c4 .cell { height: 118rpx; height: min(118rpx, calc((100vh - 720rpx) / 6)); }
 .board--link.grid--c6 .cell { height: 118rpx; height: min(118rpx, calc((100vh - 720rpx) / 6)); }
+.board--link.grid--c7 .cell { height: 112rpx; height: min(112rpx, calc((100vh - 720rpx) / 6)); }
 .board--link.grid--c8 .cell { height: 118rpx; height: min(118rpx, calc((100vh - 720rpx) / 6)); }
+/* 10 列七行：三秀的 `.grid--c10.grid--compact` 是三类、写在文件后段，
+   两类写法的 board--link 压不过它，必须补第三类 grid--compact 一起写。 */
+.board--link.grid--c10.grid--compact,
+.board--link.grid--c10 {
+  width: 100%;
+  max-width: none;
+}
+.board--link.grid--c10.grid--compact .cell,
+.board--link.grid--c10 .cell {
+  width: 10%;
+  height: 104rpx;
+  height: min(104rpx, calc((100vh - 720rpx) / 7));
+  font-size: 22rpx;
+  border-radius: 8rpx;
+}
 .cell--flag { background-color: #f6e7bf; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(196, 155, 74, 0.3)); color: #8a6524; box-shadow: inset 0 0 0 3rpx rgba(162, 118, 45, 0.5), 0 3rpx 8rpx rgba(0, 0, 0, 0.3); }
 .cell--mine { background: #b4453c; color: #fffdf7; animation: badShake 0.3s ease-out; box-shadow: 0 0 26rpx rgba(180, 69, 60, 0.55), inset 0 0 0 3rpx rgba(255, 214, 206, 0.5); }
 .cell--hint { background: #b8893b; color: #fffdf7; animation: litPop 0.5s ease-out infinite alternate; box-shadow: 0 0 24rpx rgba(184, 137, 59, 0.5), inset 0 2rpx 0 rgba(255, 255, 255, 0.3); }
@@ -2111,6 +2127,34 @@
 .cell--hintpair { animation: litPop 0.5s ease-out infinite alternate; }
 .cell--set { opacity: 0.86; }
 .cell--live { box-shadow: inset 0 0 0 3rpx var(--c-imm-gold, #cfae6d), 0 0 18rpx rgba(207, 174, 109, 0.45); }
+
+/* ---------- 石皮封印（三秀撷英诀·大成起） ----------
+   封住的牌**换不动，但三连照收**——收走那一格的牌才解封。它压的是「可行换位数」，
+   不是「能不能消」，所以看起来必须仍是这张牌，只是外面裹了层石壳。
+   读法靠三件事，一样都不靠透明度：① 底色从暖玉换成冷灰绿（明度低一档、色相偏冷）；
+   ② 一圈 7rpx 厚石壳 + 内缘一道受光，像被石箍住；③ 斜向石纹。图案保持满亮——
+   玩家要认得出它是哪一种纹，认不出等于把这张牌藏了，那才是换了规则。
+   夜底上石皮比玉牌暗一档就够（台色本来就深），白天纸上要暗两档才分得开，
+   所以底色取中灰绿 #9d9a8b：两种皮肤下都「和旁边不是同一块」。
+   不写 opacity：内容元素不许靠透明度区分（减动效 / 截首帧会整块消失）。 */
+.board--match .cell--sealed {
+  background-color: #9d9a8b;
+  background-image:
+    repeating-linear-gradient(46deg, rgba(82, 78, 64, 0.2) 0, rgba(82, 78, 64, 0.2) 3rpx, rgba(82, 78, 64, 0) 3rpx, rgba(82, 78, 64, 0) 12rpx),
+    radial-gradient(120% 96% at 50% -18%, rgba(255, 252, 242, 0.55), rgba(255, 252, 242, 0) 60%);
+  box-shadow:
+    inset 0 0 0 7rpx rgba(74, 72, 62, 0.85),
+    inset 0 0 0 9rpx rgba(228, 222, 202, 0.28),
+    inset 0 12rpx 18rpx rgba(40, 38, 30, 0.4),
+    0 3rpx 0 rgba(0, 0, 0, 0.34),
+    0 6rpx 12rpx rgba(0, 0, 0, 0.28);
+  /* 石壳把牌压进去一格：内缩一点，看起来像被石头框住了，而不是贴了张灰纸。 */
+  transform: scale(0.94);
+}
+/* 石皮上的纹样也压一档冷色，但仍满亮——只降饱和，不降明度。 */
+.board--match .cell--sealed .cell__crest {
+  filter: saturate(0.72) contrast(1.05);
+}
 
 /* ---------- 收牌迸溅：在收走的那一格原地炸开一小把 ----------
    挂在 .grid 里的独立浮层（.spark），不是格子的伪元素：消消乐收完立刻掉落重排，

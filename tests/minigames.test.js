@@ -16,6 +16,14 @@ const klotskiMod = require('../minigames/klotski.js');
 const pushboxMod = require('../minigames/pushbox.js');
 const schulteMod = require('../minigames/schulte.js');
 
+// getMethod 对未知 id 会静默回落到第一门（拿循光斩桩的参数去开三秀的盘，测试照样能绿）。
+// 三秀的两个测试都要真参数，所以取法门时当场验 game，取错就红。
+const sanxiu = function () {
+  const m = data.getMethod('harvest');
+  assert.ok(m && m.game === 'match', 'getMethod(\'harvest\') 取到的不是三秀同收：' + (m && m.game));
+  return m;
+};
+
 let passed = 0;
 function check(name, fn) {
   fn();
@@ -2778,21 +2786,33 @@ check('牵灵引线：连上的那一对真的画得出一条折线', function (
     '一折下 findPair 把绕行盘的那对也报成可连');
 });
 
-check('牵灵引线：段内布纹真换了牌阵，纹种不减、开局仍可连', function () {
+check('牵灵引线：派牌只按纹种均分，段内台阶由每对预算承担', function () {
   const mod = require('../minigames/link.js');
   const m = data.getMethod('linkpair');
   const sum = function (a) { return a.reduce(function (x, y) { return x + y; }, 0); };
-  for (const spec of [[12, 4], [12, 5], [12, 6], [14, 6], [16, 6]]) {
-    for (let w = 0; w <= 3; w += 1) {
-      const cs = mod.pairCounts(spec[0], spec[1], w);
-      assert.strictEqual(cs.length, spec[1], '布纹把纹种挤掉了');
-      assert.strictEqual(sum(cs), spec[0], '布纹改了总对数');
-      assert.ok(cs.every(function (x) { return x >= 1; }), '有一种纹被布纹挤没了');
-    }
-    const skew = mod.pairCounts(spec[0], spec[1], 3);
-    assert.ok(Math.max.apply(null, skew) - Math.min.apply(null, skew) >= 3, '极偏布纹看不出差别');
+  // 均分派牌：总数守恒、纹种数不变、每种最多差一对（余数从第一种往后加）。
+  for (const spec of [[12, 4], [12, 5], [12, 6], [21, 6], [35, 6]]) {
+    const cs = mod.pairCounts(spec[0], spec[1]);
+    assert.strictEqual(cs.length, spec[1], '派牌把纹种挤掉了');
+    assert.strictEqual(sum(cs), spec[0], '派牌改了总对数');
+    assert.ok(cs.every(function (x) { return x >= 1; }), '有一种纹被挤没了');
+    assert.ok(Math.max.apply(null, cs) - Math.min.apply(null, cs) <= 1, '派牌不再均分（布纹偏斜回来了）');
   }
-  // 真开局：段首均匀、段末极偏，vm 必须报出本关是哪一副，牌堆枚数也要真的不同。
+  // 布纹偏斜已退役：它把同纹组合数从 15 抬到 66，可连量反而变多。签名里不许再有 weave。
+  assert.strictEqual(mod.pairCounts.length, 2, 'pairCounts 又收了一个「偏斜档」参数');
+  // 段内台阶：每一段的每对预算都逐关收紧，且段末接上下一段段首。
+  const stages = require('../data/levels.js').STAGES;
+  for (let i = 0; i < stages.length; i += 1) {
+    const a = data.linkPerPairAt(stages[i].from);
+    const b = data.linkPerPairAt(stages[i].to);
+    assert.ok(b < a, '第 ' + (i + 1) + ' 段的每对预算没有收紧');
+    assert.ok((a - b) / a >= 0.05, '第 ' + (i + 1) + ' 段每对只收了 ' + ((a - b) / a * 100).toFixed(1) + '%');
+    if (i > 0) {
+      assert.ok(Math.abs(a - data.linkPerPairAt(stages[i - 1].to)) < 1e-9,
+        '第 ' + (i + 1) + ' 段的段首没接上上一段段末，会凭空多一个台阶');
+    }
+  }
+  // 真开局：满盘、有解、纹种数真的到了 params 里那个数。
   const freshAt = function (lv) {
     const p = data.buildParamsAt(m, lv);
     let vm = null;
@@ -2804,17 +2824,15 @@ check('牵灵引线：段内布纹真换了牌阵，纹种不减、开局仍可�
     c.start();
     const counts = {};
     vm.link.board.forEach(function (v) { if (v) counts[v] = (counts[v] || 0) + 1; });
-    assert.strictEqual(vm.weave, p.weave, '玩法层没读走本关布纹');
-    assert.ok(mod.findPair(vm.link.board, vm.link.cols, vm.link.rows), '偏斜牌堆开局无可连对');
+    assert.strictEqual(Object.keys(counts).length, p.kinds, '开局纹种数不对');
+    assert.ok(mod.findPair(vm.link.board, vm.link.cols, vm.link.rows), '开局无可连对');
+    assert.strictEqual(vm.link.board.length, p.cols * p.rows, '满盘格数不对');
     c.destroy();
-    return Object.keys(counts).map(function (k) { return counts[k]; });
+    return vm.link.board.length;
   };
-  const head = freshAt(1);
-  const tail = freshAt(10);
-  assert.strictEqual(head.length, 4, '段首纹种少了');
-  assert.strictEqual(tail.length, 4, '段末纹种少了');
-  assert.ok(Math.max.apply(null, head) - Math.min.apply(null, head) <= 2, '段首牌阵不是均匀的');
-  assert.ok(Math.max.apply(null, tail) - Math.min.apply(null, tail) >= 8, '段首与段末看着还是差不多');
+  assert.strictEqual(freshAt(1), 24, '未入门不是 4×6');
+  assert.strictEqual(freshAt(201), 42, '大成不是 7×6');
+  assert.strictEqual(freshAt(1000), 70, '圆满不是 10×7');
 });
 
 // 评级改看「收干净那一刻剩几息」之后，四档必须都能真打出来。旧版按分数评，
@@ -2829,7 +2847,8 @@ check('牵灵引线：S / A / B / C 四档都真的拿得到，未收干净才�
     return mod.gradeByLeft(x, params.duration);
   }), ['S', 'A', 'B', 'C']);
   const ls = mod.lines(params);
-  assert.strictEqual(ls.items.length, 4, '说明页少一条评级线');
+  // 前四条是 S/A/B/C，第五条是「本段容错」（自移 / 照纹各几次）。
+  assert.strictEqual(ls.items.length, 5, '说明页少一条评级线或容错那行');
   assert.ok(ls.fail.indexOf('F') >= 0, '缺失败线：C 与 F 是两个结论');
   assert.ok(!/分/.test(ls.rule), '评级说明还在讲分数');
 
@@ -2989,7 +3008,7 @@ check('三秀同收：一手分成「留空」与「落下」两个拍子，中�
   try {
     let vm = null;
     const ctrl = mod.create({
-      params: data.buildParamsAt(data.getMethod('sanxiu'), 1),
+      params: data.buildParamsAt(sanxiu(), 1),
       difficulty: 1, perks: { tier: 0 }, tip: 't', theme: {},
       render: function (v) { vm = v; }, finish: function () {},
     });
@@ -3072,6 +3091,94 @@ check('三秀同收：一手分成「留空」与「落下」两个拍子，中�
     assert.strictEqual(nm[0], 1, '顶行的新苗该按「从盘外掉 1 格」报距离');
     assert.strictEqual(nm[(nr - 1) * nc], nr, '最底行的新苗该按「从盘外掉 ' + nr + ' 格」报距离');
     ctrl.destroy();
+  } finally { restoreClock(); }
+});
+
+check('三秀同收：石皮封印格换不动、不扣息、收走才解封，重排用尽只变贵不判负', function () {
+  // 这两条是第四段才上的规则。它们的共同失败方式是「生成了但没生效」：
+  // 参数进了表、盘上没画、点了没反应，或者反过来——点了就扣息，玩家会以为自己换错了。
+  const mod = require('../minigames/match.js');
+  const fs = require('fs');
+  const path = require('path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'minigames', 'match.js'), 'utf8');
+  installClock();
+  try {
+    const mk = function (lv) {
+      let vm = null;
+      const ctrl = mod.create({
+        params: data.buildParamsAt(sanxiu(), lv),
+        difficulty: 3, perks: { tier: 0 }, tip: 't', theme: {},
+        render: function (v) { vm = v; }, finish: function () {},
+      });
+      ctrl.start();
+      return { ctrl: ctrl, vm: vm };
+    };
+    const sealedIdx = function (vm) {
+      const out = [];
+      for (let i = 0; i < vm.cells.length; i += 1) {
+        if (vm.cells[i].cls.indexOf('cell--sealed') >= 0) out.push(i);
+      }
+      return out;
+    };
+    const secs = function (vm) { return vm.timeText; };
+
+    // 前三段一格都不许封：规则加法从大成起，早了就是「第一天就学不会」。
+    const early = mk(51);
+    assert.strictEqual(sealedIdx(early.vm).length, 0, '小成段就出现了石皮（规则加法提前了）');
+    early.ctrl.destroy();
+
+    // 大成 4 格、圆满 8 格：数量必须是「本段一直是这样」，不是逐关随机。
+    const major = mk(201);
+    const sealed = sealedIdx(major.vm);
+    assert.strictEqual(sealed.length, 4, '大成段封印格数是 ' + sealed.length + '，不是 4');
+    const full = mk(501);
+    assert.strictEqual(sealedIdx(full.vm).length, 8, '圆满段封印格数不是 8');
+    full.ctrl.destroy();
+
+    // 点石皮：不选中、不扣息、当场说清是哪一格。
+    const before = secs(major.vm);
+    const firstBoard = major.vm.match.board.slice();
+    major.ctrl.tap(sealed[0]);
+    assert.strictEqual(major.vm.match.first, -1, '石皮格被选中了，接下来会真的尝试换位');
+    assert.strictEqual(secs(major.vm), before, '点了一下石皮就扣息了（玩家会以为自己换错了）');
+    assert.ok(major.vm.fx && /石皮/.test(major.vm.fx.text), '点了石皮没有任何说明，玩家只看到「没反应」');
+    // 石皮格当起点也不行：先选旁边一格，再点石皮，两边都不许动。
+    const neighbour = sealed[0] % major.vm.match.cols > 0 ? sealed[0] - 1 : sealed[0] + 1;
+    major.ctrl.tap(neighbour);
+    major.ctrl.tap(sealed[0]);
+    assert.deepStrictEqual(major.vm.match.board, firstBoard, '石皮格被换动了');
+    assert.strictEqual(secs(major.vm), before, '拿石皮格换位扣了息');
+    advance(1200);
+    assert.deepStrictEqual(major.vm.match.board, firstBoard, '石皮格的牌在演出之后又变了');
+
+    // 石皮不能把开局盘做成死盘：create 里挑完格必须复验还有可行换位。
+    // 这里从「能换的那一半」找一步，找到就必须真能换（不是把石头也当成可换格）。
+    const cols = major.vm.match.cols;
+    const rows = major.vm.match.rows;
+    const sealedSet = {};
+    sealed.forEach(function (i) { sealedSet[i] = true; });
+    const move = mod.findMove(major.vm.match.board.slice(), cols, rows,
+      major.vm.cells.map(function (c) { return c.cls.indexOf('cell--sealed') >= 0; }));
+    assert.ok(move, '大成段开局没有可行换位（挑石皮时没复验）');
+    assert.ok(move.every(function (i) { return !sealedSet[i]; }),
+      'findMove 把石皮格当成了可换格');
+    // 收走石皮格的牌即解封：牌一换位、成三连，那格就该从 sealed 名单里掉出去。
+    const left0 = major.vm.timeText;
+    major.ctrl.tap(move[0]);
+    major.ctrl.tap(move[1]);
+    advance(14000);
+    assert.ok(sealedIdx(major.vm).length <= 4, '收牌之后封印格反而变多了');
+    assert.ok(major.vm.timeText !== left0, '一手打完时辰没有动（表没在走）');
+    major.ctrl.destroy();
+
+    // 重排限次是「原价 N 次 + 用尽翻倍 + 不判负」，三条缺一就变成另一条规则。
+    // 死局是随机的，测不出稳定复现，只能在源码这一层钉住这三句。
+    assert.ok(/shufflesLeft > 0 \? realShuffleCost : realShuffleCost \* 2/.test(src),
+      '重排用尽之后没有翻倍');
+    assert.ok(/if \(shufflesLeft > 0\) shufflesLeft -= 1/.test(src),
+      '重排没有计次');
+    const rsh = src.slice(src.indexOf('function reshuffle'), src.indexOf('function reshuffle') + 900);
+    assert.ok(!/finishOnce\(|finish\(/.test(rsh), '重排用尽把这一局判负了（死局是运气，不许罚运气）');
   } finally { restoreClock(); }
 });
 

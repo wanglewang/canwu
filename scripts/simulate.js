@@ -276,7 +276,9 @@ for (let i = 0; i < qiTable.length; i += 1) {
   expect(qiTable[i].base === economy.RUN_QI[i],
     qiTable[i].name + ' 基数 ' + qiTable[i].base + ' 与 RUN_QI 一致');
   const want = economy.practiceQiCost({
-    stageIndex: i, tierKey: 'huang', methodBase: practice.getMethod('jian').base,
+    // 这里只是拿一个黄阶法门的基数复算五段耗气表，用哪一门不影响结论；
+    // 但 id 必须是真 id——`getMethod` 对未知 id 会静默回落到第一门，写错了也不会报。
+    stageIndex: i, tierKey: 'huang', methodBase: practice.getMethod('forge').base,
     wu: world.getWorld().baseAttributes.wu,
   });
   expect(qiTable[i].cost === want,
