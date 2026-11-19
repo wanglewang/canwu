@@ -99,18 +99,14 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 | 玩法 | 可见参数 | 评级线 | 主轴跨度 | 会变的字段 |
 | --- | --- | --- | --- | --- |
 | 顺光扫斩 | 5 | 5 种 | **2.78×** `grid` | `duration`, `life`, `grid`, `cols`, `lenStep` |
-| 辨伪择真 | 3 | 3 种 | 1.69× `interval` | `duration`, `interval`, `decoys` |
 | 记序复现 | 5 | 5 种 | 1.69× `gapMs` | `startLen`, `maxRound`, `flashMs`, `gapMs`, `msPerNote` |
-| 循纹递推 | 2 | 5 种 | 1.69× `shuffleMs` | `shuffleMs`, `timeLimit` |
-| 节律判定 | 5 | 5 种 | 谱型（5 副） | `pattern`, `hands`, `cue`, `unitMs`, `winMs` |
-| 步法连环 | 4 | 4 种 | **2.00×** `segments` | `duration`, `segments`, `baseLen`, `shuffle` |
+| 节律判定 | 10 | 4 种 | **2.00×** `bar` | `bar`, `unitMs`, `bars`, `hands`, `cue`, `winMs`, `pattern`, `meter`, `bpm`, `scoreLabel` |
 | 阵灯推演 | 3 | **1 种** | 4.00× `minSteps` | `size`, `minSteps`, `hiSteps` |
-| 五行相生 | 3 | 5 种 | 1.69× `windowMs` | `duration`, `chainGoal`, `windowMs` |
-| 数格辨禁 | 5 | 5 种 | **4.80×** `mines` | `cols`, `rows`, `mines`, `hearts`, `deduce`, `allowGuess`（段差主轴：推理 0/0/1/2/3 + 心神 3/3/2/1/1 + 后两段留两难） |
+| 数格辨禁 | 6 | 5 种 | **4.80×** `mines` | `cols`, `rows`, `mines`, `hearts`, `deduce`, `allowGuess`（段差主轴：推理 0/0/1/2/3 + 心神 3/3/2/1/1 + 后两段留两难） |
 | 成对翻牌 | 3 | 4 种 | 1.69× `flipMs` | `pairs`, `flipMs`, `timeLimit` |
-| 灵纹连线 | 3 | 4 种 | 1.50× `kinds` | `cols`, `kinds`, `duration` |
+| 灵纹连线 | 9 | 5 种 | 49.50× `hints` | `cols`, `rows`, `kinds`, `turns`, `duration`, `theme`, `reshuffles`, `shuffleCost`, `hints` |
 | 落石垒基 | 4 | 5 种 | 8.00× `startLevel` | `duration`, `startLevel`, `linesPerLevel`, `sLine` |
-| 三秀同收 | 7 | 5 种 | 3.00× `missCost` | `duration`, `kinds`, `flashMs`, `missCost`, `shuffleCost`, `hintCost`, `sLine` |
+| 三秀同收 | 12 | 5 种 | 33.00× `shuffleCap` | `duration`, `cols`, `rows`, `kinds`, `flashMs`, `missCost`, `shuffleCost`, `hintCost`, `perMove`, `seals`, `shuffleCap`, `sLine` |
 | 九宫填数 | 6 | 5 种 | 5.75× `holes` | `size`, `holes`, `timeLimit`, `tS`, `tA`, `tB` |
 | 滑格相合 | 2 | 4 种 | 8.00× `target` | `target`, `startTiles` |
 | 顺序点格 | 3 | 5 种 | 3.00× `penaltySec` | `size`, `fade`, `penaltySec` |
@@ -118,9 +114,13 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 | 推石入位 | 6 | 5 种 | 3.00× `boxes` | `inner`, `boxes`, `walls`, `minOpt`, `maxOpt`, `capFactor` |
 | 数中取大 | 2 | 5 种 | 2.00× `rounds` | `count`, `rounds` |
 
-分布：参数 2 个的 3 门、3 个的 8 门、4 个的 3 门、5 个的 2 门、6 个的 2 门、7 个的 1 门。评级线 5 种的 13 门、4 种的 4 门、3 种的 1 门、1 种的 1 门。主轴跨度 ≥2 倍的 12 门、<2 倍的 7 门。
+分布：参数 2 个的 2 门、3 个的 4 门、4 个的 1 门、5 个的 4 门、6 个的 1 门、9 个的 1 门、10 个的 1 门、12 个的 1 门。评级线 5 种的 11 门、4 种的 3 门、1 种的 1 门。主轴跨度 ≥2 倍的 13 门、<2 倍的 2 门。
 
-灵纹连线这一行是整改后的口径：旧表记的「1.69× `flashMs`」只是提示高亮变短（帮助变差，不是本事要求变高），把它当主轴跨度会让这一门在复杂度 / 信息 / 规模上用了 0 根还躲过提示。现在主轴是真会改盘面的 `kinds` / `cols`，`flashMs` 退役为恒定的 `hintMs`，连「会变的字段」里都不再出现。
+**2026-11-19 复跑时发现这一列曾经整列失效。** 脚本取评级线写的是 `practice.difficultyOf(项)`，这个函数在某一轮重构里被删了；`try/catch` 把 `TypeError` 吞成字符串 `'ERR …'`，五档都是同一串，于是「评级线」永远印 `1 种`，第二问只剩「盘面规格变没变」一条路，八门被判成「区分度不足」。现在改走 `minigames.gradeLines(game, params, gear)`，并且**读不出来就退非 0**——一个被吞掉的异常能让整张表变成噪声，而报告看上去毫发无损。
+
+灵纹连线这一行是整改后的口径：旧表记的「1.69× `flashMs`」只是提示高亮变短（帮助变差，不是本事要求变高），把它当主轴跨度会让这一门在复杂度 / 信息 / 规模上用了 0 根还躲过提示。现在主轴是真会改盘面的 `kinds` / `cols` / `turns`，`flashMs` 退役为恒定的 `hintMs`，连「会变的字段」里都不再出现。
+
+灵纹连线的 `49.50× hints` 与三秀的 `33.00× shuffleCap` 别读成「难度涨了三十倍」：`99` 是「不限」的哨兵值，前两段真给无限次，大成起收到 2–3 次，跨度里有一大半是「从无限到有限」。它是真台阶（玩家确实从「随便重排」变成「只剩三次」），但不是倍数意义上的三十倍。
 
 ## 主轴跨度：审计的第三个数
 
@@ -137,11 +137,13 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 
 所以 `<2 倍` 标 `*`。**这不是报错，是提示**：它说明这一门的承重轴压不出量来，该换一根轴了。
 
-### 7 门标 `*`，但没有一门是「等于没变」
+### 2 门标 `*`，都是时间类，不是「等于没变」
 
-7 门里 6 门的最大跨度都恰好是 **1.69 倍**，这不是巧合——它们的承重轴都是时间类参数，而时间类统一走 `PACE_KEYS × pace`，`pace` 表本身就是 1.18 → 0.70（1.69 倍）。剩下一门是灵纹连线的 1.50× `kinds`（整数段位，4→5→6→6→6，跨度天生被段位数量压住）。**这是全站统一的节奏曲线与整数台阶，不是疏漏。**
+现在标 `*` 的只剩 **记序复现**（1.69× `gapMs`）与 **成对翻牌**（1.69× `flipMs`），两门的最大跨度恰好一样，这不是巧合——它们的承重轴都是时间类参数，而时间类统一走 `PACE_KEYS × pace`，`pace` 表本身就是 1.18 → 0.70（1.69 倍）。**这是全站统一的节奏曲线，不是疏漏。**
 
-真正「等于没变」的是 1.15× 那一段（摊到四段每段 3.6%，顺光扫斩改版前就是这样），现在已换轴到 2.78×。7 门里最紧的是 1.50×，摊到四段每段约 10.7%，仍在 5% 可辨阈值之上；标 `*` 是提醒「该考虑换轴了」，不是判错。
+1.69 倍摊到四段，每段约 10.7%，仍在 5% 可辨阈值之上；标 `*` 是提醒「该考虑换轴了」，不是判错。这两门要不要再补一根复杂度轴，见 `04-open-issues` D11 与 D16。
+
+真正「等于没变」的是 1.15× 那一段（摊到四段每段 3.6%，顺光扫斩改版前就是这样），现在已换轴到 2.78×。灵纹连线改版前那根 1.50× `kinds`（4→5→6→6→6，整数段位天生压不上去）也已换到 `turns`（2→1 折）与盘面 4×6→10×7。
 
 时间轴压不上去是物理限制，不是设计懒：
 
@@ -400,6 +402,7 @@ npm run audit:diff
 | 位置 | 内容 |
 | --- | --- |
 | `scripts/difficulty-audit.js` | 全部门：`audit()` 判据、`INTERNAL` 排除名单、`boardChanged` 正则 |
+| `scripts/stage-gap.js` | 第二问：段界换没换结构、有没有倒退、段内可报变化率、最长冻结段（`npm run audit:gap`） |
 | `data/practice.js:529` `buildParams` | 五段参数的施加顺序与六份整表覆盖 |
 | `data/practice.js:412` | `TIME_LEVELS` / `MINES_HEARTS` / `MERGE_START_TILES` / `PUSHBOX_CAP_FACTORS` |
 | `data/practice.js:490` 起 | `KLOTSKI_LEVELS` / `MERGE_TARGETS` / `SCHULTE_SIZES` / `SCHULTE_PENALTIES` / `PUSHBOX_LEVELS` / `BIGGEST_LEVELS` |

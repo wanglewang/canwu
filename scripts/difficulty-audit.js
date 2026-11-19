@@ -26,6 +26,8 @@ const KEYS = ['novice', 'entry', 'minor', 'major', 'full'];
 // 唯一的内部键（档位索引）。名单住在 data/practice.js，审计与 rank.test 读同一份，
 // 不许各抄一遍——曾经这里多出 gear / sBase / sStep 三个根本不存在的键。
 const INTERNAL = new Set(practice.INTERNAL_PARAM_KEYS);
+// 读不出评级线的门。非空就退非 0——这一列坏了，整张表就不是「结论」而是「噪声」。
+const broken = [];
 
 // 一个参数在五档间的跨度。只认数值：布尔（要不要重排）与字符串（哪张图）算不出来，
 // 它们的变化已经由「可见参数」那一列体现。
@@ -57,10 +59,16 @@ function audit(method) {
   });
   const lines = params.map(function (p, i) {
     try {
-      const r = index.MODULES[method.game].lines(p, practice.difficultyOf(KEYS[i]).gear);
-      return (r.items || []).join('|');
+      const r = index.gradeLines(method.game, p, (practice.stageOfKey(KEYS[i]) || {}).gear);
+      if (!r || !Array.isArray(r.items)) throw new Error('lines() 没返回 items');
+      return r.items.join('|');
     } catch (e) {
-      return 'ERR ' + e.message;
+      // 不许把异常吞成「五档都一样的字符串」——那会让「评级线」这一列静默失效，
+      // 看上去还是「1 种」，实际是一行都没读出来（踩过一次：practice.difficultyOf
+      // 被删了以后，这一列整列变成 ERR，审计照样打印「区分度不足 8 门」）。
+      const msg = (practice.GAME_LABELS[method.game] || method.game) + '：' + e.message;
+      if (broken.indexOf(msg) < 0) broken.push(msg);
+      return 'ERR';
     }
   });
   const lineVariants = new Set(lines).size;
@@ -109,3 +117,9 @@ console.log('    主轴跨度 = 五档里变化最大的那个参数的最大值
 console.log('    1.7 倍摊到五档每档 11%（玩家能说出「这档更紧」），1.15 倍每档只有 3.5%（等于没变）。');
 console.log('    跨度小不一定是错——时间轴本来就压不了太多，压很了是「不可能」不是「难」；');
 console.log('    但这时就该换一根承重轴了（复杂度 / 信息 / 规模），而不是把时间再往下拧。');
+if (broken.length) {
+  console.log('');
+  console.log('!! 评级线读不出来（' + broken.length + ' 门）：这张表已经没有意义，先修脚本再读结论。');
+  broken.forEach(function (s) { console.log('   - ' + s); });
+  process.exitCode = 1;
+}
