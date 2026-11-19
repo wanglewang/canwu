@@ -22,7 +22,7 @@ docs/
 │
 ├── 00-foundation/                   基础：所有系统的共同前提
 │   ├── 01-product-vision.md         产品定位、目标玩家、体验目标、不做什么
-│   ├── 02-design-principles.md      十二条设计原则及其代价
+│   ├── 02-design-principles.md      十三条设计原则及其代价
 │   ├── 03-glossary.md               术语表：系统名、数值名、状态名、易混词
 │   ├── 04-voice-and-copy.md         文案口吻规范与三处真源
 │   └── 05-external-research.md      外部实践资料摘录：修仙感与首局钩子的证据、可靠度、勘误

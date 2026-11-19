@@ -2156,6 +2156,40 @@
   filter: saturate(0.72) contrast(1.05);
 }
 
+/* ---------- 玩法结构：凑形状留下的四种符 ----------
+   符是 CSS 画的，不用 emoji（部分安卓会把符号渲成彩色小图）。
+   四连直行/直列、五连同色、横竖交叉四邻：形状本身就把用法说出来——
+   横杠清行、竖杠清列、方框清一圈、同心圈清同色。 */
+.board--match .cell--fx {
+  background-image: radial-gradient(120% 100% at 50% -18%, rgba(255, 252, 242, 0.65), rgba(255, 252, 242, 0) 62%),
+    linear-gradient(140deg, rgba(255, 255, 255, 0.3), rgba(0, 0, 0, 0.16));
+  box-shadow: inset 0 0 0 4rpx rgba(52, 43, 31, 0.35), inset 0 0 18rpx rgba(255, 246, 205, 0.75),
+    0 3rpx 0 rgba(0, 0, 0, 0.3);
+}
+.board--match .cell--fx .cell__crest { position: relative; filter: saturate(0) brightness(2.1); }
+.board--match .cell--fx-row .cell__crest:after,
+.board--match .cell--fx-col .cell__crest:after,
+.board--match .cell--fx-bomb .cell__crest:after,
+.board--match .cell--fx-rainbow .cell__crest:after {
+  content: '';
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff6cd;
+  box-shadow: 0 0 8rpx rgba(255, 246, 205, 0.9);
+}
+.board--match .cell--fx-row .cell__crest:after { width: 68%; height: 6rpx; }
+.board--match .cell--fx-col .cell__crest:after { width: 6rpx; height: 68%; }
+.board--match .cell--fx-bomb .cell__crest:after {
+  width: 56%; height: 56%; background: transparent;
+  border: 6rpx solid #fff6cd;
+}
+.board--match .cell--fx-rainbow .cell__crest:after {
+  width: 48%; height: 48%; background: transparent;
+  border: 6rpx solid #fff6cd; border-radius: 50%;
+  box-shadow: 0 0 0 5rpx rgba(255, 246, 205, 0.4), 0 0 12rpx rgba(255, 246, 205, 0.8);
+}
+
 /* ---------- 收牌迸溅：在收走的那一格原地炸开一小把 ----------
    挂在 .grid 里的独立浮层（.spark），不是格子的伪元素：消消乐收完立刻掉落重排，
    那一格当场就换了内容，格子演不出「我被收走了」。浮层则与盘面状态无关。
@@ -3065,4 +3099,26 @@
     left: 0;
     width: 600px;
     height: 880px;
+}
+
+/* 圆满段开局二选一劫变：一紧一松各占一行，选中态靠边框不靠颜色。 */
+.twist-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+    margin: 20rpx 0;
+    padding: 22rpx 24rpx;
+    border: 2rpx solid var(--c-imm-line, rgba(120, 104, 78, 0.35));
+    border-radius: 18rpx;
+    background: var(--c-imm-panel, rgba(255, 252, 242, 0.92));
+}
+.twist-choice__name {
+    font-size: 32rpx;
+    font-weight: 600;
+    color: var(--c-imm-text, #33291f);
+}
+.twist-choice__line {
+    font-size: 26rpx;
+    line-height: 1.5;
+    color: var(--c-imm-text-2, #5c5347);
 }

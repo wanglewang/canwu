@@ -512,6 +512,20 @@
     <button wx:if="{{vm.extras.showUndo}}" class="btn btn--ghost btn--small" bindtap="onUndo">撤销</button>
     <button wx:if="{{vm.extras.showReset}}" class="btn btn--ghost btn--small" bindtap="onReset">{{copy.actions.resetBoard}}</button>
     <button wx:if="{{vm.extras.showHint}}" class="btn btn--plain btn--small" bindtap="onHint">{{hintLabel}}</button>
+    <button wx:if="{{vm.extras.showActive}}" class="btn btn--ghost btn--small" bindtap="onActive">{{vm.activeLabel}}</button>
+  </view>
+
+  <!-- 圆满段开局二选一劫变：一紧一松配成一对，随机只决定「摆哪两条」，选哪条是玩家的决策。 -->
+  <view wx:if="{{vm.twistPick && vm.phase === 'twist'}}" class="mask">
+    <view class="modal">
+      <text class="modal__title">本局劫变 · 二选一</text>
+      <text class="modal__sub">一紧一松，选完才发盘、才开始走时辰</text>
+      <view wx:for="{{vm.twistPick}}" wx:key="id" class="twist-choice" data-id="{{item.id}}" bindtap="onPickTwist">
+        <text class="twist-choice__name">{{item.name}}</text>
+        <text class="twist-choice__line">紧 · {{item.tight}}</text>
+        <text class="twist-choice__line">松 · {{item.loose}}</text>
+      </view>
+    </view>
   </view>
 
   <view wx:if="{{countdown > 0}}" class="countdown-mask" bindtap="onSkipCountdown">

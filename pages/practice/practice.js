@@ -1695,6 +1695,20 @@ Page({
     this.controller.hint();
     sfx.play('tick');
   },
+  // 三秀的主动手段：挪苗。买的是一步操作，不是照畦那种信息。
+  onActive: function () {
+    if (!this.controller) return;
+    this.controller.active();
+    sfx.play('tap');
+  },
+  // 圆满段二选一劫变：两条候选固定，玩家点哪条由自己定。
+  onPickTwist: function (e) {
+    if (!this.controller || !e || !e.currentTarget) return;
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    this.controller.pickTwist(id);
+    sfx.play('tap');
+  },
   onReset: function () {
     if (!this.controller) return;
     this.controller.reset();

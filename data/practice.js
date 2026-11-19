@@ -515,16 +515,24 @@ const MINES_HEARTS = MINES_LEVELS.map(function (lv) { return lv.hearts; });
 const MATCH_MOVE_SEC = 1.2;
 const MATCH_S_UTIL = 0.72;
 const MATCH_LEVELS = [
+  // 玩法结构 / 目标 / 主动 / 本局变数四条新轴都在这里按段注入，玩法层只读不写死。
+  // special 0→3：四连符 / 同色符 / 四邻符与相撞；goalType 0→4：无 / 收色 / 连锁 / 破皮 / 收色+连锁；
+  // swapAny 是挪苗次数（照畦之外玩家自己挑两株的主动手段）；twist 2 = 圆满段开局二选一劫变。
   { cols: 6, rows: 6, kinds: 5, duration: 68, missCost: 1, shuffleCost: 2, hintCost: 1,
-    perMove: 66, seals: 0, shuffleCap: 99 },
+    perMove: 66, seals: 0, shuffleCap: 99,
+    special: 0, goalType: 0, goalColor: 1, goalCount: 1, goalBonus: 0, swapAny: 0, swapCost: 3, twist: 0 },
   { cols: 7, rows: 7, kinds: 6, duration: 63, missCost: 2, shuffleCost: 3, hintCost: 2,
-    perMove: 62, seals: 2, shuffleCap: 99 },
+    perMove: 62, seals: 2, shuffleCap: 99,
+    special: 0, goalType: 1, goalColor: 1, goalCount: 16, goalBonus: 120, swapAny: 1, swapCost: 3, twist: 0 },
   { cols: 8, rows: 8, kinds: 7, duration: 57, missCost: 2, shuffleCost: 3, hintCost: 2,
-    perMove: 48, seals: 5, shuffleCap: 99 },
+    perMove: 48, seals: 5, shuffleCap: 99,
+    special: 1, goalType: 2, goalColor: 1, goalCount: 3, goalBonus: 180, swapAny: 1, swapCost: 3, twist: 0 },
   { cols: 9, rows: 9, kinds: 7, duration: 51, missCost: 3, shuffleCost: 4, hintCost: 3,
-    perMove: 50, seals: 9, shuffleCap: 3 },
+    perMove: 50, seals: 9, shuffleCap: 3,
+    special: 2, goalType: 3, goalColor: 1, goalCount: 5, goalBonus: 240, swapAny: 2, swapCost: 4, twist: 0 },
   { cols: 10, rows: 10, kinds: 7, duration: 45, missCost: 3, shuffleCost: 4, hintCost: 3,
-    perMove: 53, seals: 14, shuffleCap: 3 },
+    perMove: 53, seals: 14, shuffleCap: 3,
+    special: 3, goalType: 4, goalColor: 2, goalCount: 14, goalBonus: 300, swapAny: 2, swapCost: 4, twist: 2 },
 ];
 
 // 本局 S 线。吃已经算好的 params（duration / perMove），所以段内时辰收紧时它跟着收紧，
@@ -534,6 +542,23 @@ function matchSLineOf(q) {
   const moves = Math.max(1, Math.floor((q.duration || 60) / MATCH_MOVE_SEC));
   const per = q.perMove || 76;
   return Math.max(1, Math.round(per * moves * MATCH_S_UTIL));
+}
+
+// 本局变数：圆满段开局二选一。四条都是「一紧一松」配对，净难度增量接近 0，
+// 但打法完全不同——玩家读的是「这局该怎么打」，不是「这局更难还是更容易」。
+const MATCH_TWISTS = [
+  { id: 'lean', name: '劫·寡色', tight: '花色少一种，同色更好凑', loose: '石皮多 4 格，换不动的地方更多' },
+  { id: 'flood', name: '劫·繁花', tight: '花色多一种，凑齐三株更难', loose: '符箓提前一档，四连就能出同色符' },
+  { id: 'haste', name: '劫·穷息', tight: '时辰少 5 息', loose: '挪苗多 1 次，花息换一步长手' },
+  { id: 'brace', name: '劫·锢元', tight: '石皮多 3 格', loose: '本局目标少四成，专攻一边' },
+];
+// 同一关两条候选必须固定（重开还是这两条），不同关再换——否则玩家刷同一关就是在抽卡。
+function matchTwistChoices(level) {
+  const seed = (Math.max(1, Math.round(level || 1)) * 2654435761) >>> 0;
+  const first = seed % MATCH_TWISTS.length;
+  let second = (first + 1 + (seed >>> 8) % (MATCH_TWISTS.length - 1)) % MATCH_TWISTS.length;
+  if (second === first) second = (second + 1) % MATCH_TWISTS.length;
+  return [MATCH_TWISTS[first], MATCH_TWISTS[second]];
 }
 
 function matchLevelOf(stageIndex) {
@@ -1024,6 +1049,15 @@ function rawParams(method, depthIndex) {
     out.perMove = lv.perMove;
     out.seals = lv.seals;
     out.shuffleCap = lv.shuffleCap;
+    // 另外四条方向：特效 / 目标 / 主动 / 本局变数。玩法层真读这八个键。
+    out.special = lv.special;
+    out.goalType = lv.goalType;
+    out.goalColor = lv.goalColor;
+    out.goalCount = lv.goalCount;
+    out.goalBonus = lv.goalBonus;
+    out.swapAny = lv.swapAny;
+    out.swapCost = lv.swapCost;
+    out.twist = lv.twist;
     // 段基准的 S 线：buildParamsAt 会在段内收紧 duration 之后重算，这里只给
     // buildParams（段级读者）一个同源的起点，不写死绝对分。
     out.sLine = matchSLineOf({ duration: lv.duration, perMove: lv.perMove });
@@ -1232,7 +1266,11 @@ function buildParamsAt(method, level) {
   // 灵纹连线的时辰在这一步统一收口：一关一个数，沿全书连续收，不按章回卷。
   if (linkGame) tuned.duration = linkDurationAt(lv);
   // 三秀的 S 线跟着本关时辰走：段内时辰收了三成，分数线不收就是段末放水。
-  if (method && method.game === 'match') tuned.sLine = matchSLineOf(tuned);
+  if (method && method.game === 'match') {
+    tuned.sLine = matchSLineOf(tuned);
+    // 二选一劫变的两条候选按关号定，重开这一关还是同样两条；只有玩家选哪条是自己定。
+    if (tuned.twist) tuned.twistChoices = matchTwistChoices(lv);
+  }
   return tuned;
 }
 
@@ -1254,9 +1292,50 @@ const LEVEL_STRUCT_KEYS = ['cols', 'rows', 'size', 'grid', 'kinds', 'holes', 'co
   'minSteps', 'hiSteps', 'startLevel', 'linesPerLevel', 'lenStep', 'decoys', 'pairs',
   'mines', 'beats', 'segments', 'chainGoal', 'maxRound', 'scramble', 'startLen',
   'baseLen', 'budgetSlack', 'missCost', 'nearGap', 'hands', 'bar', 'bars', 'turns',
-  'seals', 'reshuffles', 'hints'];
+  'seals', 'reshuffles', 'hints', 'special', 'goalType', 'goalCount', 'swapAny', 'twist'];
 // 沿全书关号连续收的结构旋钮不属于「本段换了哪一副盘」，换段时不与盘面规格抢那两条额度。
 const CONTINUOUS_STRUCT_KEYS = ['nearGap'];
+
+// 变化方向九类模板（跨门通用）。这是唯一真源：设计原则、方向账表、verify 断言都从这里读。
+// 判据：一条方向必须能回答「这一关在玩什么新东西」；只回答「多/少」的秒表与毫秒是放大器，不是方向。
+// 内容轴 = 盘面几何 / 元素种类 / 玩法结构 / 地形障碍 / 目标类型 / 本局变数 / 主动手段；
+// 信息可见度与代价节奏是支撑轴，能让已有方向更清楚或更紧，但单独拿出来不算「变了玩法」。
+const AXIS_LABELS = {
+  geo: '盘面几何', kind: '元素种类', rule: '玩法结构', obstacle: '地形障碍', goal: '目标类型',
+  info: '信息可见度', cost: '代价节奏', twist: '本局变数', active: '主动手段',
+};
+const AXIS_CONTENT = ['geo', 'kind', 'rule', 'obstacle', 'goal', 'twist', 'active'];
+// 门槛本身也是真源：设计原则 §13、方向账 §13、verify 断言都读它。
+// 不许因为「现在不达标」就把门槛写低——欠账记在 04-open-issues D 类。
+const AXIS_RULE = { minKinds: 5, minContent: 3, minStageAxes: 2, minStageContent: 1 };
+const AXIS_OF = {
+  geo: ['cols', 'rows', 'size', 'grid', 'holes', 'walls', 'boxes', 'mines', 'pairs', 'bar', 'bars', 'segments', 'lenStep'],
+  kind: ['kinds', 'theme', 'pattern', 'decoys'],
+  rule: ['turns', 'hands', 'score', 'beats', 'chainGoal', 'fourRate', 'scoreLabel', 'special'],
+  obstacle: ['seals'],
+  goal: ['target', 'rounds', 'count', 'startLevel', 'startTiles', 'linesPerLevel',
+    'minOpt', 'maxOpt', 'maxRound', 'startLen', 'baseLen',
+    'goalType', 'goalColor', 'goalCount', 'goalBonus'],
+  info: ['flashMs', 'hintMs', 'flipMs', 'gapMs', 'msPerNote', 'cue', 'scramble', 'sameBoard'],
+  cost: ['duration', 'timeLimit', 'life', 'hearts', 'steps', 'minSteps', 'hiSteps', 'budgetSlack',
+    'missCost', 'nearGap', 'perPair', 'capFactor', 'lineScale', 'unitMs', 'winMs', 'bpm', 'meter'],
+  twist: ['twist'],
+  active: ['hints', 'reshuffles', 'swapAny', 'swapCost'],
+};
+// 刻度与口径不占方向：chapter 是换段，start/final 是首末关总结，sLine 是评级线。
+// 它们仍要显式登记（AXIS_KEY_OF 里留键），否则「未归类 key」会混进真缺口里。
+const AXIS_META_KEYS = ['chapter', 'start', 'final', 'sLine'];
+const AXIS_KEY_OF = {};
+Object.keys(AXIS_OF).forEach(function (a) {
+  AXIS_OF[a].forEach(function (k) {
+    if (AXIS_KEY_OF[k]) throw new Error('变化方向归类重复：' + k);
+    AXIS_KEY_OF[k] = a;
+  });
+});
+AXIS_META_KEYS.forEach(function (k) {
+  if (AXIS_KEY_OF[k]) throw new Error('变化方向归类重复：' + k);
+  AXIS_KEY_OF[k] = '_meta';
+});
 
 // 一关的「规格串」：只给第一关与最后一关用。
 // 这两关没有「上一关」可比（首关前面是空的，末关常常因为取整与上一关一字不差），
@@ -1482,6 +1561,31 @@ function levelDelta(method, level) {
     out.push({ key: k, label: lineLabelOf(method, k), text: lineLabelOf(method, k) + ' ' + a + ' → ' + b });
   };
 
+  // 三连互换：九类方向里有六类在换段那一步变，普通分支只给三条额度会把它们吞掉。
+  // 这里一次报清「换了什么新玩法」，让准备页的常驻规格与方向账都读同一份。
+  if (method && method.game === 'match') {
+    const out = [];
+    if (isChapter) {
+      const ch = levelData.stageRange(levelData.stageOfLevel(lv));
+      out.push({ key: 'chapter', label: '换段', chapter: true,
+        text: '踏入' + ch.label + '（' + ch.name + '）' });
+      if (now.cols !== prev.cols || now.rows !== prev.rows) out.push({ key: 'cols', label: '盘面',
+        text: '盘面 ' + prev.cols + '×' + prev.rows + ' → ' + now.cols + '×' + now.rows });
+      [['kinds', '花色'], ['special', '符箓'], ['seals', '石皮'], ['goalType', '本局目标'],
+        ['swapAny', '挪苗'], ['twist', '本局劫变']].forEach(function (pair) {
+        if (now[pair[0]] === prev[pair[0]]) return;
+        out.push({ key: pair[0], label: pair[1],
+          text: pair[1] + ' ' + levelFmt(pair[0], prev[pair[0]]) + ' → ' + levelFmt(pair[0], now[pair[0]]) });
+      });
+      return out.slice(0, 6);
+    }
+    // 段内真在动的是时辰与闪现（代价/信息两根支撑轴），秒表不是方向但确实是玩家要付的代价。
+    const small = [];
+    push(small, 'duration');
+    push(small, 'flashMs');
+    return small.slice(0, 2);
+  }
+
   // 节律判定只报四样玩家真看得见的东西：换章、手数、谱型、提示还剩多少。
   // 以前这里报的是「判定窗 5.5% → 5.4%」——盘面上一整局一模一样，
   // 玩家打一百多关说不出哪里变了，正是这一条要挡住的假变化。
@@ -1570,6 +1674,10 @@ function stageSpec(method, level) {
     if (q.seals) out += ' · 石皮封住 ' + q.seals + ' 格';
     // 前三段重排不限次，不必单说一句；从第四段起限次了，进段第一眼就得知道还剩几次。
     if (q.shuffleCap < 99) out += ' · 重排原价 ' + q.shuffleCap + ' 次（用尽翻倍）';
+    if (q.special) out += ' · ' + levelFmt('special', q.special);
+    if (q.goalType) out += ' · ' + levelFmt('goalType', q.goalType);
+    if (q.swapAny) out += ' · 挪苗 ' + q.swapAny + ' 次（每次 ' + q.swapCost + ' 息）';
+    if (q.twist) out += ' · 开局二选一劫变';
   }
   return out;
 }
@@ -1578,7 +1686,8 @@ function stageSpec(method, level) {
 const LEVEL_LABELS = { fourRate: '起手给 4', lineScale: 'S 线', startLevel: '起手级数', linesPerLevel: '每级层数',
   unitMs: '格长', winMs: '判定窗', bar: '每小节', bars: '小节数', hands: '手数', bpm: '速度',
   meter: '拍号', cue: '提示', scoreLabel: '谱型',
-  seals: '封印', reshuffles: '自移', hints: '照纹' };
+  seals: '封印', reshuffles: '自移', hints: '照纹',
+  special: '符箓', goalType: '本局目标', goalCount: '目标数', swapAny: '挪苗', twist: '本局劫变' };
 // lineScale 在勘禁诀里只缩 S 线，在遍观毫厘诀里缩的是整条尺子（S/A/B 与时辰）——同一个键，两种口径。
 // 写错一边，第 3 关的「本关小变化」就会说「S 线 96% → 95%」，而实际连 A 线也收了。
 function lineLabelOf(method, key) {
@@ -1610,9 +1719,12 @@ function levelFmt(key, value) {
   if (key === 'linesPerLevel') return Math.round(value) + ' 层';
   if (key === 'seals') return Math.round(value) + ' 格';
   // 99 在数据层是「不设限」的哨兵值；照抄成「99 次」玩家会以为是九十九次。
-  if (key === 'reshuffles' || key === 'hints') {
+  if (key === 'reshuffles' || key === 'hints' || key === 'swapAny') {
     return Math.round(value) >= 99 ? '不限' : Math.round(value) + ' 次';
   }
+  if (key === 'special') return ['不出符', '四连符', '同色符', '四邻符相撞'][value] || String(value);
+  if (key === 'goalType') return ['无额外目标', '收够指定色', '做出连锁', '破开石皮', '收色并连锁'][value] || String(value);
+  if (key === 'twist') return value ? '开局二选一劫变' : '无劫变';
   return fmtField(key, value);
 }
 
@@ -1842,6 +1954,8 @@ module.exports = {
   GAME_LABELS: GAME_LABELS,
   HINT_LABELS: HINT_LABELS,
   MATCH_LEVELS: MATCH_LEVELS,
+  MATCH_TWISTS: MATCH_TWISTS,
+  matchTwistChoices: matchTwistChoices,
   matchLevelOf: matchLevelOf,
   LINK_LEVELS: LINK_LEVELS,
   LINK_BUDGET: LINK_BUDGET,
@@ -1864,6 +1978,12 @@ module.exports = {
   tempoAt: tempoAt,
   tempoBpm: tempoBpm,
   LEVEL_STRUCT_KEYS: LEVEL_STRUCT_KEYS,
+  AXIS_LABELS: AXIS_LABELS,
+  AXIS_CONTENT: AXIS_CONTENT,
+  AXIS_RULE: AXIS_RULE,
+  AXIS_OF: AXIS_OF,
+  AXIS_KEY_OF: AXIS_KEY_OF,
+  AXIS_META_KEYS: AXIS_META_KEYS,
   stageSpec: stageSpec,
   TIME_LEVELS: TIME_LEVELS,
   MINES_HEARTS: MINES_HEARTS,

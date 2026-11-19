@@ -1009,6 +1009,166 @@ for (const f of files) {
   }
   if (hits) checked += 1;
 }
+// 8b-6a-4. 变化方向账：规矩写在设计原则 §13，账表在 05-axis-review §13，
+// key→方向的唯一真源在 data/practice.js。三处必须同源，否则「每门都要有 N 条方向」又是一句空话。
+{
+  const axis = practiceMod.AXIS_KEY_OF;
+  const labels = practiceMod.AXIS_LABELS;
+  const content = practiceMod.AXIS_CONTENT;
+  const rule = practiceMod.AXIS_RULE;
+  const lvMod = require(path.join(ROOT, 'data/levels.js'));
+  const ids = Object.keys(labels);
+  const parseDoc = function (name) {
+    const raw = fs.readFileSync(path.join(ROOT, name), 'utf8');
+    return raw.replace(/\*/g, '');
+  };
+  const dp = parseDoc('docs/00-foundation/02-design-principles.md');
+  const review = parseDoc('docs/50-balance/05-axis-review.md');
+  if (!/## 十三、变化方向/.test(dp) || !/## 13\. 变化方向账/.test(review)) {
+    errors.push('变化方向的规矩没立：设计原则 §13 与 05-axis-review §13 必须同时存在');
+  } else checked += 1;
+  // 门槛数字不许各写各的：改了 AXIS_RULE 就得同批改两篇文档。
+  const gateTexts = [dp, review];
+  const gates = [rule.minKinds + ' 类', rule.minContent + ' 类内容轴',
+    '≥' + rule.minStageAxes + ' 类方向', '≥' + rule.minStageContent + ' 类内容轴'];
+  gates.forEach(function (g) {
+    if (gateTexts.some(function (t) { return t.indexOf(g) < 0; })) {
+      errors.push('设计原则 §13 或方向账 §13 的门槛没跟上 AXIS_RULE：应为「' + g + '」');
+    } else checked += 1;
+  });
+  if (gateTexts.some(function (t) { return t.indexOf('AXIS_KEY_OF') < 0; })) {
+    errors.push('方向文档没指向 AXIS_KEY_OF 唯一真源，容易造出第二份手填分类');
+  } else checked += 1;
+
+  // 逐关复算：levelDelta 的每一个 key 都得归类，未归类会混进真缺口里。
+  const unknown = new Set();
+  const ledger = new Map();
+  for (const m of practiceMod.PRACTICE_METHODS) {
+    const axes = {};
+    let minStage = 99, minStageContent = 99;
+    for (let lv = 2; lv <= lvMod.LEVEL_MAX; lv += 1) {
+      const ds = practiceMod.levelDelta(m, lv).filter(function (x) {
+        return x.key !== 'start' && x.key !== 'final';
+      });
+      ds.forEach(function (x) {
+        const a = axis[x.key];
+        if (!a) unknown.add(x.key);
+        else if (labels[a]) axes[a] = true;
+      });
+      if (lvMod.stageOfLevel(lv) !== lvMod.stageOfLevel(lv - 1)) {
+        let n = 0, c = 0; const seen = {};
+        ds.forEach(function (x) {
+          const a = axis[x.key];
+          if (!a || !labels[a] || seen[a]) return;
+          seen[a] = 1; n += 1;
+          if (content.indexOf(a) >= 0) c += 1;
+        });
+        if (n < minStage) minStage = n;
+        if (c < minStageContent) minStageContent = c;
+      }
+    }
+    ledger.set(m.name, { axes: axes, n: ids.filter(function (a) { return axes[a]; }).length,
+      c: ids.filter(function (a) { return axes[a] && content.indexOf(a) >= 0; }).length,
+      minStage: minStage, minStageContent: minStageContent });
+  }
+  if (unknown.size) {
+    errors.push('levelDelta 有 key 没归类到九类方向：' + [...unknown].join(','));
+  } else checked += 1;
+
+  // 账表逐格比对：不能只查「表在不在」，要查每一格与代码现算值相等。
+  const at13 = review.indexOf('## 13. 变化方向账');
+  const nextH = at13 >= 0 ? review.indexOf('\n## ', at13 + 4) : -1;
+  const section = at13 >= 0 ? review.slice(at13, nextH < 0 ? review.length : nextH) : '';
+  const tableRows = section.split('\n').filter(function (line) {
+    if (!/^\|/.test(line)) return false;
+    const c = line.split('|').map(function (x) { return x.trim(); });
+    return c.length >= 17 && /^\d+$/.test(c[11])
+      && ids.every(function (a, i) { return c[2 + i] === '✓' || c[2 + i] === '—'; });
+  });
+  if (tableRows.length !== practiceMod.PRACTICE_METHODS.length) {
+    errors.push('05-axis-review §13 方向账行数不对：表 ' + tableRows.length
+      + ' 行，PRACTICE_METHODS ' + practiceMod.PRACTICE_METHODS.length + ' 门');
+  } else checked += 1;
+  tableRows.forEach(function (line) {
+    const cells = line.split('|').map(function (x) { return x.trim(); });
+    const name = cells[1];
+    const row = ledger.get(name);
+    if (!row) { errors.push('方向账里的门名不是 PRACTICE_METHODS.name：' + name); return; }
+    const gotAxes = ids.map(function (a, i) {
+      return (cells[2 + i] === '✓') === !!row.axes[a];
+    });
+    const ok = gotAxes.every(Boolean) && Number(cells[11]) === row.n
+      && Number(cells[12]) === row.c && Number(cells[13]) === row.minStage
+      && Number(cells[14]) === row.minStageContent;
+    if (!ok) {
+      errors.push('方向账与代码不符：' + name + ' 应为 ' + ids.map(function (a) {
+        return row.axes[a] ? '✓' : '—';
+      }).join(' ') + ' / ' + row.n + ' / ' + row.c + ' / '
+        + row.minStage + ' / ' + row.minStageContent);
+    } else checked += 1;
+  });
+}
+// 8b-6a-5. 三秀九类方向的「生效」断言：参数进了表还必须真被玩法层读。
+// 只查表里有没有这个键，会漏掉最常犯的错——生成了没人消费。
+{
+  const prSrc = fs.readFileSync(path.join(ROOT, 'data/practice.js'), 'utf8');
+  const mtSrc = fs.readFileSync(path.join(ROOT, 'minigames/match.js'), 'utf8');
+  const pgSrc = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.js'), 'utf8');
+  const wxml = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.wxml'), 'utf8');
+  const guide = fs.readFileSync(path.join(ROOT, 'data/guides.js'), 'utf8');
+  const sx = practiceMod.getMethod('harvest');
+  const lvMod = require(path.join(ROOT, 'data/levels.js'));
+  // 段表必须真给九个键：special / goalType / swapAny / twist 四条新轴缺一不可。
+  const want = { special: [0, 0, 1, 2, 3], goalType: [0, 1, 2, 3, 4],
+    swapAny: [0, 1, 1, 2, 2], twist: [0, 0, 0, 0, 2] };
+  Object.keys(want).forEach(function (k) {
+    const seq = practiceMod.MATCH_LEVELS.map(function (q) { return q[k]; });
+    if (seq.join(',') !== want[k].join(',')) {
+      errors.push('MATCH_LEVELS 的 ' + k + ' 段表不是 ' + want[k].join('/')
+        + '：' + seq.join('/'));
+    } else checked += 1;
+  });
+  // 四个键都要有消费端；只写进 out. 就算生成，没人读就是假方向。
+  [['p.special', '特效等级'], ['p.goalType', '本局目标'],
+    ['p.swapAny', '挪苗次数'], ['p.twist', '本局劫变']].forEach(function (pair) {
+    if (mtSrc.indexOf(pair[0]) < 0) {
+      errors.push('minigames/match.js 没有读 ' + pair[0] + '（' + pair[1]
+        + '只是参数表里的摆设）');
+    } else checked += 1;
+  });
+  if (!/showActive/.test(mtSrc) || !/showActive/.test(wxml) || !/onActive/.test(pgSrc)) {
+    errors.push('挪苗按钮没有从玩法层接到 WXML 再到页面事件：玩家点不到这个主动手段');
+  } else checked += 1;
+  if (!/pickTwist/.test(mtSrc) || !/onPickTwist/.test(pgSrc) || !/twistPick/.test(wxml)) {
+    errors.push('二选一劫变没有接到页面：玩法层选了，玩家却看不到两条候选');
+  } else checked += 1;
+  // 劫变一紧一松：每条都得同时有 tight 与 loose，少一边就成了纯加难/纯放水。
+  const twists = practiceMod.MATCH_TWISTS || [];
+  if (twists.length < 2 || twists.some(function (t) { return !t.tight || !t.loose; })) {
+    errors.push('MATCH_TWISTS 有条目缺「一紧一松」中的一边');
+  } else checked += 1;
+  // S 线必须随劫变后的时辰现算：抽到「穷息」还拿原分数线，等于抽卡定成败。
+  if (!/matchSLineOf\(\{ duration: duration/.test(mtSrc)) {
+    errors.push('pickTwist 改了时辰却没有重算 S 线，抽到穷息的局天然追不到 S');
+  } else checked += 1;
+  // 说明页要把四条新规则讲全，否则玩家在盘上看见符 / 目标却查不到意思。
+  ['符', '本局目标', '挪苗', '劫变'].forEach(function (word) {
+    if (guide.indexOf(word) < 0) {
+      errors.push('data/guides.js 的 match 段没讲「' + word + '」，盘上出现了玩家查不到的东西');
+    } else checked += 1;
+  });
+  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/20-minigames/13-三秀撷英诀/总览.md'), 'utf8');
+  if (!/九类方向/.test(mDoc) || !/挪苗/.test(mDoc) || !/劫变/.test(mDoc)) {
+    errors.push('13-三秀撷英诀/总览.md 没同步九类方向：符 / 目标 / 挪苗 / 劫变要同批改');
+  } else checked += 1;
+  // 方向账已经由 8b-6a-4 逐格比对；这里只钉住「达标」那一行不能悄悄写回旧账。
+  const ledger = fs.readFileSync(path.join(ROOT, 'docs/50-balance/05-axis-review.md'), 'utf8');
+  const row = ledger.split('\n').filter(function (l) { return /^\| 换苗引秀 \|/.test(l); })[0] || '';
+  if (!/\| 9 \| 7 \| 5 \| 5 \| ✓ \|/.test(row)) {
+    errors.push('方向账里换苗引秀不再是 9 类 / 7 内容轴 / 段界 5 条，九类全开的账被改回去了');
+  } else checked += 1;
+}
+
 // 8b-6b. 玩法文档目录名 = 编号 + 功法正名（照 05-吐纳周天诀），单门六篇齐全。
 // 目录名是 skills.js 里 name 的抄写，必须钉住：整批改回英文 stem 时不能静默过关。
 {

@@ -3111,6 +3111,13 @@ check('三连互换：石皮封印格换不动、不扣息、收走才解封，�
         render: function (v) { vm = v; }, finish: function () {},
       });
       ctrl.start();
+      // 圆满段开局要先二选一劫变才发盘。这里挑不改石皮数的那条，
+      // 好让「封印格数按段 2/5/9/14」这条断言仍然只量段表，不掺劫变。
+      if (vm.twistPick && vm.twistPick.length) {
+        const keepSeal = vm.twistPick.find(function (x) { return x.id === 'flood' || x.id === 'haste'; })
+          || vm.twistPick[0];
+        ctrl.pickTwist(keepSeal.id);
+      }
       return { ctrl: ctrl, vm: vm };
     };
     const sealedIdx = function (vm) {
@@ -4094,6 +4101,105 @@ check('择大辨微：数距真的造进盘面，且分色不把答案标出来'
     made.c.destroy();
     } finally { restoreClock(); }
   }
+});
+
+check('三连互换：九类方向真的生效，不是参数表里的摆设', function () {
+  // 这一条守「生成了 ≠ 生效了」：特效 / 目标 / 主动 / 劫变四个新键，
+  // 都得在真判定或真控制器里看得见。参数写进表里没人读，静态校验照样全绿。
+  const mod = require('../minigames/match.js');
+  const FX = mod.FX;
+  const m = sanxiu();
+  const cols = 6; const rows = 6; const kinds = 5;
+  const blank = function () {
+    const b = [];
+    for (let r = 0; r < rows; r += 1) for (let c = 0; c < cols; c += 1) {
+      b.push(((r * 2 + c) % kinds) + 1);
+    }
+    return b;
+  };
+
+  // 玩法结构：四连出直行、五连出同色、横竖交叉出四邻。
+  const four = blank();
+  for (let c = 0; c < 4; c += 1) four[c] = 3;
+  const s4 = mod.matchShape(four, cols, rows, 3);
+  assert.strictEqual(s4.fx, FX.row, '四连没凝出直行符');
+  const five = blank();
+  for (let c = 0; c < 5; c += 1) five[c] = 3;
+  assert.strictEqual(mod.matchShape(five, cols, rows, 4).fx, FX.rainbow, '五连没凝出同色符');
+  const cross = blank();
+  for (let c = 0; c < 3; c += 1) cross[c] = 3;
+  for (let r = 0; r < 3; r += 1) cross[r * cols] = 3;
+  assert.strictEqual(mod.matchShape(cross, cols, rows, 0).fx, FX.bomb, '横竖交叉没凝出四邻符');
+  // 符的清盘范围真落到盘上：横行符清整行，不是「换个颜色」。
+  const fxBoard = blank();
+  fxBoard[8] = FX.row;
+  const cleared = mod.triggerFx(fxBoard, cols, rows, 8, kinds, 2);
+  assert.strictEqual(cleared.length, cols, '直行符没有清整行');
+  assert.ok(cleared.indexOf(8) >= 0, '直行符自己没被消耗');
+
+  installClock();
+  try {
+    const mk = function (lv) {
+      let vm = null;
+      const ctrl = mod.create({
+        params: data.buildParamsAt(m, lv), difficulty: 1, perks: { tier: 0 },
+        tip: 't', theme: {}, render: function (v) { vm = v; }, finish: function () {},
+      });
+      return { ctrl: ctrl, get vm() { return vm; } };
+    };
+    // 目标类型：段二起 HUD 上就有本局目标，段一没有。
+    const s1 = mk(1);
+    s1.ctrl.start();
+    assert.ok(!/目标/.test(s1.vm.meter.label), '首段就摆了本局目标');
+    s1.ctrl.destroy();
+    const s2 = mk(11);
+    s2.ctrl.start();
+    assert.ok(/目标/.test(s2.vm.meter.label), '入门段没有本局目标进度');
+    assert.ok(/收够指定色/.test(mod.lines(data.buildParamsAt(m, 11)).items.join(' ')),
+      '评级卡旁没写清本局目标');
+    s2.ctrl.destroy();
+
+    // 主动手段：挪苗花息换一次不要求相邻的操作，次数用尽就不能再启。
+    let vm2 = null;
+    const c2 = mod.create({
+      params: data.buildParamsAt(m, 11), difficulty: 1, perks: { tier: 0 },
+      tip: 't', theme: {}, render: function (v) { vm2 = v; }, finish: function () {},
+    });
+    c2.start();
+    assert.ok(vm2.extras.showActive, '段二没有挪苗按钮（主动手段没生效）');
+    const before = vm2.timeText;
+    c2.active();
+    assert.ok(/点两株/.test(vm2.activeLabel), '挪苗启用了却没告诉玩家现在点两株');
+    const mv = mod.findMove(vm2.match.board.slice(), vm2.match.cols, vm2.match.rows);
+    assert.ok(mv, '开局没有可行换位');
+    c2.tap(mv[0]); c2.tap(mv[1]);
+    assert.notStrictEqual(vm2.timeText, before, '挪苗没扣息：主动手段没有代价');
+    assert.ok(/挪苗 0/.test(vm2.activeLabel), '挪苗次数没减少');
+    c2.destroy();
+
+    // 本局变数：圆满段先二选一，选完才发盘、才开始走时辰；S 线随改后的时辰现算。
+    let vm5 = null;
+    const c5 = mod.create({
+      params: data.buildParamsAt(m, 502), difficulty: 1, perks: { tier: 0 },
+      tip: 't', theme: {}, render: function (v) { vm5 = v; }, finish: function () {},
+    });
+    c5.start();
+    assert.strictEqual(vm5.phase, 'twist', '圆满段没有先让玩家二选一');
+    assert.ok(vm5.twistPick && vm5.twistPick.length === 2, '开局没有摆出两条劫变');
+    assert.ok(vm5.twistPick.every(function (x) { return x.tight && x.loose; }),
+      '劫变不是一紧一松配对（缺收紧或放开的那一项）');
+    const pick = vm5.twistPick[0];
+    c5.pickTwist(pick.id);
+    assert.strictEqual(vm5.phase, 'playing', '选完劫变还没开局');
+    assert.strictEqual(vm5.twistPick, null, '选完劫变还在弹选择框');
+    assert.ok(vm5.cells.some(function (c) { return c.crest; }), '选完劫变盘上还没有牌');
+    assert.ok(data.matchTwistChoices(502).some(function (x) { return x.id === pick.id; }),
+      '选到了不在候选里的劫变');
+    // 同一关重开还是那两条：随机只决定摆哪两条，不决定玩家抽到哪条。
+    assert.deepStrictEqual(data.matchTwistChoices(502).map(function (x) { return x.id; }),
+      data.matchTwistChoices(502).map(function (x) { return x.id; }), '同一关候选随重开变了');
+    c5.destroy();
+  } finally { restoreClock(); }
 });
 
 console.log('\n小游戏层断言全部通过（' + passed + ' 项）');

@@ -9,18 +9,31 @@
 // 无可行换位时会自动重排灵畦，绝不把玩家卡在死局里。
 
 const C = require('./common.js');
+const matchSLineOf = require('../data/practice.js').matchSLineOf;
 const K = require('./teach-kit.js');
 
 // 八张灵纹牌都在 styles/crest.wxss 里有图；这里只留数据语义（测试与读屏），不上屏。
 // 绝境档会用到第 7 张，所以这一份必须和 sprite 的 8 格对齐。
 const GLYPHS = ['✿', '❋', '✦', '◆', '●', '▲', '■', '✧'];
 
+// 特效牌编码（玩法结构轴）：普通苗是正数 1..kinds，特效牌是负数。
+// 负数不是为了省地方：特效必须跟着 collapse 一起下落，另开 special[] 就要同步搬两套状态，
+// 一漏就是「特效留在空里」。普通匹配天然跳过负数（同色判定只在正数里做），
+// 特效的清行 / 清列 / 炸弹 / 同色全消在 triggerFx 里单独走。
+const FX = { row: -1, col: -2, bomb: -3, rainbow: -4 };
+const FX_CLS = { '-1': 'row', '-2': 'col', '-3': 'bomb', '-4': 'rainbow' };
+const FX_WORD = { '-1': '直行符', '-2': '直列符', '-3': '四邻符', '-4': '同色符' };
+// 目标类型：四种会改变「同一副盘的最优解」的任务，攒分不算目标。
+// 1 收够指定色 / 2 做出几层连锁 / 3 破几格石皮 / 4 指定色与连锁都要。
+const GOAL_NAMES = { 1: '收', 2: '连锁', 3: '破皮', 4: '收+连锁' };
+function isFx(v) { return v < 0; }
+
 // 所有横 / 竖 ≥3 连的格子。纯函数：判定与测试共用，改规则不会让断言悄悄失效。
 function matchesOf(board, cols, rows) {
   const hit = {};
   const out = [];
   function mark(list) {
-    if (list.length < 3) return;
+    if (list.length < 3 || board[list[0]] <= 0) return;
     for (let i = 0; i < list.length; i += 1) hit[list[i]] = true;
   }
   for (let r = 0; r < rows; r += 1) {
@@ -43,6 +56,115 @@ function matchesOf(board, cols, rows) {
   }
   for (let i = 0; i < cols * rows; i += 1) if (hit[i]) out.push(i);
   return out;
+}
+
+// 匹配行的形状：四连生直线、五连生彩球、横竖交叉生炸弹。
+// 这是「玩法结构」这一轴的本体——凑出三连就消失只是收，凑出形状要在盘上留下东西，
+// 下一次交换才用得上。返回 { hits, spawn, fx } 供 stageClear 落子。
+function matchShape(board, cols, rows, swapAt) {
+  const runs = [];
+  function scan(line) {
+    let start = 0;
+    while (start < line.length) {
+      const v = board[line[start]];
+      if (v <= 0) { start += 1; continue; }
+      let end = start + 1;
+      while (end < line.length && board[line[end]] === v) end += 1;
+      if (end - start >= 3) {
+        runs.push({ cells: line.slice(start, end), len: end - start, v: v,
+          dir: line.dir, cross: -1 });
+      }
+      start = end;
+    }
+  }
+  for (let r = 0; r < rows; r += 1) {
+    const line = [];
+    for (let c = 0; c < cols; c += 1) line.push(r * cols + c);
+    line.dir = 'row';
+    scan(line);
+  }
+  for (let c = 0; c < cols; c += 1) {
+    const line = [];
+    for (let r = 0; r < rows; r += 1) line.push(r * cols + c);
+    line.dir = 'col';
+    scan(line);
+  }
+  const hits = [];
+  const seen = {};
+  runs.forEach(function (run) {
+    run.cells.forEach(function (i) {
+      if (!seen[i]) { seen[i] = true; hits.push(i); }
+    });
+  });
+  // 交叉（L/T）：同一格既在横三连又在竖三连里，才生成炸弹。
+  let spawn = -1;
+  let fx = 0;
+  let bombAt = -1;
+  for (const a of runs) {
+    if (a.dir !== 'row' || a.len < 3) continue;
+    for (const b of runs) {
+      if (b.dir !== 'col' || b.len < 3) continue;
+      for (const i of a.cells) {
+        if (b.cells.indexOf(i) >= 0) { bombAt = i; break; }
+      }
+      if (bombAt >= 0) break;
+    }
+    if (bombAt >= 0) break;
+  }
+  const long = runs.filter(function (r) { return r.len >= 5; });
+  if (long.length) {
+    fx = FX.rainbow;
+    // 落在这一次交换点（若交换点参与了该长连）；否则落在这条长连的中间格。
+    const r = long[0];
+    spawn = r.cells.indexOf(swapAt) >= 0 ? swapAt : r.cells[Math.floor(r.len / 2)];
+  } else if (bombAt >= 0) {
+    fx = FX.bomb;
+    spawn = bombAt;
+  } else {
+    const four = runs.filter(function (r) { return r.len === 4; });
+    if (four.length) {
+      const r = four[0];
+      fx = r.dir === 'row' ? FX.row : FX.col;
+      spawn = r.cells.indexOf(swapAt) >= 0 ? swapAt : r.cells[Math.floor(r.len / 2)];
+    }
+  }
+  return { hits: hits, spawn: spawn, fx: fx, runs: runs };
+}
+
+// 特效的清盘范围。特效被交换时本身也算「成立」，不必再凑三连——
+// 否则玩家拿着一张清行符还要再找一条三连才能用，符就成了摆设。
+function triggerFx(board, cols, rows, at, kinds, other) {
+  const hit = {};
+  const type = board[at];
+  if (type === FX.row) {
+    const r = Math.floor(at / cols);
+    for (let c = 0; c < cols; c += 1) hit[r * cols + c] = true;
+  } else if (type === FX.col) {
+    const c = at % cols;
+    for (let r = 0; r < rows; r += 1) hit[r * cols + c] = true;
+  } else if (type === FX.bomb) {
+    const r = Math.floor(at / cols);
+    const c = at % cols;
+    for (let dr = -1; dr <= 1; dr += 1) {
+      for (let dc = -1; dc <= 1; dc += 1) {
+        const nr = r + dr; const nc = c + dc;
+        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) hit[nr * cols + nc] = true;
+      }
+    }
+  } else if (type === FX.rainbow) {
+    // 彩球配谁就清谁的颜色；配的是另一张特效牌，就挑盘上最多的那一色清掉。
+    let color = other > 0 && other <= kinds ? other : 0;
+    if (!color) {
+      const count = new Array(kinds + 1).fill(0);
+      for (let i = 0; i < board.length; i += 1) {
+        if (board[i] > 0 && board[i] <= kinds) count[board[i]] += 1;
+      }
+      color = count.indexOf(Math.max.apply(null, count));
+    }
+    for (let i = 0; i < board.length; i += 1) if (board[i] === color) hit[i] = true;
+  }
+  hit[at] = true;
+  return Object.keys(hit).map(Number);
 }
 
 function adjacent(a, b, cols) {
@@ -68,6 +190,9 @@ function findMove(board, cols, rows, sealed) {
         if (nr >= rows || nc >= cols) continue;
         const b = nr * cols + nc;
         if (lock && lock[b]) continue;
+        // 特效牌不靠凑三连生效：它与任意相邻牌交换都能引爆，所以它也是「有步可走」。
+        // 死局判定认这一点，否则盘上明明握着清行符却被判死局重排，符就白给了。
+        if (isFx(board[a]) || isFx(board[b])) return [a, b];
         if (board[a] === board[b]) continue;
         const va = board[a];
         const vb = board[b];
@@ -182,17 +307,21 @@ function create(ctx) {
   const cols = Math.max(4, p.cols || 6);
   const rows = Math.max(4, p.rows || 6);
   const n = cols * rows;
-  const kinds = Math.min(GLYPHS.length, Math.max(3, p.kinds || 5));
+  // kinds 等六项是 let：圆满段的二选一劫变在开局前改它们，改完才发盘、才开始计时。
+  let kinds = Math.min(GLYPHS.length, Math.max(3, p.kinds || 5));
   const stage = typeof perks.tier === 'number' ? perks.tier : 0;
   // 五档各改什么，全部由 data/practice.js 的 MATCH_LEVELS 注入；这里一个数字都不写死，
   // 否则准备页写「本段 55 息」、局内却按 60 息跑，玩家会以为规则骗人。
-  const duration = Math.max(25, p.duration || 60);
+  let duration = Math.max(25, p.duration || 60);
   const missCost = Math.max(1, p.missCost || 2);
   const shuffleCost = Math.max(1, p.shuffleCost || 3);
   // 大成起的两个新旋钮：石皮封印格数与「原价重排」的次数（99 = 不限，前三段就是 99）。
   // 都由 data/practice.js 的 MATCH_LEVELS 按段注入，段内不变；玩法层不写死。
-  const sealCount = Math.max(0, Math.round(p.seals || 0));
+  let sealCount = Math.max(0, Math.round(p.seals || 0));
   const shuffleCap = typeof p.shuffleCap === 'number' ? Math.max(0, Math.round(p.shuffleCap)) : 99;
+  // 特效等级：0 不出特效（前三段），1 四连出直行/直列符，2 五连再出同色符，
+  // 3 交叉出四邻符并允许两符相撞组合。等级由段表注入，玩法层不写死。
+  let fxTier = Math.min(3, Math.max(0, Math.round(p.special || 0)));
   const hintMs = Math.max(200, p.flashMs || 760);
   // 阶段新法只把代价打薄，不取消代价（十二原则第十一节：便利必须有明码代价）。
   const hintCost = Math.max(1, (p.hintCost || 2) - (stage >= 3 ? 1 : 0));
@@ -211,10 +340,10 @@ function create(ctx) {
 
   // 一格三连 12 分，连锁每层 ×(1 + 0.5×(层数-1))；一局打得顺能收十几次。
   // S 线的基数与每档增量由 data/practice.js 的 params 同源送入，准备页照同一份数写给玩家看。
-  const lim = gradeLimits(p);
-  const sLimit = lim.s;
-  const aLimit = lim.a;
-  const bLimit = lim.b;
+  let lim = gradeLimits(p);
+  let sLimit = lim.s;
+  let aLimit = lim.a;
+  let bLimit = lim.b;
 
   const bag = C.TimerBag();
   let board = new Array(n).fill(0);
@@ -228,6 +357,28 @@ function create(ctx) {
   // 原价重排只剩几次：用尽后仍可重排（绝不把玩家卡死），但代价翻倍。
   // 注意「原价」不是「免费」——前三段每次重排本来就扣 shuffleCost，这里只是不涨价。
   let shufflesLeft = shuffleCap;
+  // 目标类型：这一局不再只是「攒够分」，还要在时辰里收够某色 / 做出几层连锁 / 破几格石皮。
+  // 完成只给一次性加分，不返息——改的是「这一手该换哪两株」，不是把时间压力退回去。
+  const goalType = Math.min(4, Math.max(0, Math.round(p.goalType || 0)));
+  const goalColor = Math.max(1, Math.min(kinds, Math.round(p.goalColor || 1)));
+  let goalCount = Math.max(1, Math.round(p.goalCount || 1));
+  const goalBonus = Math.max(0, Math.round(p.goalBonus || 0));
+  let goalGot = 0;
+  let goalChains = 0;
+  let goalDone = false;
+  // 主动手段：挪苗单局几次，花息换一次「不要求相邻」的挪动。
+  // 与照畦不是一回事——照畦是买信息（指出哪两株），挪苗是买一步操作（自己换哪两株）。
+  let activeMax = Math.max(0, Math.round(p.swapAny || 0));
+  const activeCost = Math.max(1, p.swapCost || 3);
+  let activeLeft = activeMax;
+  let activeMode = false;
+  let activeFirst = -1;
+  // 本局变数：圆满段开局先给两条劫变，玩家点一条才发盘、才开始走时辰。
+  const twistWanted = Math.round(p.twist || 0) > 0;
+  let twistChosen = false;
+  vm.twistPick = twistWanted ? (p.twistChoices || []).slice() : null;
+  vm.extras.showActive = activeMax > 0;
+  vm.activeLabel = '挪苗 ' + activeLeft + '（' + activeCost + ' 息）';
   // 石皮封印绑格：true 表示这一格的牌不能换。收走这一格的牌即解封。
   const sealed = new Array(n).fill(false);
   let maxChain = 0;
@@ -262,6 +413,7 @@ function create(ctx) {
       const cell = vm.cells[i];
       const gone = goneAt.indexOf(i) >= 0;
       const fall = gone ? 0 : (fallAt[i] || 0);
+      const raw = gone ? 0 : board[i];
       cell.arrow = -1;
       cell.end = false;
       cell.cls = 'cell cell--lit cell--chip'
@@ -269,15 +421,15 @@ function create(ctx) {
         + (hintPair && (hintPair[0] === i || hintPair[1] === i) ? ' cell--hintpair' : '')
         + (gone ? ' cell--clear' : '')
         + (sealed[i] && !gone ? ' cell--sealed' : '')
+        + (isFx(raw) ? ' cell--fx cell--fx-' + FX_CLS[raw] : '')
         + (fall ? ' cell--fall' + alt : '')
         + (shakeAt.indexOf(i) >= 0 ? ' cell--shake' + alt : '');
       // 空格子不许回落到第一张牌：v 为 0 时原来写 GLYPHS[v-1] || GLYPHS[0]，
       // wxml 在 crest / emblem 都为 0 时把 label 上屏，空出来的格子上就挂了个字符。
-      const v = gone ? 0 : board[i];
-      cell.label = v ? (GLYPHS[v - 1] || '') : '';
-      // 同连连看：盘面画的是纹样，label 只留数据语义。
-      cell.crest = v;
-      cell.tone = v;
+      // 特效牌（负数）也不许回落：它靠 cell--fx 的 CSS 符号认，不挂纹样。
+      cell.label = raw > 0 ? (GLYPHS[raw - 1] || '') : '';
+      cell.crest = raw > 0 ? raw : 0;
+      cell.tone = raw > 0 ? raw : 0;
       // 下落距离与这一格该花多久都交给样式：一格和十格同一个时长会读成瞬移。
       cell.fall = fall;
       cell.fd = fall
@@ -289,6 +441,7 @@ function create(ctx) {
 
   function syncHud() {
     vm.timeText = C.mmss(Math.max(0, left));
+    vm.activeLabel = '挪苗 ' + activeLeft + '（' + activeCost + ' 息）' + (activeMode ? ' · 点两株' : '');
     vm.progress = C.pct(duration - left, duration);
     vm.progressText = Math.max(0, left) + ' 息';
     vm.scoreText = '得分 ' + score;
@@ -296,14 +449,22 @@ function create(ctx) {
     vm.comboText = maxChain >= 2 ? '最高连锁 ' + maxChain : '';
     vm.gradeNow = C.gradeBy(score, sLimit, aLimit, bLimit);
     vm.goal = C.goalFor(vm.gradeNow, Math.max(0, sLimit - score), '分');
-    vm.meter = { label: '已收灵草', value: Math.min(100, harvested), max: 100 };
+    if (goalType) {
+      const val = goalType === 2 ? goalChains : goalGot;
+      vm.meter = { label: '目标 ' + GOAL_NAMES[goalType] + ' ' + goalText(), value: Math.min(goalCount, val), max: goalCount,
+        detail: goalDone ? '已达成' : '' };
+    } else {
+      vm.meter = { label: '已收灵草', value: Math.min(100, harvested), max: 100 };
+    }
     // 封印剩几格与原价重排剩几次要一直看得见：收走封印格的牌才解封，
     // 玩家得知道自己是在跟一副「换不动」的盘较劲。
     let sealLeft = 0;
     for (let i = 0; i < n; i += 1) if (sealed[i]) sealLeft += 1;
     vm.hint = costText + ' · 无效互换 ' + mistakes + ' · 重排 ' + shuffles
       + (shuffleCap < 99 ? '（原价 ' + shufflesLeft + '）' : '')
-      + (sealLeft ? ' · 石皮 ' + sealLeft : '');
+      + (sealLeft ? ' · 石皮 ' + sealLeft : '')
+      + (activeMax ? ' · 挪苗 ' + activeLeft + '（' + activeCost + ' 息）' : '')
+      + (goalType ? ' · ' + goalText() : '');
   }
 
   function finishOnce(grade, summary) {
@@ -355,17 +516,56 @@ function create(ctx) {
       + (shuffleCap < 99 && shufflesLeft <= 0 ? '（原价重排已尽）' : ''), 'good');
   }
 
+  function goalText() {
+    if (!goalType) return '';
+    if (goalType === 1 || goalType === 4) {
+      const tail = goalType === 4 ? ' · 需连锁 3 层' : '';
+      return '收' + GLYPHS[goalColor - 1] + ' ' + Math.min(goalCount, goalGot) + '/' + goalCount + tail;
+    }
+    if (goalType === 2) return '连锁 ' + Math.min(goalCount, goalChains) + '/' + goalCount + ' 层';
+    return '破石皮 ' + Math.min(goalCount, goalGot) + '/' + goalCount;
+  }
+
+  // 目标只认「这一手真收走的」，重复连锁里收走的同一格算两次（连锁本来就是重新数）。
+  function goalAdvance(hits, chain) {
+    if (!goalType || goalDone) return;
+    if (goalType === 1 || goalType === 4) {
+      for (const i of hits) if (board[i] === goalColor) goalGot += 1;
+    }
+    if (goalType === 2) {
+      if (chain >= 2) goalChains += 1;
+    }
+    if (goalType === 3) {
+      for (const i of hits) if (sealed[i]) goalGot += 1;
+    }
+    const ok = goalType === 4
+      ? goalGot >= goalCount && maxChain >= 3
+      : (goalType === 2 ? goalChains >= goalCount : goalGot >= goalCount);
+    if (ok) {
+      goalDone = true;
+      score += goalBonus;
+      C.flash(vm, '本局目标达成 · +' + goalBonus + ' 分', 'gold');
+    }
+  }
+
   // 收走这几株：牌从盘面撤掉，格子凹下去，「这一手收在哪几格」就此留在盘上 240ms。
   // 这一个空格帧是整手唯一能看见「少了东西」的锚点——盘面两帧都是满的，
   // 只有中间真空过一段，玩家才分得清「收了」和「牌换了个位置」。
-  function stageClear(hits, chain) {
+  // spawn 是这一手凑出的特效牌：清完再落到指定格，跟着后面的 collapse 一起下落。
+  function stageClear(hits, chain, spawn) {
     harvested += hits.length;
     // 大圆满的「连收」只在第 3 层起额外加成：先打出长连锁才拿得到，不是每局白送。
     const mult = 1 + (chain - 1) * 0.5 + (chain >= 3 ? (chain - 2) * chainBonus : 0);
     const gain = Math.round(hits.length * 12 * mult);
     score += gain;
     if (chain > maxChain) maxChain = chain;
+    // 目标先看这一手的原盘：石皮解封与牌变色都在下面那一行发生。
+    goalAdvance(hits, chain);
     for (let i = 0; i < hits.length; i += 1) { board[hits[i]] = 0; sealed[hits[i]] = false; }
+    if (spawn && spawn.fx && spawn.at >= 0 && spawn.at < n) {
+      board[spawn.at] = spawn.fx;
+      sealed[spawn.at] = false;
+    }
     // 交出去的是「哪几格」：页面据此在原位迸一小把，颜色取上一帧那张牌的纹样。
     C.markCleared(vm, hits);
     goneAt = hits.slice();
@@ -377,7 +577,8 @@ function create(ctx) {
     const bright = chain > 1 || hits.length >= 4;
     const label = chain > 1 ? '连锁 ' + chain + ' 层'
       : (hits.length >= 4 ? hits.length + ' 株齐收' : '三株齐收');
-    C.flash(vm, label + ' +' + gain, bright ? 'gold' : 'good');
+    C.flash(vm, label + ' +' + gain
+      + (spawn && spawn.fx ? ' · 凝出' + FX_WORD[spawn.fx] : ''), bright ? 'gold' : 'good');
     paint();
     syncHud();
     render();
@@ -421,10 +622,68 @@ function create(ctx) {
     if (left <= 0) finish();
   }
 
+  // 主动手段：挪苗。花息换一次「不要求相邻」的换位，与照畦（买信息）不是一回事。
+  // 仍要能成立才生效——否则玩家会拿它当廉价洗牌，代价就不再是代价。
+  function active() {
+    if (done || busy || vm.phase !== 'playing') return;
+    if (activeLeft <= 0) {
+      C.flash(vm, '挪苗已尽 · 本段只剩自己换', 'bad');
+      return;
+    }
+    activeMode = !activeMode;
+    activeFirst = -1;
+    selected = -1;
+    if (activeMode) C.flash(vm, '挪苗已启：点任意两株换位 · ' + activeCost + ' 息', 'good');
+    paint();
+    syncHud();
+    render();
+  }
+
   function tap(index) {
     // 演出中不收输入：牌还在飞的时候点下一手，点到的是「即将被换掉」的位置。
     if (done || busy || vm.phase !== 'playing' || index < 0 || index >= n) return;
     clearHint();
+    if (activeMode) {
+      if (sealed[index]) {
+        activeMode = false;
+        activeFirst = -1;
+        C.flash(vm, '石皮封住 · 这一株挪不动', 'bad');
+        paint(); syncHud(); render();
+        return;
+      }
+      if (activeFirst < 0) {
+        activeFirst = index;
+        selected = index;
+        paint(); render();
+        return;
+      }
+      if (activeFirst === index) { activeMode = false; activeFirst = -1; selected = -1; paint(); render(); return; }
+      const a = activeFirst;
+      activeFirst = -1;
+      selected = -1;
+      const va = board[a]; const vb = board[index];
+      board[a] = vb; board[index] = va;
+      const fxA = isFx(va); const fxB = isFx(vb);
+      const hits = matchesOf(board, cols, rows);
+      if (!hits.length && !fxA && !fxB) {
+        board[a] = va; board[index] = vb;
+        activeMode = false;
+        C.flash(vm, '挪苗没连成三株 · 不扣息，再试', 'bad');
+        paint(); syncHud(); render();
+        return;
+      }
+      activeLeft -= 1;
+      left = Math.max(0, left - activeCost);
+      activeMode = false;
+      const all = {};
+      hits.forEach(function (i) { all[i] = true; });
+      if (fxA) triggerFx(board, cols, rows, index, kinds, vb).forEach(function (i) { all[i] = true; });
+      if (fxB) triggerFx(board, cols, rows, a, kinds, va).forEach(function (i) { all[i] = true; });
+      busy = true;
+      stageClear(Object.keys(all).map(Number), 1);
+      if (left <= 0) finish();
+      return;
+    }
     // 石皮封住的牌不能换：不扣息（玩家没做错事，是规则不让换），但必须当场说清是哪一格。
     if (sealed[index]) {
       selected = -1;
@@ -444,10 +703,12 @@ function create(ctx) {
     selected = -1;
     const va = board[a];
     const vb = board[index];
+    const fxA = isFx(va);
+    const fxB = isFx(vb);
     board[a] = vb;
     board[index] = va;
-    const hits = matchesOf(board, cols, rows);
-    if (!hits.length) {
+    let hits = matchesOf(board, cols, rows);
+    if (!hits.length && !fxA && !fxB) {
       board[a] = va;
       board[index] = vb;
       mistakes += 1;
@@ -467,7 +728,27 @@ function create(ctx) {
     }
     // 成立了：接下来是演出，一拍一拍演完才交还输入。
     busy = true;
-    stageClear(hits, 1);
+    if (fxA || fxB) {
+      // 两张符相撞就是组合：清行 + 清列 = 十字；同色符会把那一色整片带走。
+      const all = {};
+      hits.forEach(function (i) { all[i] = true; });
+      if (fxA) triggerFx(board, cols, rows, index, kinds, vb).forEach(function (i) { all[i] = true; });
+      if (fxB) triggerFx(board, cols, rows, a, kinds, va).forEach(function (i) { all[i] = true; });
+      stageClear(Object.keys(all).map(Number), 1);
+      return;
+    }
+    // 特效生成：四连直行/直列、五连同色、横竖交叉四邻。等级不够就不生成——
+    // 前两段还没有这套规则，盘上突然冒出一张符会让玩家以为进错了门。
+    let spawn = null;
+    if (fxTier > 0) {
+      const shape = matchShape(board, cols, rows, index);
+      let fx = shape.fx;
+      if (fx === FX.rainbow && fxTier < 2) fx = 0;
+      if (fx === FX.bomb && fxTier < 3) fx = shape.runs.some(function (r) { return r.len === 4; })
+        ? (shape.runs.find(function (r) { return r.len === 4; }).dir === 'row' ? FX.row : FX.col) : 0;
+      if (fx && shape.spawn >= 0) spawn = { at: shape.spawn, fx: fx };
+    }
+    stageClear(hits, 1, spawn);
   }
 
   function hint() {
@@ -490,9 +771,37 @@ function create(ctx) {
     if (left <= 0) finish();
   }
 
+  function pickTwist(id) {
+    if (done || twistChosen || vm.phase !== 'twist') return;
+    if (!(p.twistChoices || []).some(function (x) { return x.id === id; })) return;
+    twistChosen = true;
+    // 一紧一松同时生效；S 线按改后的本局时辰现算，抽到「穷息」不会还拿原分数线。
+    if (id === 'lean') { kinds = Math.max(3, kinds - 1); sealCount += 4; }
+    else if (id === 'flood') { kinds = Math.min(GLYPHS.length, kinds + 1); fxTier = Math.min(3, fxTier + 1); }
+    else if (id === 'haste') { duration = Math.max(25, duration - 5); activeMax += 1; }
+    else if (id === 'brace') { sealCount += 3; goalCount = Math.max(1, Math.round(goalCount * 0.6)); }
+    activeLeft = activeMax;
+    const s = matchSLineOf({ duration: duration, perMove: p.perMove || 60 });
+    lim = { s: s, a: Math.ceil(s * 0.68), b: Math.ceil(s * 0.40) };
+    sLimit = lim.s; aLimit = lim.a; bLimit = lim.b;
+    left = duration;
+    vm.twistPick = null;
+    begin();
+  }
+
   function start() {
     if (started) return;
     started = true;
+    if (twistWanted && !twistChosen) {
+      vm.phase = 'twist';
+      vm.status = '开局二选一劫变';
+      render();
+      return;
+    }
+    begin();
+  }
+
+  function begin() {
     vm.phase = 'playing';
     vm.status = '换两株相邻灵草，三株同色连成一线就收走';
     vm.banner = theme.banner || '';
@@ -518,6 +827,8 @@ function create(ctx) {
     start: start,
     tap: tap,
     hint: hint,
+    active: active,
+    pickTwist: pickTwist,
     abandon: function () { finishOnce('F', '中途结束'); },
     destroy: function () { bag.clear(); },
   });
@@ -535,6 +846,16 @@ function lines(p) {
   const lim = gradeLimits(p);
   const seals = p && typeof p.seals === 'number' ? p.seals : 0;
   const cap = p && typeof p.shuffleCap === 'number' ? p.shuffleCap : 99;
+  const special = p && typeof p.special === 'number' ? p.special : 0;
+  const goal = p && typeof p.goalType === 'number' ? p.goalType : 0;
+  const goalN = p && typeof p.goalCount === 'number' ? p.goalCount : 0;
+  const bonus = p && typeof p.goalBonus === 'number' ? p.goalBonus : 0;
+  const swap = p && typeof p.swapAny === 'number' ? p.swapAny : 0;
+  const swapPrice = p && typeof p.swapCost === 'number' ? p.swapCost : 3;
+  const goalLine = goal === 1 ? '本局目标：收够指定色 ' + goalN + ' 株'
+    : goal === 2 ? '本局目标：做出 ' + goalN + ' 层连锁'
+      : goal === 3 ? '本局目标：破开 ' + goalN + ' 格石皮'
+        : goal === 4 ? '本局目标：收够指定色且做出 ' + goalN + ' 层连锁' : '';
   return {
     rule: '按本局总分（无效互换只少息、不扣分；本段盘面与时辰见准备页难度栏）',
     items: [
@@ -542,9 +863,14 @@ function lines(p) {
       'A ≥ ' + lim.a + ' 分',
       'B ≥ ' + lim.b + ' 分',
       '其余为 C',
-      // 两条新机制必须写进评级卡旁边：玩家看到盘上的石皮，要能当场查到它是什么意思。
+      // 每条新机制都要在评级卡旁说清：玩家在盘上看见它，就得当场查到它是什么意思。
       seals ? '石皮封印 ' + seals + ' 格：封住的牌不能换，收走它才解封' : '',
       cap < 99 ? '重排前 ' + cap + ' 次原价，之后每次双倍扣息' : '',
+      special >= 1 ? '四连凝直行/直列符：下一次换到它就清整行/整列' : '',
+      special >= 2 ? '五连凝同色符：与哪株换位就清掉那一色' : '',
+      special >= 3 ? '横竖交叉凝四邻符：清周围一圈；两张符相撞效果叠加' : '',
+      goalLine ? goalLine + '，达成 +' + bonus + ' 分（不返息）' : '',
+      swap ? '挪苗 ' + swap + ' 次：每次 ' + swapPrice + ' 息，可换任意两株（仍须成三连）' : '',
     ].filter(Boolean),
   };
 }
@@ -556,15 +882,16 @@ const TEACH_BOARD = [1, 2, 1, 3, 1, 3, 2, 3, 2];
 const TEACH_COLS = 3;
 const TEACH_SWAP = [4, 5];
 // 五段的盘面与色数：与 data/practice 的 MATCH_LEVELS 同值。
-// 段界教学盘按本段真实规格摆：盘面、花色、罚息、石皮格数全部取本段的值。
-// 段二起就有石皮（2 / 5 / 9 / 14），所以教学盘从段二起就得让玩家看见一格封住的牌。
+// 段界教学盘按本段真实规格摆：盘面、花色、罚息、石皮、符箓、目标、挪苗、劫变全取本段的值。
+// 只摆一格石皮 / 一枚符做示范，真盘上的数量写在说明里——教学的目的是认得出，不是数得清。
 const TEACH_LEVELS = [
-  { cols: 6, rows: 6, kinds: 5, missCost: 1, seals: 0 },
-  { cols: 7, rows: 7, kinds: 6, missCost: 2, seals: 2 },
-  { cols: 8, rows: 8, kinds: 7, missCost: 2, seals: 5 },
-  { cols: 9, rows: 9, kinds: 7, missCost: 3, seals: 9 },
-  { cols: 10, rows: 10, kinds: 7, missCost: 3, seals: 14 },
+  { cols: 6, rows: 6, kinds: 5, missCost: 1, seals: 0, special: 0, goalType: 0, swapAny: 0, twist: 0 },
+  { cols: 7, rows: 7, kinds: 6, missCost: 2, seals: 2, special: 0, goalType: 1, swapAny: 1, twist: 0 },
+  { cols: 8, rows: 8, kinds: 7, missCost: 2, seals: 5, special: 1, goalType: 2, swapAny: 1, twist: 0 },
+  { cols: 9, rows: 9, kinds: 7, missCost: 3, seals: 9, special: 2, goalType: 3, swapAny: 2, twist: 0 },
+  { cols: 10, rows: 10, kinds: 7, missCost: 3, seals: 14, special: 3, goalType: 4, swapAny: 2, twist: 2 },
 ];
+const TEACH_GOAL = { 1: '收够指定色', 2: '做出连锁', 3: '破开石皮', 4: '收色并连锁' };
 
 // 段界那几盘按本段规格现铺：色按 (行+列) 取模铺开，再把底行三格摆成
 // 「A B A」——中间那株与右边一换，就是 A A A。写死这个形状而不是现抽，
@@ -604,9 +931,21 @@ function teachLayout(stage) {
       break;
     }
   }
+  // 段三起在盘上摆一枚符，只演示「它长什么样」：横杠清行。
+  // 不放在示范换位那两格、也不放底行，免得挡住「换一下就成三连」的第一步。
+  let fx = -1;
+  if (spec.special) {
+    for (let i = 0; i < board.length; i += 1) {
+      if (i === swap[0] || i === swap[1] || i === seal) continue;
+      if (Math.floor(i / spec.cols) === spec.rows - 1) continue;
+      board[i] = FX.row;
+      fx = i;
+      break;
+    }
+  }
   return {
     board: board, cols: spec.cols, rows: spec.rows,
-    swap: swap, kinds: spec.kinds, seal: seal,
+    swap: swap, kinds: spec.kinds, seal: seal, fx: fx,
   };
 }
 
@@ -615,6 +954,7 @@ function createTeach(ctx) {
   const lay = teachLayout(stage);
   const board = lay.board;
   const seal = typeof lay.seal === 'number' ? lay.seal : -1;
+  const fx = typeof lay.fx === 'number' ? lay.fx : -1;
   const cells = K.blank(lay.cols, board.length);
   let sel = -1;
   return K.run(ctx, {
@@ -623,7 +963,8 @@ function createTeach(ctx) {
     status: stage === 0
       ? '教学 · 换相邻两株，凑成三连'
       : '教学 · 这一段 ' + lay.cols + '×' + lay.rows + ' · ' + lay.kinds + ' 色'
-        + (seal >= 0 ? ' · 石皮 ' + TEACH_LEVELS[stage].seals + ' 格（这里只摆一格）' : ''),
+        + (seal >= 0 ? ' · 石皮 ' + TEACH_LEVELS[stage].seals + ' 格（这里只摆一格）' : '')
+        + (fx >= 0 ? ' · 一枚符，下一次换到它就清整行' : ''),
     steps: [
       {
         at: [lay.swap[0]],
@@ -653,12 +994,16 @@ function createTeach(ctx) {
         c.label = '';
         c.cls = i === sel ? 'cell cell--chip cell--sel' : 'cell cell--chip';
         if (i === seal) c.cls += ' cell--sealed';
+        if (i === fx) c.cls += ' cell--fx cell--fx-row';
       }
     },
     doneText: stage === 0
       ? '换位是唯一的手：换完要成三连'
       : '这一段 ' + lay.cols + '×' + lay.rows + ' · ' + lay.kinds + ' 色'
         + (seal >= 0 ? ' · 真盘上封 ' + TEACH_LEVELS[stage].seals + ' 格' : '')
+        + (TEACH_LEVELS[stage].goalType ? ' · 目标：' + TEACH_GOAL[TEACH_LEVELS[stage].goalType] : '')
+        + (TEACH_LEVELS[stage].swapAny ? ' · 挪苗 ' + TEACH_LEVELS[stage].swapAny + ' 次（花息换长手）' : '')
+        + (TEACH_LEVELS[stage].twist ? ' · 开局二选一劫变' : '')
         + ' · 换不出三连少 ' + TEACH_LEVELS[stage].missCost + ' 息',
   });
 }
@@ -668,4 +1013,5 @@ const teach = { create: createTeach };
 module.exports = {
   id: 'match', name: '三连互换', create: create, lines: lines, teach: teach,
   matchesOf: matchesOf, findMove: findMove, collapse: collapse, GLYPHS: GLYPHS,
+  matchShape: matchShape, triggerFx: triggerFx, FX: FX, isFx: isFx, FX_WORD: FX_WORD,
 };
