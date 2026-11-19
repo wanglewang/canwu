@@ -2194,6 +2194,99 @@ check('灵纹牌按剪影族取，不按 sprite 序号取；四套主题共用�
   assert.ok(/crestOf\(board\[i\], 0\)/.test(src), '教学盘没走族序映射（且没钉在第一套主题）');
 });
 
+check('三连互换按剪影族取图、按段换一整副纹样', function () {
+  const M = require('../minigames/match.js');
+  const CREST = require('../minigames/crest.js');
+  const pd = require('../data/practice.js');
+  const ld = require('../data/levels.js');
+  const src = read('minigames/match.js');
+  const sets = M.MATCH_CRESTS;
+  const method = pd.PRACTICE_METHODS.filter(function (m) { return m.game === 'match'; })[0];
+
+  // 一、七族骨架：三秀最多七色，每套七格；段内不重复、不越出 26 格。
+  // 跨段允许借到同一格（玩家不会同时看见两段），段内重复就是两色撞脸。
+  assert.strictEqual(M.MATCH_FAMILIES.length, 7, '三秀族序不是七族');
+  assert.strictEqual(sets.length, ld.STAGES.length, '五段没有各配一套纹样');
+  assert.strictEqual(CREST.MATCH_CRESTS, sets, 'match 导出的表不是共用真源那一张');
+  for (const s of sets) {
+    assert.ok(s.name && Array.isArray(s.ids), '主题缺名字或格位表');
+    assert.strictEqual(s.ids.length, M.MATCH_FAMILIES.length,
+      s.name + ' 不是七格，七色时会出现空牌');
+    assert.strictEqual(new Set(s.ids).size, s.ids.length, s.name + ' 段内出现重复格');
+    for (const id of s.ids) {
+      assert.ok(Number.isInteger(id) && id >= 1 && id <= 26, s.name + ' 的格位越界：' + id);
+    }
+  }
+
+  // 二、段间真的换了副图案：相邻两段最多只允许共享两格（借来的异纹）。
+  for (let i = 1; i < sets.length; i += 1) {
+    const prev = new Set(sets[i - 1].ids);
+    const same = sets[i].ids.filter(function (id) { return prev.has(id); }).length;
+    assert.ok(same <= 2, sets[i - 1].name + ' → ' + sets[i].name
+      + ' 只换了 ' + (7 - same) + ' 格，段界看不出换过纹样');
+  }
+
+  // 三、数据层的主题名与玩法层的格位表同序同名；段基准与按关号注入同源。
+  assert.deepStrictEqual(ld.MATCH_THEME_NAMES, sets.map(function (s) { return s.name; }),
+    '主题名表与 MATCH_CRESTS 不同序');
+  assert.strictEqual(ld.MATCH_THEME_COUNT, sets.length, '主题数与纹样套数不一致');
+  for (let st = 0; st < ld.STAGES.length; st += 1) {
+    const r = ld.stageRange(st);
+    const t0 = pd.buildParamsAt(method, r.from).theme;
+    assert.strictEqual(t0, st, '第 ' + st + ' 段段首不是本段那一套纹样');
+    for (const lv of [r.from, Math.floor((r.from + r.to) / 2), r.to]) {
+      assert.strictEqual(pd.buildParamsAt(method, lv).theme, t0,
+        '第 ' + lv + ' 关段内纹样跳套了');
+    }
+    const base = pd.buildParams(method, st);
+    assert.strictEqual(base.theme, t0, '段级读者 buildParams 没拿到本段主题');
+    // 段界常驻规格要写出本段纹样名，玩家进段第一眼知道换了哪一套。
+    if (st > 0) {
+      assert.ok(pd.stageSpec(method, r.from).indexOf(sets[st].name) >= 0,
+        '第 ' + st + ' 段常驻规格没写本段纹样');
+    }
+  }
+
+  // 四、防回归：不许再按花色序号直接取 sprite（前八格五个是果子，取前五就是一盘圆）。
+  assert.ok(!/cell\.crest = raw\b/.test(src), 'paint 又按花色序号直接取 sprite 了');
+  assert.ok(!/cell\.tone = raw\b/.test(src), 'tone 又按花色序号取了，迸溅色会串回果器');
+  assert.ok(/CREST\.matchCrestOf\(raw, crestTheme\)/.test(src), 'paint 没走族序映射');
+  assert.ok(/Math\.min\(CREST\.MATCH_FAMILIES\.length/.test(src), 'kinds 上限没读族序长度');
+  assert.ok(/CREST\.matchCrestOf\(board\[i\], stage\)/.test(src),
+    '教学盘没走族序映射，或没摆本段那一套');
+  // 迸溅色按 tone 查二十六格色表，所以 crest 与 tone 必须是同一个数。
+  assert.ok(/cell\.tone = crest;/.test(src), 'crest 与 tone 不同源，收牌会溅出错色');
+  // chip 牌面自己铺瓷白底，tone 变成 9–26 也不会被 cell--tN 的主题色染掉。
+  assert.ok(/\.cell--lit\.cell--chip \{[\s\S]*?background-color:/.test(read('pages/practice/practice.wxss')),
+    '灵纹牌没铺自己的底色，换主题后 cell--tN 会染掉牌面');
+
+  // 五、运行时：每段起一局，盘上 crest 全来自本段表、不重复、tone 跟着 crest 走。
+  for (let st = 0; st < sets.length; st += 1) {
+    const lv = ld.stageRange(st).from;
+    const q = pd.buildParamsAt(method, lv);
+    let vm = null;
+    const c = M.create({
+      params: q, difficulty: 1, perks: { tier: st }, tip: method.tip, theme: {},
+      render: function (v) { vm = v; }, finish: function () { },
+    });
+    c.start();
+    if (vm.phase === 'twist') c.pickTwist(vm.twistPick[0].id);
+    c.destroy();
+    const onBoard = new Set();
+    for (const cell of vm.cells || []) {
+      if (!cell.crest) continue;
+      assert.strictEqual(cell.tone, cell.crest, '第 ' + st + ' 段有格子的 tone 与 crest 不同');
+      onBoard.add(cell.crest);
+    }
+    assert.strictEqual(onBoard.size, q.kinds,
+      sets[st].name + ' 主题开局盘上不是 ' + q.kinds + ' 种纹');
+    for (const id of onBoard) {
+      assert.ok(sets[st].ids.indexOf(id) >= 0,
+        sets[st].name + ' 主题下盘上出现了别的段的格：' + id);
+    }
+  }
+});
+
 check('并蒂引满盘：一格缺口都不许有、对数是格数一半、段内恒定', function () {
   const L = require('../minigames/link.js');
   const ld = require('../data/levels.js');

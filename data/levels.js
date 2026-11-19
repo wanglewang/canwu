@@ -128,6 +128,16 @@ function linkThemeOf(level) {
   return Math.floor((lv - 1) / LINK_THEME_EVERY) % LINK_THEME_COUNT;
 }
 
+// 三连互换的纹样主题按段给（五段五套），段内恒定。
+// 与并蒂引的「每五关轮换」不同：消消乐段内变化交给时辰与闪现，纹样只在换段时整副换掉，
+// 让段界不用读字也看得出来。名字与格位表的顺序由 layout.test 断言，不靠人记。
+// 图案表在 minigames/crest.js 的 MATCH_CRESTS。
+const MATCH_THEME_COUNT = 5;
+const MATCH_THEME_NAMES = ['灵植', '甜点', '海洋', '灵兽', '荟萃'];
+function matchThemeOf(level) {
+  return Math.max(0, Math.min(MATCH_THEME_COUNT - 1, stageOfLevel(level)));
+}
+
 // 并蒂引：**满盘、无缺口**。
 // 这一门的盘面就该是一整块矩形——缺口只会被读成「盘被敲坏了」，不是「换了副形状」。
 // 曾经为了换盘形在边沿挖四格，四角那一副尤其像被敲掉两块；砍掉之后对数改成
@@ -205,6 +215,10 @@ function tweakParams(method, out, level) {
   if (method.game === 'link') {
     out.theme = linkThemeOf(lv);
   }
+  // 三连互换：主题按段注入，段内恒定。段界整副图案换掉，是这一门最直观的台阶。
+  if (method.game === 'match') {
+    out.theme = matchThemeOf(lv);
+  }
   return out;
 }
 
@@ -247,6 +261,9 @@ module.exports = {
   LINK_THEME_EVERY: LINK_THEME_EVERY,
   LINK_THEME_COUNT: LINK_THEME_COUNT,
   LINK_THEME_NAMES: LINK_THEME_NAMES,
+  matchThemeOf: matchThemeOf,
+  MATCH_THEME_COUNT: MATCH_THEME_COUNT,
+  MATCH_THEME_NAMES: MATCH_THEME_NAMES,
   tweakParams: tweakParams,
   legacyLevelFromProf: legacyLevelFromProf,
 };

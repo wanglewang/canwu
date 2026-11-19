@@ -11,9 +11,11 @@
 const C = require('./common.js');
 const matchSLineOf = require('../data/practice.js').matchSLineOf;
 const K = require('./teach-kit.js');
+const CREST = require('./crest.js');
 
-// 八张灵纹牌都在 styles/crest.wxss 里有图；这里只留数据语义（测试与读屏），不上屏。
-// 绝境档会用到第 7 张，所以这一份必须和 sprite 的 8 格对齐。
+// GLYPHS 只是数据里的可读代号（测试与读屏），不上屏；上屏的是 crest 位图。
+// 花色序号要按族序映射成 sprite 格位，不能拿 1..N 直接当格号 —— 前八格里
+// 五个是果子，按序号取前五就是一盘圆，去色后分不开（见 minigames/crest.js）。
 const GLYPHS = ['✿', '❋', '✦', '◆', '●', '▲', '■', '✧'];
 
 // 特效牌编码（玩法结构轴）：普通苗是正数 1..kinds，特效牌是负数。
@@ -308,7 +310,11 @@ function create(ctx) {
   const rows = Math.max(4, p.rows || 6);
   const n = cols * rows;
   // kinds 等六项是 let：圆满段的二选一劫变在开局前改它们，改完才发盘、才开始计时。
-  let kinds = Math.min(GLYPHS.length, Math.max(3, p.kinds || 5));
+  // 上限读族序长度（七族），不读 GLYPHS 的字符数：字符只是代号，族序才是「分得开」的上限。
+  let kinds = Math.min(CREST.MATCH_FAMILIES.length, Math.max(3, p.kinds || 5));
+  // 本段纹样主题由生成端按关号注入，玩法层只消费。不自己按段算兜底 ——
+  // 兜底一旦与生成端不一致，换段那关的盘面会悄悄跳一整套图，界面上查不出是哪一步错的。
+  const crestTheme = Math.max(0, Math.min(CREST.MATCH_CRESTS.length - 1, Math.round(p.theme || 0)));
   const stage = typeof perks.tier === 'number' ? perks.tier : 0;
   // 五档各改什么，全部由 data/practice.js 的 MATCH_LEVELS 注入；这里一个数字都不写死，
   // 否则准备页写「本段 55 息」、局内却按 60 息跑，玩家会以为规则骗人。
@@ -428,8 +434,12 @@ function create(ctx) {
       // wxml 在 crest / emblem 都为 0 时把 label 上屏，空出来的格子上就挂了个字符。
       // 特效牌（负数）也不许回落：它靠 cell--fx 的 CSS 符号认，不挂纹样。
       cell.label = raw > 0 ? (GLYPHS[raw - 1] || '') : '';
-      cell.crest = raw > 0 ? raw : 0;
-      cell.tone = raw > 0 ? raw : 0;
+      // crest 与 tone 都写 sprite 格位（不是花色序号）：迸溅色按 tone 查 CREST_HUE，
+      // 只能跟着那张图走；跟着花色序号走会把果器的颜色溅到甜点 / 海洋上。
+      // cell--tN 那套主题色不作用于灵纹牌（.cell--lit.cell--chip 自己铺瓷白底）。
+      const crest = raw > 0 ? CREST.matchCrestOf(raw, crestTheme) : 0;
+      cell.crest = crest;
+      cell.tone = crest;
       // 下落距离与这一格该花多久都交给样式：一格和十格同一个时长会读成瞬移。
       cell.fall = fall;
       cell.fd = fall
@@ -989,8 +999,10 @@ function createTeach(ctx) {
     paint: function () {
       for (let i = 0; i < cells.length; i += 1) {
         const c = cells[i];
-        c.crest = board[i];
-        c.tone = board[i];
+        // 教学盘也走族序映射，并且摆的是本段那一套 —— 段界教学要让玩家认的就是新纹样。
+        const crest = board[i] > 0 ? CREST.matchCrestOf(board[i], stage) : 0;
+        c.crest = crest;
+        c.tone = crest;
         c.label = '';
         c.cls = i === sel ? 'cell cell--chip cell--sel' : 'cell cell--chip';
         if (i === seal) c.cls += ' cell--sealed';
@@ -1014,4 +1026,6 @@ module.exports = {
   id: 'match', name: '三连互换', create: create, lines: lines, teach: teach,
   matchesOf: matchesOf, findMove: findMove, collapse: collapse, GLYPHS: GLYPHS,
   matchShape: matchShape, triggerFx: triggerFx, FX: FX, isFx: isFx, FX_WORD: FX_WORD,
+  MATCH_CRESTS: CREST.MATCH_CRESTS, MATCH_FAMILIES: CREST.MATCH_FAMILIES,
+  matchCrestOf: CREST.matchCrestOf,
 };

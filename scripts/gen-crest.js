@@ -578,12 +578,20 @@ function baseApple(cv) {
     [63, 27], [54, 27],
   ]);
   fill(cv, body, rad(36, 44, 40, 40, [[0, lighter(red, 0.34)], [0.38, red], [1, darker(red, 0.38)]]));
+  // 顶部果洼：柄根周围一小片凹陷。没有它苹果就是个纯色圆球，缩到牌面只剩一坨红。
+  fill(cv, ell(48, 34, 9, 4), rad(48, 32, 11, 6, [[0, fade(darker(red, 0.5), 0.6)], [1, fade(darker(red, 0.5), 0)]]), { noEdge: true, clip: body });
   glow(cv, 32, 50, 9, 17, [255, 255, 255, 255], 0.55);
   glow(cv, 66, 74, 8, 10, [255, 255, 255, 255], 0.1);
+  // 底部萼影：一道短弧，给圆身一个「坐得住」的底，不与顶部果洼抢主体。
+  fill(cv, stroke(arc(48, 87, 11, 4, 0.2, Math.PI - 0.2, 16), 2, 1.4), fade(darker(red, 0.42), 0.3), { noEdge: true, clip: body });
   fill(cv, stroke([[48, 33], [49, 23], [53, 16]], 2.3, 1.6), rgb('#6b4a2f'), { edge: 1.2 });
+  // 柄上一道受光 + 叶脉（一条主脉两条侧脉）。叶脉是「画完了」最直接的信号。
+  fill(cv, stroke([[49, 30], [50, 23]], 1.2, 0.8), fade(rgb('#d8b98a'), 0.65), { noEdge: true });
   const leaf = smoothPoly([[52, 20], [63, 12], [76, 17], [64, 27]], 0.24);
   fill(cv, leaf, lin(52, 12, 76, 27, [[0, rgb('#86bd52')], [0.55, rgb('#68a13c')], [1, rgb('#4b7f2c')]]));
-  fill(cv, stroke([[55, 20], [74, 17]], 0.8, 0.6), fade(rgb('#3d6b22'), 0.45), { noEdge: true });
+  fill(cv, stroke([[55, 20], [74, 17]], 1.6, 1), fade(rgb('#3d6b22'), 0.5), { noEdge: true, clip: leaf });
+  fill(cv, stroke([[61, 19.5], [63, 15]], 1.2, 0.8), fade(rgb('#3d6b22'), 0.45), { noEdge: true, clip: leaf });
+  fill(cv, stroke([[68, 18.5], [71, 15.5]], 1.2, 0.8), fade(rgb('#3d6b22'), 0.45), { noEdge: true, clip: leaf });
 }
 
 function basePear(cv) {
@@ -600,13 +608,18 @@ function basePear(cv) {
   fill(cv, body, rad(38, 56, 36, 40, [[0, lighter(yg, 0.26)], [0.42, yg], [1, darker(rgb('#8fae3f'), 0.24)]]));
   glow(cv, 36, 60, 8, 15, [255, 255, 255, 255], 0.34);
   glow(cv, 64, 76, 7, 8, [255, 255, 255, 255], 0.12);
-  // 梨皮的细点
-  for (let i = 0; i < 9; i += 1) {
-    const x = 30 + (i * 37) % 40;
-    const y = 46 + (i * 23) % 34;
-    fill(cv, circ(x, y, 0.9), fade(darker(yg, 0.3), 0.35), { noEdge: true });
-  }
-  fill(cv, stroke([[48, 17], [48, 8]], 2.4, 1.7), rgb('#6b4a2f'), { edge: 1.2 });
+  // 梨皮的细点排成疏密两档：均匀撒点像噪点，分档才像果皮的果点。
+  const pears = [[30, 46, 1.05], [44, 42, 0.8], [57, 47, 1.15], [68, 56, 0.9],
+    [34, 62, 1.3], [49, 57, 0.85], [63, 66, 1.15], [42, 72, 1.25], [55, 75, 0.95],
+    [39, 53, 0.75], [60, 58, 0.7]];
+  pears.forEach(function (d) {
+    fill(cv, circ(d[0], d[1], d[2]), fade(darker(yg, 0.3), 0.35), { noEdge: true });
+  });
+  // 柄弯一下并加受光，柄根压一道果洼弧：直挺挺一根线是「简笔画」的观感。
+  fill(cv, stroke([[48, 17], [46.5, 11], [50, 6]], 2.4, 1.5), rgb('#6b4a2f'), { edge: 1.2 });
+  fill(cv, stroke([[48, 15], [47, 10]], 1, 0.7), fade(rgb('#d8b98a'), 0.55), { noEdge: true });
+  fill(cv, stroke(arc(48, 17, 7, 3, Math.PI * 0.12, Math.PI * 0.88, 14), 1.8, 1.2),
+    fade(darker(yg, 0.34), 0.4), { noEdge: true, clip: body });
 }
 
 function baseGrape(cv) {
@@ -622,8 +635,15 @@ function baseGrape(cv) {
   ];
   balls.forEach(function (b) {
     orb(cv, b[0], b[1], b[2], b[2], gp, { hi: 0.5 });
+    // 每颗果子底部一道贴着相邻球的暗弧：果粒之间有了 shading，才不读成一摊同色圆点。
+    fill(cv, stroke(arc(b[0], b[1] + b[2] * 0.34, b[2] * 0.7, b[2] * 0.55, Math.PI * 0.15, Math.PI * 0.85, 10), 1.6, 1.1),
+      fade(darker(gp, 0.4), 0.42), { noEdge: true });
   });
   glow(cv, 34, 42, 10, 7, [255, 255, 255, 255], 0.18);
+  // 叶片主脉 + 一条侧脉；梗顶端一个小结。
+  fill(cv, stroke([[50, 21], [72, 19]], 1.5, 1), fade(rgb('#3d6b22'), 0.48), { noEdge: true, clip: leaf });
+  fill(cv, stroke([[59, 20], [62, 15]], 1, 0.7), fade(rgb('#3d6b22'), 0.4), { noEdge: true, clip: leaf });
+  fill(cv, circ(48, 8, 1.8), rgb('#6f4c33'), { noEdge: true });
 }
 
 function basePeach(cv) {
@@ -645,9 +665,18 @@ function basePeach(cv) {
   fill(cv, ell(62, 70, 22, 24), rad(62, 70, 22, 24, [
     [0, fade(darker(pk2, 0.06), 0.55)], [0.6, fade(darker(pk2, 0.06), 0.3)], [1, fade(darker(pk2, 0.06), 0)],
   ]), { noEdge: true, clip: body });
-  // 桃沟：从顶凹一直划到尖底，比一根直线更有肉
-  fill(cv, stroke(quad([48, 31], [40, 58], [48, 89], 16), 1.5, 1),
+  // 桃沟：从顶凹一直划到尖底，比一根直线更有肉；旁边压一道亮边，沟才「陷」得下去。
+  fill(cv, stroke(quad([48, 31], [40, 58], [48, 89], 16), 1.7, 1.1),
     fade(darker(pk2, 0.34), 0.34), { noEdge: true });
+  fill(cv, stroke(quad([50, 33], [43, 58], [49, 86], 16), 1.3, 0.9),
+    fade([255, 246, 238, 255], 0.42), { noEdge: true, clip: body });
+  // 桃身绒毛感：一圈极短的浅色细毛，只沿轮廓内侧点，不铺满（铺满会变成噪点）。
+  for (let i = 0; i < 13; i += 1) {
+    const a = Math.PI * (0.1 + i / 12 * 0.8);
+    fill(cv, stroke([[48 + Math.cos(a) * 26, 58 + Math.sin(a) * 32],
+      [48 + Math.cos(a) * 28.5, 58 + Math.sin(a) * 34.5]], 1, 0.6),
+      fade([255, 244, 236, 255], 0.5), { noEdge: true });
+  }
   glow(cv, 33, 44, 9, 15, [255, 255, 255, 255], 0.5);
   // 双叶：一左一右，压住果顶的两个瓣
   const leafL = smoothPoly([[46, 23], [35, 14], [23, 17], [34, 26]], 0.26);
@@ -670,6 +699,13 @@ function baseOrange(cv) {
       fade([255, 248, 226, 255], 0.55), { noEdge: true, clip: circ(48, 56, 27) });
   }
   fill(cv, circ(48, 56, 4.4), fade([255, 255, 255, 255], 0.55), { noEdge: true });
+  // 橘络：瓣线之间的白色细丝，一圈放射短线让「瓣」的读数更实。
+  for (let i = 0; i < 8; i += 1) {
+    const a = i / 8 * Math.PI * 2 + 0.2 + Math.PI / 8;
+    fill(cv, stroke([[48 + Math.cos(a) * 12, 56 + Math.sin(a) * 12],
+      [48 + Math.cos(a) * 24, 56 + Math.sin(a) * 24]], 1.1, 0.7),
+      fade([255, 250, 232, 255], 0.6), { noEdge: true, clip: circ(48, 56, 26) });
+  }
   // 皮孔
   for (let i = 0; i < 10; i += 1) {
     const a = i / 10 * Math.PI * 2 + 0.5;
@@ -678,11 +714,14 @@ function baseOrange(cv) {
   glow(cv, 36, 44, 10, 8, [255, 255, 255, 255], 0.35);
   const leaf = smoothPoly([[48, 28], [62, 18], [76, 22], [62, 32]], 0.24);
   fill(cv, leaf, lin(48, 18, 76, 32, [[0, rgb('#86bd52')], [1, rgb('#4f8c30')]]));
+  fill(cv, stroke([[50, 28], [72, 23]], 1.4, 1), fade(rgb('#3d6b22'), 0.48), { noEdge: true, clip: leaf });
   fill(cv, stroke([[48, 30], [49, 24]], 2.2, 1.5), rgb('#6b4a2f'), { edge: 1.2 });
 }
 
 function baseCup(cv) {
-  const ce = rgb('#8fc0c8');
+  // 前三格果子细化后，茶盏这一路青灰明显暗了一档；基色提亮到与果子同档，
+  // 不然同一盘里五张亮牌夹一张灰牌，会被读成「这格是不是被封住了」。
+  const ce = rgb('#a6d6dd');
   // 碟
   fill(cv, ell(48, 80, 27, 5.4), lin(0, 74, 0, 86, [[0, lighter(ce, 0.3)], [1, darker(ce, 0.24)]]));
   fill(cv, ell(48, 78.5, 20, 3.2), fade(lighter(ce, 0.4), 0.8), { noEdge: true });
@@ -694,15 +733,29 @@ function baseCup(cv) {
   fill(cv, ell(48, 40.4, 19, 5.4), fade(darker(ce, 0.34), 0.9), { noEdge: true });
   fill(cv, ell(48, 40.8, 15.4, 4), lin(0, 37, 0, 45, [[0, rgb('#9ecf9a')], [1, rgb('#6fae8e')]]), { noEdge: true });
   fill(cv, ell(43, 39, 6, 1.6), fade([255, 255, 255, 255], 0.5), { noEdge: true });
+  // 茶汤涟漪：两道偏心细弧，让「杯里有液体」读得出来，不是一个青色实心块。
+  fill(cv, stroke(arc(48, 40.6, 11, 3, Math.PI * 0.15, Math.PI * 0.85, 14), 1.2, 0.8),
+    fade([255, 255, 244, 255], 0.5), { noEdge: true, clip: ell(48, 40.6, 15, 4) });
+  fill(cv, stroke(arc(52, 40.9, 6, 1.8, Math.PI * 0.2, Math.PI * 0.8, 12), 1, 0.6),
+    fade([225, 246, 232, 255], 0.6), { noEdge: true, clip: ell(48, 40.6, 15, 4) });
   // 杯壁竖纹与高光
   fill(cv, stroke([[36, 46], [39, 71]], 2.6, 2), fade([255, 255, 255, 255], 0.35), { noEdge: true });
   fill(cv, stroke([[59, 46], [57, 71]], 1.6, 1.2), fade(darker(ce, 0.3), 0.28), { noEdge: true });
+  // 杯身一道回纹带：上下两条压边 + 中间四个方块，缩到牌面仍读得出「有纹饰」。
+  fill(cv, [[32, 57], [64, 57], [64, 58.4], [32, 58.4]], fade(darker(ce, 0.34), 0.4), { noEdge: true, clip: cup });
+  fill(cv, [[32.6, 66], [63.4, 66], [63.4, 67.2], [32.6, 67.2]], fade(darker(ce, 0.34), 0.36), { noEdge: true, clip: cup });
+  for (let i = 0; i < 4; i += 1) {
+    const x = 36 + i * 8;
+    fill(cv, rrect(x, 60, 4.4, 4.4, 1), fade(darker(ce, 0.3), 0.42), { noEdge: true, clip: cup });
+  }
   // 杯足
   fill(cv, ell(48, 74.5, 13, 3), lin(0, 71, 0, 78, [[0, ce], [1, darker(ce, 0.2)]]), { edge: 1.6 });
 }
 
 function baseGourd(cv) {
-  const gd = rgb('#e0b263');
+  // 葫芦与灵芝是前八格里最暗的两张：土黄与暗红在暖玉牌上会发脏。
+  // 提亮基色与渐变尾色，保留腰间红绳那一点深，作为整格的「压住」。
+  const gd = rgb('#eec87a');
   const body = curve([
     [48, 12], [56, 17], [59, 26], [54, 36],
     [52, 40], [60, 45], [68, 54],
@@ -712,11 +765,19 @@ function baseGourd(cv) {
     [44, 40], [42, 36], [37, 26],
     [40, 17],
   ]);
-  fill(cv, body, rad(37, 42, 40, 46, [[0, lighter(gd, 0.34)], [0.4, gd], [1, darker(rgb('#b98844'), 0.24)]]));
+  fill(cv, body, rad(37, 42, 40, 46, [[0, lighter(gd, 0.32)], [0.4, gd], [1, darker(rgb('#c99b55'), 0.2)]]));
   // 腰
   fill(cv, stroke(quad([33, 41], [48, 47], [63, 41], 12), 1.4, 2.2), fade(darker(gd, 0.36), 0.5), { noEdge: true });
+  // 系绳：葫芦腰上缠一圈，两道压边把「束起来」讲清楚，这样葫芦才不像上下两个球摞一起。
+  fill(cv, stroke(arc(48, 43, 15.5, 3.4, Math.PI * 0.08, Math.PI * 0.92, 16), 3.2, 3.2),
+    rgb('#a8553c'), { edge: 1 });
+  fill(cv, stroke(arc(48, 42.4, 15.5, 3.4, Math.PI * 0.08, Math.PI * 0.92, 16), 1.1, 1.1),
+    fade(rgb('#e79b78'), 0.7), { noEdge: true });
   glow(cv, 37, 28, 7, 9, [255, 255, 255, 255], 0.4);
   glow(cv, 37, 58, 9, 14, [255, 255, 255, 255], 0.35);
+  // 下腹两道浅竖纹：给球面一点「弧度」，不是一整块平涂。
+  fill(cv, stroke(arc(48, 66, 17, 20, Math.PI * 0.62, Math.PI * 0.82, 12), 1.4, 1),
+    fade(darker(gd, 0.34), 0.28), { noEdge: true, clip: body });
   fill(cv, stroke([[48, 15], [48, 6]], 2.2, 1.6), rgb('#6b4a2f'), { edge: 1.2 });
   const leaf = smoothPoly([[50, 12], [62, 6], [74, 11], [61, 18]], 0.24);
   fill(cv, leaf, lin(50, 6, 74, 18, [[0, rgb('#86bd52')], [1, rgb('#4f8c30')]]));
@@ -726,14 +787,22 @@ function baseLingzhi(cv) {
   const cap = arc(48, 46, 31, 24, Math.PI, Math.PI * 2, 40).concat([[79, 50], [17, 50]]);
   // 柄
   fill(cv, smoothPoly([[41, 46], [55, 46], [58, 78], [52, 86], [44, 86], [38, 78]], 0.16),
-    lin(0, 46, 0, 86, [[0, rgb('#f3e2c2')], [1, rgb('#cfb287')]]));
+    lin(0, 46, 0, 86, [[0, rgb('#f8ecd2')], [1, rgb('#d8bd93')]]));
   // 伞盖
-  fill(cv, cap, rad(40, 24, 34, 30, [[0, rgb('#e0725a')], [0.45, rgb('#c9563f')], [1, rgb('#9c3f2d')]]));
+  fill(cv, cap, rad(40, 24, 34, 30, [[0, rgb('#f28b6d')], [0.45, rgb('#dc6449')], [1, rgb('#ad4832')]]));
   fill(cv, [[17, 46], [79, 46], [79, 50], [17, 50]], fade(rgb('#f6e6c8'), 0.85), { noEdge: true, clip: cap });
   // 斑点
   [[32, 34, 4.2], [51, 28, 3.6], [64, 38, 3], [44, 41, 2.6], [26, 42, 2.2]].forEach(function (p) {
     fill(cv, circ(p[0], p[1], p[2]), fade(rgb('#fbeeda'), 0.85), { noEdge: true, clip: cap });
+    // 斑点下半圈压一道暗弧：每枚斑点从「白纸圆」变成鼓起的菌盖鳞片。
+    fill(cv, stroke(arc(p[0], p[1] + 0.6, p[2] * 0.9, p[2] * 0.9, Math.PI * 0.12, Math.PI * 0.88, 10), 1.1, 0.7),
+      fade(rgb('#a8472f'), 0.5), { noEdge: true, clip: cap });
   });
+  // 年轮：两道同心弧跟着伞盖走，像树的年轮——这是灵芝「老」的唯一一处信号。
+  fill(cv, stroke(arc(48, 47, 24, 19, Math.PI * 1.06, Math.PI * 1.94, 22), 1.8, 1.2),
+    fade(darker(rgb('#9c3f2d'), 0.18), 0.34), { noEdge: true, clip: cap });
+  fill(cv, stroke(arc(48, 47, 15, 12, Math.PI * 1.08, Math.PI * 1.92, 18), 1.4, 1),
+    fade(darker(rgb('#9c3f2d'), 0.18), 0.3), { noEdge: true, clip: cap });
   // 伞下菌褶
   for (let i = 0; i < 7; i += 1) {
     const x = 26 + i * 7.4;
@@ -1494,7 +1563,13 @@ function main() {
   // 色表长度必须跟着格数走，否则迸溅色会串到别的格上。
   const visual = fs.readFileSync(path.join(ROOT, 'data/visual.js'), 'utf8');
   const hueBlock = (visual.match(/const CREST_HUE = \[[\s\S]*?\];/) || [''])[0];
-  const hueLen = (hueBlock.match(/#[0-9a-f]{6}/gi) || []).length;
+  // 注释里也会带色值（灵桃那格就注了桃身原色 #f79cb0 说明迸溅色为什么这么选），
+  // 直接数 #hex 会把 26 格数成 27、脚本卡在这里出不了图。先剥掉 // 行注释再数，
+  // 这条断言守的是「图与色表一一对应」，它自己必须先数对。
+  const hueBody = hueBlock.split(/\r?\n/).map(function (line) {
+    return line.replace(/\/\/.*$/, '');
+  }).join('\n');
+  const hueLen = (hueBody.match(/#[0-9a-f]{6}/gi) || []).length;
   if (hueLen !== total) {
     throw new Error('visual.CREST_HUE 有 ' + hueLen + ' 个颜色，图有 ' + total + ' 格 —— 两处必须一一对应');
   }

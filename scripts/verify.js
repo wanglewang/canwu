@@ -1111,13 +1111,10 @@ for (const f of files) {
 // 8b-6a-5. 三秀九类方向的「生效」断言：参数进了表还必须真被玩法层读。
 // 只查表里有没有这个键，会漏掉最常犯的错——生成了没人消费。
 {
-  const prSrc = fs.readFileSync(path.join(ROOT, 'data/practice.js'), 'utf8');
   const mtSrc = fs.readFileSync(path.join(ROOT, 'minigames/match.js'), 'utf8');
   const pgSrc = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.js'), 'utf8');
   const wxml = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.wxml'), 'utf8');
   const guide = fs.readFileSync(path.join(ROOT, 'data/guides.js'), 'utf8');
-  const sx = practiceMod.getMethod('harvest');
-  const lvMod = require(path.join(ROOT, 'data/levels.js'));
   // 段表必须真给九个键：special / goalType / swapAny / twist 四条新轴缺一不可。
   const want = { special: [0, 0, 1, 2, 3], goalType: [0, 1, 2, 3, 4],
     swapAny: [0, 1, 1, 2, 2], twist: [0, 0, 0, 0, 2] };
@@ -1167,6 +1164,65 @@ for (const f of files) {
   if (!/\| 9 \| 7 \| 5 \| 5 \| ✓ \|/.test(row)) {
     errors.push('方向账里换苗引秀不再是 9 类 / 7 内容轴 / 段界 5 条，九类全开的账被改回去了');
   } else checked += 1;
+}
+
+// 8b-6a-6. 三秀「五段各一副纹样」：表、注入、消费、文案、文档五处都要真接上。
+// 只查表里有没有五套，会漏掉最常见的错 —— 表换了，盘上还按序号取前 N 格（一盘果子）。
+{
+  const CREST = require(path.join(ROOT, 'minigames/crest.js'));
+  const lvMod = require(path.join(ROOT, 'data/levels.js'));
+  const lvSrc = fs.readFileSync(path.join(ROOT, 'data/levels.js'), 'utf8');
+  const mtSrc = fs.readFileSync(path.join(ROOT, 'minigames/match.js'), 'utf8');
+  const guide = fs.readFileSync(path.join(ROOT, 'data/guides.js'), 'utf8');
+  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/20-minigames/13-三秀撷英诀/总览.md'), 'utf8');
+  const names = lvMod.MATCH_THEME_NAMES;
+
+  // 一、真源只有一份：五套 × 七格，名字与数据层同序。
+  if (CREST.MATCH_CRESTS.length !== 5 || CREST.MATCH_FAMILIES.length !== 7) {
+    errors.push('MATCH_CRESTS 不是五套七格，换段会开出空牌或两色撞脸');
+  } else checked += 1;
+  if (JSON.stringify(names) !== JSON.stringify(CREST.MATCH_CRESTS.map(function (t) { return t.name; }))) {
+    errors.push('MATCH_THEME_NAMES 与 MATCH_CRESTS 不同序：常驻规格会报出别段的纹样名');
+  } else checked += 1;
+  // 二、生成端按段注入、玩法层真消费，不许玩法层自己按段算兜底。
+  if (!/out\.theme = matchThemeOf\(lv\)/.test(lvSrc)) {
+    errors.push('data/levels.js 没按关号注入三秀纹样主题');
+  } else checked += 1;
+  // 只查「源码里有映射调用」会漏掉最常见的回归：调用还在，cell.crest 却改回 raw，
+  // 那一行就成了没接上的死代码。必须同时钉住「crest 真的写进格子」。
+  if (!/p\.theme/.test(mtSrc) || !/CREST\.matchCrestOf\(raw, crestTheme\)/.test(mtSrc)
+      || /cell\.crest = raw\b/.test(mtSrc) || !/cell\.crest = crest;/.test(mtSrc)) {
+    errors.push('minigames/match.js 没消费 p.theme，或 paint 又按花色序号取图了');
+  } else checked += 1;
+  if (!/CREST\.matchCrestOf\(board\[i\], stage\)/.test(mtSrc)) {
+    errors.push('三秀教学盘没走族序映射，换主题那天教学盘会留在旧图上');
+  } else checked += 1;
+  // 三、运行时：段内恒定、五段各异、段界常驻规格写出本段名。
+  const method = practiceMod.getMethod('harvest');
+  let themeOk = true;
+  for (let st = 0; st < 5; st += 1) {
+    const r = lvMod.stageRange(st);
+    const t0 = practiceMod.buildParamsAt(method, r.from).theme;
+    if (t0 !== st || practiceMod.buildParamsAt(method, r.to).theme !== t0) themeOk = false;
+    if (st > 0 && practiceMod.stageSpec(method, r.from).indexOf(names[st]) < 0) themeOk = false;
+  }
+  if (!themeOk) errors.push('三秀纹样主题不是「按段恒定、段界换套、常驻规格报得出」');
+  else checked += 1;
+  // 四、玩家文案与设计文档都讲清「五段换纹样」，不许只在代码里换。
+  const matchGuide = guide.slice(guide.indexOf('  match: {'), guide.indexOf('  sudoku: {'));
+  if (!/纹样/.test(matchGuide) || !/整副/.test(matchGuide)) {
+    errors.push('data/guides.js 的 match 段没讲五段换整副纹样：盘上换了玩家查不到');
+  } else checked += 1;
+  names.forEach(function (name) {
+    if (mDoc.indexOf(name) < 0) errors.push('三秀总览没写「' + name + '」这套纹样');
+    else checked += 1;
+  });
+  ['00-未入门', '01-入门', '02-小成', '03-大成', '04-圆满'].forEach(function (stem, i) {
+    const doc = fs.readFileSync(path.join(ROOT, 'docs/20-minigames/13-三秀撷英诀/' + stem + '.md'), 'utf8');
+    if (doc.indexOf('本段纹样') < 0 || doc.indexOf(names[i]) < 0) {
+      errors.push(stem + '.md 没写本段纹样是哪一套');
+    } else checked += 1;
+  });
 }
 
 // 8b-6b. 玩法文档目录名 = 编号 + 功法正名（照 05-吐纳周天诀），单门六篇齐全。
@@ -1942,7 +1998,8 @@ if (!fs.existsSync(checklistPath)) {
 
 // 每套玩法都要导出 lines()：说明页的「C/B/A/S 各自要什么」从这里取，
 // 缺一门就退回一句「按总分评」——玩家问过的问题会原样回来。
-const SKIP_MG = ['index.js', 'common.js', 'theme.js', 'charge.js', 'teach-kit.js'];
+// crest.js 是并蒂引与三秀共用的图案表，不是一套玩法，没有 lines() 可导出。
+const SKIP_MG = ['index.js', 'common.js', 'theme.js', 'charge.js', 'teach-kit.js', 'crest.js'];
 fs.readdirSync(path.join(ROOT, 'minigames'))
   .filter(function (f) { return /\.js$/.test(f) && SKIP_MG.indexOf(f) < 0; })
   .forEach(function (f) {

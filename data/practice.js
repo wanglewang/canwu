@@ -648,6 +648,14 @@ function linkThemeNameOf(theme) {
   return names[i];
 }
 
+// 三连互换的主题名：真源在 data/levels.js 的 MATCH_THEME_NAMES，
+// 图案在 minigames/crest.js 的 MATCH_CRESTS。两处顺序由 layout.test 断言。
+function matchThemeNameOf(theme) {
+  const names = levelData.MATCH_THEME_NAMES;
+  const i = Math.max(0, Math.min(names.length - 1, Math.round(Number(theme) || 0)));
+  return names[i];
+}
+
 // 这一关每对给几息：段内沿直线收，段末接上下一段段首，全书一路只紧不松。
 // 段内进度取 0–1（段首正好是 start、段末正好是 end），不沿用 levels.js 的
 // `progressOf`——那个是「第几关 / 段长」的含首写法，段首会先扣掉一格。
@@ -1058,6 +1066,8 @@ function rawParams(method, depthIndex) {
     out.swapAny = lv.swapAny;
     out.swapCost = lv.swapCost;
     out.twist = lv.twist;
+    // 纹样主题按段给：段首关给本段那一套，段内不再轮换（由 tweakParams 按关号注入同一值）。
+    out.theme = levelData.matchThemeOf(levelData.stageRange(d.depth).from);
     // 段基准的 S 线：buildParamsAt 会在段内收紧 duration 之后重算，这里只给
     // buildParams（段级读者）一个同源的起点，不写死绝对分。
     out.sLine = matchSLineOf({ duration: lv.duration, perMove: lv.perMove });
@@ -1671,6 +1681,9 @@ function stageSpec(method, level) {
   // 所以放在常驻规格里，不去抢 levelDelta 那三条额度。
   if (method && method.game === 'match') {
     const q = buildParamsAt(method, level);
+    // 换段那一整副图案也换掉；这是按段恒定、不进 levelDelta 额度的规则量，
+    // 和石皮 / 重排次数一样挂在常驻规格里。
+    out += ' · 本段纹样「' + matchThemeNameOf(q.theme) + '」';
     if (q.seals) out += ' · 石皮封住 ' + q.seals + ' 格';
     // 前三段重排不限次，不必单说一句；从第四段起限次了，进段第一眼就得知道还剩几次。
     if (q.shuffleCap < 99) out += ' · 重排原价 ' + q.shuffleCap + ' 次（用尽翻倍）';
