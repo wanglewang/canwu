@@ -167,6 +167,18 @@ function battleStoneFactor(n) {
 // （15 门功法，靠机缘集齐要上千局，而灵石买齐只要几百场切磋）。
 const FORTUNE_SCROLL_RATE = 0.012;
 
+// ---------------------------------------------------------------- 一次性发放
+// 全服一份，发过就记账。存档里的 `gifts` 记着发过哪些 id，发放时按 id 查一遍，
+// 记过的不再发——所以「重开一次就多一份」不会发生。
+//
+// 量级说明（发之前先看清这笔钱买得到什么）：全库灵石去处只有「藏经阁那门功法 70
+// + 三次布阵 60/120/240 = 490」。1000 枚等于把能买的都买了，还剩下 510 枚，
+// 按 QI_PER_STONE 能换五万一千点灵力。它抹掉的不是某个卡点，是「攒灵石」这条线
+// 本身——所以只能发一次，不能做成可重复的日常；重复发放等于把切磋与秘境架空。
+const GIFTS = [
+  { id: 'stone1000-2026-11', stone: 1000 },
+];
+
 // ---------------------------------------------------------------- 灵石：功法与突破
 // 藏经阁功法的价格只收灵石（写在 data/skills.js 的 source.cost.stone）。
 // 突破布阵的价目：筑基 / 金丹 / 元婴，按目标境界下标取。
@@ -206,6 +218,7 @@ module.exports = {
   FORTUNE_SCROLL_RATE: FORTUNE_SCROLL_RATE,
   QI_PER_STONE: QI_PER_STONE,
   qiFromStone: qiFromStone,
+  GIFTS: GIFTS,
   BREAKTHROUGH_STONE: BREAKTHROUGH_STONE,
   BREAKTHROUGH_REFUND: BREAKTHROUGH_REFUND,
   breakthroughStone: breakthroughStone,

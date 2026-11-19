@@ -14,6 +14,8 @@ const DEBOUNCE_MS = 1200;
 
 let state = null;
 let offlineReport = null;
+// 一次性礼包的到账凭据（只用来弹一次「钱到了」的卡，发放在引擎里、有存档记账兜底）。
+let giftReport = null;
 let cloudAdapter = null;
 const listeners = [];
 let saveTimer = null;
@@ -185,10 +187,20 @@ function settle() {
   const s = get();
   const report = game.settleOffline(s);
   if (report) offlineReport = report;
+  // 一次性礼包挂在结算这一步：此时 state 已经是最终那份（hydrate 的云端覆盖、
+  // 导入存档、冲突处理都走完了），发完立刻落盘，pending 会让云端也拿到记账。
+  const gift = game.grantGifts(s);
+  if (gift) giftReport = gift;
   saveLocal();
   scheduleCloudSave();
   notify();
   return report;
+}
+
+function consumeGiftReport() {
+  const r = giftReport;
+  giftReport = null;
+  return r;
 }
 
 function consumeOfflineReport() {
@@ -213,6 +225,7 @@ function replace(next) {
 function reset() {
   state = game.createNewState();
   offlineReport = null;
+  giftReport = null;
   saveLocal();
   flushCloud();
   notify();
@@ -330,6 +343,7 @@ async function signOut() {
     } catch (e) { /* 非小程序运行时忽略 */ }
   }
   offlineReport = null;
+  giftReport = null;
   lastCloudError = '';
   hasConflict = false;
   cloudVersion = null;
@@ -351,6 +365,7 @@ module.exports = {
   subscribe: subscribe,
   unsubscribe: unsubscribe,
   consumeOfflineReport: consumeOfflineReport,
+  consumeGiftReport: consumeGiftReport,
   setCloudAdapter: setCloudAdapter,
   setGuest: setGuest,
   getCloudError: getCloudError,

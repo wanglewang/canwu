@@ -24,6 +24,38 @@ check('新档版本为 8，带纪录、连 S 层数、五档进度与双货币�
   assert.strictEqual(game.COMBO_MAX, 10);
 });
 
+check('一次性礼包：发一次记账，重读不重发，读档本身不发', function () {
+  const economy = require('../data/economy.js');
+  assert.ok(economy.GIFTS.length > 0, '礼包表是空的，grantGifts 会永远什么都不发');
+  const gift = economy.GIFTS[0];
+  assert.ok(gift.id && gift.stone > 0, '礼包缺 id 或缺金额');
+
+  const s = game.createNewState();
+  assert.deepStrictEqual(s.gifts, {}, '新档不该预置发放记录');
+
+  // 读档不许发钱：登录后 hydrate() 会拿云端那份整个覆盖 state，若在读档里发，
+  // 每次冷启动都会把「没记账」的云端档当成没发过——重开一次赚一次。
+  const loaded = game.normalizeState(JSON.parse(JSON.stringify(s)));
+  assert.strictEqual(loaded.resources.stone, economy.START_STONE, '读档时就发了钱');
+  assert.deepStrictEqual(loaded.gifts, {}, '读档不该写发放记录');
+
+  const before = s.resources.stone;
+  const r1 = game.grantGifts(s);
+  assert.ok(r1 && r1.stone === gift.stone, '第一次没发出礼包');
+  assert.strictEqual(s.resources.stone, before + gift.stone, '灵石没加上');
+  assert.ok(s.gifts[gift.id] > 0, '发过却没记账');
+  assert.ok(s.log[0] && s.log[0].text.indexOf('灵石 +' + gift.stone) >= 0, '动向里没留这一笔');
+
+  const r2 = game.grantGifts(s);
+  assert.strictEqual(r2, null, '同一份档发了第二次');
+  assert.strictEqual(s.resources.stone, before + gift.stone, '第二次又加钱了');
+
+  // 存读一轮：记账存在，钱不多不少。
+  const again = game.normalizeState(JSON.parse(JSON.stringify(s)));
+  assert.strictEqual(again.resources.stone, before + gift.stone, '存读后余额变了');
+  assert.strictEqual(game.grantGifts(again), null, '存读后又被当成没发过');
+});
+
 check('v1 存档可迁移到 v7', function () {
   const old = game.createNewState();
   delete old.records;

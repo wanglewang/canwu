@@ -34,6 +34,9 @@ function createNewState() {
     lastPractice: { skillId: '', at: 0 },
     buff: { multiplier: 1, until: 0 },
     defeated: [],
+    // 一次性发放的记账：{ 礼包 id: 发放时间 }。只增不减，也不随版本迁移清空——
+    // 它是「这份档已经拿过哪几笔」的唯一凭据，丢了就等于又发一次。
+    gifts: {},
     stats: {
       practiceCount: 0, wins: 0, comboCount: 0,
       gradeS: 0, dailyClaimed: 0, tierUps: 0,
@@ -227,6 +230,14 @@ function normalizeState(input) {
     }
   }
   if (Array.isArray(raw.titles)) base.titles = raw.titles.filter(function (x) { return typeof x === 'string'; });
+  // 发放记账只认当前在架的礼包 id：老档里可能留着已经下线的 id，没必要一直带着；
+  // 反过来，在架的 id 一旦读进来就必须留住——它决定这笔钱还会不会再发一次。
+  if (raw.gifts && typeof raw.gifts === 'object') {
+    for (let i = 0; i < economyData.GIFTS.length; i += 1) {
+      const gid = economyData.GIFTS[i].id;
+      if (raw.gifts[gid]) base.gifts[gid] = Math.floor(num(raw.gifts[gid], Date.now()));
+    }
+  }
   if (typeof raw.equippedTitle === 'string') base.equippedTitle = raw.equippedTitle;
   if (Array.isArray(raw.log)) base.log = raw.log.slice(0, 12);
   base.lastSeen = num(raw.lastSeen, Date.now());
@@ -237,6 +248,33 @@ function normalizeState(input) {
   const cap = qiCap(base);
   if (base.resources.qi > cap) base.resources.qi = cap;
   return base;
+}
+
+// 发一次性礼包。幂等：发过就跳过，所以可以放心地挂在每次 settle 上。
+// 为什么挂在 settle 而不是挂在 normalizeState（读档）：
+//   登录后 hydrate() 会拿云端那份**整个覆盖** state。若在读档里发，云端那份
+//   （没有记账）每次冷启动都会被当成「没发过」，于是每次进来又加一千——
+//   而下一轮 flush 把带记账的档写回云端时，这一千也跟着变真，等于重开一次赚一次。
+//   挂在 settle 上，state 已经是最终那份（本地 / 云端 / 导入都收敛完了），发完即刻落盘，
+//   下一秒的 flush 会把记账一起写回云端，之后任何一台设备都不会再发。
+function grantGifts(state) {
+  if (!state || !state.resources) return null;
+  if (!state.gifts || typeof state.gifts !== 'object') state.gifts = {};
+  const got = [];
+  for (let i = 0; i < economyData.GIFTS.length; i += 1) {
+    const g = economyData.GIFTS[i];
+    if (!g || !g.id || state.gifts[g.id]) continue;
+    const stone = Math.max(0, Math.floor(num(g.stone, 0)));
+    state.resources.stone = Math.floor(num(state.resources.stone, 0)) + stone;
+    // 时间戳只用来留痕与排查「这笔钱什么时候来的」，不参与任何判定。
+    state.gifts[g.id] = Date.now();
+    addLog(state, '开山礼：灵石 +' + stone + '（全服一份，只此一次）', 'gift');
+    got.push({ id: g.id, stone: stone });
+  }
+  if (!got.length) return null;
+  let total = 0;
+  for (let i = 0; i < got.length; i += 1) total += got[i].stone;
+  return { items: got, stone: total };
 }
 
 function load() {
@@ -276,6 +314,7 @@ module.exports = {
   addLog: addLog,
   checkDaily: checkDaily,
   createNewState: createNewState,
+  grantGifts: grantGifts,
   load: load,
   migrateState: migrateState,
   normalizeState: normalizeState,

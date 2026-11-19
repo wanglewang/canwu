@@ -233,6 +233,64 @@ async function main() {
     await store.flushCloud();
   });
 
+  await check('一次性礼包挂在 settle 上：发一次、记账落盘、报告只让消费一次', async function () {
+    clearMem();
+    const economy = require('../data/economy.js');
+    const gift = economy.GIFTS[0];
+    const a = makeAdapter({ save: okSave, load: async function () { return { status: 'empty' }; } });
+    store.setCloudAdapter(a);
+    store.setGuest(false);
+    store.init();
+    // 从「刚建号」起算：settle 之前一分礼包都没有。
+    assert.strictEqual(store.get().resources.stone, economy.START_STONE);
+
+    store.settle();
+    const s = store.get();
+    assert.strictEqual(s.resources.stone, economy.START_STONE + gift.stone, 'settle 没发礼包');
+    assert.ok(s.gifts[gift.id] > 0, '发了却没记账');
+    assert.ok(store.getSyncStatus().pending, '发完没留待同步标记，云端拿不到记账就会重发');
+    const report = store.consumeGiftReport();
+    assert.ok(report && report.stone === gift.stone, '没给出到账凭据');
+    assert.strictEqual(store.consumeGiftReport(), null, '同一笔礼包的凭据被消费了两次');
+
+    // 再结算一次（每次 onShow 都会走这里）：钱与报告都不许再动。
+    store.settle();
+    assert.strictEqual(store.get().resources.stone, economy.START_STONE + gift.stone, '第二次结算又发了一份');
+    assert.strictEqual(store.consumeGiftReport(), null, '第二次结算又给了凭据');
+
+    // 记账必须真的进存储：读回来之后不能再发。
+    const reread = game.normalizeState(JSON.parse(JSON.stringify(store.get())));
+    assert.strictEqual(game.grantGifts(reread), null, '记账没落盘，存读后会重发');
+    await store.flushCloud();
+  });
+
+  await check('登录后拉回云端档：礼包不会因为「云端那份没记账」重发', async function () {
+    clearMem();
+    const economy = require('../data/economy.js');
+    const gift = economy.GIFTS[0];
+    // 云端从「更新前」开始：一份没有 gifts 记账的档。
+    let cloud = { status: 'ok', state: game.createNewState(), version: 1 };
+    const a = makeAdapter({
+      save: function (state) {
+        cloud = { status: 'ok', state: JSON.parse(JSON.stringify(state)), version: 2 };
+        return okSave();
+      },
+      load: async function () { return cloud; },
+    });
+    store.setCloudAdapter(a);
+    store.setGuest(false);
+    store.init();
+    store.settle();
+    assert.strictEqual(store.get().resources.stone, economy.START_STONE + gift.stone, '第一次没发');
+    await store.flushCloud();
+    // 再冷启动一次：hydrate 拿回来的那份已经带着记账。
+    await store.hydrate();
+    store.settle();
+    assert.strictEqual(store.get().resources.stone, economy.START_STONE + gift.stone,
+      '第二次冷启动又发了一份：记账没跟着存档上云');
+    await store.flushCloud();
+  });
+
   console.log('\nstore.test: ' + passed + ' assertions passed');
   await store.signOut();
   process.exit(0);

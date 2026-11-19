@@ -29,6 +29,7 @@ module.exports = {
   COMBO_MAX: worldData.COMBO_MAX,
   breakCombo: M.breakCombo,
   createNewState: M.createNewState,
+  grantGifts: M.grantGifts,
   normalizeState: M.normalizeState,
   migrateState: M.migrateState,
   load: M.load,

@@ -42,6 +42,8 @@ Page({
     syncTone: 'ok',
     showOffline: false,
     offline: null,
+    showGift: false,
+    gift: null,
     showExchange: false,
     exchange: null,
     copy: copy.UI,
@@ -65,6 +67,7 @@ Page({
     const self = this;
     this.tick = setInterval(function () { self.refreshIdle(); }, 30000);
     this.maybeShowOffline();
+    this.maybeShowGift();
   },
 
   // 闭关收获的弹窗。冷启动那次结算发生在 hydrate() 之后（网络回来才算），
@@ -223,10 +226,27 @@ Page({
     this.refreshIdle();
     // 结算（store.settle）是先 notify 再返回的，弹窗只能在这里补一次。
     this.maybeShowOffline();
+    this.maybeShowGift();
   },
 
   closeOffline: function () {
     this.setData({ showOffline: false, offline: null });
+    // 两个弹层排队：闭关收获在前（它是「回来第一件事」），关掉再让开山礼上来。
+    this.maybeShowGift();
+  },
+
+  // 开山礼：一次性发放。发放本身在引擎里（有存档记账，只发一次），这里只管把
+  // 「钱到了」这张卡弹出来。与闭关收获共用一套 mask/modal，所以两卡不许同时出现——
+  // 叠在一起时下面那张会被挡住，玩家会以为它没弹过。
+  maybeShowGift: function () {
+    if (this.data.showGift || this.data.showOffline) return;
+    const report = store.consumeGiftReport();
+    if (!report) return;
+    this.setData({ showGift: true, gift: { stone: report.stone } });
+  },
+
+  closeGift: function () {
+    this.setData({ showGift: false, gift: null });
   },
 
   onClaimDaily: function () {

@@ -948,6 +948,33 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   } else checked += 1;
 }
 
+// 8b-8. 一次性礼包的发放点。这一条不是「有没有这个功能」，是「发的时机对不对」：
+// 发放若落在 normalizeState（读档）里，登录后 hydrate() 用云端那份覆盖 state 时，
+// 云端存档里没有记账，就会被当成「没发过」——每次冷启动发一份，再写回云端之后
+// 那一份也坐实，等于重开一次赚一次。所以只认 store.settle() 这一个发放点。
+{
+  const ecoGift = require(path.join(ROOT, 'data/economy.js'));
+  const gifts = ecoGift.GIFTS || [];
+  if (!gifts.length) errors.push('economy.GIFTS 是空的：一次性发放没有内容');
+  else {
+    const g = gifts[0];
+    if (!g.id || !(g.stone > 0)) errors.push('礼包缺 id 或缺金额：记账键与到账数都落不下来');
+    else checked += 1;
+    const storeSrc = fs.readFileSync(path.join(ROOT, 'utils/store.js'), 'utf8');
+    if (!/game\.grantGifts\(s\)/.test(storeSrc)) {
+      errors.push('store.settle 没接 grantGifts：礼包永远不会发');
+    } else checked += 1;
+    const stSrc = fs.readFileSync(path.join(ROOT, 'utils/game/state.js'), 'utf8');
+    const normBody = stSrc.split('function normalizeState')[1].split('\nfunction ')[0];
+    if (/grantGifts\(/.test(normBody)) {
+      errors.push('normalizeState 里调了 grantGifts：登录后云端覆盖会让礼包重复发放');
+    } else checked += 1;
+    const curDoc = fs.readFileSync(path.join(ROOT, 'docs/10-systems/01-currency.md'), 'utf8');
+    if (curDoc.indexOf('开山礼') < 0 || curDoc.indexOf(String(g.stone)) < 0) {
+      errors.push('01-currency 没写开山礼的金额（' + g.stone + '）：文档与数据会各说一套');
+    } else checked += 1;
+  }
+}
 // 8b-6. 顺序点格不许替玩家标出「下一个在哪」。目标格一旦被描边，这一门就退化成
 // 「点发亮的格子」——舒尔特方格练的是目光按序扫过整盘，替它找位置等于把功课做完。
 for (const f of ['minigames/schulte.js', 'pages/practice/practice.wxss']) {

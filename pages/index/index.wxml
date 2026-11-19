@@ -124,6 +124,25 @@
     </view>
   </view>
 
+  <!-- 开山礼：钱在引擎里已经进账（存档里记了礼包 id，只发一次），这张卡只负责说清
+       「这笔钱哪来的、还会不会有」。所以按钮是「知道了」——写成「领取」会让人点完还想再点。 -->
+  <view class="mask" wx:if="{{showGift && gift}}">
+    <view class="modal">
+      <text class="modal__title">{{copy.gift.title}}</text>
+      <text class="modal__sub">{{copy.gift.sub}}</text>
+      <view class="modal__body">
+        <view class="res-line">
+          <text class="muted">{{copy.gift.stoneLabel}}</text>
+          <text class="h3 gold">+{{gift.stone}}</text>
+        </view>
+        <text class="tiny">{{copy.gift.note}}</text>
+      </view>
+      <view class="modal__actions">
+        <button class="imm-btn imm-btn--block" bindtap="closeGift">{{copy.gift.confirm}}</button>
+      </view>
+    </view>
+  </view>
+
   <!-- 灵石兑灵力：只此一向。反向（灵力换灵石）永远不开——挂机时长印钱是所有刷法的入口，
        这一条写在 data/economy.js 的文件头。 -->
   <view class="mask" wx:if="{{showExchange && exchange}}" bindtap="onCloseExchange">
