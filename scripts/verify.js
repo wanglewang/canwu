@@ -1108,6 +1108,35 @@ for (const f of files) {
     } else checked += 1;
   });
 }
+// 8b-6a-4b. 段界按「轴去重」补报：已有内容的门，四道段界都要真开两条不同轴。
+// 门槛 minStageAxes=2 取四道段界最弱那道、且按轴类别去重——报两条同轴的数（minOpt 与
+// maxOpt 都属目标轴）只算一条。这条断言钉住两件事：段界分支按轴去重补预算轴，
+// 以及归箱入阵 / 挪块开路四道段界真开出两条不同轴。改任一处都会红。
+{
+  const src = fs.readFileSync(path.join(ROOT, 'data/practice.js'), 'utf8');
+  if (!/const SEGMENT_BUDGET_KEYS = \[/.test(src)
+    || !/AXIS_KEY_OF\[x\.key\] === ax/.test(src)) {
+    errors.push('levelDelta 段界没按轴去重补预算轴：同轴两条会占满额度，段界只报一条');
+  } else checked += 1;
+  [['pushbox', '推数预算'], ['klotski', '步数预算']].forEach(function (pair) {
+    const m = practiceMod.PRACTICE_METHODS.filter(function (x) { return x.game === pair[0]; })[0];
+    let ok = !!m;
+    [11, 51, 201, 501].forEach(function (lv) {
+      if (!ok) return;
+      const seen = {};
+      const ds = practiceMod.levelDelta(m, lv);
+      ds.forEach(function (x) {
+        const a = practiceMod.AXIS_KEY_OF[x.key];
+        if (a && practiceMod.AXIS_LABELS[a]) seen[a] = 1;
+      });
+      if (Object.keys(seen).length < 2 || !ds.some(function (x) { return x.text && x.text.indexOf(pair[1]) >= 0; })) {
+        ok = false;
+      }
+    });
+    if (!ok) errors.push(pair[0] + ' 段界没真开两条不同轴，或没报「' + pair[1] + '」');
+    else checked += 1;
+  });
+}
 // 8b-6a-5. 三秀九类方向的「生效」断言：参数进了表还必须真被玩法层读。
 // 只查表里有没有这个键，会漏掉最常犯的错——生成了没人消费。
 {

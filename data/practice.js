@@ -1305,6 +1305,10 @@ const LEVEL_STRUCT_KEYS = ['cols', 'rows', 'size', 'grid', 'kinds', 'holes', 'co
   'seals', 'reshuffles', 'hints', 'special', 'goalType', 'goalCount', 'swapAny', 'twist'];
 // 沿全书关号连续收的结构旋钮不属于「本段换了哪一副盘」，换段时不与盘面规格抢那两条额度。
 const CONTINUOUS_STRUCT_KEYS = ['nearGap'];
+// 段界补报的「预算」轴：按段真跳、玩家在准备页读得懂（比最优多走几步 / 推数预算）。
+// 与结构键分开列，是因为它们段内也随收紧动，塞进 LEVEL_STRUCT_KEYS 会把段内那点微调
+// 也报成变化；段界才补这一条，凑够「同时开两条方向」而不碰时辰类放大器。
+const SEGMENT_BUDGET_KEYS = ['capFactor'];
 
 // 变化方向九类模板（跨门通用）。这是唯一真源：设计原则、方向账表、verify 断言都从这里读。
 // 判据：一条方向必须能回答「这一关在玩什么新东西」；只回答「多/少」的秒表与毫秒是放大器，不是方向。
@@ -1635,10 +1639,21 @@ function levelDelta(method, level) {
       out.push({ key: 'cols', label: '盘面', text: '盘面 ' + prev.cols + '×' + prev.rows
         + ' → ' + now.cols + '×' + now.rows });
     }
-    for (let i = 0; i < LEVEL_STRUCT_KEYS.length && out.length < 3; i += 1) {
+    for (let i = 0; i < LEVEL_STRUCT_KEYS.length && out.length < 4; i += 1) {
       const k = LEVEL_STRUCT_KEYS[i];
       if (k === 'cols' || k === 'rows' || CONTINUOUS_STRUCT_KEYS.indexOf(k) >= 0) continue;
       push(out, k);
+    }
+    // 预算系数不在结构键表里：它是「这一局允许比最优多走几步」，玩家在准备页读得懂，
+    // 段首又按段真跳（滑块 2.62→2.89、推石 1.54→1.99）。同一轴的结构键往往连报两条
+    // （minOpt 与 maxOpt 都归目标轴），按「轴是否已覆盖」补，才不会把第二条额度浪费在
+    // 同轴数字上——门槛按轴类别去重，凑够两条不同轴才算段界真开两条。
+    // 时辰/毫秒仍是放大器，换段照旧不报；这里只补预算轴，不碰它们。
+    for (let i = 0; i < SEGMENT_BUDGET_KEYS.length; i += 1) {
+      const k = SEGMENT_BUDGET_KEYS[i];
+      const ax = AXIS_KEY_OF[k];
+      const covered = out.some(function (x) { return AXIS_KEY_OF[x.key] === ax; });
+      if (!covered) push(out, k);
     }
     if (out.length === 1) {
       out.push({ key: 'sameBoard', label: '本章',
@@ -1991,6 +2006,7 @@ module.exports = {
   tempoAt: tempoAt,
   tempoBpm: tempoBpm,
   LEVEL_STRUCT_KEYS: LEVEL_STRUCT_KEYS,
+  SEGMENT_BUDGET_KEYS: SEGMENT_BUDGET_KEYS,
   AXIS_LABELS: AXIS_LABELS,
   AXIS_CONTENT: AXIS_CONTENT,
   AXIS_RULE: AXIS_RULE,

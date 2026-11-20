@@ -554,6 +554,8 @@ check('换段要报出盘面规格，不许把结构变化藏在毫秒后面', f
   // 盘面变化，旧版 levelDelta 却按 PACE_KEYS 顺序只报两条，结果第一段里报的全是
   // 「亮起时长 0.66 → 0.65 秒」，换段那次的「气窍 5 → 6 对」被挤掉，五门直接报「同」。
   const struct = practice.LEVEL_STRUCT_KEYS;
+  // 段界按轴去重补报的预算轴（capFactor）也是玩家读得懂的结构量，不是毫秒/时辰。
+  const budget = practice.SEGMENT_BUDGET_KEYS;
   for (const m of practice.PRACTICE_METHODS) {
     for (const lv of [11, 51, 201, 501]) {
       const d = practice.levelDelta(m, lv);
@@ -569,7 +571,7 @@ check('换段要报出盘面规格，不许把结构变化藏在毫秒后面', f
         // 换段时换的正是这两样（手数在 LEVEL_STRUCT_KEYS 里）。
         assert.ok(x.key === 'sameBoard' || x.key === 'cols' || x.key === 'perPair'
           || x.key === 'score' || x.key === 'cue'
-          || struct.indexOf(x.key) >= 0,
+          || struct.indexOf(x.key) >= 0 || budget.indexOf(x.key) >= 0,
         m.id + ' 第 ' + lv + ' 关把「' + x.key + '」当换段变化报了出来（那是毫秒/时辰，不是盘面）');
       }
       if (changed.length) {
