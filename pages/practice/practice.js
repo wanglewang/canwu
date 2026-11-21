@@ -1813,7 +1813,9 @@ Page({
     } else {
       const lv = this.data.level;
       const r = store.commitCritical(function (s) {
-        return engine.applyPractice(s, skillId, grade, { level: lv, score: res.score || 0 });
+        return engine.applyPractice(s, skillId, grade, {
+          level: lv, score: res.score || 0, goalMissed: res.goalMissed,
+        });
       });
       // 参悟只换熟练度，不产资源：结算卡里灵力是「花掉的」，不是「赚到的」。
       // 这一行是玩家唯一能核对的账，所以耗气的三个修正也要在同一屏写清（见 notes）。
@@ -1827,6 +1829,11 @@ Page({
         : [
           // 三连晋级取消后，这一栏就是本局实得点数，与 profAfter - profBefore 严格对齐。
           { k: '熟练度', v: r.gain > 0 ? '+' + r.gain : '已化境' },
+          // 没做成目标：熟练度照给，但关卡不往前推。这一行必须单列——
+          // 不写的话玩家会以为卡住了（进度没动），或者反过来以为过关了（有收益）。
+          // 做成了也单列：这一门是「做成即收工」，目标就是终点，结算不认它等于终点没有回执。
+          ...(res.goalDone ? [{ k: '本局目标', v: '已达成 · 收工' }]
+            : (r.goalMissed ? [{ k: '本局目标', v: '未达成 · 这一关还没通' }] : [])),
           // 打的是本门当前关就写「本关」，往回翻就写「回关」。
           // 关号是一条 1–1000 的长轴，段名只是这段读法：写「入门 · 第 3 / 1000 关」，
           // 玩家才不会以为「大成的第 3 关」与「入门的第 3 关」是同一格。
@@ -1848,7 +1855,11 @@ Page({
             v: this.data.levelChange,
           }] : []),
           { k: '灵力', v: '−' + r.qiCost + ' · 余 ' + r.qiAfter + ' / ' + r.qiMax },
-          { k: '局内得分', v: String(res.score || 0) },
+          // 这一门的分有一大半是「剩余时辰折出来的」。只报总分，玩家会以为全是自己打出来的，
+          // 也就看不懂「为什么收得少反而拿了更高档」。拆成两截，账才核得上。
+          { k: '局内得分', v: res.goalBonus > 0
+            ? Math.max(0, (res.score || 0) - res.goalBonus) + ' + 余息折 ' + res.goalBonus
+            : String(res.score || 0) },
         ];
       // 失败没给加成：这行留着会让玩家以为「崩了还蹭到了 30 分钟加速」。
       if (!r.wiped) lines.push({ k: '挂机加速', v: '×' + r.buffMultiplier.toFixed(1) + ' · 30 分钟' });
@@ -1884,6 +1895,11 @@ Page({
       if (grade === 'F') {
         notes.unshift('本局未走完，不计所得：熟练度与挂机加成不给、连 S 归零；'
           + '起手烧掉的 ' + r.qiCost + ' 点灵力不退。');
+      }
+      // 没做成目标不是失败，但也不是过关：说清「熟练度照给、关卡不推、重打不算回关」，
+      // 三件事少写一件玩家就会往坏处猜（以为白练了，或者以为进度丢了）。
+      if (r.goalMissed) {
+        notes.unshift('时辰走完还没做成目标，这一关没有往前推：熟练度照给，重打同一关不算回关、不打折。');
       }
       // 耗气要当场可复算：玩家看到「灵力 −17」，得知道这个 17 是怎么来的。
       // 只在真被修正时才展开，标准档位不啰嗦。

@@ -651,6 +651,15 @@ check('关卡由走通推进：越权回落、回关与失败都不推进、满�
   assert.strictEqual(r4.wiped, true);
   assert.strictEqual(r4.advanced, false, '失败把进度推上去了');
   assert.strictEqual(s.skills.jian.cleared, before);
+  // 没做成目标（三连互换的终点是「做成即收工」）：这一关也不算走通。
+  // 但它是「没做完」，不是「打崩」——熟练度照给，否则卡关一次就等于这一局白练。
+  const beforeMiss = s.skills.jian.cleared;
+  const r4b = game.applyPractice(s, 'jian', 'C', { level: 3, score: 40, goalMissed: true });
+  assert.strictEqual(r4b.goalMissed, true, '结算没标出「目标未达成」');
+  assert.strictEqual(r4b.advanced, false, '没做成目标却把进度推上去了');
+  assert.ok(r4b.gain > 0, '没做成目标就不给熟练度：参悟练过的功夫不该白练');
+  assert.strictEqual(s.skills.jian.cleared, beforeMiss);
+  assert.ok(!r4b.fortune, '没走通还能拾到残卷：那「没过」就只是句空话');
   // 满关不越界：重打第 1000 关不再推进，也不会算出第 1001 关。
   const t = game.createNewState();
   t.skills.jian.cleared = L.LEVEL_MAX;
@@ -1182,11 +1191,14 @@ check('三连互换：五档整表同管盘面、时辰、罚息与 S 线，不�
     assert.ok(lv[i].missCost >= lv[i - 1].missCost, '第 ' + (i + 1) + ' 档罚息反而轻了');
     assert.ok(lv[i].hintCost >= lv[i - 1].hintCost && lv[i].shuffleCost >= lv[i - 1].shuffleCost,
       '第 ' + (i + 1) + ' 档辅助代价反而轻了');
-    // S 线不再是一张绝对分表：它 = 每手均分 × 可用手数 × 0.72，按本盘产出现算。
-    // 所以「越难越低」这条旧口径作废——真正要守的是「每一档要求的操作强度相同」。
-    assert.ok(lv[i].perMove > 0, '第 ' + (i + 1) + ' 档没有每手均分：S 线没有依据');
+    // S 线不再是一张绝对分表：它 = 每手均分 × 可用手数 × 折算系数，按本盘产出现算。
+    // perMove 只是把「一手」换算成分数的尺度，不再是评级的目标值。
+    assert.ok(lv[i].perMove > 0, '第 ' + (i + 1) + ' 档没有每手均分：S 线没有换算尺度');
     assert.ok(lv[i].seals >= lv[i - 1].seals, '第 ' + (i + 1) + ' 档封印反而少了');
     assert.ok(lv[i].shuffleCap <= lv[i - 1].shuffleCap, '第 ' + (i + 1) + ' 档免费重排反而更多');
+    // 每档都必须有目标。这一门是「做成即收工」，没有目标的档就没有终点条件——
+    // 玩家会在那一档学会「等表走完」，而不是这一门的节奏（段一原先就是这样漏的）。
+    assert.ok(lv[i].goalType > 0, '第 ' + (i + 1) + ' 档没有本局目标：这一档没有终点条件');
   }
   assert.ok(lv[4].kinds > lv[0].kinds && lv[0].duration > lv[4].duration,
     '绝境与简单的盘面拉不开：花色 / 时辰都没变');
@@ -1210,20 +1222,30 @@ check('三连互换：五档整表同管盘面、时辰、罚息与 S 线，不�
     assert.strictEqual(practice.sLineOf(method, { novice: 1, entry: 11, minor: 51, major: 201, full: 501 }[k]),
       practice.buildParamsAt(method, { novice: 1, entry: 11, minor: 51, major: 201, full: 501 }[k]).sLine,
       k + ' 的 S 线不是同一份真源');
-    // S 线必须真由「每手均分 × 可用手数」推出来，且五档的利用率一致。
-    const moves = Math.floor(p.duration / practice.MATCH_MOVE_SEC);
-    const want = Math.round(p.perMove * moves * practice.MATCH_S_UTIL);
-    assert.ok(Math.abs(p.sLine - want) <= 1, k + ' 的 S 线没按本盘产出算：' + p.sLine + ' vs ' + want);
-    util.push(p.sLine / (p.perMove * moves));
+    // 三条线同源，而且每条都钉在「用掉几成时辰」上——不是彼此的固定倍数。
+    // 写成「A = S × 0.68」那种派生，时辰一收紧三条线会一起漂，标定就对不上。
+    const lines = practice.gradeLinesOf(p);
+    assert.strictEqual(p.sLine, lines.s, k + ' 的 S 线不是 gradeLinesOf 给的');
+    assert.ok(lines.s > lines.a && lines.a > lines.b, k + ' 的三条线没拉开');
+    const base = p.perMove * Math.floor(p.duration / practice.MATCH_MOVE_SEC);
+    ['s', 'a', 'b'].forEach(function (g) {
+      const x = practice.MATCH_GRADE_X[g];
+      const want = Math.round(base * (practice.MATCH_CLEAR_K - (practice.MATCH_CLEAR_K - 1) * x));
+      assert.ok(Math.abs(lines[g] - want) <= 1,
+        k + ' 的 ' + g + ' 线没按用时比例算：' + lines[g] + ' vs ' + want);
+    });
+    util.push(lines.s / base);
     assert.ok(practice.tipFor(method, k).indexOf('少 ' + lv[i].missCost + ' 息') >= 0,
       k + ' 的代价句还在写别的档的罚息');
     assert.ok(practice.sLineText(method, { novice: 1, entry: 11, minor: 51, major: 201, full: 501 }[k])
-      .indexOf('按本盘每手产出') >= 0,
-      k + ' 的说明没讲清 S 线是怎么来的');
+      .indexOf('做成目标即收工') >= 0,
+      k + ' 的准备页没说清终点是怎么算的');
   });
-  // 「每一段都要求同样强度的操作」= 五档的利用率同值。这条比「五档分数线各不相同」重要。
-  assert.ok(util.every(function (u) { return Math.abs(u - practice.MATCH_S_UTIL) < 0.02; }),
-    '五档的 S 线利用率不一致：' + util.map(function (u) { return u.toFixed(2); }).join('/'));
+  // 「每一段都要求同样强度的操作」= 五档的 S 线折算系数同值。
+  // 这一条比「五档分数线各不相同」重要：它守的是「一局要打成什么样」这件事不许随段变。
+  const sFactor = practice.MATCH_CLEAR_K - (practice.MATCH_CLEAR_K - 1) * practice.MATCH_GRADE_X.s;
+  assert.ok(util.every(function (u) { return Math.abs(u - sFactor) < 0.02; }),
+    '五档的 S 线折算系数不一致：' + util.map(function (u) { return u.toFixed(2); }).join('/'));
   // 代价句按档变，不许五档共用一句写死的「少 2 息」。
   assert.strictEqual(new Set(keys.map(function (k) { return practice.tipFor(method, k); })).size, 3);
   assert.strictEqual(practice.tipFor(practice.getMethod('forge'), 'novice'),

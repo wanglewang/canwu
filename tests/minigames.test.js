@@ -3196,6 +3196,172 @@ check('三连互换：石皮封印格换不动、不扣息、收走才解封，�
   } finally { restoreClock(); }
 });
 
+check('三连互换：灵种不能换、不进三连、随空位下落，落底即收并收工', function () {
+  // 圆满段的目标从「数颜色」换成了「引苗落底」：盘上几枚灵种全落到底行才算达成。
+  // 这一条的失败方式是「参数进了表、盘上没摆」或「摆了但永远不动」——
+  // 前者玩家看不到目标，后者目标变成做不到的数。两头都得钉住。
+  const mod = require('../minigames/match.js');
+  installClock();
+  try {
+    // 纯函数层：灵种不是特效、不进三连、跟着 collapse 往下走。
+    assert.ok(mod.isSeed(mod.FX.seed) && !mod.isSeed(mod.FX.row), 'isSeed 认错了牌');
+    assert.ok(!mod.isFx(mod.FX.seed), '灵种被当成了特效（玩家能拿它当炸弹使）');
+    // 第一列整列是灵种：只要它被当成一种「牌」，这里就会读出一条竖三连。
+    // 其余两列各不相同，保证这条断言只可能因为灵种而红。
+    const nb = [mod.FX.seed, 1, 2, mod.FX.seed, 2, 3, mod.FX.seed, 3, 1];
+    assert.strictEqual(mod.matchesOf(nb, 3, 3).length, 0, '灵种被算进了三连');
+    const cb = new Array(9).fill(1);
+    cb[0] = mod.FX.seed;
+    cb[3] = 0;
+    assert.strictEqual(mod.collapse(cb, 3, 3, 4, null, null)[3], mod.FX.seed,
+      '灵种没跟着下方的空位落下来（它会永远停在原格）');
+    assert.deepStrictEqual(mod.seedsAtBottom([1, 1, 1, 1, 1, 1, 1, 1, mod.FX.seed], 3, 3), [8],
+      'seedsAtBottom 没认出底行那一枚');
+    // 本列塌一格，灵种沉一格；没塌的列不许动。
+    // 这一条是「灵种会动」的唯一真源：只靠 collapse 的按空位下压，
+    // 随机盘上下半部几乎不参与消除，灵种会永远停在原格（实测 200 局 0 次落底）。
+    const sb = [1, 2, 1, 2, 1, 2, 1, 2, 1];
+    sb[3] = mod.FX.seed;
+    mod.sinkSeeds(sb, 3, 3, [1, 0, 0], null);
+    assert.strictEqual(sb[6], mod.FX.seed, '本列塌了，灵种却没往下沉');
+    assert.strictEqual(sb[3], 1, '灵种沉下去之后，原位没换成下面那一张（等于凭空多出一格）');
+    const sb2 = [1, 2, 1, 2, 1, 2, 1, 2, 1];
+    sb2[3] = mod.FX.seed;
+    mod.sinkSeeds(sb2, 3, 3, [0, 0, 0], null);
+    assert.strictEqual(sb2[3], mod.FX.seed, '这一列没塌，灵种却动了');
+
+    // 圆满段盘上要有 goalCount 枚灵种，且都不在底行（摆底行等于目标白给）。
+    let vm = null;
+    const p = data.buildParamsAt(sanxiu(), 501);
+    const ctrl = mod.create({
+      params: p, difficulty: 4, perks: { tier: 4 }, tip: 't', theme: {},
+      render: function (v) { vm = v; }, finish: function () {},
+    });
+    ctrl.start();
+    if (vm.twistPick && vm.twistPick.length) {
+      // 挑不改目标枚数的那条，好让「灵种数 = 目标数」只量段表。
+      const keep = vm.twistPick.find(function (x) { return x.id !== 'brace'; }) || vm.twistPick[0];
+      ctrl.pickTwist(keep.id);
+    }
+    const seedIdx = [];
+    for (let i = 0; i < vm.cells.length; i += 1) {
+      if (vm.cells[i].cls.indexOf('cell--seed') >= 0) seedIdx.push(i);
+    }
+    assert.ok(seedIdx.length > 0, '圆满段的盘上没有灵种，这个目标做不成');
+    assert.strictEqual(seedIdx.length, p.goalCount,
+      '灵种枚数与目标数不符：' + seedIdx.length + ' vs ' + p.goalCount);
+    assert.ok(seedIdx.every(function (i) { return Math.floor(i / vm.match.cols) < vm.match.rows - 1; }),
+      '灵种开局就摆在底行（等于白送目标）');
+
+    // 点灵种：不选中、不换、不扣息，但要说清怎么让它动。
+    const before = vm.timeText;
+    const board0 = vm.match.board.slice();
+    ctrl.tap(seedIdx[0]);
+    assert.strictEqual(vm.match.first, -1, '灵种格被选中了');
+    assert.deepStrictEqual(vm.match.board, board0, '灵种被换动了');
+    assert.strictEqual(vm.timeText, before, '点了一下灵种就扣息了');
+    assert.ok(/灵种/.test((vm.fx && vm.fx.text) || ''), '点灵种没有任何说明，玩家只会以为没点上');
+    ctrl.destroy();
+
+    // 达成即收工：目标压到「收 1 株同色」，几手之内必然触发。
+    // 这一条钉三件事：① 达成之后这一局真的结束，不再让玩家继续打；
+    // ② 结算分里含「剩余时辰折的分」；③ 浮字里说清折了多少。
+    const gp = Object.assign({}, data.buildParamsAt(sanxiu(), 11), {
+      cols: 5, rows: 5, kinds: 3, goalType: 1, goalColor: 1, goalCount: 1,
+      duration: 600, missCost: 1, shuffleCost: 1, seals: 0, special: 0, twist: 0, swapAny: 0,
+    });
+    let gvm = null;
+    let result = null;
+    const gctrl = mod.create({
+      params: gp, difficulty: 1, perks: { tier: 0 }, tip: 't', theme: {},
+      render: function (v) { gvm = v; }, finish: function (r) { result = r; },
+    });
+    gctrl.start();
+    // 不能一直用 findMove：它永远返回「从左上数第一个」那一步，
+    // 于是整局可能反复在同一处消同两种颜色，几十手一次都碰不到目标色——
+    // 那不是玩法坏了，是驱动它的手太死板。这里随机挑一步可行换位，像真人在找。
+    const anyMove = function (bd, lcols, lrows) {
+      const cand = [];
+      for (let r = 0; r < lrows; r += 1) {
+        for (let c = 0; c < lcols; c += 1) {
+          const a = r * lcols + c;
+          for (const d of [[0, 1], [1, 0]]) {
+            const nr = r + d[0];
+            const nc = c + d[1];
+            if (nr >= lrows || nc >= lcols) continue;
+            const b = nr * lcols + nc;
+            const va = bd[a];
+            const vb = bd[b];
+            if (va === vb || va <= 0 || vb <= 0) continue;
+            bd[a] = vb; bd[b] = va;
+            const ok = mod.matchesOf(bd, lcols, lrows).length > 0;
+            bd[a] = va; bd[b] = vb;
+            if (ok) cand.push([a, b]);
+          }
+        }
+      }
+      return cand.length ? cand[Math.floor(Math.random() * cand.length)] : null;
+    };
+    let hit = false;
+    for (let t = 0; t < 80 && !hit; t += 1) {
+      const mv = anyMove(gvm.match.board.slice(), gvm.match.cols, gvm.match.rows);
+      if (!mv) break;
+      gctrl.tap(mv[0]);
+      gctrl.tap(mv[1]);
+      // 一句「目标达成」要等这一手彻底演完才报（见 settle）：达成可能夹在连锁里。
+      // 判据读仪表而不是浮字：浮字会被同一手的连锁句换掉，仪表一直挂着「已达成」。
+      advance(9000);
+      if (/已达成/.test((gvm.meter && gvm.meter.detail) || '')) hit = true;
+    }
+    assert.ok(hit, '连走 80 手都没收到目标色，收工这条没被验证到'
+      + '｜最后一句浮字=' + ((gvm.fx && gvm.fx.text) || '无')
+      + '｜ended=' + !!result + '｜meter=' + JSON.stringify(gvm.meter));
+    // 报账之后停一拍必须自己收工——不推进假时钟的话 busy 还挂着，所以推一拍。
+    advance(2000);
+    assert.ok(result, '目标达成后这一局没有收工：还在让玩家继续打');
+    assert.ok(/折 \d+ 分/.test(gvm.fx.text || ''), '达成了却没在浮字里说清剩余时辰折了多少分：' + gvm.fx.text);
+    assert.strictEqual(result.goalDone, true, '结算里没标出「这一局是做成目标收的工」');
+    assert.ok(result.goalBonus > 0, '结算里没有剩余时辰折出来的分：' + result.goalBonus);
+    assert.ok(result.score >= result.goalBonus + 12,
+      '结算总分没把这一手真收的株算进去：' + result.score + ' vs 折算 ' + result.goalBonus);
+    // 收工之后不许再有输入被接住：接住了就等于「达成还能继续打」，终点又软回去。
+    const boardAfter = gvm.match.board.slice();
+    gctrl.tap(0);
+    gctrl.tap(1);
+    assert.deepStrictEqual(gvm.match.board, boardAfter, '收工之后还能继续换牌');
+    gctrl.destroy();
+
+    // 落底收走：极小的双色盘上，灵种那一列几手之内必然被消到，
+    // 落到底行后必须真的「收走并记账」——不是停在底行当一块死格。
+    // 这一条抓的是「生成了但没消费」：盘上摆了、也会下落，但没人把它算进目标进度。
+    const sp = Object.assign({}, data.buildParamsAt(sanxiu(), 501), {
+      cols: 4, rows: 4, kinds: 2, goalType: 5, goalCount: 1,
+      duration: 999, seals: 0, special: 0, twist: 0, swapAny: 0,
+      missCost: 1, shuffleCost: 1,
+    });
+    let svm = null;
+    let sResult = null;
+    const sctrl = mod.create({
+      params: sp, difficulty: 1, perks: { tier: 0 }, tip: 't', theme: {},
+      render: function (v) { svm = v; }, finish: function (r) { sResult = r; },
+    });
+    sctrl.start();
+    let landed = false;
+    for (let t = 0; t < 220 && !landed; t += 1) {
+      const mv = mod.findMove(svm.match.board.slice(), svm.match.cols, svm.match.rows);
+      if (!mv) break;
+      sctrl.tap(mv[0]);
+      sctrl.tap(mv[1]);
+      advance(900);
+      // 落底即达成、达成即收工：结算里的 goalDone 是「真被收走并记了账」的最硬证据。
+      if (sResult && sResult.goalDone) landed = true;
+      else if (svm.meter && svm.meter.value >= 1) landed = true;
+    }
+    assert.ok(landed, '灵种在 220 手里一次都没落到底行（它根本不会动，或者落到了没人收）');
+    sctrl.destroy();
+  } finally { restoreClock(); }
+});
+
 check('两门的评级说明都写清「反悔封顶」，玩家查得到', function () {
   // 说明页照抄 lines().items，局内只在复位时 flash 一句；少这一条，
   // 玩家复位后会以为还能拿 S，结算给 A 就成了「凭什么」。
@@ -4147,10 +4313,12 @@ check('三连互换：九类方向真的生效，不是参数表里的摆设', f
       });
       return { ctrl: ctrl, get vm() { return vm; } };
     };
-    // 目标类型：段二起 HUD 上就有本局目标，段一没有。
+    // 目标类型：每段都有本局目标。终点是「做成即收工」，没有目标的段就没有终点条件——
+    // 那一段的玩家会学成「等表走完」，而不是这一门的节奏。段一是「收灵草」，不指定色。
     const s1 = mk(1);
     s1.ctrl.start();
-    assert.ok(!/目标/.test(s1.vm.meter.label), '首段就摆了本局目标');
+    assert.ok(/目标/.test(s1.vm.meter.label), '首段没有本局目标：这一档没有终点条件');
+    assert.ok(/收灵草/.test(s1.vm.meter.label), '首段的目标不是「收灵草」：' + s1.vm.meter.label);
     s1.ctrl.destroy();
     const s2 = mk(11);
     s2.ctrl.start();
@@ -4160,9 +4328,11 @@ check('三连互换：九类方向真的生效，不是参数表里的摆设', f
     s2.ctrl.destroy();
 
     // 主动手段：挪苗花息换一次不要求相邻的操作，次数用尽就不能再启。
+    // 这一条只验挪苗的代价，所以把石皮关掉：段二盘上有 2 格封住的牌，
+    // findMove 返回的第一对可能正好踩在封格上，点了不扣息——那会让这条断言变成看运气。
     let vm2 = null;
     const c2 = mod.create({
-      params: data.buildParamsAt(m, 11), difficulty: 1, perks: { tier: 0 },
+      params: Object.assign({}, data.buildParamsAt(m, 11), { seals: 0 }), difficulty: 1, perks: { tier: 0 },
       tip: 't', theme: {}, render: function (v) { vm2 = v; }, finish: function () {},
     });
     c2.start();

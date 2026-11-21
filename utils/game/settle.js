@@ -162,8 +162,12 @@ function applyPractice(state, skillId, grade, options) {
   // 三连 S 晋级已取消：火候不再被「补额」跳过，只由上面这一局的实得点数一格格涨。
   rec.prof += gain;
 
-  // 走通本门当前关才推进：失败不推、回关不推、走完 1000 关不推。一局只推一关。
-  const advanced = !wiped && playedNo === curNo && cleared < levelData.LEVEL_MAX;
+  // 做成目标才算走通。三连互换的终点是「做成即收工」，时辰走到头还没做成就是这一关没过：
+  // 熟练度照给（参悟只换熟练度，练过的功夫不会白练），但进度不推。
+  // 不报 F 是有意的：F 是「一局打崩」，没做完目标不是打崩，判成 F 会让玩家以为整局白打。
+  const goalMissed = !!opts.goalMissed;
+  // 走通本门当前关才推进：失败不推、回关不推、没做成目标不推、走完 1000 关不推。一局只推一关。
+  const advanced = !wiped && !goalMissed && playedNo === curNo && cleared < levelData.LEVEL_MAX;
   if (advanced) rec.cleared = cleared + 1;
   const stageBefore = levelData.stageIndexOfCleared(cleared);
   const stageAfter = levelData.stageIndexOfCleared(cleared + (advanced ? 1 : 0));
@@ -191,6 +195,8 @@ function applyPractice(state, skillId, grade, options) {
   if (afterTier > beforeTier) {
     state.stats.tierUps += (afterTier - beforeTier);
     addLog(state, skill.name + ' 参悟至「' + worldData.TIERS[afterTier].name + '」', 'tier');
+  } else if (goalMissed) {
+    addLog(state, '参悟 ' + skill.name + '，目标未达成，这一关还没通（熟练度 +' + gain + '）', 'practice');
   } else if (wiped) {
     // 不能说「熟练度 +0」：玩家会以为是自己眼睛看错了，而不是这一局作废。
     addLog(state, '参悟 ' + skill.name + ' 失败，本局无所得', 'practice');
@@ -212,9 +218,9 @@ function applyPractice(state, skillId, grade, options) {
   // 机缘：只在石阶上拾得残卷，**不给灵力也不给灵石**。
   // 参悟是纯支出——灵力只从闭关与份例来、灵石只从切磋与秘境来。参悟里再冒出一笔资源，
   // 等于给「练功」开了第二条印钞线，玩家又会回到「一直练、资源自己涨」的老路上。
-  // 失败不触发：整局作废还能拾到残卷，等于零收益只是句空话。
+  // 失败不触发，没做成目标也不触发：整局没走通还能拾到残卷，等于「没过」只是句空话。
   let fortune = null;
-  if (!wiped) {
+  if (!wiped && !goalMissed) {
     const locked = [];
     for (let i = 0; i < skillData.SKILLS.length; i += 1) {
       const s = skillData.SKILLS[i];
@@ -245,6 +251,8 @@ function applyPractice(state, skillId, grade, options) {
     stageBeforeName: levelData.stageNameOfCleared(cleared),
     // 失败＝作废：页面据此把收益行显示成「无」，而不是一排 +0。
     wiped: wiped,
+    // 没做成目标：熟练度照给，但这一关不往上推。页面要单独写一行，不然玩家以为关卡卡住了。
+    goalMissed: goalMissed,
     gradeTitle: copy.GRADE_TITLE[grade] || '粗浅',
     gradeColor: worldData.GRADE_COLOR[grade] || '#8a8f83',
     skillName: skill.name,

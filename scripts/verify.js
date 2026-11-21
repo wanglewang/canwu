@@ -1145,7 +1145,7 @@ for (const f of files) {
   const wxml = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.wxml'), 'utf8');
   const guide = fs.readFileSync(path.join(ROOT, 'data/guides.js'), 'utf8');
   // 段表必须真给九个键：special / goalType / swapAny / twist 四条新轴缺一不可。
-  const want = { special: [0, 0, 1, 2, 3], goalType: [0, 1, 2, 3, 4],
+  const want = { special: [0, 0, 1, 2, 3], goalType: [6, 1, 2, 3, 5],
     swapAny: [0, 1, 1, 2, 2], twist: [0, 0, 0, 0, 2] };
   Object.keys(want).forEach(function (k) {
     const seq = practiceMod.MATCH_LEVELS.map(function (q) { return q[k]; });
@@ -1173,9 +1173,10 @@ for (const f of files) {
   if (twists.length < 2 || twists.some(function (t) { return !t.tight || !t.loose; })) {
     errors.push('MATCH_TWISTS 有条目缺「一紧一松」中的一边');
   } else checked += 1;
-  // S 线必须随劫变后的时辰现算：抽到「穷息」还拿原分数线，等于抽卡定成败。
-  if (!/matchSLineOf\(\{ duration: duration/.test(mtSrc)) {
-    errors.push('pickTwist 改了时辰却没有重算 S 线，抽到穷息的局天然追不到 S');
+  // 三条评级线必须随劫变后的时辰现算：抽到「穷息」还拿原分数线，等于抽卡定成败。
+  // 现在走的是 gradeLinesOf（三条线同源），所以这里钉的是它，不是某一条线。
+  if (!/gradeLinesOf\(\{ duration: duration/.test(mtSrc)) {
+    errors.push('pickTwist 改了时辰却没有重算评级线，抽到穷息的局天然追不到 S');
   } else checked += 1;
   // 说明页要把四条新规则讲全，否则玩家在盘上看见符 / 目标却查不到意思。
   ['符', '本局目标', '挪苗', '劫变'].forEach(function (word) {

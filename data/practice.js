@@ -502,46 +502,68 @@ const MINES_HEARTS = MINES_LEVELS.map(function (lv) { return lv.hearts; });
 // 是照旧盘标定的；盘换成 9×9 / 10×10 后，每手能收的株数与连锁都变了，同一条绝对分
 // 在最后一段只剩「三秒动一手也能 S」：实测第 1000 关 42 息、随机合法手 3 秒一手仍得 1021 分，
 // 而 S 线是 950——评级线形同虚设，越到后面越松。
-// 现在 sLine = 每手均分 × 本局可用手数 × 目标利用率：
-//   perMove 是「每手平均得分」的实测值（随机合法手跑满一手到无连锁为止，取总得分 ÷ 总手数），
-//   再按第一段锚到 66 等比缩放：66 / 62 / 48 / 50 / 53。
-//   它**不随段单调下降**（10×10 一次能消更多株），这是实的——别拿它当难度看，看总分。
-//   MATCH_MOVE_SEC 是「一手从看到落定」的节奏，含 0.4 息动画；
-//   MATCH_S_UTIL 是 S 线要求的操作窗口利用率——0.72 意味着约 1.7 息必须落一手。
-// 盘越大、色越多，每手落的株数变了；但可用手数跟着时辰变，所以 S 线守的是
-// 「每一段都要求同样强度的操作」——这才是玩家能自己算出来的那条线。
-// 标定口径不变：高手约 75–95% 拿得到、常人 5–25%，由 tests/rank.test.js 守。
-// 同上探针复核过分离度：1.2 息一手五档全 S；3 息一手五档全不 S。中间那一档才是评级该分的地方。
+// 2026-11-20 起，这一门是「达成即收工」：目标达成的瞬间这一局就结束，
+// **不必打满时辰**；没打掉的那部分时辰按 MATCH_CLEAR_K 折成分数。
+// 于是评级问的不再是「时限内攒了多少分」，而是「用掉了几成时辰就做成了目标」。
+//   perMove 是「每手平均得分」的实测值，只用来把「一手」换算成分数尺度；
+//   MATCH_MOVE_SEC 是一手从看到落定的节奏（含 0.4 息动画）；
+//   MATCH_CLEAR_K 是剩余每息折算成几手产出的溢价——大于 1 才有意义：
+//     等于 1 时「早收工」与「打满」完全等价，玩家无感，等于没改。
+//   MATCH_GRADE_X 是三条评级线各自对应的「用掉的时辰比例」，0.40 / 0.65 / 0.90：
+//     S = 四成时辰内做成，A = 六成半，B = 九成；用光时辰才做成是 C。
+// 这个口径把「未达成」自然压到 C 以下：没有剩余时辰可折，总分只剩实际收株，
+// 达不到 B 线。所以本条改动必须与「未达成不算走通」同批落地，否则目标又变成彩头。
+// 标定口径：高手约 75–95% 拿得到 S、常人 5–25%，由 tests/rank.test.js 守。
 const MATCH_MOVE_SEC = 1.2;
-const MATCH_S_UTIL = 0.72;
+const MATCH_CLEAR_K = 2.5;
+const MATCH_GRADE_X = { s: 0.4, a: 0.65, b: 0.9 };
 const MATCH_LEVELS = [
   // 玩法结构 / 目标 / 主动 / 本局变数四条新轴都在这里按段注入，玩法层只读不写死。
-  // special 0→3：四连符 / 同色符 / 四邻符与相撞；goalType 0→4：无 / 收色 / 连锁 / 破皮 / 收色+连锁；
+  // special 0→3：四连符 / 同色符 / 四邻符与相撞；
+  // goalType 1/2/3/4/5/6：收色 / 连锁 / 破皮 / 收色+连锁 / 引苗落底 / 收任意色；
   // swapAny 是挪苗次数（照畦之外玩家自己挑两株的主动手段）；twist 2 = 圆满段开局二选一劫变。
+  // 段一也有目标（收任意色）：终点统一成「做成目标就收工」，入门段不该是唯一一档
+  // 没有终点条件的——那样玩家在段一学的就不是这一门的节奏，而是「等表走完」。
   { cols: 6, rows: 6, kinds: 5, duration: 68, missCost: 1, shuffleCost: 2, hintCost: 1,
     perMove: 66, seals: 0, shuffleCap: 99,
-    special: 0, goalType: 0, goalColor: 1, goalCount: 1, goalBonus: 0, swapAny: 0, swapCost: 3, twist: 0 },
+    special: 0, goalType: 6, goalColor: 1, goalCount: 100, swapAny: 0, swapCost: 3, twist: 0 },
   { cols: 7, rows: 7, kinds: 6, duration: 63, missCost: 2, shuffleCost: 3, hintCost: 2,
     perMove: 62, seals: 2, shuffleCap: 99,
-    special: 0, goalType: 1, goalColor: 1, goalCount: 16, goalBonus: 120, swapAny: 1, swapCost: 3, twist: 0 },
+    special: 0, goalType: 1, goalColor: 1, goalCount: 18, swapAny: 1, swapCost: 3, twist: 0 },
   { cols: 8, rows: 8, kinds: 7, duration: 57, missCost: 2, shuffleCost: 3, hintCost: 2,
     perMove: 48, seals: 5, shuffleCap: 99,
-    special: 1, goalType: 2, goalColor: 1, goalCount: 3, goalBonus: 180, swapAny: 1, swapCost: 3, twist: 0 },
+    special: 1, goalType: 2, goalColor: 1, goalCount: 5, swapAny: 1, swapCost: 3, twist: 0 },
   { cols: 9, rows: 9, kinds: 7, duration: 51, missCost: 3, shuffleCost: 4, hintCost: 3,
     perMove: 50, seals: 9, shuffleCap: 3,
-    special: 2, goalType: 3, goalColor: 1, goalCount: 5, goalBonus: 240, swapAny: 2, swapCost: 4, twist: 0 },
+    special: 2, goalType: 3, goalColor: 1, goalCount: 5, swapAny: 2, swapCost: 4, twist: 0 },
+  // 圆满段的目标换成「引苗落底」：盘上一共几枚灵种，全落到底行才算达成。
+  // 它比计数类目标多一层空间判断（清哪一列、什么时候清），这是目标类型轴最后一块空缺。
   { cols: 10, rows: 10, kinds: 7, duration: 45, missCost: 3, shuffleCost: 4, hintCost: 3,
     perMove: 53, seals: 14, shuffleCap: 3,
-    special: 3, goalType: 4, goalColor: 2, goalCount: 14, goalBonus: 300, swapAny: 2, swapCost: 4, twist: 2 },
+    special: 3, goalType: 5, goalColor: 2, goalCount: 2, swapAny: 2, swapCost: 4, twist: 2 },
 ];
 
-// 本局 S 线。吃已经算好的 params（duration / perMove），所以段内时辰收紧时它跟着收紧，
-// 不会出现「时辰收了、分数线没动」的段末放水。
+// 三条评级线：给定「用掉几成时辰」，算出那一档的分数线。
+// 唯一出处在这里，玩法层（劫变改了时辰之后）也调它，不自己乘系数。
+// 段内时辰收紧时 base 跟着收紧，所以同一条线在段末不会放水。
+function gradeLineOf(q, x) {
+  const hours = Math.max(8, (q && q.duration) || 60);
+  const moves = Math.max(1, Math.floor(hours / MATCH_MOVE_SEC));
+  const per = (q && q.perMove) || 60;
+  const base = Math.max(1, per * moves);
+  const frac = Math.max(0, Math.min(1, x));
+  return Math.max(1, Math.round(base * (MATCH_CLEAR_K - (MATCH_CLEAR_K - 1) * frac)));
+}
+function gradeLinesOf(q) {
+  return {
+    s: gradeLineOf(q, MATCH_GRADE_X.s),
+    a: gradeLineOf(q, MATCH_GRADE_X.a),
+    b: gradeLineOf(q, MATCH_GRADE_X.b),
+  };
+}
+// S 线仍是「一条线」，供准备页与断言读；三条线同源，别各自乘系数。
 function matchSLineOf(q) {
-  if (!q) return 1;
-  const moves = Math.max(1, Math.floor((q.duration || 60) / MATCH_MOVE_SEC));
-  const per = q.perMove || 76;
-  return Math.max(1, Math.round(per * moves * MATCH_S_UTIL));
+  return gradeLinesOf(q).s;
 }
 
 // 本局变数：圆满段开局二选一。四条都是「一紧一松」配对，净难度增量接近 0，
@@ -833,10 +855,11 @@ function sLineText(method, level) {
     // 这里必须用本关那一份（不是段表里的基准值）：段内已按 LEVEL_TIGHTEN 收过一刀，
     // 照表写会和准备页的倒计时差几息。种类 / 罚息 / 封印也一并从 params 取，不再回头读表。
     const q = buildParamsAt(method, level || 1);
-    // 评级线随盘面重标定，这句要说清「它是按本盘产出算的」，不然玩家会以为在放水。
+    // 这一门口径变了：做成目标就收工，没打掉的时辰折成分数。
+    // 所以准备页要报的不是「分数线」而是「几条线各要几成时辰」——那才是玩家能自己算的东西。
     return '本关 ' + q.kinds + ' 色 · ' + q.duration + ' 息 · 换不出少 ' + q.missCost + ' 息'
       + (q.seals ? ' · 封印 ' + q.seals + ' 格' : '')
-      + ' · S 线 ' + q.sLine + ' 分（按本盘每手产出与时辰现算）；评级只看总分';
+      + ' · 做成目标即收工：四成时辰内做成 S，六成半 A，九成 B';
   }
   if (method.game === 'lights') {
     const lv = lightsLevelOf(levelData.stageOfLevel(Math.max(1, Math.round(level) || 1)));
@@ -1062,7 +1085,6 @@ function rawParams(method, depthIndex) {
     out.goalType = lv.goalType;
     out.goalColor = lv.goalColor;
     out.goalCount = lv.goalCount;
-    out.goalBonus = lv.goalBonus;
     out.swapAny = lv.swapAny;
     out.swapCost = lv.swapCost;
     out.twist = lv.twist;
@@ -1329,7 +1351,7 @@ const AXIS_OF = {
   obstacle: ['seals'],
   goal: ['target', 'rounds', 'count', 'startLevel', 'startTiles', 'linesPerLevel',
     'minOpt', 'maxOpt', 'maxRound', 'startLen', 'baseLen',
-    'goalType', 'goalColor', 'goalCount', 'goalBonus'],
+    'goalType', 'goalColor', 'goalCount'],
   info: ['flashMs', 'hintMs', 'flipMs', 'gapMs', 'msPerNote', 'cue', 'scramble', 'sameBoard'],
   cost: ['duration', 'timeLimit', 'life', 'hearts', 'steps', 'minSteps', 'hiSteps', 'budgetSlack',
     'missCost', 'nearGap', 'perPair', 'capFactor', 'lineScale', 'unitMs', 'winMs', 'bpm', 'meter'],
@@ -1703,7 +1725,9 @@ function stageSpec(method, level) {
     // 前三段重排不限次，不必单说一句；从第四段起限次了，进段第一眼就得知道还剩几次。
     if (q.shuffleCap < 99) out += ' · 重排原价 ' + q.shuffleCap + ' 次（用尽翻倍）';
     if (q.special) out += ' · ' + levelFmt('special', q.special);
-    if (q.goalType) out += ' · ' + levelFmt('goalType', q.goalType);
+    // 目标是「做成即收工」——达成那一刻这一局就结束，没打掉的时辰折成分数。
+    // 这段规格里必须点明它是终点条件，不写玩家会以为目标只是个彩头。
+    if (q.goalType) out += ' · ' + levelFmt('goalType', q.goalType) + '（做成即收工）';
     if (q.swapAny) out += ' · 挪苗 ' + q.swapAny + ' 次（每次 ' + q.swapCost + ' 息）';
     if (q.twist) out += ' · 开局二选一劫变';
   }
@@ -1751,7 +1775,7 @@ function levelFmt(key, value) {
     return Math.round(value) >= 99 ? '不限' : Math.round(value) + ' 次';
   }
   if (key === 'special') return ['不出符', '四连符', '同色符', '四邻符相撞'][value] || String(value);
-  if (key === 'goalType') return ['无额外目标', '收够指定色', '做出连锁', '破开石皮', '收色并连锁'][value] || String(value);
+  if (key === 'goalType') return ['无额外目标', '收够指定色', '做出连锁', '破开石皮', '收色并连锁', '引苗落底'][value] || String(value);
   if (key === 'twist') return value ? '开局二选一劫变' : '无劫变';
   return fmtField(key, value);
 }
@@ -1821,7 +1845,9 @@ function stageDetail(method, stageIndex) {
     brief = lv.cols + '×' + lv.rows + ' 盘 · ' + lv.kinds + ' 色 · ' + q.duration + ' 息'
       + ' · 换不出少 ' + lv.missCost + ' 息 · 重排少 ' + lv.shuffleCost + ' 息'
       + (lv.seals ? ' · 封印 ' + lv.seals + ' 格' : '')
-      + ' · S ' + q.sLine + ' 分';
+      // 这一门口径是「做成即收工」，所以这里报时间线而不是分数线：
+      // 玩家能自己算的是「还剩几息还能拿 S」，不是「还差多少分」。
+      + ' · 四成时辰内做成 S';
   } else if (method && method.game === 'lights') {
     const lv = lightsLevelOf(idx);
     brief = lv.size + '×' + lv.size + ' 盘 · 最优 ' + lv.min + '～' + lv.hi + ' 步'
@@ -1989,7 +2015,10 @@ module.exports = {
   LINK_BUDGET: LINK_BUDGET,
   LINK_FAIR: LINK_FAIR,
   MATCH_MOVE_SEC: MATCH_MOVE_SEC,
-  MATCH_S_UTIL: MATCH_S_UTIL,
+  MATCH_CLEAR_K: MATCH_CLEAR_K,
+  MATCH_GRADE_X: MATCH_GRADE_X,
+  gradeLineOf: gradeLineOf,
+  gradeLinesOf: gradeLinesOf,
   linkFairOf: linkFairOf,
   matchSLineOf: matchSLineOf,
   linkPerPairAt: linkPerPairAt,

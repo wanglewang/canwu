@@ -1271,36 +1271,37 @@ check('「错换」已统一为「无效互换」：玩家可见文件不留旧�
 check('三连互换：S 线与提示按钮名各只有一份真源', function () {
   const pd = require('../data/practice.js');
   const method = pd.getMethod('harvest');
-  // S 线不是一张写死的分表：它按「每手均分 × 可用手数 × 利用率」从本关参数现算。
-  // 所以要守的是「同源」与「利用率恒定」，不是某个绝对数。
+  // S 线不是一张写死的分表，而是「用掉几成时辰」从本关参数现算：
+  // 每手均分 × 可用手数 × 折算系数。要守的是「同源」与「折算系数恒定」。
   const LV = { novice: 1, entry: 11, minor: 51, major: 201, full: 501 };
   const keys = Object.keys(LV);
+  const sFactor = pd.MATCH_CLEAR_K - (pd.MATCH_CLEAR_K - 1) * pd.MATCH_GRADE_X.s;
   const utils = [];
   for (const k of keys) {
     const p = pd.buildParams(method, k);
     assert.strictEqual(pd.sLineOf(method, LV[k]), pd.buildParamsAt(method, LV[k]).sLine, k + ' 的 S 线不是同一份真源');
-    const moves = Math.floor(p.duration / pd.MATCH_MOVE_SEC);
-    const want = Math.round(p.perMove * moves * pd.MATCH_S_UTIL);
-    assert.ok(Math.abs(p.sLine - want) <= 1, k + ' 的 S 线没按本盘产出算');
-    utils.push(p.sLine / (p.perMove * moves));
+    const base = p.perMove * Math.floor(p.duration / pd.MATCH_MOVE_SEC);
+    const want = Math.round(base * sFactor);
+    assert.ok(Math.abs(p.sLine - want) <= 1, k + ' 的 S 线没按用时比例算');
+    utils.push(p.sLine / base);
   }
-  assert.ok(utils.every(function (u) { return Math.abs(u - pd.MATCH_S_UTIL) < 0.02; }),
-    '五档 S 线的操作强度不一致：' + utils.map(function (u) { return u.toFixed(2); }).join('/'));
+  assert.ok(utils.every(function (u) { return Math.abs(u - sFactor) < 0.02; }),
+    '五档 S 线的折算系数不一致：' + utils.map(function (u) { return u.toFixed(2); }).join('/'));
   assert.strictEqual(pd.sLineOf(pd.getMethod('linkpair'), 1), 0, '非三消玩法不该有 S 线');
-  assert.strictEqual(pd.buildParams(method, 'minor').sLine,
-    Math.round(pd.buildParams(method, 'minor').perMove
-      * Math.floor(pd.buildParams(method, 'minor').duration / pd.MATCH_MOVE_SEC) * pd.MATCH_S_UTIL),
-    '段级 S 线没按「每手均分 × 可用手数」算');
+  const minorP = pd.buildParams(method, 'minor');
+  assert.strictEqual(minorP.sLine,
+    Math.round(minorP.perMove * Math.floor(minorP.duration / pd.MATCH_MOVE_SEC) * sFactor),
+    '段级 S 线没按「每手均分 × 可用手数 × 折算系数」算');
   // 门槛只能出现在 gradeLimits 一处：create 里只许调它，不许再自己写 620 / 150 这种数。
   assert.ok(/lim = gradeLimits\(p\)/.test(read('minigames/match.js')),
     'match.js 又把 S 线写死在玩法层');
-  assert.ok(/p && p\.sLine/.test(read('minigames/match.js')),
-    'match.js 的 gradeLimits 没从 params 取本档 S 线');
+  assert.ok(/return gradeLinesOf\(/.test(read('minigames/match.js')),
+    'match.js 的 gradeLimits 没走数据层的 gradeLinesOf（三条线必须同源）');
   assert.ok(/goalText/.test(read('pages/practice/practice.wxml')), '准备页没显示本档 S 线');
   assert.ok(/goalText: sLine/.test(read('pages/practice/practice.js')), '准备页没从同源数生成 S 线文案');
   const gd = require('../data/guides.js').guideOf('match');
   const rules = gd.scoring + gd.steps.join('');
-  assert.ok(/只看分数/.test(rules), '评级口径没写清只看总分');
+  assert.ok(/做成即收工/.test(rules), '评级口径没写清「做成即收工」');
   assert.ok(!/控制无效互换次数|同时控制/.test(rules), '把无效互换错写成 S 档附加条件');
   assert.strictEqual(pd.hintLabelOf('match'), '照畦', '提示按钮名没和局内、名词速查统一');
   assert.ok(/hintLabel: practiceData\.hintLabelOf\(gameId\)/.test(read('pages/practice/practice.js')),
