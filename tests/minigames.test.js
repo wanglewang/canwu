@@ -3263,6 +3263,26 @@ check('三连互换：灵种不能换、不进三连、随空位下落，落底�
     assert.ok(/灵种/.test((vm.fx && vm.fx.text) || ''), '点灵种没有任何说明，玩家只会以为没点上');
     ctrl.destroy();
 
+    // 段三目标是「做出 5 次连锁」，不是「凑一次 5 层连锁」：
+    // 判定每手 chain>=2 记 1 次、与深度无关（goalAdvance 里的 goalChains += 1），
+    // 文案就必须写「次」。写成「层」会让玩家对着 5 层去凑，那是「连收」才干的事。
+    // 这里连源码一起钉：计数器不许改成按层数加，文案不许写回「层」。
+    const matchSrc = require('fs').readFileSync(require('path').join(__dirname, '..', 'minigames', 'match.js'), 'utf8');
+    assert.ok(/if \(chain >= 2\) goalChains \+= 1/.test(matchSrc), '连锁目标不再按「次数」计数');
+    assert.ok(!/goalChains \+= chain/.test(matchSrc), '连锁目标被改成按层数累加了');
+    let cvm = null;
+    const c3 = mod.create({
+      params: data.buildParamsAt(sanxiu(), 51), difficulty: 3, perks: { tier: 0 },
+      tip: 't', theme: {}, render: function (v) { cvm = v; }, finish: function () {},
+    });
+    c3.start();
+    assert.ok(cvm.meter && /目标.*连锁/.test(cvm.meter.label), '段三没有连锁目标进度条');
+    assert.ok(/连锁 0\/5 次/.test(cvm.meter.label), '连锁目标文案没写「次」（写成「层」会让人去凑五连）：' + cvm.meter.label);
+    assert.ok(!/层/.test(cvm.meter.label), '连锁目标文案还带着「层」：' + cvm.meter.label);
+    const matchLines = mod.lines(data.buildParamsAt(sanxiu(), 51)).items.join(' ');
+    assert.ok(/做出 5 次连锁/.test(matchLines), '评级卡把连锁目标写成了「层」：' + matchLines);
+    c3.destroy();
+
     // 达成即收工：目标压到「收 1 株同色」，几手之内必然触发。
     // 这一条钉三件事：① 达成之后这一局真的结束，不再让玩家继续打；
     // ② 结算分里含「剩余时辰折的分」；③ 浮字里说清折了多少。

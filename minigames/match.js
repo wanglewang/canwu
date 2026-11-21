@@ -689,7 +689,9 @@ function create(ctx) {
       const tail = goalType === 4 ? ' · 需连锁 3 层' : '';
       return '收' + GLYPHS[goalColor - 1] + ' ' + Math.min(goalCount, goalGot) + '/' + goalCount + tail;
     }
-    if (goalType === 2) return '连锁 ' + Math.min(goalCount, goalChains) + '/' + goalCount + ' 层';
+    // 目标认的是「做出了几次连锁」：一手引出 2 层及以上就算一次，与这一手滚了几层无关。
+    // 文案必须写「次」——写「层」会让玩家以为要凑一次五连，那是另一件事（连收才是滚层数）。
+    if (goalType === 2) return '连锁 ' + Math.min(goalCount, goalChains) + '/' + goalCount + ' 次';
     if (goalType === 5) return '灵种落底 ' + Math.min(goalCount, goalGot) + '/' + goalCount;
     return '破石皮 ' + Math.min(goalCount, goalGot) + '/' + goalCount;
   }
@@ -1110,7 +1112,7 @@ function lines(p) {
   const swap = p && typeof p.swapAny === 'number' ? p.swapAny : 0;
   const swapPrice = p && typeof p.swapCost === 'number' ? p.swapCost : 3;
   const goalLine = goal === 1 ? '本局目标：收够指定色 ' + goalN + ' 株'
-    : goal === 2 ? '本局目标：做出 ' + goalN + ' 层连锁'
+    : goal === 2 ? '本局目标：做出 ' + goalN + ' 次连锁（每次至少 2 层）'
       : goal === 3 ? '本局目标：破开 ' + goalN + ' 格石皮'
         : goal === 4 ? '本局目标：收够指定色且做出 ' + goalN + ' 层连锁'
           : goal === 5 ? '本局目标：' + goalN + ' 枚灵种全部落到底行'
