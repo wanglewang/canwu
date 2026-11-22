@@ -263,7 +263,7 @@ AI 基于本体，各提取一份**覆盖度**——不是摘要，是「这个�
 
 本方法是工程约定，落地时对应到既有设施（不在这里重复它们的细节）：
 
-- 规格体系：`规格/` 目录——S/T/D 三层本体与三份覆盖度 R<sub>S</sub>/R<sub>T</sub>/R<sub>D</sub> 的落点，链条方向 S→T→D、S 由人提出 AI 起草人纠正，详见 `规格/00-总览.md`。
+- 规格体系：`规格/` 目录放 S/T/D 三层本体，`覆盖度/` 目录放三份覆盖度 R<sub>S</sub>/R<sub>T</sub>/R<sub>D</sub>（与 `规格/` 平级——R 是提取出来给人审的视图，不是本体）。链条方向 S→T→D、S 由人提出 AI 起草人纠正，详见 `规格/00-总览.md`。
 - 机器校验链：`scripts/verify.js`、`npm run check` 四段——「人写一次标准、机器每次执行」的现状，见 `docs/40-engineering/03-verification-chain.md`。
 - 测试职责边界：`tests/` 五个文件，见 `docs/40-engineering/04-testing.md`。R<sub>T</sub> 的「验到关键规则」两态对应这里。
 - 数值真源：`data/*.js`。R<sub>S</sub> 里的数值一律指向真源，不在覆盖度里另写一套。
