@@ -16,16 +16,12 @@
 ## 目录
 
 ```
-docs/
+docs/specs/plan/                      技术计划层：契约怎么设计出来（本目录）
 ├── README.md                        总目录与阅读路径（本篇）
 ├── checklist-puzzle.md              玩法完备性自检清单：十二维 + 本项目口径纠正 + 设计笔记模板
 │
-├── 00-foundation/                   基础：所有系统的共同前提
-│   ├── 01-product-vision.md         产品定位、目标玩家、体验目标、不做什么
-│   ├── 02-design-principles.md      十三条设计原则及其代价
-│   ├── 03-glossary.md               术语表：系统名、数值名、状态名、易混词
-│   ├── 04-voice-and-copy.md         文案口吻规范与三处真源
-│   └── 05-external-research.md      外部实践资料摘录：修仙感与首局钩子的证据、可靠度、勘误
+│   （范围、设计原则、术语、文案纪律、评审方法论、外部资料已归位到 constitution/；
+│     测试映射、实现映射、校验链、测试职责、欠账台账已归位到 tasks/。见 docs/specs/README.md）
 │
 ├── 10-systems/                      系统设计：每个系统一篇，讲机制与参数
 │   ├── 01-currency.md               双货币体系：灵力是油、灵石是钱
@@ -83,28 +79,26 @@ docs/
 │   └── 12-teach-boards.md          首局教学盘：业界做法、规范与 15 门逐门表
 │   └── 13-teach-research.md         教学盘外部资料原文摘录：出处、可靠度、勘误与分歧
 │
-├── 40-engineering/                  工程：怎么保证上面这些不走样
+├── 40-engineering/                  工程：怎么保证上面这些不走样（验收纪律已归位到 tasks/）
 │   ├── 01-architecture.md           目录分层与数据流
 │   ├── 02-minigame-contract.md      玩法模块契约（create / lines / teach）
-│   ├── 03-verification-chain.md     校验链：verify → test → sim → lint
-│   ├── 04-testing.md                五个测试文件的职责边界
 │   ├── 05-error-and-lifecycle.md    异常兜底、环形日志、页面生命周期
 │   ├── 06-privacy.md                隐私授权与接口守卫
 │   ├── 07-performance.md            包体、渲染、计算预算
-│   ├── 08-navigation.md             页面注册、跳转与标题
-│   └── 09-review-driven-development.md  评审驱动开发：让 AI 写，人守差集
+│   └── 08-navigation.md             页面注册、跳转与标题
+│       （号段 03 / 04 / 09 空缺不复用：校验链、测试职责归 tasks/，评审方法论归 constitution/）
 │
 └── 50-balance/                      数值与结论
     ├── 01-progression-curve.md      成长节奏：从开局到毕业要多久
     ├── 02-numbers-reference.md      数值总表（改数值前先看这里）
     ├── 03-difficulty-audit.md       难度区分度审计
-    ├── 04-open-issues.md            已知问题、待真机验收、暂不做的
     └── 05-axis-review.md            外来「精微层」方案评审：拒了什么、补了什么
+        （号段 04 空缺不复用：欠账台账已归位到 tasks/05-欠账与待拍板台账.md）
 ```
 
-共 150 篇（含已有的 `checklist-puzzle.md`），已全部写完。2026-11 退役四门玩法，对应四篇一并删除，`20-minigames` 的 `02 / 04 / 06 / 08` 号段空缺不复用。
+本层共 141 篇（含本篇 README 与 `checklist-puzzle.md`；归位前是 150 篇，移走九篇）。2026-11 退役四门玩法，对应四篇一并删除，`20-minigames` 的 `02 / 04 / 06 / 08` 号段空缺不复用。2026-11-23 按内容归位，六篇实体进 `constitution/`、五篇进 `tasks/`，原号段留空不复用——编号是历史指代，改号会让旧引用指到别的文档。
 
-写完之后这份目录仍然不是静态的：`50-balance/04-open-issues.md` 是**当前欠账的活清单**，代码改了它要跟着改；各篇末尾的「待验」加起来有 288 条，全部是「静态断言回答不了、要真机或真人数据」的项。改动任何一块之前，先看那一篇末尾的「待验」，再看 `04` 里有没有相关的必修条目。
+写完之后这份目录仍然不是静态的：各篇末尾的「待验」加起来有 288 条，全部是「静态断言回答不了、要真机或真人数据」的项。当前欠账的活清单在 `docs/specs/tasks/05-欠账与待拍板台账.md`，代码改了它要跟着改；改动任何一块之前，先看那一篇末尾的「待验」，再看台账里有没有相关的必修条目。
 
 ---
 
@@ -125,9 +119,9 @@ docs/
       「是什么」   「怎么守」   「全站一致」
 ```
 
-**第一次接触这个项目** → `00-foundation/01` → `00-foundation/02` → `10-systems/01` → `10-systems/04` → `20-minigames/README.md`。读完这五篇，能回答「这是什么游戏、钱怎么转、练功在练什么、十五门有什么不一样」。**为什么从 `01` 起**：它先把「一个早晨的单局」讲清楚，后面每一条设计都能追回那个场景。
+**第一次接触这个项目** → `docs/specs/constitution/01-产品定位与体验目标` → `docs/specs/constitution/02-十三条设计原则` → `10-systems/01` → `10-systems/04` → `20-minigames/README.md`。读完这五篇，能回答「这是什么游戏、钱怎么转、练功在练什么、十五门有什么不一样」。**为什么从 `01` 起**：它先把「一个早晨的单局」讲清楚，后面每一条设计都能追回那个场景。
 
-**要加一门新功法** → `10-systems/11`（分类与命名）→ `10-systems/12`（特效）→ `20-minigames/README.md`（判重）→ `checklist-puzzle.md`（十二维自检）→ `40-engineering/02`（接口契约）→ `40-engineering/03`（校验链）。顺序不能反：先想清玩什么，再想清楚怎么被断言守住。**为什么判重夹在中间**：先命名、再确认跟已有玩法不撞，才轮到写接口；反过来的话，契约写完才发现是换皮，就白写了。
+**要加一门新功法** → `10-systems/11`（分类与命名）→ `10-systems/12`（特效）→ `20-minigames/README.md`（判重）→ `checklist-puzzle.md`（十二维自检）→ `40-engineering/02`（接口契约）→ `docs/specs/tasks/03-校验链`（校验链）。顺序不能反：先想清玩什么，再想清楚怎么被断言守住。**为什么判重夹在中间**：先命名、再确认跟已有玩法不撞，才轮到写接口；反过来的话，契约写完才发现是换皮，就白写了。
 
 **要改数值** → `50-balance/02`（总表）→ `50-balance/01`（节奏）→ `10-systems/03`（收支）→ `npm run sim` → `50-balance/03`（区分度）。改完必须重跑 `npm run check`，因为多处断言按公式复算，不是按固定值比对。**为什么先读总表**：改数值最怕改一个点、塌一整条曲线；先看总表知道这个数牵着谁，再看节奏和收支，最后才动手跑 sim。
 
@@ -159,7 +153,7 @@ docs/
 | --- | --- | --- |
 | 根 `README.md` | 工程手册 | 怎么装、怎么跑、改哪里；本目录解释为什么 |
 | `docs/specs/plan/checklist-puzzle.md` | 交付门槛 | 新玩法的自检清单；本目录的玩法篇是「已交付的样子」 |
-| `data/copy.js` | 玩家文案真源 | 本目录 `00-foundation/04` 只讲规范，具体字句以代码为准 |
+| `data/copy.js` | 玩家文案真源 | 本目录 `docs/specs/constitution/04-文案口吻规范` 只讲规范，具体字句以代码为准 |
 | `data/help.js` | 解释性长文真源 | 本目录讲「该说什么」，实际字句在代码 |
 | `scripts/verify.js` | 静态校验 | 本目录提出的硬约束，多数在这里被断言 |
 

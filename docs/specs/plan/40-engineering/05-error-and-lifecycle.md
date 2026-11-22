@@ -121,7 +121,7 @@ onShow（第一次）
 
 **`store.init()` 必须是同步的**：它给页面一份本地缓存，页面才能立刻渲染。云端拉档在 `onShow` 里异步做，不阻塞首屏。
 
-**但 `init()` 不许结算闭关。** 它后面紧跟的 `hydrate()` 会用云端档整个覆盖 `state`，先结算等于算一遍再扔掉；而且 `init()` 里那次存档不给云端留 pending 标记，`hydrate()` 就当作本机没改过。闭关统一在 `bootstrap()` 的每条分支末尾调 `store.settle()`——真机上的那个 bug 见 `50-balance/04-open-issues.md` A6。
+**但 `init()` 不许结算闭关。** 它后面紧跟的 `hydrate()` 会用云端档整个覆盖 `state`，先结算等于算一遍再扔掉；而且 `init()` 里那次存档不给云端留 pending 标记，`hydrate()` 就当作本机没改过。闭关统一在 `bootstrap()` 的每条分支末尾调 `store.settle()`——真机上的那个 bug 见 `docs/specs/tasks/05-欠账与待拍板台账.md` A6。
 
 ### 4.2 `bootstrap()` 的四个分支
 

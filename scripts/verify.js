@@ -364,10 +364,10 @@ else checked += 1;
     errors.push('所有心法的扩容加起来超过了封顶：' + capSum + ' > ' + economyMod.QI_CAP_SKILL_MAX);
   } else checked += 1;
   // 旧名「灵气」不许再出现在玩家看得见的文字里（含 README 的当前事实段）。
-  // 例外只有一类：外部资料的逐字摘录（docs/specs/plan/00-foundation/05-external-research.md）。
+  // 例外只有一类：外部资料的逐字摘录（docs/specs/constitution/07-外部实践资料.md）。
   // 它引用的是别家原文，改字就不是摘录了。但只放行 `>` 引用行——同一文件里的
   // 叙述段仍然不许写旧名，否则下一个人会把它当成我们的现行口径抄出去。
-  const EXTERNAL_QUOTE_DOCS = new Set(['docs/specs/plan/00-foundation/05-external-research.md']);
+  const EXTERNAL_QUOTE_DOCS = new Set(['docs/specs/constitution/07-外部实践资料.md']);
   for (const f of files.filter(function (x) {
     return /\.(js|wxml|wxss|json|md)$/.test(x) && rel(x) !== 'scripts/verify.js';
   })) {
@@ -397,7 +397,7 @@ else checked += 1;
 // 2026-11 踩过一次：拿「体验目标第 5 条白纸黑字」否决业界回访手段，把产品判断当成了物理定律。
 // 这里只钉框架的存在与口径，不钉具体结论——结论本来就该能翻案（§5.2 的浅色主题就是先例）。
 // 少任何一处，下一个人就又会拿旧文档当硬约束。
-const visionDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/plan/00-foundation/01-product-vision.md'), 'utf8');
+const visionDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/constitution/01-产品定位与体验目标.md'), 'utf8');
 const LAYER_MARKS = [
   ['## 5. 约束分层：哪层真不能动，哪层只是默认值', '产品愿景丢了三层约束框架'],
   ['| **一 · 定义** |', '三层约束缺了「定义」层（修仙 + 功法即小游戏）'],
@@ -1024,7 +1024,7 @@ for (const f of files) {
     const raw = fs.readFileSync(path.join(ROOT, name), 'utf8');
     return raw.replace(/\*/g, '');
   };
-  const dp = parseDoc('docs/specs/plan/00-foundation/02-design-principles.md');
+  const dp = parseDoc('docs/specs/constitution/02-十三条设计原则.md');
   const review = parseDoc('docs/specs/plan/50-balance/05-axis-review.md');
   if (!/## 十三、变化方向/.test(dp) || !/## 13\. 变化方向账/.test(review)) {
     errors.push('变化方向的规矩没立：设计原则 §13 与 05-axis-review §13 必须同时存在');

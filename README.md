@@ -184,15 +184,13 @@
 ├── .github/workflows/ci.yml            可移植 CI：npm ci → npm run check
 ├── .wbapp_<appid>.privacy.json         隐私接口声明清单（文件名带应用 appid；邮箱 / 剪贴板 / 昵称 / 发布内容）
 ├── README.md                           本文件
-├── docs/                               设计文档（147 篇，不进包）——从 docs/specs/plan/README.md 进入
-│   ├── README.md                       总目录与三条阅读路径：这是什么 / 怎么加一门 / 怎么改数值
-│   ├── checklist-puzzle.md             玩法设计完备性自检清单：十二维 + 本项目口径纠正 + 设计笔记模板
-│   ├── 00-foundation/                  产品定位、十三条设计原则、术语表、文案口吻（4 篇）
-│   ├── 10-systems/                     货币 / 熟练度 / 难度 / 境界 / 属性 / 功法 / 社交 / 存档（19 篇）
-│   ├── 20-minigames/                   15 门功法 + 突破蓄力的玩法设计，一门一目录、每目录六篇（16 目录，02/04/06/08 号段空缺）
-│   ├── 30-ui/                          视觉语言、令牌、组件、盘面渲染、逐页设计、交互与动效（11 篇）
-│   ├── 40-engineering/                 分层、玩法契约、校验链、测试、异常、隐私、性能、导航（8 篇）
-│   └── 50-balance/                     成长节奏、数值总表、难度区分度审计、已知问题（4 篇）
+├── docs/                               规格与设计文档（不进包）——从 docs/specs/README.md 进入
+│   ├── specs/                          SDD 规格体系四层，按「回答什么问题」归位
+│   │   ├── constitution/               宪法：产品定位、设计原则、术语、文案纪律、评审方法论、外部资料（7 篇）
+│   │   ├── spec/                       六份行为契约与守卫（6 篇）
+│   │   ├── plan/                       系统设计 / 玩法 / 界面 / 工程 / 数值（141 篇，入口 README 有三条阅读路径）
+│   │   └── tasks/                      测试与实现映射、校验链、测试职责、欠账台账（5 篇）
+│   └── reviews/                        审查卡（逐轮 NNN + 整体 OVERVIEW）与三份覆盖度视图
 ├── assets/tab/                         6 个 tabBar 图标（home / book / seal 各两态，scripts/gen-icons.js 生成）
 ├── assets/sfx/                         9 个局内音效（16kHz 单声道 wav，scripts/gen-sfx.js 合成）
 ├── assets/crest.png                    灵纹牌上的 26 个图案 sprite（2496×96 = 果器 8 格 + 甜点 / 海洋 / 灵兽 各 6 格；盘面四套主题从这 26 格里按六族骨架各取 6 格，scripts/gen-crest.js 全 26 格都画；运行时用的是 styles/crest.wxss 里的内联副本，不进包）

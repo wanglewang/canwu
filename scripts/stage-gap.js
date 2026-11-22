@@ -8,7 +8,7 @@
 //   ① 换段那一步，玩家摸到的是「新盘 / 新规则」还是「秒表又拧紧了一点」？
 //   ② 段内逐关还在动吗，还是几百关一个参数都不变？
 //
-// 判据（与 docs/specs/plan/50-balance/04-open-issues D11 / D16 同一套口径）：
+// 判据（与 docs/specs/plan/50-balance/05-欠账与待拍板台账 D11 / D16 同一套口径）：
 //   - 段界结构变化：`buildParamsAt(m, b)` 与 `buildParamsAt(m, b-1)` 在结构键上有差。
 //     结构键 = 盘面 / 数量 / 规则开关（`practice.LEVEL_STRUCT_KEYS` 那一路）。
 //   - 段界倒退：结构键朝「更好过」的方向走（起手级变低、每级层数变多、封印变少……）。

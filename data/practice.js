@@ -1259,7 +1259,7 @@ const LEVEL_TIME_KEYS = ['duration', 'timeLimit', 'interval', 'flashMs', 'gapMs'
 // 某一关的完整参数。一段一关，相邻两关按参数口径（`buildParamsAt`）逐位不同；
 // 但界面真报得出来的是 `practice.levelDelta`（严口径）：只认结构键（盘面规格、规则开关），
 // 不认毫秒微调。两者不同源是有意的——「盘面换了台阶」和「这一档紧了一点」是两件事，
-// 混在一起会让 199 级台阶读起来等于零级（见 `50-balance/04-open-issues` D11）。
+// 混在一起会让 199 级台阶读起来等于零级（见 `50-balance/05-欠账与待拍板台账` D11）。
 // 界面据实报「与上一关规格相同」，见 `levelDelta`。
 //
 // 章内只做一件事：把本段的时间与预算按段收紧，方向永远是「更难」。
@@ -1342,7 +1342,7 @@ const AXIS_LABELS = {
 };
 const AXIS_CONTENT = ['geo', 'kind', 'rule', 'obstacle', 'goal', 'twist', 'active'];
 // 门槛本身也是真源：设计原则 §13、方向账 §13、verify 断言都读它。
-// 不许因为「现在不达标」就把门槛写低——欠账记在 04-open-issues D 类。
+// 不许因为「现在不达标」就把门槛写低——欠账记在 05-欠账与待拍板台账 D 类。
 const AXIS_RULE = { minKinds: 5, minContent: 3, minStageAxes: 2, minStageContent: 1 };
 const AXIS_OF = {
   geo: ['cols', 'rows', 'size', 'grid', 'holes', 'walls', 'boxes', 'mines', 'pairs', 'bar', 'bars', 'segments', 'lenStep'],
@@ -1998,7 +1998,7 @@ function stageRulesOf(methodId) {
 // 参数表里唯一的**内部键**：depth 是档位索引（0–4），玩家在盘上看不见它，
 // 也不该被当成「这一档变难了」的证据。审计脚本与 tests/rank.test.js 都读这一份，
 // 不许各抄一份名单——曾经这里写着 gear / sBase / sStep 三个键，实测一个都不在参数表里，
-// 挂在名单上只会让人以为背后有机制（见 04-open-issues B4）。
+// 挂在名单上只会让人以为背后有机制（见 05-欠账与待拍板台账 B4）。
 const INTERNAL_PARAM_KEYS = ['depth'];
 
 module.exports = {

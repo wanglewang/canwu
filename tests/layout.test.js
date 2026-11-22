@@ -888,7 +888,7 @@ check('可点 view 统一按压反馈，反馈样式落在全局基础层', func
     perPage[rel] = hover;
   }
   // 门槛按页面算，不是全项目一个数：原来是「总数 ≥ 5」，删掉四五十处也不会红——
-  // 它守的是「样式类存在」，不是「覆盖完整」（见 04-open-issues C1）。
+  // 它守的是「样式类存在」，不是「覆盖完整」（见 05-欠账与待拍板台账 C1）。
   // 每个页面至少一处；四个主交互页按现状留两成余量（现 6 / 18 / 9 / 4）。
   const floor = {
     'pages/index/index.wxml': 4,
@@ -1453,7 +1453,7 @@ check('只奖不罚：连练递减全站清零，换门的「省气」有单一�
     && /repeatNote/.test(read('pages/practice/practice.wxml')),
     '准备页没把「连练不减收益」写在开局前');
   // 回关护栏：2026-11 起口径改成「局部」——同一个当前关下，回打更低的关不许比打当前关划算。
-  // 旧的「6000 点预算下只刷第 1 关不许反超逐关进」不是一个能成立的判据（见 04-open-issues D12），
+  // 旧的「6000 点预算下只刷第 1 关不许反超逐关进」不是一个能成立的判据（见 05-欠账与待拍板台账 D12），
   // 它从 v9 起就空跑：刷法名改名之后两条曲线都落进 else 分支，等于拿逐关进比逐关进。
   const sim = read('scripts/simulate.js');
   assert.ok(/回关不该更划算/.test(sim), '模拟里没有断言守着「回关不许比打当前关更划算」');
@@ -2427,9 +2427,9 @@ check('文档明细表与代码同源：门数、effect 门面词、F 列', func
   // 门数 = 玩法数（一门一套内核）。这两个数在任何一句里都必须同步，所以直接抓数字比。
   assert.strictEqual(games.size, n, '有功法共用同一套玩法，「一门一套内核」不成立');
   const numDocs = ['README.md',
-    'docs/specs/plan/00-foundation/01-product-vision.md',
-    'docs/specs/plan/00-foundation/02-design-principles.md',
-    'docs/specs/plan/40-engineering/04-testing.md',
+    'docs/specs/constitution/01-产品定位与体验目标.md',
+    'docs/specs/constitution/02-十三条设计原则.md',
+    'docs/specs/tasks/04-测试职责.md',
     'docs/specs/plan/checklist-puzzle.md'];
   for (const f of numDocs) {
     const s = read(f);
@@ -2477,7 +2477,7 @@ check('文档明细表与代码同源：门数、effect 门面词、F 列', func
   // 已删的门不许再当例子出现。历史叙述另算：讲「改版前」「旧名」「已删」的行必须能提它，
   // 否则历史记录会变成假话——所以逐行看，命中历史语境就放过这一行。
   for (const gone of ['剑法·截锋断岳诀', '水术·叠纹凝露诀', '身法·踏云连环步', '阵法·五灯相生诀']) {
-    for (const f of ['README.md', 'docs/specs/plan/00-foundation/01-product-vision.md', 'docs/specs/plan/40-engineering/04-testing.md']) {
+    for (const f of ['README.md', 'docs/specs/constitution/01-产品定位与体验目标.md', 'docs/specs/tasks/04-测试职责.md']) {
       read(f).split('\n').forEach(function (line, i) {
         if (line.indexOf(gone) < 0) return;
         if (/改版前|旧名|已删|退役|删掉/.test(line)) return;
@@ -2568,14 +2568,14 @@ check('文案用现代汉语：仿古词不许进玩家文案', function () {
     '走火', '收功', '此局未竟', '还没上榜', '再想想'];
   const blobs = [JSON.stringify([copy.UI, copy.TERMS, copy.SHARE, copy.GRADE_TITLE,
     help.TOPICS, guides.GUIDES])];
-  // 说明页按功法现拼，十五门都要过一遍（写「每门都」就得逐门验，见 04-open-issues）。
+  // 说明页按功法现拼，十五门都要过一遍（写「每门都」就得逐门验，见 05-欠账与待拍板台账）。
   skillData.SKILLS.forEach(function (s) {
     blobs.push(JSON.stringify(help.practiceTopic({ method: s.method })));
   });
   BANNED.forEach(function (w) {
     blobs.forEach(function (blob, i) {
       assert.ok(blob.indexOf(w) < 0, '玩家文案里还有禁用词「' + w + '」（第 ' + (i + 1) + ' 份），'
-        + '口径见 docs/specs/plan/00-foundation/04-voice-and-copy.md §一');
+        + '口径见 docs/specs/constitution/04-文案口吻规范.md §一');
     });
   });
 });
@@ -2594,7 +2594,7 @@ check('正名层不用现实游戏名，口语层允许（禁令只在名字上�
     const names = [s.name, s.desc, m && m.name, m && m.gameName].join(' ');
     REAL.forEach(function (w) {
       assert.ok(names.indexOf(w) < 0, '「' + s.name + '」的正名/玩法名/简介里还写着现实游戏名「'
-        + w + '」：正名必须自造，口径见 04-voice-and-copy.md 第三族');
+        + w + '」：正名必须自造，口径见 04-文案口吻规范.md 第三族');
     });
   });
   // 口语层那句包袱要在：它是「师父叫并蒂、玩家觉得叫连连看」，认梗不是命名。

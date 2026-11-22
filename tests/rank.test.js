@@ -1155,7 +1155,7 @@ check('九套经典 + 洞微勘禁诀默认已习得，藏经阁只留非经典'
   }
   const shop = skills.SKILLS.filter(function (x) { return x.source.kind === 'shop'; });
   // 2026-11 删掉四门（含唯一一门玄阶以上的在售功法）之后，藏经阁只剩澄心默诵诀一门。
-  // 这是内容欠账不是设计，已记进 docs/specs/plan/50-balance/04-open-issues.md；门槛先按现状写 1，
+  // 这是内容欠账不是设计，已记进 docs/specs/tasks/05-欠账与待拍板台账.md；门槛先按现状写 1，
   // 补门时把这条抬回 2 —— 否则「阁里只有一门」会被断言替玩家认下来。
   assert.ok(shop.length >= 1, '藏经阁空了：非经典的功课至少要留一门');
   for (const s of shop) {
