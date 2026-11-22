@@ -8,11 +8,11 @@ const { spawnSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 // .obsidian 是本地编辑器工作区（第三方插件），与 .workbuddy 同类，不进校验范围。
-// docs/90-reference 是外部参考仓库（GDD 模板 / OpenGDD 规范 / game-forge），整目录连同上游
-// .git 一起被拉进来。它们是「读的资料」，不是本项目的代码与文档：不解析它的 JSON、
-// 不扫它的 WXML 引用、更不把一千多个第三方文件算进静态项数。
-// reviews 是每轮审查卡的归档目录，逐轮累积、只增不减。若计入静态项数，每新增一份
-// 审查卡 README 的项数就要改一次，项数会被与代码无关的审查动作持续推着走——跳过它。
+// 90-reference 是外部参考仓库（GDD 模板 / OpenGDD 规范 / game-forge），随设计文档放在
+// docs/specs/plan/90-reference/，整目录连同上游 .git 一起被拉进来。它们是「读的资料」，
+// 不是本项目的代码与文档：不解析它的 JSON、不扫它的 WXML 引用、更不把一千多个第三方文件算进静态项数。
+// reviews（现为 docs/reviews/）是每轮审查卡与三份覆盖度的归档目录，逐轮累积、只增不减。
+// 若计入静态项数，每新增一份审查卡 README 的项数就要改一次，项数会被与代码无关的审查动作持续推着走——跳过它。
 const SKIP_DIRS = new Set(['.git', '.workbuddy', '.obsidian', 'node_modules', 'miniprogram_npm', '90-reference', 'reviews']);
 const errors = [];
 let checked = 0;
@@ -364,10 +364,10 @@ else checked += 1;
     errors.push('所有心法的扩容加起来超过了封顶：' + capSum + ' > ' + economyMod.QI_CAP_SKILL_MAX);
   } else checked += 1;
   // 旧名「灵气」不许再出现在玩家看得见的文字里（含 README 的当前事实段）。
-  // 例外只有一类：外部资料的逐字摘录（docs/00-foundation/05-external-research.md）。
+  // 例外只有一类：外部资料的逐字摘录（docs/specs/plan/00-foundation/05-external-research.md）。
   // 它引用的是别家原文，改字就不是摘录了。但只放行 `>` 引用行——同一文件里的
   // 叙述段仍然不许写旧名，否则下一个人会把它当成我们的现行口径抄出去。
-  const EXTERNAL_QUOTE_DOCS = new Set(['docs/00-foundation/05-external-research.md']);
+  const EXTERNAL_QUOTE_DOCS = new Set(['docs/specs/plan/00-foundation/05-external-research.md']);
   for (const f of files.filter(function (x) {
     return /\.(js|wxml|wxss|json|md)$/.test(x) && rel(x) !== 'scripts/verify.js';
   })) {
@@ -397,7 +397,7 @@ else checked += 1;
 // 2026-11 踩过一次：拿「体验目标第 5 条白纸黑字」否决业界回访手段，把产品判断当成了物理定律。
 // 这里只钉框架的存在与口径，不钉具体结论——结论本来就该能翻案（§5.2 的浅色主题就是先例）。
 // 少任何一处，下一个人就又会拿旧文档当硬约束。
-const visionDoc = fs.readFileSync(path.join(ROOT, 'docs/00-foundation/01-product-vision.md'), 'utf8');
+const visionDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/plan/00-foundation/01-product-vision.md'), 'utf8');
 const LAYER_MARKS = [
   ['## 5. 约束分层：哪层真不能动，哪层只是默认值', '产品愿景丢了三层约束框架'],
   ['| **一 · 定义** |', '三层约束缺了「定义」层（修仙 + 功法即小游戏）'],
@@ -625,7 +625,7 @@ for (const m of practiceMod.PRACTICE_METHODS) {
 }
 const docPairs = [
   ['README.md', fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8')],
-  ['docs/checklist-puzzle.md', fs.readFileSync(path.join(ROOT, 'docs/checklist-puzzle.md'), 'utf8')],
+  ['docs/specs/plan/checklist-puzzle.md', fs.readFileSync(path.join(ROOT, 'docs/specs/plan/checklist-puzzle.md'), 'utf8')],
 ];
 for (const [name, src] of docPairs) {
   if (src.indexOf('有失败态的' + cnCount(failGames.length) + '门') < 0) {
@@ -920,7 +920,7 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   } else checked += 1;
   // 玩法文档十六门一律是「中文正名目录 + 总览.md + 五段」；单篇形态已退役，不再兜底。
   // 路径钉到中文正名，目录名被改回英文 stem 时这里会当场报错，不会静默读旧文件。
-  const docPath = path.join(ROOT, 'docs/20-minigames/11-并蒂连枝引/总览.md');
+  const docPath = path.join(ROOT, 'docs/specs/plan/20-minigames/11-并蒂连枝引/总览.md');
   const doc = fs.readFileSync(docPath, 'utf8');
   // 「N 关有东西可报」不写字面量：N 就是上面逐关数出来的 reported。
   // 写死一个数字，改了轮换节奏之后文档会与代码各说各的，而且没有任何断言会红。
@@ -974,7 +974,7 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   if (tblAt < 0 || /sLine/.test(tbl)) {
     errors.push('MATCH_LEVELS 里又写死了 sLine；它必须由 matchSLineOf 按本关时辰现算');
   } else checked += 1;
-  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/20-minigames/13-三秀撷英诀/总览.md'), 'utf8');
+  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/plan/20-minigames/13-三秀撷英诀/总览.md'), 'utf8');
   // reported 不写字面量：改了时辰曲线或 S 线公式，这个数就变，文档必须同批改。
   let mReported = 0;
   for (let lv = 2; lv <= lvMod.LEVEL_MAX; lv += 1) {
@@ -1024,8 +1024,8 @@ for (const f of files) {
     const raw = fs.readFileSync(path.join(ROOT, name), 'utf8');
     return raw.replace(/\*/g, '');
   };
-  const dp = parseDoc('docs/00-foundation/02-design-principles.md');
-  const review = parseDoc('docs/50-balance/05-axis-review.md');
+  const dp = parseDoc('docs/specs/plan/00-foundation/02-design-principles.md');
+  const review = parseDoc('docs/specs/plan/50-balance/05-axis-review.md');
   if (!/## 十三、变化方向/.test(dp) || !/## 13\. 变化方向账/.test(review)) {
     errors.push('变化方向的规矩没立：设计原则 §13 与 05-axis-review §13 必须同时存在');
   } else checked += 1;
@@ -1186,12 +1186,12 @@ for (const f of files) {
       errors.push('data/guides.js 的 match 段没讲「' + word + '」，盘上出现了玩家查不到的东西');
     } else checked += 1;
   });
-  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/20-minigames/13-三秀撷英诀/总览.md'), 'utf8');
+  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/plan/20-minigames/13-三秀撷英诀/总览.md'), 'utf8');
   if (!/九类方向/.test(mDoc) || !/挪苗/.test(mDoc) || !/劫变/.test(mDoc)) {
     errors.push('13-三秀撷英诀/总览.md 没同步九类方向：符 / 目标 / 挪苗 / 劫变要同批改');
   } else checked += 1;
   // 方向账已经由 8b-6a-4 逐格比对；这里只钉住「达标」那一行不能悄悄写回旧账。
-  const ledger = fs.readFileSync(path.join(ROOT, 'docs/50-balance/05-axis-review.md'), 'utf8');
+  const ledger = fs.readFileSync(path.join(ROOT, 'docs/specs/plan/50-balance/05-axis-review.md'), 'utf8');
   const row = ledger.split('\n').filter(function (l) { return /^\| 换苗引秀 \|/.test(l); })[0] || '';
   if (!/\| 9 \| 7 \| 5 \| 5 \| ✓ \|/.test(row)) {
     errors.push('方向账里换苗引秀不再是 9 类 / 7 内容轴 / 段界 5 条，九类全开的账被改回去了');
@@ -1206,7 +1206,7 @@ for (const f of files) {
   const lvSrc = fs.readFileSync(path.join(ROOT, 'data/levels.js'), 'utf8');
   const mtSrc = fs.readFileSync(path.join(ROOT, 'minigames/match.js'), 'utf8');
   const guide = fs.readFileSync(path.join(ROOT, 'data/guides.js'), 'utf8');
-  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/20-minigames/13-三秀撷英诀/总览.md'), 'utf8');
+  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/plan/20-minigames/13-三秀撷英诀/总览.md'), 'utf8');
   const names = lvMod.MATCH_THEME_NAMES;
 
   // 一、真源只有一份：五套 × 七格，名字与数据层同序。
@@ -1250,7 +1250,7 @@ for (const f of files) {
     else checked += 1;
   });
   ['00-未入门', '01-入门', '02-小成', '03-大成', '04-圆满'].forEach(function (stem, i) {
-    const doc = fs.readFileSync(path.join(ROOT, 'docs/20-minigames/13-三秀撷英诀/' + stem + '.md'), 'utf8');
+    const doc = fs.readFileSync(path.join(ROOT, 'docs/specs/plan/20-minigames/13-三秀撷英诀/' + stem + '.md'), 'utf8');
     if (doc.indexOf('本段纹样') < 0 || doc.indexOf(names[i]) < 0) {
       errors.push(stem + '.md 没写本段纹样是哪一套');
     } else checked += 1;
@@ -1260,7 +1260,7 @@ for (const f of files) {
 // 8b-6b. 玩法文档目录名 = 编号 + 功法正名（照 05-吐纳周天诀），单门六篇齐全。
 // 目录名是 skills.js 里 name 的抄写，必须钉住：整批改回英文 stem 时不能静默过关。
 {
-  const docRoot = path.join(ROOT, 'docs/20-minigames');
+  const docRoot = path.join(ROOT, 'docs/specs/plan/20-minigames');
   const dirs = fs.readdirSync(docRoot).filter(function (n) {
     return fs.statSync(path.join(docRoot, n)).isDirectory();
   });
@@ -1315,7 +1315,7 @@ for (const f of files) {
     if (/grantGifts\(/.test(normBody)) {
       errors.push('normalizeState 里调了 grantGifts：登录后云端覆盖会让礼包重复发放');
     } else checked += 1;
-    const curDoc = fs.readFileSync(path.join(ROOT, 'docs/10-systems/01-currency.md'), 'utf8');
+    const curDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/plan/10-systems/01-currency.md'), 'utf8');
     if (curDoc.indexOf('开山礼') < 0 || curDoc.indexOf(String(g.stone)) < 0) {
       errors.push('01-currency 没写开山礼的金额（' + g.stone + '）：文档与数据会各说一套');
     } else checked += 1;
@@ -1868,9 +1868,9 @@ if (/onToggleWorld|worlds|修行记录/.test(indexWxml)) errors.push('主页还�
 else checked += 1;
 
 // 玩法设计自检清单：文档必须跟真源同步，否则以后会照着过期口径打勾。
-const checklistPath = path.join(ROOT, 'docs/checklist-puzzle.md');
+const checklistPath = path.join(ROOT, 'docs/specs/plan/checklist-puzzle.md');
 if (!fs.existsSync(checklistPath)) {
-  errors.push('缺少玩法设计自检清单：docs/checklist-puzzle.md');
+  errors.push('缺少玩法设计自检清单：docs/specs/plan/checklist-puzzle.md');
 } else {
   const doc = fs.readFileSync(checklistPath, 'utf8');
   const copyData = require(path.join(ROOT, 'data/copy.js'));
@@ -1979,7 +1979,7 @@ if (!fs.existsSync(checklistPath)) {
     hit = refRe.exec(doc);
   }
   const readmeSrc = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
-  if (readmeSrc.indexOf('docs/checklist-puzzle.md') < 0) errors.push('README 没有指到 docs/checklist-puzzle.md');
+  if (readmeSrc.indexOf('docs/specs/plan/checklist-puzzle.md') < 0) errors.push('README 没有指到 docs/specs/plan/checklist-puzzle.md');
   else checked += 1;
   // 最差那一档必须写清是「没走完」而不是「做糙了」：失败（F）与粗浅（C）是两个结论。
   // 曾经所有 F 都被页面当成「中途结束」，打崩了一分收益都没有、还被说成「这回不算数」。
@@ -1993,10 +1993,10 @@ if (!fs.existsSync(checklistPath)) {
   // 2026-11 首轮整理时，四处口径错全都 check 全绿：专利里没有的关号、
   // 不是官方口径的说法被写成官方、反例被当成通例、出处串到了另一篇头上。
   // 静态断言判不了语义，但能逼着引用回到原文旁边。
-  const teachDocSrc = fs.readFileSync(path.join(ROOT, 'docs/30-ui/12-teach-boards.md'), 'utf8');
-  const researchPath = path.join(ROOT, 'docs/30-ui/13-teach-research.md');
+  const teachDocSrc = fs.readFileSync(path.join(ROOT, 'docs/specs/plan/30-ui/12-teach-boards.md'), 'utf8');
+  const researchPath = path.join(ROOT, 'docs/specs/plan/30-ui/13-teach-research.md');
   if (!fs.existsSync(researchPath)) {
-    errors.push('缺少 docs/30-ui/13-teach-research.md：教学盘的外部引用没有原文存档');
+    errors.push('缺少 docs/specs/plan/30-ui/13-teach-research.md：教学盘的外部引用没有原文存档');
   } else {
     checked += 1;
     const researchSrc = fs.readFileSync(researchPath, 'utf8');
@@ -2009,7 +2009,7 @@ if (!fs.existsSync(checklistPath)) {
         seenLink[url] = true;
         if (researchSrc.indexOf(url) < 0) {
           errors.push('12-teach-boards.md 引了没留档的外部链接：' + url
-            + '（原文摘录要补进 docs/30-ui/13-teach-research.md）');
+            + '（原文摘录要补进 docs/specs/plan/30-ui/13-teach-research.md）');
         } else checked += 1;
       }
       ext = extRe.exec(teachDocSrc);
@@ -2050,7 +2050,7 @@ else checked += 1;
 // 说明页讲的是「怎么玩」，不是「这东西怎么被命名出来的」。
 // 曾经有一节「功法命名」把 NAME_RULE 的字段（体裁字、字数区间、同族共用一个字）
 // 抄给玩家看，还写着已经被撤掉的那一族体裁字——玩家读不懂，改规则时也没人记得来改它。
-// 命名规范只有一处真源：docs/10-systems/11-skill-taxonomy.md。
+// 命名规范只有一处真源：docs/specs/plan/10-systems/11-skill-taxonomy.md。
 if (/体裁字/.test(helpSrc)) errors.push('说明页又在讲命名规范（体裁字），那是设计文档的事，不是玩家规则');
 else checked += 1;
 

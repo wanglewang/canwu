@@ -2427,10 +2427,10 @@ check('文档明细表与代码同源：门数、effect 门面词、F 列', func
   // 门数 = 玩法数（一门一套内核）。这两个数在任何一句里都必须同步，所以直接抓数字比。
   assert.strictEqual(games.size, n, '有功法共用同一套玩法，「一门一套内核」不成立');
   const numDocs = ['README.md',
-    'docs/00-foundation/01-product-vision.md',
-    'docs/00-foundation/02-design-principles.md',
-    'docs/40-engineering/04-testing.md',
-    'docs/checklist-puzzle.md'];
+    'docs/specs/plan/00-foundation/01-product-vision.md',
+    'docs/specs/plan/00-foundation/02-design-principles.md',
+    'docs/specs/plan/40-engineering/04-testing.md',
+    'docs/specs/plan/checklist-puzzle.md'];
   for (const f of numDocs) {
     const s = read(f);
     // 「N 套互不复用」「N 门功法对应 M 套」两种写法，抓到就跟真源比。
@@ -2444,7 +2444,7 @@ check('文档明细表与代码同源：门数、effect 门面词、F 列', func
   }
 
   // 12-effect 的表格第三列是代码里 effect.text 的原文。抄过去就得钉住。
-  const effectDoc = read('docs/10-systems/12-effect.md');
+  const effectDoc = read('docs/specs/plan/10-systems/12-effect.md');
   for (const k of skills.SKILLS) {
     assert.ok(k.effect && k.effect.text, k.name + ' 没写 effect.text');
     assert.ok(effectDoc.indexOf(k.effect.text) >= 0,
@@ -2452,7 +2452,7 @@ check('文档明细表与代码同源：门数、effect 门面词、F 列', func
   }
 
   // 05-grade 的 F 列：「—」表示这门没有失败态。要跟各玩法 lines().fail 实测对得上。
-  const gradeDoc = read('docs/10-systems/05-grade.md');
+  const gradeDoc = read('docs/specs/plan/10-systems/05-grade.md');
   const noFailInDoc = [];
   const hasFailInDoc = [];
   for (const k of skills.SKILLS) {
@@ -2477,7 +2477,7 @@ check('文档明细表与代码同源：门数、effect 门面词、F 列', func
   // 已删的门不许再当例子出现。历史叙述另算：讲「改版前」「旧名」「已删」的行必须能提它，
   // 否则历史记录会变成假话——所以逐行看，命中历史语境就放过这一行。
   for (const gone of ['剑法·截锋断岳诀', '水术·叠纹凝露诀', '身法·踏云连环步', '阵法·五灯相生诀']) {
-    for (const f of ['README.md', 'docs/00-foundation/01-product-vision.md', 'docs/40-engineering/04-testing.md']) {
+    for (const f of ['README.md', 'docs/specs/plan/00-foundation/01-product-vision.md', 'docs/specs/plan/40-engineering/04-testing.md']) {
       read(f).split('\n').forEach(function (line, i) {
         if (line.indexOf(gone) < 0) return;
         if (/改版前|旧名|已删|退役|删掉/.test(line)) return;
@@ -2575,7 +2575,7 @@ check('文案用现代汉语：仿古词不许进玩家文案', function () {
   BANNED.forEach(function (w) {
     blobs.forEach(function (blob, i) {
       assert.ok(blob.indexOf(w) < 0, '玩家文案里还有禁用词「' + w + '」（第 ' + (i + 1) + ' 份），'
-        + '口径见 docs/00-foundation/04-voice-and-copy.md §一');
+        + '口径见 docs/specs/plan/00-foundation/04-voice-and-copy.md §一');
     });
   });
 });
