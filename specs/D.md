@@ -1,0 +1,35 @@
+# D · 实现规格（Development）
+
+> 这份文档回答：**T 的每个测试场景，落到哪段真源、哪个模块。**
+> 它从 `T.md` 派生——T 有一个测试场景，这里就指出它被哪段实现兑现。
+> 只做「场景 → 真源/模块」的导航，不抄代码；具体实现在 `data/*.js`、`utils/game/`、`minigames/`。
+
+## 一、场景到实现的映射
+
+| T 的场景组 | 兑现它的真源 / 模块 |
+| --- | --- |
+| 一局参悟、评级、扣气 | `utils/game/` 内核（state / settle / view）+ `data/economy.js` 耗气表 |
+| 熟练度、连 S、段位 | `data/world.js`（硬顶、六阶火候）+ `data/levels.js`（段位表、关数）+ `data/practice.js`（评级线 `lines()`） |
+| 灵力兑换、气海上限 | `data/economy.js`（`QI_PER_STONE`、`qiCap` 公式，兑换单向） |
+| 存档、读档、老档升级 | `utils/game/state.js` 的 `normalizeState` + `tests/store.test.js` 的云端适配约定 |
+| 首屏、按钮、折叠、返回 | `data/navigation.js`（导航真源）+ `data/copy.js`（文案真源）+ `app.json` 页面注册 |
+| 教学盘、输入接管 | `minigames/teach-kit.js` + 各门 `TEACH_*[5]` 盘面 |
+| 视觉、皮肤、令牌 | `styles/tokens.wxss`（唯一色值真源）+ 各页 `theme.syncPage` |
+| 十五门玩法内核 | `minigames/*.js`（一门一套，互不复用）+ `minigames/index.js` 逐键门面 |
+
+数值的唯一出处是 `data/*.js`；数值总表 `docs/50-balance/02-numbers-reference.md` 与根 README 是它的同步镜像。
+本目录任何地方都不写死数值，只指路。
+
+## 二、实现的边界（从 S/T 继承的约束）
+
+- 内核已拆到 `utils/game/`，门面逐键导出，不许 `Object.assign` 摊开——读内核源码的断言一律走 `engineSrc()`。
+- 往 `minigames/` 加共用表或工具模块，必须同步加 `verify` 的白名单，否则静态校验把它当玩法、要求 `lines()`。
+- 页面必须注册进 `app.json`；同一功能不许两页各一份；子页分享不送回首页。
+- 判定改一处，必须同时改所有消费端（目标判定、评级口径、`settle.js` 的 `advanced` 三处同改）。
+
+## 三、和 Rᴰ 的分工
+
+这份文档是**导航**——指出实现在哪，不描述代码跑出什么。
+代码真实的对外行为由 `coverage/Rd.md` 记录，而且那份**必须靠跑**：来源是 `npm run check`、`npm run sim`
+的输出和观测记录，不是 AI 读代码写出来的理解。判断与实现同源，就是 AI 自己审自己。
+当前 Rᴰ 的运行观测集还没接入（见该文件与 09「待验」），这是欠账，不在这里用文字补。

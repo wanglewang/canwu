@@ -11,7 +11,9 @@ const ROOT = path.join(__dirname, '..');
 // docs/90-reference 是外部参考仓库（GDD 模板 / OpenGDD 规范 / game-forge），整目录连同上游
 // .git 一起被拉进来。它们是「读的资料」，不是本项目的代码与文档：不解析它的 JSON、
 // 不扫它的 WXML 引用、更不把一千多个第三方文件算进静态项数。
-const SKIP_DIRS = new Set(['.git', '.workbuddy', '.obsidian', 'node_modules', 'miniprogram_npm', '90-reference']);
+// reviews 是每轮审查卡的归档目录，逐轮累积、只增不减。若计入静态项数，每新增一份
+// 审查卡 README 的项数就要改一次，项数会被与代码无关的审查动作持续推着走——跳过它。
+const SKIP_DIRS = new Set(['.git', '.workbuddy', '.obsidian', 'node_modules', 'miniprogram_npm', '90-reference', 'reviews']);
 const errors = [];
 let checked = 0;
 
