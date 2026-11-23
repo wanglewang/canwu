@@ -9,16 +9,15 @@
 ```
 docs/specs/plan/                      技术实现层（本目录，how）
 ├── README.md                         本篇
-└── 40-工程实现/                   工程实现：怎么保证 spec 不走样
-    ├── 01-architecture.md            目录分层与数据流
-    ├── 02-minigame-contract.md       玩法模块契约（create / lines / teach）
-    ├── 05-error-and-lifecycle.md     异常兜底、环形日志、页面生命周期
-    ├── 06-privacy.md                 隐私授权与接口守卫
-    ├── 07-performance.md             包体、渲染、计算预算
-    └── 08-navigation.md              页面注册、跳转与标题
+├── 01-architecture.md                目录分层与数据流
+├── 02-minigame-contract.md           玩法模块契约（create / lines / teach）
+├── 05-error-and-lifecycle.md         异常兜底、环形日志、页面生命周期
+├── 06-privacy.md                     隐私授权与接口守卫
+├── 07-performance.md                 包体、渲染、计算预算
+└── 08-navigation.md                  页面注册、跳转与标题
 ```
 
-共 7 篇（本篇 README + 工程 6 篇）。号段 03 / 04 / 09 空缺不复用：校验链、测试职责归 `tasks/`，评审方法论归 `constitution/`——编号是历史指代，改号会让旧引用指到别的文档。
+共 7 篇（本篇 README + 工程 6 篇），直接平铺、不再套子目录。号段 03 / 04 / 09 空缺不复用：校验链、测试职责归 `tasks/`，评审方法论归 `constitution/`——编号是历史指代，改号会让旧引用指到别的文档。
 
 2026-11-23 按 SDD 的 what/how 重排：原 `plan/` 装了 141 篇，其中系统设计 / 玩法 / 界面 / 数值（what）全部移进 `spec/`，本层只留这 6 篇工程实现。
 
@@ -37,4 +36,4 @@ docs/specs/plan/                      技术实现层（本目录，how）
 ## 代码指路
 
 - `scripts/verify.js` —— 全项目静态校验，工程约束多数在此
-- `utils/game/` —— 玩法内核的宿主，`40-工程实现/02` 契约的落点
+- `utils/game/` —— 玩法内核的宿主，`02-minigame-contract.md` 契约的落点

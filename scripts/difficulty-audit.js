@@ -8,7 +8,7 @@
 // 对某一门功课来说，究竟改了什么？若只有评级线在变，玩家从第一秒到最后一秒
 // 的操作对象、盘面、容错全一样，那一档就只是「结算时乘个数」，不是难度。
 //
-// 判据取自 docs/specs/spec/checklist-puzzle.md 第三节「难度系统」与第五节「评级标准可查」：
+// 判据取自 docs/specs/spec/00-契约/checklist-puzzle.md 第三节「难度系统」与第五节「评级标准可查」：
 //   ① 每档至少两个玩家看得见的参数在变（盘面 / 预算 / 容错 / 节奏）；
 //   ② 评级线随档变，或盘面规格随档变（否则说明页五档写同一行，玩家没法对照）。
 // 不判「变得够不够难」——那要真机与收益曲线，静态只负责把「压根没变」揪出来。
@@ -112,7 +112,7 @@ console.log('共 ' + rows.length + ' 门，区分度不足 ' + weak.length + ' �
   + (weak.map(function (r) { return r.name; }).join('、') || '无'));
 console.log('* 主轴跨度不足 2 倍（' + thinRows.length + ' 门）：'
   + (thinRows.map(function (r) { return r.name; }).join('、') || '无'));
-console.log('注：审计只看「有没有变」，不看「变得合不合理」；后者见 docs/specs/spec/checklist-puzzle.md 与真机验收。');
+console.log('注：审计只看「有没有变」，不看「变得合不合理」；后者见 docs/specs/spec/00-契约/checklist-puzzle.md 与真机验收。');
 console.log('    主轴跨度 = 五档里变化最大的那个参数的最大值 ÷ 最小值。它不是断言，是给人看的：');
 console.log('    1.7 倍摊到五档每档 11%（玩家能说出「这档更紧」），1.15 倍每档只有 3.5%（等于没变）。');
 console.log('    跨度小不一定是错——时间轴本来就压不了太多，压很了是「不可能」不是「难」；');

@@ -221,7 +221,7 @@ function lines(p) {
 - 不盖整屏、不遮盘面，就一张窄条说清「这一手做什么」；
 - **教学盘不结算、不扣气**，可以照走；跳过算看过本段（`engine.markTaught(state, id, stage)`），存档在 `skills[id].teachSeen[5]`；
 - 15 门参悟**全部有**。**首段讲整门机制**（2 步，走完能说清这门在玩什么）；**段界只讲这一段变了什么**（1–3 步，记序复现按音数走最多 5 步），而且**按本段的真参数摆盘**——同尺寸、同禁制数、同起点等级、同判定带，变化是看见的，不是读到的。
-  规范与逐门表见 `spec/30-界面设计/12-teach-boards.md`；公用骨架在 `minigames/teach-kit.js`（造 vm、压暗与呼吸、错点拒绝、走完停一拍交棒）。
+  规范与逐门表见 `spec/界面设计/12-teach-boards.md`；公用骨架在 `minigames/teach-kit.js`（造 vm、压暗与呼吸、错点拒绝、走完停一拍交棒）。
   节律判定（吐纳周天诀）在五个段首关另有一套**局内文案引导**，它不走 `hasTeach`：不盖盘面、不打断流程，就借开局那一小节预拍说一句话。两套机制的分工是「要不要停一局」——`hasTeach` 停，段首引导不停。
 - 教学态页面把 `tap / longpress / move / swipe` 都转给教学控制器，否则落石垒基、同源叠元、移山开路、移石归阵、顺光扫斩这五门在教学里收不到输入。
 
@@ -260,7 +260,7 @@ typeof mod.lines === 'function'
 | 6 | `data/guides.js` | `goal` / `steps` / `terms` / `scoring` / `tip` |
 | 7 | `data/practice.js` | 若这一门有阶段新法，加 `STAGE_RULES` |
 | 8 | 测试 | `tests/minigames.test.js`（整局驱动）、`tests/rank.test.js`（五段区分度） |
-| 9 | 文档 | `docs/specs/spec/20-功法玩法/` 一篇 + README 矩阵 + 根 README 统计 |
+| 9 | 文档 | `docs/specs/spec/玩法设计/` 一篇 + README 矩阵 + 根 README 统计 |
 
 漏第 5 步是最隐蔽的一种：不报错，只是颜色不对。
 
@@ -286,7 +286,7 @@ typeof mod.lines === 'function'
 - `pages/practice/practice.js:441` —— `buildGame()`，`ctx` 的组装处
 - `tests/minigames.test.js` —— 逐门驱动、`teach` 走一遍
 - `tests/rank.test.js` —— 逐门复算评级线
-- `docs/specs/spec/checklist-puzzle.md` —— 新增玩法前的十二维自检
+- `docs/specs/spec/00-契约/checklist-puzzle.md` —— 新增玩法前的十二维自检
 
 ## 13. 待验
 
