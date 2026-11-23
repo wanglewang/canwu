@@ -370,7 +370,7 @@ const curTop = 21;   // 已走通 20 关 → 当前关 21（入门段 11）
 });
 // 折减是连续的：退一关只掉一点点（20/21 = 0.952），跨段的第二把尺子也是渐进的。
 // 「只按关号折」那一版漏了一件事：回关同时省了段位的气，于是停在低段末反复刷
-// 永远比推进到高段划算（见 data/practice.js 的 levelFactor 注释与 05-欠账与待拍板台账 D12）。
+// 永远比推进到高段划算（见 data/practice.js 的 levelFactor 注释与 08-待拍板清单.md D12）。
 expect(practice.profByLevel(world.PROF_BASE.C, 20, curTop) === 10,
   '第 21 → 20 关只该掉 5%（C 10 → 10），实为 '
   + practice.profByLevel(world.PROF_BASE.C, 20, curTop));

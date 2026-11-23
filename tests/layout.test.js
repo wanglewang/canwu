@@ -888,7 +888,7 @@ check('可点 view 统一按压反馈，反馈样式落在全局基础层', func
     perPage[rel] = hover;
   }
   // 门槛按页面算，不是全项目一个数：原来是「总数 ≥ 5」，删掉四五十处也不会红——
-  // 它守的是「样式类存在」，不是「覆盖完整」（见 05-欠账与待拍板台账 C1）。
+  // 它守的是「样式类存在」，不是「覆盖完整」（见 07-已修归档.md C1）。
   // 每个页面至少一处；四个主交互页按现状留两成余量（现 6 / 18 / 9 / 4）。
   const floor = {
     'pages/index/index.wxml': 4,
@@ -1453,7 +1453,7 @@ check('只奖不罚：连练递减全站清零，换门的「省气」有单一�
     && /repeatNote/.test(read('pages/practice/practice.wxml')),
     '准备页没把「连练不减收益」写在开局前');
   // 回关护栏：2026-11 起口径改成「局部」——同一个当前关下，回打更低的关不许比打当前关划算。
-  // 旧的「6000 点预算下只刷第 1 关不许反超逐关进」不是一个能成立的判据（见 05-欠账与待拍板台账 D12），
+  // 旧的「6000 点预算下只刷第 1 关不许反超逐关进」不是一个能成立的判据（见 08-待拍板清单.md D12），
   // 它从 v9 起就空跑：刷法名改名之后两条曲线都落进 else 分支，等于拿逐关进比逐关进。
   const sim = read('scripts/simulate.js');
   assert.ok(/回关不该更划算/.test(sim), '模拟里没有断言守着「回关不许比打当前关更划算」');
@@ -2568,7 +2568,7 @@ check('文案用现代汉语：仿古词不许进玩家文案', function () {
     '走火', '收功', '此局未竟', '还没上榜', '再想想'];
   const blobs = [JSON.stringify([copy.UI, copy.TERMS, copy.SHARE, copy.GRADE_TITLE,
     help.TOPICS, guides.GUIDES])];
-  // 说明页按功法现拼，十五门都要过一遍（写「每门都」就得逐门验，见 05-欠账与待拍板台账）。
+  // 说明页按功法现拼，十五门都要过一遍（写「每门都」就得逐门验，见 05-待修欠账.md）。
   skillData.SKILLS.forEach(function (s) {
     blobs.push(JSON.stringify(help.practiceTopic({ method: s.method })));
   });
