@@ -87,7 +87,7 @@
 | 不设关卡锁 | 段内没有「必须先过第 N 关」——只有一个当前关，回打不受限 |
 
 存档：`state.skills[id].cleared`（0–1000）。旧档的 `levels{diff:0-40}` 与更旧的 `prof`
-在 v9 迁移里折算一次，见 `10-systems/18-save-migration.md`。
+在 v9 迁移里折算一次，见 `spec/10-systems/18-save-migration.md`。
 
 ## 5. 折减：只有一种，给「回打」定价
 

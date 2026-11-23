@@ -66,12 +66,12 @@ SDD 最大的失败模式不是没写规格，是规格和代码悄悄脱节，�
 - **改行为先改对应契约**：实现与规格冲突时，先判断是规格错了还是实现错了；改契约要连同守卫一起改，并按 `README.md` §三 走反馈回溯。
 - **每条契约都要有会红的守卫**：写一条行为，就问「哪条断言会在它被破坏时报红」；答不出就补断言。
 - **写完断言要反证**：故意把实现改坏一次，确认断言真的红；不红说明断言空转（项目铁律）。
-- **数值只指真源**：规格不存第二套数字；改数值看 `docs/specs/plan/50-balance/02-numbers-reference.md` 与根 README 三处同步。
+- **数值只指真源**：规格不存第二套数字；改数值看 `docs/specs/spec/50-balance/02-numbers-reference.md` 与根 README 三处同步。
 - **翻案走人审**：非目标和开放问题的改动要人点头，不能因为「实现起来更顺」就悄悄改口径。
 
 ## 代码指路
 
-- 数值真源：`data/*.js`；数值总表 `docs/specs/plan/50-balance/02-numbers-reference.md`。
+- 数值真源：`data/*.js`；数值总表 `docs/specs/spec/50-balance/02-numbers-reference.md`。
 - 契约守卫：`scripts/verify.js`、`tests/` 五个文件、`scripts/simulate.js`、`npm run audit:gap`。
 - 未修欠账：`tasks/05-待修欠账.md`；真机验收：`tasks/06-真机验收清单.md`；已修历史：`tasks/07-已修归档.md`；待拍板：本目录 `08-待拍板清单.md`。
 - 方法论：`docs/specs/constitution/06-评审方法论.md`。

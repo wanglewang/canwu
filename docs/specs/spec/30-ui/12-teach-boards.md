@@ -165,7 +165,7 @@ Sokoban 第 1 关是另一种做法（[逐格拆解](https://puzzlebyrinth.com/a
 
 ### 明确不做的
 
-- **不做全屏遮罩引导、不做逐格弹出的气泡**。`docs/specs/plan/30-ui/01-visual-language.md` 与 `06-page-skills-practice.md` 里「教学条在盘面上方、不盖盘面」是硬约束，本轮不改。
+- **不做全屏遮罩引导、不做逐格弹出的气泡**。`docs/specs/spec/30-ui/01-visual-language.md` 与 `06-page-skills-practice.md` 里「教学条在盘面上方、不盖盘面」是硬约束，本轮不改。
 - **不做「必须看完才能玩」**。跳过按钮从第一帧就在。
 - **不给突破专用的蓄力停区做教学盘**：它不进参悟序列，一辈子只出现一次，且那一局的规则由突破流程说明页承担。
 
