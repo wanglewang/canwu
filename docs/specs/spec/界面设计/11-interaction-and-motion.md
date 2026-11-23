@@ -33,12 +33,12 @@
 - 缩放 0.995 是**几乎感觉不到但有**的程度，配合透明度下降才读得出「按下去了」；
 - **常态类 `pressable` 必须一起挂**：`hover-class` 只加 `--on` 那一半，没挂常态类就没有过渡。
 
-覆盖量：页面里共 **48 处** `hover-class="pressable--on"`，`tests/layout.test.js` 守着两件事：
+覆盖量：页面里共 **58 处** `hover-class="pressable--on"`，`tests/layout.test.js` 守着两件事：
 
 ```js
 // 1. .pressable 与 .pressable--on 都必须在全局基础层定义
 // 2. 每个挂 hover-class 的 view 必须同时有常态类 pressable
-assert.ok(total >= 5, '按压反馈覆盖不足：' + total + ' 处');
+const floor = { 'pages/index/index.wxml': 4, 'pages/practice/practice.wxml': 12, 'pages/profile/profile.wxml': 6, 'pages/skills/skills.wxml': 3 };
 ```
 
 ### 3.1 盘面格子用另一套
@@ -226,7 +226,7 @@ Node 测试里跑玩法不需要真机音效。
 ## 9. 代码指路
 
 - `app.wxss:216` —— `.pressable` / `.pressable--on`
-- `pages/practice/practice.wxss:543` —— `.cell--press`
+- `pages/practice/practice.wxss`（搜索 `.cell--press`，不写行号）
 - `data/visual.js` —— `MOTION` / `SETTLE`
 - `utils/sfx.js` —— `ASSETS` / `VOICE` / `GLOBAL_GAP` / `setLevel` / `warm` / `stopAll`
 - `scripts/gen-sfx.js` —— wav 合成脚本
@@ -235,7 +235,7 @@ Node 测试里跑玩法不需要真机音效。
 
 ## 10. 待验
 
-- **`pressable` 覆盖只有 48 处，且断言门槛是 `>= 5`**：这个门槛太低，实际上等于没守。新增页面漏挂反馈不会被拦。
+- **`pressable` 覆盖 58 处，断言已改逐页下限**（四个主交互页 4/12/6/3，其余页每页至少 1 处，总数 ≥ 页数×3）：旧版「总数 ≥ 5」门槛太低，删掉几十处也不红，已修（见 `tasks/07-已修归档.md` C1）。
 - 音效的 `gap` 与 `GLOBAL_GAP` 是按经验定的，**没有真机听感证据**；尤其 `hit` 的 95ms 在快速连击时是否仍显得碎。
 - `MOTION` 预算是静态常量，**没有运行时降级**：低端机与旗舰机用同一套粒子数。若真机上低端机掉帧，需要按 `wx.getDeviceInfo()` 分级（当前没有）。
 - `.cell--press` 的 0.962 与 `.pressable--on` 的 0.995 是两个尺度，盘面与页面其它地方的按压手感不一致——这是有意的（格子小），但没有记录成规范。

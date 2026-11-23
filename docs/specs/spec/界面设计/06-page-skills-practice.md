@@ -32,7 +32,7 @@
 ## 3. 功法页：两个分区
 
 ```
-[ 已持玉简 6 ] [ 藏经阁 13 ]
+[ 已持玉简 13 ] [ 藏经阁 1 ]
 ```
 
 | 分区 | 装什么 | 排序 |
@@ -376,8 +376,8 @@ SETTLE.short = [0, 150, 350, 600, 900];     // B / C / F
 ## 9. 代码指路
 
 - `pages/skills/skills.wxml` / `.js` —— 两个分区、`lastAt` 排序、`rank` 排序、图鉴弹层、`primaryOf`
-- `pages/practice/practice.wxml`（491 行）—— 三段结构、两套 HUD、两种结算
-- `pages/practice/practice.js`（1406 行）—— `onStart` / 倒计时 / `buildGame` / `syncBar` / `onAgain` / `onStay` / `onAbandon`
+- `pages/practice/practice.wxml`（当前 662 行，行数会随改动漂移，指路以结构为准）—— 三段结构、两套 HUD、两种结算
+- `pages/practice/practice.js`（当前 2137 行，行数会随改动漂移，指路以函数名为准）—— `onStart` / 倒计时 / `buildGame` / `syncBar` / `onAgain` / `onStay` / `onAbandon`
 - `data/practice.js` —— `buildParams` / `stageDetail` / `sLineText` / `stageRulesOf` / `tipFor`
 - `data/visual.js` —— `ENABLED` / `settleTimeline`
 - `data/navigation.js` —— `practiceHelpUrl()`

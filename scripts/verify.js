@@ -636,6 +636,39 @@ for (const [name, src] of docPairs) {
   } else checked += 1;
 }
 
+// 8b-3b. 灵石经济账：藏经阁门数、灵石总需求与缺口从真源现算，文档与玩家文案同步。
+// 2026-11 删门后藏经阁只剩 1 门可换（澄心 70），需求从 783 掉到 490、缺口从 317 掉到 24。
+// 当时三处都写旧账，验证脚本却全绿——因为没有任何断言读这本账。这里把账钉在真源上：
+// 再删门、加门或改破境价，文档与 guide 不跟着改就报红，不再靠人肉发现。
+{
+  const econLedger = require('../data/economy.js');
+  const oppLedger = require('../data/opponents.js');
+  const shopList = skillMod.SKILLS.filter(function (s) { return s.source && s.source.kind === 'shop'; });
+  const shopStoneSum = shopList.reduce(function (n, s) {
+    return n + ((s.source.cost && s.source.cost.stone) || 0);
+  }, 0);
+  const breakSum = econLedger.BREAKTHROUGH_STONE.reduce(function (a, b) { return a + b; }, 0);
+  const needSum = shopStoneSum + breakSum;
+  const incomeSum = oppLedger.OPPONENTS.reduce(function (n, o) { return n + ((o.reward && o.reward.stone) || 0); }, 0)
+    + oppLedger.SECRET_REALMS.reduce(function (n, o) { return n + ((o.reward && o.reward.stone) || 0); }, 0)
+    + (oppLedger.OPPONENTS.length + oppLedger.SECRET_REALMS.length) * econLedger.FIRST_CLEAR_STONE;
+  const gap = needSum - incomeSum;
+  const ledgerSrc = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/系统设计/03-economy-flow.md'), 'utf8');
+  const guideSrc = fs.readFileSync(path.join(ROOT, 'pages/guide/guide.js'), 'utf8');
+  const readmeLedgerSrc = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  const ledgerBad = [];
+  const shopCount = String(shopList.length);
+  if (ledgerSrc.indexOf('藏经阁 ' + shopCount + ' 门合计') < 0) ledgerBad.push('经济篇门数');
+  if (ledgerSrc.indexOf('| **总需求** | **' + needSum + '** |') < 0) ledgerBad.push('经济篇总需求');
+  if (ledgerSrc.indexOf('缺口 ' + gap + ' 枚') < 0) ledgerBad.push('经济篇缺口');
+  if (guideSrc.indexOf(shopCount + ' 门，' + shopStoneSum + ' 枚') < 0) ledgerBad.push('玩法说明藏经阁文案');
+  if (readmeLedgerSrc.indexOf('余 ' + shopCount + ' 门，' + shopStoneSum + ' 枚') < 0) ledgerBad.push('根 README 藏经阁数字');
+  if (ledgerBad.length) {
+    errors.push('灵石账没跟上真源：现算 ' + shopCount + ' 门 / ' + shopStoneSum + ' 石，需求 ' + needSum
+      + '，缺口 ' + gap + '；不同步处：' + ledgerBad.join('、'));
+  } else checked += 1;
+}
+
 // 8b-4. 主题键 → 场景色板必须全覆盖。缺一行不会报错：stageTheme() 会静默落到
 // sword 兜底，结果盘面是青绿、辉光是剑法青蓝，两种颜色各说各话，只有真机才看得出来。
 const themeMod = require('../minigames/theme.js');

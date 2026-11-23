@@ -68,7 +68,7 @@
 对每门功法调 `practice.buildParams(method, key)` 拿五份参数，逐键去重，只留「五段里出现过两种以上取值」的键。被排除的键只有一类：
 
 ```js
-const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
+const INTERNAL = new Set(practice.INTERNAL_PARAM_KEYS);  // 真源 ['depth']，别在文档里抄第二份
 ```
 
 `depth` 是「第几段」（0–4），任何按段注入的整表都靠它取行，它必然在变，但它不是玩家看得见的东西。其余三个名字——`gear`（`normal` / `hard` 两值，给玩法分难度用的）、`sBase` / `sStep`（历史遗留的评级线基数与步长）——**在当前 `buildParams` 的返回里都不存在**。实测 15 门所有段位合并起来共 50 个参数键，`gear` / `sBase` / `sStep` 一个都没有。
@@ -106,7 +106,7 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 | 成对翻牌 | 3 | 4 种 | 1.69× `flipMs` | `pairs`, `flipMs`, `timeLimit` |
 | 灵纹连线 | 9 | 5 种 | 49.50× `hints` | `cols`, `rows`, `kinds`, `turns`, `duration`, `theme`, `reshuffles`, `shuffleCost`, `hints` |
 | 落石垒基 | 4 | 5 种 | 8.00× `startLevel` | `duration`, `startLevel`, `linesPerLevel`, `sLine` |
-| 三连互换 | 12 | 5 种 | 33.00× `shuffleCap` | `duration`, `cols`, `rows`, `kinds`, `flashMs`, `missCost`, `shuffleCost`, `hintCost`, `perMove`, `seals`, `shuffleCap`, `sLine` |
+| 三连互换 | 20 | 5 种 | 50.00× `goalCount` | `duration`, `cols`, `rows`, `kinds`, `flashMs`, `missCost`, `shuffleCost`, `hintCost`, `perMove`, `seals`, `shuffleCap`, `special`, `goalType`, `goalColor`, `goalCount`, `swapAny`, `swapCost`, `twist`, `theme`, `sLine` |
 | 九宫填数 | 6 | 5 种 | 5.75× `holes` | `size`, `holes`, `timeLimit`, `tS`, `tA`, `tB` |
 | 滑格相合 | 2 | 4 种 | 8.00× `target` | `target`, `startTiles` |
 | 顺序点格 | 3 | 5 种 | 3.00× `penaltySec` | `size`, `fade`, `penaltySec` |
@@ -114,13 +114,13 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 | 推石入位 | 6 | 5 种 | 3.00× `boxes` | `inner`, `boxes`, `walls`, `minOpt`, `maxOpt`, `capFactor` |
 | 数中取大 | 2 | 5 种 | 2.00× `rounds` | `count`, `rounds` |
 
-分布：参数 2 个的 2 门、3 个的 4 门、4 个的 1 门、5 个的 4 门、6 个的 1 门、9 个的 1 门、10 个的 1 门、12 个的 1 门。评级线 5 种的 11 门、4 种的 3 门、1 种的 1 门。主轴跨度 ≥2 倍的 13 门、<2 倍的 2 门。
+分布：参数 2 个的 2 门、3 个的 4 门、4 个的 1 门、5 个的 2 门、6 个的 3 门、9 个的 1 门、10 个的 1 门、20 个的 1 门。评级线 5 种的 11 门、4 种的 3 门、1 种的 1 门。主轴跨度 ≥2 倍的 13 门、<2 倍的 2 门。
 
 **2026-11-19 复跑时发现这一列曾经整列失效。** 脚本取评级线写的是 `practice.difficultyOf(项)`，这个函数在某一轮重构里被删了；`try/catch` 把 `TypeError` 吞成字符串 `'ERR …'`，五档都是同一串，于是「评级线」永远印 `1 种`，第二问只剩「盘面规格变没变」一条路，八门被判成「区分度不足」。现在改走 `minigames.gradeLines(game, params, gear)`，并且**读不出来就退非 0**——一个被吞掉的异常能让整张表变成噪声，而报告看上去毫发无损。
 
 灵纹连线这一行是整改后的口径：旧表记的「1.69× `flashMs`」只是提示高亮变短（帮助变差，不是本事要求变高），把它当主轴跨度会让这一门在复杂度 / 信息 / 规模上用了 0 根还躲过提示。现在主轴是真会改盘面的 `kinds` / `cols` / `turns`，`flashMs` 退役为恒定的 `hintMs`，连「会变的字段」里都不再出现。
 
-灵纹连线的 `49.50× hints` 与三秀的 `33.00× shuffleCap` 别读成「难度涨了三十倍」：`99` 是「不限」的哨兵值，前两段真给无限次，大成起收到 2–3 次，跨度里有一大半是「从无限到有限」。它是真台阶（玩家确实从「随便重排」变成「只剩三次」），但不是倍数意义上的三十倍。
+灵纹连线的 `49.50× hints` 与三秀的 `50.00× goalCount` 别读成「难度涨了五十倍」：前者 `99` 是「不限」的哨兵值，跨度里有一大半是「从无限到有限」；后者是目标株数从少到多，都是真台阶但不是倍数意义上的难度。它是真台阶（玩家确实从「随便重排」变成「只剩三次」），但不是倍数意义上的三十倍。
 
 ## 主轴跨度：审计的第三个数
 
@@ -186,7 +186,7 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 | 玩法 | 参数 | 简单 | 普通 | 困难 | 极难 | 绝境 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 顺光扫斩 | `duration` 息 | 15 | 15 | 14 | 14 | 13 |
-| | `life` 毫秒 | 1050 | 847 | 700 | 581 | 448 |
+| | `life` 毫秒 | 826 | 700 | 616 | 546 | 490 |
 | 辨伪择真 | `duration` 息 | 16 | 16 | 15 | 15 | 14 |
 | | `interval` 毫秒 | 1180 | 1000 | 880 | 780 | 700 |
 | | `decoys` | 2 | 2 | 2 | 2 | 3 |
@@ -231,8 +231,8 @@ const INTERNAL = new Set(['depth', 'gear', 'sBase', 'sStep']);
 | | `missCost` 息 | 1 | 2 | 2 | 3 | 3 |
 | | `shuffleCost` 息 | 2 | 3 | 3 | 4 | 4 |
 | | `hintCost` 息 | 1 | 2 | 2 | 3 | 3 |
-| | `sLine` 分（现算） | 2661 | 2321 | 1624 | 1512 | 1412 |
-| | `perMove` 分/手 | 66 | 66 | 56 | 56 | 50 |
+| | `sLine` 分（现算） | 7022 | 6126 | 4286 | 3990 | 3726 |
+| | `perMove` 分/手 | 66 | 62 | 48 | 50 | 53 |
 | | `seals` 格（石皮） | 0 | 0 | 0 | 4 | 8 |
 | | `shuffleCap` 次（原价重排） | 99 | 99 | 99 | 3 | 3 |
 | 九宫填数 | `size` | 4 | 6 | 9 | 9 | 9 |
@@ -386,7 +386,7 @@ if (method && method.game === 'pushbox') out.capFactor = PUSHBOX_CAP_FACTORS[d.d
 - **阈值是经验值，且会随玩法增加而调整。** 判据 ① 的 `>= 2` 是下限而非目标；以后一门新功法若天然只有 2 个可用参数，改判据是正常维护，不该牵连提交。
 - **它回答的是「有没有变」，静态断言已经回答了「机制是否自洽」。** 两者的失败处理方式不同：前者要人判断，后者要人修代码。
 
-`tests/rank.test.js` 里保留了一份**轻量复算**（内部段位键名单 `['depth','gear','sBase','sStep']` 与审计脚本同一套），用来守住「哪些键算内部键」这个口径本身不被随手改掉；具体某门有几参数在变，仍交给 `audit:diff` 人工看。
+`tests/rank.test.js` 里保留了一份**轻量复算**（内部段位键名单 `INTERNAL_PARAM_KEYS` 与审计脚本同一份真源），用来守住「哪些键算内部键」这个口径本身不被随手改掉；具体某门有几参数在变，仍交给 `audit:diff` 人工看。
 
 跑法：
 
@@ -404,18 +404,18 @@ npm run audit:diff
 | --- | --- |
 | `scripts/difficulty-audit.js` | 全部门：`audit()` 判据、`INTERNAL` 排除名单、`boardChanged` 正则 |
 | `scripts/stage-gap.js` | 第二问：段界换没换结构、有没有倒退、段内可报变化率、最长冻结段（`npm run audit:gap`） |
-| `data/practice.js:529` `buildParams` | 五段参数的施加顺序与六份整表覆盖 |
-| `data/practice.js:412` | `TIME_LEVELS` / `MINES_HEARTS` / `MERGE_START_TILES` / `PUSHBOX_CAP_FACTORS` |
-| `data/practice.js:490` 起 | `KLOTSKI_LEVELS` / `MERGE_TARGETS` / `SCHULTE_SIZES` / `SCHULTE_PENALTIES` / `PUSHBOX_LEVELS` / `BIGGEST_LEVELS` |
-| `data/practice.js:543` | `PACE_KEYS` / `WINDOW_KEYS` / `GOAL_KEYS` / `SPEED_KEY` 四张名单 |
-| `data/practice.js:661` `stageDetail` | 准备页「本段紧在哪」的拼装，含阵灯单独分支 |
+| `data/practice.js` `buildParams`（搜索函数名，不写行号） | 五段参数的施加顺序与六份整表覆盖 |
+| `data/practice.js` 的 `TIME_LEVELS` / `MINES_HEARTS` 等整表 | `TIME_LEVELS` / `MINES_HEARTS` / `MERGE_START_TILES` / `PUSHBOX_CAP_FACTORS` |
+| `data/practice.js` 的各关规格表 | `KLOTSKI_LEVELS` / `MERGE_TARGETS` / `SCHULTE_SIZES` / `SCHULTE_PENALTIES` / `PUSHBOX_LEVELS` / `BIGGEST_LEVELS` |
+| `data/practice.js` 的 `PACE_KEYS` / `WINDOW_KEYS` 等名单 | `PACE_KEYS` / `WINDOW_KEYS` / `GOAL_KEYS` / `SPEED_KEY` 四张名单 |
+| `data/practice.js` `stageDetail`（搜索函数名） | 准备页「本段紧在哪」的拼装，含阵灯单独分支 |
 | `minigames/*.js` 各自的 `lines()` | 评级线真源，审计只调不改 |
-| `tests/rank.test.js:787` | 内部段位键名单的复算断言 |
+| `tests/rank.test.js`（搜索 `INTERNAL_PARAM_KEYS`） | 内部段位键名单的复算断言 |
 
 ## 待验
 
 1. **数格辨禁的评级时间线五段不动**，说明页对照时看不出「这一段更赶」。是否收紧后三段，缺真机数据。
 2. ~~顺序点格小成段 S 线（34 秒）比极难（32 秒）宽~~ **已修**：后三段不再挤在同一个 6×6（见特例三）。
 3. **滑格相合只有 2 个参数**，刚过下限；第三个参数（棋盘边长 / 新块概率）尚未设计。
-4. **`INTERNAL` 里 `gear` / `sBase` / `sStep` 三个名字在 `buildParams` 输出里都不存在**，实际只过滤了 `depth`。可清理，但要同步 `tests/rank.test.js:787` 那份复算。
+4. **`INTERNAL` 已收敛到 `['depth']`**：旧的 `gear` / `sBase` / `sStep` 三个名字在 `buildParams` 输出里从不存在，已从真源删掉；`scripts/difficulty-audit.js` 与 `tests/rank.test.js` 都读 `data/practice.js` 的 `INTERNAL_PARAM_KEYS`，不再各抄一份。
 5. **审计不校验「参数是否真的被玩法读走」**。`buildParams` 注入一个键、模块却不读，审计照样判「过」。目前靠 `tests/rank.test.js` 逐门复算与真机手感兜，没有静态断言能证明「这个参数在盘上生效了」。

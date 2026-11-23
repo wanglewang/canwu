@@ -134,7 +134,7 @@ rollBattle(power, c.power, effectValue(state, 'variance'), shenFloorBonus(state)
 | 项 | 规则 |
 | --- | --- |
 | 出处 | `data/moves.js`：十五门各一条，含两字招式名、出手时机、一句门规 |
-| 门槛 | 已习得**且**段位系数 > 0（入门即可，不必大成） |
+| 门槛 | 已习得**且**火候系数 > 0（初窥即可，不必精纯）——系数取 `TIERS[tierIndex(prof)].bonus`，按熟练度火候不按关数段位 |
 | 上限 | `MAX_MOVES = 3`，超出截断，同一门不重复计 |
 | 生效 | **只在选中时生效**；一式不运，加成为 0 |
 | 集中系数 | `FOCUS = 2`：单运一式比它被动挂着更足，三式合计约等于把以前那笔全额领回来 |

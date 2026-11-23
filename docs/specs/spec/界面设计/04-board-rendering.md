@@ -46,7 +46,7 @@
 | 引入方式 | `styles/crest.wxss` 里 base64 内联 |
 | 切片 | 容器取 `2600%` 宽，靠 `background-position-x` 切到第 N 格 |
 | 生成 | `scripts/gen-crest.js`（图与样式同一次出，跑完会核色表长度） |
-| 谁在用 | 灵纹连线（并蒂连枝引）、三连互换 |
+| 谁在用 | 并蒂连枝引（灵纹连线）、三秀撷英诀（三连互换） |
 
 **选图案的第一约束是剪影，不是题材。** 配对类盘面全靠「这两枚是不是同一种」推进，
 而这个判断要在几百毫秒内做完。通行做法是先看**去色后的剪影**（silhouette / squint test）：
@@ -259,7 +259,7 @@ const ELEMENT_EMBLEM = [23, 25, 26, 22, 24];  // 木 火 土 金 水
 
 挂在 `--ok`（对了）/ `--gold`（收了）/ `--hint`（被提示）三种最常见的判定上。**已终局的盘面不会再挂这些类**，所以不会出现「打完了还在闪」。
 
-430ms、只动 `transform` 与 `opacity`——不占粒子预算、不触发重排。
+420ms、只动 `transform`——不占粒子预算、不触发重排。
 
 ## 6. 凸 / 凹：比配色更有效的一对暗示
 
@@ -350,10 +350,10 @@ const ELEMENT_EMBLEM = [23, 25, 26, 22, 24];  // 木 火 土 金 水
 - `styles/crest.wxss` —— 26 格灵纹牌 sprite（base64；`scripts/gen-crest.js` 全 26 格都画：1–8 果器、9–26 甜点 / 海洋 / 灵兽各 6 格）
 - `styles/emblems.wxss` —— 26 格卦象 sprite（base64，三个选择器共享）
 - `styles/scene.wxss:256` 起 —— 舞台格子底盘 + 12 条双类状态
-- `pages/practice/practice.wxss:553` —— `.cell::before` 纸纹 / `cellEtch` / `.grid--cN`
+- `pages/practice/practice.wxss`（搜索 `.cell::before`）—— 纸纹 / `cellEtch` / `.grid--cN`
 - `pages/practice/practice.wxml:283` 起 —— `crest → emblem → label` 渲染链
 - `minigames/wuxing.js:14` —— `ELEMENT_EMBLEM`
-- `data/visual.js` —— `CREST_HUE`（8 个图案的主色，迸溅取这张表）
+- `data/visual.js` —— `CREST_HUE`（26 个主色，迸溅取这张表）
 - `tests/layout.test.js` —— 运行时探针逐门扫开局那一帧，确认盘面无汉字
 
 ## 12. 待验
