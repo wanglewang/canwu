@@ -202,7 +202,7 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 - `data/practice.js` / `data/economy.js` —— 数值
 - `minigames/index.js` —— 注册表
 - `styles/tokens.wxss` —— 样式真源
-- `scripts/verify.js`（11 段、135 处 `errors.push`）—— 静态守卫
+- `scripts/verify.js`（11 段、当前 1799 项检查，数字见根 README）—— 静态守卫
 
 ## 12. 待验
 

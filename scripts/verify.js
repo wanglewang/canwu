@@ -297,7 +297,7 @@ for (const f of ['package.json', 'package-lock.json', 'README.md', 'project.conf
   else checked += 1;
 }
 
-// 8. 功法品阶与难度档约定：品阶管收益（天地玄黄），难度档跟熟练度（五档）
+// 8. 功法品阶与段位约定：品阶管收益（天地玄黄），段位只由走通关数算（五段）
 const skillMod = require('../data/skills.js');
 const practiceMod = require('../data/practice.js');
 // 功法数不写死：一门功法必须正好对应一套参悟方式，加内容时两处一起加。
