@@ -312,7 +312,7 @@ function getSkillList(state) {
       // 未习得与已大圆满都是 0：前者还不知道自己有多少，后者已经练到头。
       powerGain: rec.unlocked ? skillPowerGain(state, s.id) : 0,
       effectText: s.effect.text,
-      // 特效按段位兑现（0 / 25% / 50% / 75% / 100%），不再是「到大成才有」。
+      // 特效按火候兑现（0 / 25% / 50% / 75% / 100%），不再是「到精纯才有」。
       effectScale: effectScaleOf(rec.prof),
       effectPercent: Math.round(effectScaleOf(rec.prof) * 100),
       effectUnlocked: rec.unlocked && effectScaleOf(rec.prof) > 0,
@@ -325,7 +325,7 @@ function getSkillList(state) {
 }
 
 // 特效当前发挥到几成：图鉴与详情弹窗共用这一句，不各写一遍。
-// 说法要跟「按段位兑现」对齐，不能再说「练到大成才有」——那已经是旧规则。
+// 说法要跟「按火候兑现」对齐，不能再说「练到精纯才有」——那已经是旧规则。
 function effectNoteOf(detail) {
   if (!detail) return '';
   // 特效按**火候**兑现（EFFECT_TIER_SCALE 的下标就是火候档），不是按关卡段位。

@@ -640,15 +640,15 @@ check('突破：气海随境界变宽，破境即补满', function () {
   assert.strictEqual(r.qiCapAfter, info.qiCapAfter, '结算与预告的气海不一致');
 });
 
-check('功法特效按段位兑现：入门 25%，圆满满额，未入门不给', function () {
+check('功法特效按火候兑现：初窥 25%，通玄满额，生涩不给', function () {
   const s = game.createNewState();
   const w = require('../data/world.js');
   assert.strictEqual(game.effectValue(s, 'power'), 0, '还没入门就给了特效');
-  s.skills.jian.prof = w.TIERS[1].threshold;        // 入门
-  assert.ok(Math.abs(game.effectValue(s, 'power') - 0.06 * 0.25) < 1e-9, '入门不是 1/4');
-  s.skills.jian.prof = w.TIERS[3].threshold;        // 大成
-  assert.ok(Math.abs(game.effectValue(s, 'power') - 0.06 * 0.75) < 1e-9, '大成不是 3/4');
-  s.skills.jian.prof = w.PROF_MAX;                  // 大圆满
+  s.skills.jian.prof = w.TIERS[1].threshold;        // 初窥
+  assert.ok(Math.abs(game.effectValue(s, 'power') - 0.06 * 0.25) < 1e-9, '初窥不是 1/4');
+  s.skills.jian.prof = w.TIERS[3].threshold;        // 精纯
+  assert.ok(Math.abs(game.effectValue(s, 'power') - 0.06 * 0.75) < 1e-9, '精纯不是 3/4');
+  s.skills.jian.prof = w.PROF_MAX;                  // 化境
   assert.ok(Math.abs(game.effectValue(s, 'power') - 0.06) < 1e-9, '满级没给满额');
 });
 

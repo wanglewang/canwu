@@ -41,7 +41,7 @@ docs/specs/spec/                      需求层：系统承诺什么、设计成
 │   ├── 09-attributes.md             人物属性四项与各自的出口
 │   ├── 10-power.md                  战力计算与切磋判定
 │   ├── 11-skill-taxonomy.md         功法分类、命名规则与品阶
-│   ├── 12-effect.md                 功法特效五类与段位兑现
+│   ├── 12-effect.md                 功法特效五类与火候兑现
 │   ├── 13-idle.md                   闭关与打坐
 │   ├── 14-daily-fortune.md          每日份例、连练与机缘
 │   ├── 15-battle.md                 仙门切磋

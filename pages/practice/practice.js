@@ -556,7 +556,7 @@ Page({
     } : null;
 
     // 详情页已经不在了：这一门的来历、风味与「练成之后」跟着准备页走。
-    // 只取前两行：属性加成与本门特效（都已是按段位兑现的真实数字），代价与气海留给图鉴。
+    // 只取前两行：属性加成与本门特效（都已是按火候兑现的真实数字），代价与气海留给图鉴。
     const detail = engine.getSkillDetail(state, skill.id);
     const archive = detail ? {
       desc: detail.desc,
