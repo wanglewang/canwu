@@ -9,7 +9,7 @@
 ```
 docs/specs/plan/                      技术实现层（本目录，how）
 ├── README.md                         本篇
-└── 40-engineering/                   工程实现：怎么保证 spec 不走样
+└── 40-工程实现/                   工程实现：怎么保证 spec 不走样
     ├── 01-architecture.md            目录分层与数据流
     ├── 02-minigame-contract.md       玩法模块契约（create / lines / teach）
     ├── 05-error-and-lifecycle.md     异常兜底、环形日志、页面生命周期
@@ -37,4 +37,4 @@ docs/specs/plan/                      技术实现层（本目录，how）
 ## 代码指路
 
 - `scripts/verify.js` —— 全项目静态校验，工程约束多数在此
-- `utils/game/` —— 玩法内核的宿主，`40-engineering/02` 契约的落点
+- `utils/game/` —— 玩法内核的宿主，`40-工程实现/02` 契约的落点

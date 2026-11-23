@@ -2444,7 +2444,7 @@ check('文档明细表与代码同源：门数、effect 门面词、F 列', func
   }
 
   // 12-effect 的表格第三列是代码里 effect.text 的原文。抄过去就得钉住。
-  const effectDoc = read('docs/specs/spec/10-systems/12-effect.md');
+  const effectDoc = read('docs/specs/spec/10-系统设计/12-effect.md');
   for (const k of skills.SKILLS) {
     assert.ok(k.effect && k.effect.text, k.name + ' 没写 effect.text');
     assert.ok(effectDoc.indexOf(k.effect.text) >= 0,
@@ -2452,7 +2452,7 @@ check('文档明细表与代码同源：门数、effect 门面词、F 列', func
   }
 
   // 05-grade 的 F 列：「—」表示这门没有失败态。要跟各玩法 lines().fail 实测对得上。
-  const gradeDoc = read('docs/specs/spec/10-systems/05-grade.md');
+  const gradeDoc = read('docs/specs/spec/10-系统设计/05-grade.md');
   const noFailInDoc = [];
   const hasFailInDoc = [];
   for (const k of skills.SKILLS) {

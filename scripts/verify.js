@@ -920,7 +920,7 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   } else checked += 1;
   // 玩法文档十六门一律是「中文正名目录 + 总览.md + 五段」；单篇形态已退役，不再兜底。
   // 路径钉到中文正名，目录名被改回英文 stem 时这里会当场报错，不会静默读旧文件。
-  const docPath = path.join(ROOT, 'docs/specs/spec/20-minigames/11-并蒂连枝引/总览.md');
+  const docPath = path.join(ROOT, 'docs/specs/spec/20-功法玩法/11-并蒂连枝引/总览.md');
   const doc = fs.readFileSync(docPath, 'utf8');
   // 「N 关有东西可报」不写字面量：N 就是上面逐关数出来的 reported。
   // 写死一个数字，改了轮换节奏之后文档会与代码各说各的，而且没有任何断言会红。
@@ -974,7 +974,7 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
   if (tblAt < 0 || /sLine/.test(tbl)) {
     errors.push('MATCH_LEVELS 里又写死了 sLine；它必须由 matchSLineOf 按本关时辰现算');
   } else checked += 1;
-  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/20-minigames/13-三秀撷英诀/总览.md'), 'utf8');
+  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/20-功法玩法/13-三秀撷英诀/总览.md'), 'utf8');
   // reported 不写字面量：改了时辰曲线或 S 线公式，这个数就变，文档必须同批改。
   let mReported = 0;
   for (let lv = 2; lv <= lvMod.LEVEL_MAX; lv += 1) {
@@ -1025,7 +1025,7 @@ for (const f of files) {
     return raw.replace(/\*/g, '');
   };
   const dp = parseDoc('docs/specs/constitution/02-十三条设计原则.md');
-  const review = parseDoc('docs/specs/spec/50-balance/05-axis-review.md');
+  const review = parseDoc('docs/specs/spec/50-数值平衡/05-axis-review.md');
   if (!/## 十三、变化方向/.test(dp) || !/## 13\. 变化方向账/.test(review)) {
     errors.push('变化方向的规矩没立：设计原则 §13 与 05-axis-review §13 必须同时存在');
   } else checked += 1;
@@ -1186,12 +1186,12 @@ for (const f of files) {
       errors.push('data/guides.js 的 match 段没讲「' + word + '」，盘上出现了玩家查不到的东西');
     } else checked += 1;
   });
-  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/20-minigames/13-三秀撷英诀/总览.md'), 'utf8');
+  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/20-功法玩法/13-三秀撷英诀/总览.md'), 'utf8');
   if (!/九类方向/.test(mDoc) || !/挪苗/.test(mDoc) || !/劫变/.test(mDoc)) {
     errors.push('13-三秀撷英诀/总览.md 没同步九类方向：符 / 目标 / 挪苗 / 劫变要同批改');
   } else checked += 1;
   // 方向账已经由 8b-6a-4 逐格比对；这里只钉住「达标」那一行不能悄悄写回旧账。
-  const ledger = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/50-balance/05-axis-review.md'), 'utf8');
+  const ledger = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/50-数值平衡/05-axis-review.md'), 'utf8');
   const row = ledger.split('\n').filter(function (l) { return /^\| 换苗引秀 \|/.test(l); })[0] || '';
   if (!/\| 9 \| 7 \| 5 \| 5 \| ✓ \|/.test(row)) {
     errors.push('方向账里换苗引秀不再是 9 类 / 7 内容轴 / 段界 5 条，九类全开的账被改回去了');
@@ -1206,7 +1206,7 @@ for (const f of files) {
   const lvSrc = fs.readFileSync(path.join(ROOT, 'data/levels.js'), 'utf8');
   const mtSrc = fs.readFileSync(path.join(ROOT, 'minigames/match.js'), 'utf8');
   const guide = fs.readFileSync(path.join(ROOT, 'data/guides.js'), 'utf8');
-  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/20-minigames/13-三秀撷英诀/总览.md'), 'utf8');
+  const mDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/20-功法玩法/13-三秀撷英诀/总览.md'), 'utf8');
   const names = lvMod.MATCH_THEME_NAMES;
 
   // 一、真源只有一份：五套 × 七格，名字与数据层同序。
@@ -1250,7 +1250,7 @@ for (const f of files) {
     else checked += 1;
   });
   ['00-未入门', '01-入门', '02-小成', '03-大成', '04-圆满'].forEach(function (stem, i) {
-    const doc = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/20-minigames/13-三秀撷英诀/' + stem + '.md'), 'utf8');
+    const doc = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/20-功法玩法/13-三秀撷英诀/' + stem + '.md'), 'utf8');
     if (doc.indexOf('本段纹样') < 0 || doc.indexOf(names[i]) < 0) {
       errors.push(stem + '.md 没写本段纹样是哪一套');
     } else checked += 1;
@@ -1260,7 +1260,7 @@ for (const f of files) {
 // 8b-6b. 玩法文档目录名 = 编号 + 功法正名（照 05-吐纳周天诀），单门六篇齐全。
 // 目录名是 skills.js 里 name 的抄写，必须钉住：整批改回英文 stem 时不能静默过关。
 {
-  const docRoot = path.join(ROOT, 'docs/specs/spec/20-minigames');
+  const docRoot = path.join(ROOT, 'docs/specs/spec/20-功法玩法');
   const dirs = fs.readdirSync(docRoot).filter(function (n) {
     return fs.statSync(path.join(docRoot, n)).isDirectory();
   });
@@ -1274,7 +1274,7 @@ for (const f of files) {
       .every(function (f) { return fs.existsSync(path.join(base, f)); });
   });
   if (dirs.length !== proper.length + 1 || missing.length || extra.length || !six) {
-    errors.push('spec/20-minigames 目录名或篇数不对齐功法正名：缺 ' + (missing.join('/') || '无')
+    errors.push('spec/20-功法玩法 目录名或篇数不对齐功法正名：缺 ' + (missing.join('/') || '无')
       + '，多 ' + (extra.join('/') || '无') + '，或某门不是六篇');
   } else checked += 1;
 }
@@ -1315,7 +1315,7 @@ for (const f of files) {
     if (/grantGifts\(/.test(normBody)) {
       errors.push('normalizeState 里调了 grantGifts：登录后云端覆盖会让礼包重复发放');
     } else checked += 1;
-    const curDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/10-systems/01-currency.md'), 'utf8');
+    const curDoc = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/10-系统设计/01-currency.md'), 'utf8');
     if (curDoc.indexOf('开山礼') < 0 || curDoc.indexOf(String(g.stone)) < 0) {
       errors.push('01-currency 没写开山礼的金额（' + g.stone + '）：文档与数据会各说一套');
     } else checked += 1;
@@ -1993,10 +1993,10 @@ if (!fs.existsSync(checklistPath)) {
   // 2026-11 首轮整理时，四处口径错全都 check 全绿：专利里没有的关号、
   // 不是官方口径的说法被写成官方、反例被当成通例、出处串到了另一篇头上。
   // 静态断言判不了语义，但能逼着引用回到原文旁边。
-  const teachDocSrc = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/30-ui/12-teach-boards.md'), 'utf8');
-  const researchPath = path.join(ROOT, 'docs/specs/spec/30-ui/13-teach-research.md');
+  const teachDocSrc = fs.readFileSync(path.join(ROOT, 'docs/specs/spec/30-界面设计/12-teach-boards.md'), 'utf8');
+  const researchPath = path.join(ROOT, 'docs/specs/spec/30-界面设计/13-teach-research.md');
   if (!fs.existsSync(researchPath)) {
-    errors.push('缺少 docs/specs/spec/30-ui/13-teach-research.md：教学盘的外部引用没有原文存档');
+    errors.push('缺少 docs/specs/spec/30-界面设计/13-teach-research.md：教学盘的外部引用没有原文存档');
   } else {
     checked += 1;
     const researchSrc = fs.readFileSync(researchPath, 'utf8');
@@ -2009,7 +2009,7 @@ if (!fs.existsSync(checklistPath)) {
         seenLink[url] = true;
         if (researchSrc.indexOf(url) < 0) {
           errors.push('12-teach-boards.md 引了没留档的外部链接：' + url
-            + '（原文摘录要补进 docs/specs/spec/30-ui/13-teach-research.md）');
+            + '（原文摘录要补进 docs/specs/spec/30-界面设计/13-teach-research.md）');
         } else checked += 1;
       }
       ext = extRe.exec(teachDocSrc);
@@ -2050,7 +2050,7 @@ else checked += 1;
 // 说明页讲的是「怎么玩」，不是「这东西怎么被命名出来的」。
 // 曾经有一节「功法命名」把 NAME_RULE 的字段（体裁字、字数区间、同族共用一个字）
 // 抄给玩家看，还写着已经被撤掉的那一族体裁字——玩家读不懂，改规则时也没人记得来改它。
-// 命名规范只有一处真源：docs/specs/spec/10-systems/11-skill-taxonomy.md。
+// 命名规范只有一处真源：docs/specs/spec/10-系统设计/11-skill-taxonomy.md。
 if (/体裁字/.test(helpSrc)) errors.push('说明页又在讲命名规范（体裁字），那是设计文档的事，不是玩家规则');
 else checked += 1;
 
