@@ -3372,7 +3372,10 @@ check('三连互换：灵种不能换、不进三连、随空位下落，落底�
       if (!mv) break;
       sctrl.tap(mv[0]);
       sctrl.tap(mv[1]);
-      advance(900);
+      // 一次交换最多连锁 12 层（每层清 170ms + 落 120~250ms），做成目标后还有 900ms 的结算停顿。
+      // 原来只推 900ms，连锁稍长时下一手落在演出里被 busy 吞掉——盘面带洞，灵种沉到一半就卡住。
+      // 这里按假时钟推进，时辰按「手」扣（不是按毫秒），推足不会额外耗息。
+      advance(8000);
       // 落底即达成、达成即收工：结算里的 goalDone 是「真被收走并记了账」的最硬证据。
       if (sResult && sResult.goalDone) landed = true;
       else if (svm.meter && svm.meter.value >= 1) landed = true;
