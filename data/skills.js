@@ -2,15 +2,15 @@
 
 const practiceData = require('./practice.js');
 
-// 技能表。熟练度阈值走 world.js 的 TIERS，品阶与可修境界走 practice.js 的 TIERS。
+// 技能表。段位门槛走 world.js 的 TIERS，品阶与可修境界走 practice.js 的 TIERS。
 // effect.type 五种，各管一件事，互不重叠（见 utils/game.js 的 effectValue）：
 //   power    对战战力 %；
 //   variance 对战波动下限；
 //   qiSave   参悟省灵力 %；
 //   offline  闭关养回灵力的速度 %；
 //   qiCap    气海上限 %（心法专属：练心法＝把池子挖深）。
-// 强度随火候成长：初窥 1/4、渐熟 1/2、精纯 3/4、通玄起满额（EFFECT_TIER_SCALE）。
-// 旧版是「练到大成（6000）才一次性生效」，中前期所有特效都等于不存在——
+// 强度随段位成长：入门 1/4、小成 1/2、大成 3/4、圆满起满额（EFFECT_TIER_SCALE）。
+// 旧版是「走到某一档才一次性生效」，中前期所有特效都等于不存在——
 // 那正是「练了也感觉不到」的来源，所以改成逐段兑现。
 // source.kind：start 初始 / shop 藏经阁 / battle 首胜掉落 / chance 机缘
 // source.cost：只收灵石。灵力是练功的燃料，不是通货——参悟本身就要烧它，
@@ -18,7 +18,7 @@ const practiceData = require('./practice.js');
 // kind：main 主修（心法，决定修炼速度）/ skill 技艺（刀法、剑法、阵法、丹道、御灵、土行、灵植、
 //       神识、机关、水术、身法——空族留着，加回功法时直接用）
 // tier：huang 黄 / xuan 玄 / di 地 / tian 天 —— 只决定收益倍率、属性加成与可修境界上限，不决定难度。
-// 关卡与熟练度无关：一门 1000 关五段，走通段界关才进下一段（见 data/practice.js 的 STAGES）。
+// 关卡与品阶无关：一门 1000 关五段，走通段界关才进下一段（见 data/practice.js 的 STAGES）。
 
 // ---------------------------------------------------------------- 功法命名规范
 // 改版前这门那门「有的带前缀、有的不带；前缀还各写各的」：基础刀法 / 吐纳周天诀 没前缀，

@@ -19,10 +19,9 @@ const copy = require('../../data/copy.js');
 const STORAGE_KEY = 'canwu_save_v1';
 const SAVE_PREFIX = 'CANWU1:';
 const BATTLE_PREFIX = 'CW1-';
-const SAVE_VERSION = 9;
-// 连 S 叠倍率：同一门功法连续完成 S，本局熟练度 = round(34 × 1.5^(层数-1))，10 层封顶。
-// 层数真源在 world.COMBO_MAX；每门各算各的，非 S / 失败 / 主动结束都归零，
-// 低档局不参与连 S（层数原样保留）。旧的「三连 S 直接晋级」已整体退役。
+const SAVE_VERSION = 10;
+// 从 v10 起，功法的级只由「这门走通了几关」（rec.cleared）决定。
+// 旧的「熟练度 / 连 S 叠倍率」整条线已删：存档里不再有 prof、也没有 sCombo。
 
 function readStorage(key) {
   try {

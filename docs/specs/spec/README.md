@@ -33,15 +33,15 @@ docs/specs/spec/                      需求层：系统承诺什么、设计成
 │   ├── 01-currency.md               双货币体系：灵力是油、灵石是钱
 │   ├── 02-qihai.md                  气海：灵力上限与溢出规则
 │   ├── 03-economy-flow.md           收支曲线、通胀控制与实测数据
-│   ├── 04-proficiency.md            熟练度（火候）：六级阈值与两条产出线
+│   ├── 04-progress.md               进度与段位：一条 cleared 线、六档门槛 = 段界关
 │   ├── 05-grade.md                  评级 S / A / B / C / F 的判定与语义
-│   ├── 06-combo.md                  连 S 叠倍率：唯一的后段回报
-│   ├── 07-difficulty.md             1000 关、五段与回关折减
+│   ├── （06 空缺）                   原「连 S 叠倍率」已随进度整条删除；编号按约不复用
+│   ├── 07-difficulty.md             1000 关、五段与「回关不推进度」
 │   ├── 08-realm.md                  境界与突破
 │   ├── 09-attributes.md             人物属性四项与各自的出口
 │   ├── 10-power.md                  战力计算与切磋判定
 │   ├── 11-skill-taxonomy.md         功法分类、命名规则与品阶
-│   ├── 12-effect.md                 功法特效五类与火候兑现
+│   ├── 12-effect.md                 功法特效五类与段位兑现
 │   ├── 13-idle.md                   闭关与打坐
 │   ├── 14-daily-fortune.md          每日份例、连练与机缘
 │   ├── 15-battle.md                 仙门切磋

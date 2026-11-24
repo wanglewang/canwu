@@ -109,7 +109,7 @@ Page({
     if (!state) return;
     const pending = engine.idlePending(state);
     // 一分钟只有 0.5 点，取整后可能还是 0：那一行写着「灵力 +0」比不出现更糟。
-    // 闭关只有灵力这一条产出（不产熟练度），满池就没有可收的东西——不摆一个收不到的入口，
+    // 闭关只有灵力这一条产出（不推进度），满池就没有可收的东西——不摆一个收不到的入口，
     // 满池这件事由上面那行 hintText 去说。
     const ready = pending.minutes >= 1 && pending.qi >= 1;
     const text = ready

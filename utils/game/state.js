@@ -17,7 +17,7 @@ function createNewState() {
     // teachSeen：五段各看过引导没有。一门有五段，每段第 1 关给一次引导：
     //   首段讲整门机制，后面四次只讲这一段变在哪。老存档没有这两个键时都是「还没看过」。
     skills[s.id] = {
-      unlocked: s.source.kind === 'start', prof: 0, cleared: 0,
+      unlocked: s.source.kind === 'start', cleared: 0,
       onboarded: false, teachSeen: [false, false, false, false, false], lastAt: 0,
     };
   }
@@ -43,8 +43,6 @@ function createNewState() {
     },
     // 每门功法的局内最佳：{ score, grade, at }，用于「破纪录」反馈与功法页展示。
     records: {},
-    // 每门功法连续拿到 S 的层数（0..COMBO_MAX）：只在本门当前关累计，10 层封顶。
-    sCombo: {},
     // 各门功法被玩家手动关掉的阶段新法：{ 功法 id: ['逆诵', ...] }。
     // 逆诵 / 死门这类是「改规则」，不是「给便利」——练到解锁就该能关，
     // 否则想安心练基础记忆的人没有退路。缺省为空 = 全开（老存档自动是这个行为）。
@@ -84,10 +82,11 @@ function migrateState(raw) {
     next = Object.assign({}, next, { version: 5, sStreak: {} });
   }
   if (v < 6) {
-    // v5 -> v6：三连 S 晋级退役，换「连 S 叠倍率」。两套机制的层数含义不同，
-    // 旧计数不换算，一律从 0 重数；顺手把 sStreak 从存档里摘掉，不留双份字段。
-    next = Object.assign({}, next, { version: 6, sCombo: {} });
+    // v5 -> v6：三连 S 晋级退役。当轮先换成了「连 S 叠熟练度」；
+    // 熟练度整条线又已删掉（见 v10），这里只剩版本号，不再建 sCombo。
+    next = Object.assign({}, next, { version: 6 });
     delete next.sStreak;
+    delete next.sCombo;
   }
   if (v < 7) {
     // v6 -> v7：经济重做——参悟开始烧灵力、功法只收灵石、突破要备灵石布阵。
@@ -133,6 +132,22 @@ function migrateState(raw) {
     }
     next = Object.assign({}, next, { version: 9, skills: skills });
   }
+  if (v < 10) {
+    // v9 -> v10：熟练度整条线删掉。功法的级只由「这门走通了几关」算，
+    // 属性、新法、特效都读 cleared。存档里那个 prof 字段与 sCombo 一起摘掉，
+    // 不留一份没人读又能被误用的旧数。cleared 已在 v9 落定，这里不重算。
+    const skills = {};
+    const src = next.skills || {};
+    const ids = Object.keys(src);
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = ids[i];
+      const rec = Object.assign({}, src[id]);
+      delete rec.prof;
+      skills[id] = rec;
+    }
+    next = Object.assign({}, next, { version: 10, skills: skills });
+    delete next.sCombo;
+  }
   return next;
 }
 
@@ -155,8 +170,8 @@ function normalizeState(input) {
       // 入门即得的门类不认旧存档里的 false：这一批从藏经阁改成默认赠送之后，
       // 老玩家存档里还写着「没买」，读档不补这一刀，他会一辈子看不到这十门。
       unlocked: !!r.unlocked || s.source.kind === 'start',
-      prof: Math.floor(num(r.prof, 0)),
-      // 关卡进度夹到 0–1000：脏存档写个 9999 也不许把段位顶到不存在的段。
+      // 关卡进度夹到 0–1000：脏存档写个 9999 也不许把档位顶到不存在的那一档。
+      // 这也是功法的级：属性、新法、特效全读它，没有第二个进度字段。
       cleared: practiceData.clearedOf(r),
       // 老存档没有这个数：一律当 0（＝从没练过），列表里自然落在「没玩过」那一段，
       // 不许拿 lastSeen 之类别的钟来顶——那是整份存档的时间，不是这一门的。
@@ -208,14 +223,6 @@ function normalizeState(input) {
         grade: typeof r.grade === 'string' ? r.grade.slice(0, 2) : 'C',
         at: num(r.at, 0),
       };
-    }
-  }
-  if (raw.sCombo && typeof raw.sCombo === 'object') {
-    const sids = Object.keys(raw.sCombo);
-    for (let i = 0; i < sids.length; i += 1) {
-      const id = sids[i];
-      if (!skillData.SKILL_MAP[id]) continue;
-      base.sCombo[id] = Math.min(worldData.COMBO_MAX, Math.floor(num(raw.sCombo[id], 0)));
     }
   }
   // 关掉的阶段新法：缺省即空（老档、以及从没关过的人都是这个状态，等于全开）。

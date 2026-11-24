@@ -8,8 +8,8 @@
 //
 // **不再有难度档。** 以前是「简单/普通/困难/极难/绝境」五档各 40 关，玩家挑档；
 // 现在是一段一条线，难度跟着关号走（段内进度），玩家只有一个动作：往前走或回关。
-// 段位由已走通的关数决定（stageIndexOfCleared），与熟练度无关——熟练度是另一条线，
-// 只管火候（属性加成与阶段新法），不再算关号、不再开难度。
+// 段位由已走通的关数决定（stageIndexOfCleared）：属性加成与阶段新法按同一档取，
+// 不再另算一条线，也不再用段位去换关号或开难度。
 //
 // 段内递进：以「本段基准参数」为底，把时间与预算按段内进度收紧最多三成
 // （`data/practice.js` 的 `buildParamsAt`），再叠一门自己的连续旋钮（`tweakParams`）。
@@ -62,7 +62,7 @@ function stageOfLevel(level) {
 }
 
 // 已走通 N 关，这门现在是第几段（0–5）。5 = 大圆满（1000 关全通）。
-// 这是段位的唯一出处：只看走通关数，不看熟练度、不看品阶。
+// 这是段位的唯一出处：只看走通关数，不看品阶、不看评级。
 function stageIndexOfCleared(cleared) {
   const n = Math.max(0, Math.min(LEVEL_MAX, Math.round(Number(cleared) || 0)));
   let idx = 0;

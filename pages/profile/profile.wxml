@@ -114,7 +114,7 @@
         <view class="row--wrap mt16">
           <term term-key="daohao" />
           <term term-key="code" />
-          <term term-key="combo" />
+          <term term-key="tier" />
         </view>
         <button class="imm-btn--ghost imm-btn--block imm-btn--sm mt12" bindtap="onGoGuide">修行指南 ›</button>
         <view class="divider"></view>

@@ -59,7 +59,7 @@ function drawCard(ctx, data) {
     ctx.fillStyle = '#fffdf7';
     ctx.fillText(top[i].name, 76, 566 + i * 48);
     ctx.fillStyle = '#b8893b';
-    ctx.fillText(top[i].tierName + '  ' + top[i].prof, 300, 566 + i * 48);
+    ctx.fillText(top[i].rankName + '  ' + top[i].cleared + ' 关', 300, 566 + i * 48);
   }
 
   ctx.fillStyle = '#c9d6cd';

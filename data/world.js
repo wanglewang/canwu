@@ -3,69 +3,27 @@
 // 《参悟》世界与全局数值配置
 // 所有可调数值集中在此文件与 skills.js / practice.js，加内容不改业务代码。
 
-// 熟练度：玩家在这门功法上练得多深，决定属性加成倍率与本门新法开到第几条。
-// 它**不管**难度：五档难度各 40 关、互不相干，走通本档 40 关就开下一档（见 data/practice.js）。
-// 六段按「前密后疏」拉开，段间跨度约 ×4；大圆满取九数之极 99999，是熟练度硬顶。
-// 阶段门槛取 0/300/1500/6000/24000/99999；关卡表 LEVEL_PROF_STEPS 与这六个锚同源，
-// 但那是给老存档（v7 及以前只存 prof）反推关号用的，新存档按 levels 逐档记。
-// 熟练度只由「本局评级 + 连 S 层数」决定：不乘品阶、不乘难度倍率、不乘境界、不乘属性。
-// 品阶 / 境界 / 悟性 / 触类旁通 / 心法省气这些系数全部只作用「一局烧多少灵力」
-// （见 data/economy.js 的 practiceQiCost），参悟本身不产任何资源。
-const PROF_MAX = 99999;
-// 全 C 基准：一个每局只拿 C 的人，9999 局累计 99990 点，第 10000 局补满 99999。
-const PROF_C_RUNS = 9999;
-
-// 单局基础（连 S 层数 0 时）：C 10 是整套数值的锚，B 15、A 22.5→23、S 33.75→34。
-// F 是失败，整局作废，0 点。C/B/A 固定不叠层，且会把连 S 归零。
-const PROF_BASE = { S: 34, A: 23, B: 15, C: 10, F: 0 };
-// 连 S：只有「本门当前关」的 S 才叠层，每局独立从 34 起算 ×1.5^(k-1) 后四舍五入，
-// 不是拿上一局的整数接着乘，也不是最后总和再取整。第 10 层封顶，第 11 局起锁死 1307。
-// 回关局与连 S 完全解耦：不叠层、不砍连击收益、连击层数原样保留（见 utils/game.js）。
-const COMBO_STEP = 1.5;
-const COMBO_MAX = 10;
-
-function comboGain(k) {
-  const n = Math.max(1, Math.min(COMBO_MAX, Math.floor(Number(k) || 1)));
-  return Math.round(PROF_BASE.S * Math.pow(COMBO_STEP, n - 1));
-}
-
-const COMBO_TABLE = (function () {
-  const out = [];
-  for (let i = 1; i <= COMBO_MAX; i += 1) out.push(comboGain(i));
-  return out;
-}());
-// 34 / 51 / 77 / 115 / 172 / 258 / 387 / 581 / 871 / 1307，一轮 3853 点。
-const COMBO_ROUND = COMBO_TABLE.reduce(function (a, b) { return a + b; }, 0);
-const COMBO_CAP_GAIN = COMBO_TABLE[COMBO_MAX - 1];
-// 全程不断 S、都打最高档的理论最少局数：前 10 局走曲线，之后每局都是封顶的 1307。
-const PROF_S_RUNS = (function () {
-  let prof = 0;
-  let runs = 0;
-  while (prof < PROF_MAX && runs < 100000) {
-    runs += 1;
-    prof += comboGain(runs);
-  }
-  return runs;
-}());
-// 熟练度的六级「火候」。**这不是段位**——段位（未入门…大圆满）现在归关卡，
-// 由「走通了几关」决定（见 data/levels.js 的 STAGES）。两条线各有各的名字，
-// 不许再混用：熟练度管属性加成与阶段新法，关卡管内容与难度。
-// 火候名取「生→窥→熟→纯→玄→化」这一路，与段位名（未入门 / 入门 / 小成 / 大成 / 圆满）
-// 一个也不重：重名会让「我小成了」有两种意思。
-// 也不许同音（旧的「初熟 / 纯熟」念出来一样，隔着屏幕看也分不清是哪一级）。
+// 功法只有一条进度线：这门走通了几关（`rec.cleared`，0–1000）。
+// 属性加成、本门新法、特效兑现全部由它决定，另起一个「熟练度」的做法已经删掉——
+// 两条进度线并存时，玩家分不清「我这门到底算几级」，文档也一直在两套名字之间漂。
+//
+// 六档就是关卡段位（data/levels.js 的 STAGES + FINAL_STAGE_NAME），门槛直接取段界关：
+//   未入门 0 → 入门 10 → 小成 50 → 大成 200 → 圆满 500 → 大圆满 1000。
+// 也就是「走通第 50 关」与「这门小成了」是同一句话，不再有两种意思。
+// verify 8b-2 守着「六档门槛 = 段界关」，两边不会漂。
 const TIERS = [
-  { key: 'none', name: '生涩', threshold: 0, bonus: 0, color: '#9aa39a', desc: '暂无属性加成' },
-  { key: 'basic', name: '初窥', threshold: 300, bonus: 1, color: '#3d8c74', desc: '属性加成 ×1' },
-  { key: 'skilled', name: '渐熟', threshold: 1500, bonus: 1.8, color: '#2f6b5b', desc: '属性加成 ×1.8' },
-  { key: 'master', name: '精纯', threshold: 6000, bonus: 2.8, color: '#b8893b', desc: '属性加成 ×2.8，本门新法从这一级起逐条解锁' },
-  { key: 'grand', name: '通玄', threshold: 24000, bonus: 4, color: '#b4453c', desc: '属性加成 ×4' },
-  { key: 'perfect', name: '化境', threshold: PROF_MAX, bonus: 5, color: '#8a5cb0', desc: '属性加成 ×5，本门新法开到最后一条' },
+  { key: 'none', name: '未入门', threshold: 0, bonus: 0, color: '#9aa39a', desc: '一关未通，暂无属性加成' },
+  { key: 'entry', name: '入门', threshold: 10, bonus: 1, color: '#3d8c74', desc: '属性加成 ×1' },
+  { key: 'minor', name: '小成', threshold: 50, bonus: 1.8, color: '#2f6b5b', desc: '属性加成 ×1.8' },
+  { key: 'major', name: '大成', threshold: 200, bonus: 2.8, color: '#b8893b', desc: '属性加成 ×2.8，本门新法从这一档起逐条解锁' },
+  { key: 'full', name: '圆满', threshold: 500, bonus: 4, color: '#b4453c', desc: '属性加成 ×4' },
+  { key: 'perfect', name: '大圆满', threshold: 1000, bonus: 5, color: '#8a5cb0', desc: '属性加成 ×5，本门新法开到最后一条' },
 ];
 
-// 评级倍率：只决定这一局的挂机加速与评级观感，既不进熟练度，也不进资源产出。
-// 参悟已经不产灵力灵石了（见 data/economy.js），这一档现在只影响 buff 时长档位。
-// F 是 0，不是「最低一档」：失败＝这一局没走完，整局作废，熟练度、挂机加成都不给，
-// 已经烧掉的灵力也不退。C 才是「走完了但糙」的那一档（0.6）。
+// 评级不再给任何数值，只决定结算观感与 30 分钟的挂机加速档位。
+// 参悟已经不产灵力灵石了（见 data/economy.js）。
+// F 是 0，不是「最低一档」：失败＝这一局没走完，整局作废，挂机加成也不给，
+// 已经烧掉的灵力不退。C 才是「走完了但糙」的那一档（0.6）。
 const GRADE_FACTOR = { S: 1.5, A: 1.2, B: 1.0, C: 0.6, F: 0 };
 const GRADE_COLOR = { S: '#b4453c', A: '#b8893b', B: '#3d8c74', C: '#8a8f83', F: '#8a8f83' };
 // 评级中文名是玩家文案，归 data/copy.js 管；这里只留数值与颜色。
@@ -106,8 +64,8 @@ const WORLDS = [
       // 炼气 174 点约五个多小时坐满，所以「睡一晚回来只收一池」是设计，不是 bug：
       // 想让一趟存更多，去破境、去练真元，而不是把小程序挂在后台。
       qiPerMinute: 0.5,
-      // 闭关**不产熟练度**：挂机能涨熟练度，等于挂着不玩也在涨属性，「参悟才是提速」就成了假话。
-      // 这里没有 profPerHour 这个键。
+      // 闭关**不推进度**：挂机能涨属性，等于挂着不玩也在涨，「参悟才是唯一的路」就成了假话。
+      // 这里没有「每小时多少关」这种键，也不该有。
       // 离线最多累计 8 小时：这是「一次离开能算多久」的上限，与气海容量是两回事。
       // 两个都留着——气海管「存得下多少」，这条管「一次最多算多久」。
       capHours: 8,
@@ -161,16 +119,6 @@ function getWorld(id) {
 }
 
 module.exports = {
-  PROF_MAX: PROF_MAX,
-  PROF_C_RUNS: PROF_C_RUNS,
-  PROF_S_RUNS: PROF_S_RUNS,
-  PROF_BASE: PROF_BASE,
-  COMBO_STEP: COMBO_STEP,
-  COMBO_MAX: COMBO_MAX,
-  COMBO_TABLE: COMBO_TABLE,
-  COMBO_ROUND: COMBO_ROUND,
-  COMBO_CAP_GAIN: COMBO_CAP_GAIN,
-  comboGain: comboGain,
   TIERS: TIERS,
   GRADE_FACTOR: GRADE_FACTOR,
   GRADE_COLOR: GRADE_COLOR,

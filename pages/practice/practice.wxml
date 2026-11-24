@@ -56,19 +56,14 @@
     <view wx:if="{{mode === 'practice'}}" class="pr-links">
       <text class="text-link text-link--muted pressable" hover-class="pressable--on" bindtap="onToggleSwap">{{copy.actions.swap}}</text>
     </view>
-    <view class="pr-prof">
+    <view class="pr-rank">
       <view class="row--between">
-        <!-- 段位与品阶耗气并在一行：一个说这门练到哪了，一个说这一局多贵，比星级和一脉实在。 -->
-        <text class="tiny pr-tiny">{{tierName}} · {{prof}}<text wx:if="{{rankLabel}}"> · {{rankLabel}} {{rankRewardText}}</text></text>
+        <!-- 档位与品阶耗气并在一行：一个说这门走到哪了，一个说这一局多贵，比星级和一脉实在。 -->
+        <text class="tiny pr-tiny">{{tierName}}<text wx:if="{{rankLabel}}"> · {{rankLabel}} {{rankRewardText}}</text></text>
         <text class="tiny pr-tiny">{{nextText}}</text>
       </view>
       <view class="bar bar--dark mt8">
         <view class="bar__fill" style="width:{{percent}}%;background:{{tierColor}}"></view>
-      </view>
-      <!-- 连 S 倍率收成一行：十个小圆点看层数，句子只写「下一局 S 值多少点」。 -->
-      <view wx:if="{{comboDots.length}}" class="row combo-line mt8">
-        <view wx:for="{{comboDots}}" wx:key="id" class="combo-dot {{item.on ? 'combo-dot--on' : ''}}"></view>
-        <text class="tiny">{{comboText}}</text>
       </view>
       <!-- 下一段给什么：只写「还差 114」等于只给了个数字，练到头才发现没好处。 -->
       <text wx:if="{{nextBenefit}}" class="tiny pr-tier-next">{{nextBenefit}}</text>
@@ -158,7 +153,7 @@
         <text class="lv-cost__r">余 {{qi}} / {{qiMax}}</text>
       </view>
       <text wx:else class="warn-note mt8">灵力 {{qi}} / {{qiMax}}，本局要 {{qiCost}} 点。回洞府闭关可补上；气海不够用时，破境或练真元都能拓深。</text>
-      <!-- 折减只在真的回关时出现一行：说清退了几关、熟练度折成多少、还叠不叠连 S。 -->
+      <!-- 折减只在真的回关时出现一行：说清退了几关、为什么这一局不推进度。 -->
       <text wx:if="{{retreatText}}" class="warn-note mt8">{{retreatText}}</text>
       <!-- 本局盘面是一组：先说整盘规格，再说这一关动了哪一处。
            这一段还收紧了哪几处（亮起时长 / 口诀轮数…）与 S 线门槛都归这一组。 -->
@@ -577,7 +572,7 @@
     </view>
   </view>
 
-  <!-- 样板玩法的结算五段演出：暗场 → 评级 → 熟练度条 → 奖励 → 按钮 -->
+  <!-- 样板玩法的结算五段演出：暗场 → 评级 → 关卡进度条 → 奖励 → 按钮 -->
   <view wx:if="{{sceneOn && showResult && result}}" class="settle" bindtap="onSkipSettle">
     <view class="settle__veil"></view>
     <view class="settle__aura"></view>
@@ -594,7 +589,7 @@
         </view>
         <view class="settle__gain">
           <text class="settle__gain-num">{{settleGain}}</text>
-          <text class="settle__gain-label">熟练度</text>
+          <text class="settle__gain-label">{{settleGainLabel}}</text>
         </view>
         <view class="settle__bar"><view class="settle__bar-fill" style="width:{{settlePercent}}%"></view></view>
       </block>

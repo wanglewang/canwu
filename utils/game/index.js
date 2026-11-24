@@ -5,7 +5,6 @@
 // 这里逐个列出对外键，而不是把 seven 个模块整个摊开——内部小工具（num / pad2 / rollBattle）
 // 留在 utils/game/ 内部，不往公共接口上漏，否则页面迟早会开始直接调引擎的零件。
 
-const worldData = require('../../data/world.js');
 const base = require('./base.js');
 
 const M = Object.assign(
@@ -17,7 +16,7 @@ const M = Object.assign(
   require('./battle.js'),
   require('./realm.js'),
   require('./view.js'),
-  { COMBO_MAX: worldData.COMBO_MAX, STORAGE_KEY: base.STORAGE_KEY,
+  { STORAGE_KEY: base.STORAGE_KEY,
     SAVE_PREFIX: base.SAVE_PREFIX, SAVE_VERSION: base.SAVE_VERSION,
     readStorage: base.readStorage, writeStorage: base.writeStorage }
 );
@@ -26,8 +25,6 @@ module.exports = {
   STORAGE_KEY: base.STORAGE_KEY,
   SAVE_PREFIX: base.SAVE_PREFIX,
   SAVE_VERSION: base.SAVE_VERSION,
-  COMBO_MAX: worldData.COMBO_MAX,
-  breakCombo: M.breakCombo,
   createNewState: M.createNewState,
   grantGifts: M.grantGifts,
   normalizeState: M.normalizeState,
@@ -35,7 +32,7 @@ module.exports = {
   load: M.load,
   save: M.save,
   addLog: M.addLog,
-  tierIndex: M.tierIndex,
+  tierIndexOfCleared: M.tierIndexOfCleared,
   tierInfo: M.tierInfo,
   computeAttributes: M.computeAttributes,
   powerDetail: M.powerDetail,

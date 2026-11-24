@@ -1,27 +1,34 @@
 'use strict';
 
-// 熟练度 / 属性 / 战力
+// 功法 / 属性 / 战力
 // 由 utils/game.js 按关注点拆出；跨文件只用 require，不持有任何模块级可变状态。
+//
+// 功法的「级」只有一个来源：这门走通了几关（rec.cleared）。属性系数、本门新法、
+// 特效兑现都读同一个数——不再有「熟练度」这条并行的进度线。
 
 const { economyData, practiceData, skillData, titleData, worldData } = require('./base.js');
 
-// ---------------------------------------------------------------- 熟练度 / 属性 / 战力
+// ---------------------------------------------------------------- 功法档位 / 属性 / 战力
 
-function tierIndex(prof) {
+// 走通关数 → 六档索引（0–5）。TIERS 的门槛就是段界关 +1，与 data/levels.js 的 STAGES 同源，
+// 所以「这门走到第几段」与「这门是第几档」永远指向同一个数，不可能算出两个答案。
+function tierIndexOfCleared(cleared) {
   const T = worldData.TIERS;
+  const n = Math.max(0, Math.floor(Number(cleared) || 0));
   for (let i = T.length - 1; i >= 0; i -= 1) {
-    if (prof >= T[i].threshold) return i;
+    if (n >= T[i].threshold) return i;
   }
   return 0;
 }
 
-function tierInfo(prof) {
+function tierInfo(cleared) {
   const T = worldData.TIERS;
-  const i = tierIndex(prof);
+  const n = Math.max(0, Math.floor(Number(cleared) || 0));
+  const i = tierIndexOfCleared(n);
   const cur = T[i];
   const next = T[i + 1] || null;
   const span = next ? next.threshold - cur.threshold : 0;
-  const done = next ? prof - cur.threshold : 0;
+  const done = next ? n - cur.threshold : 0;
   const ratio = next ? Math.max(0, Math.min(1, done / span)) : 1;
   return {
     index: i,
@@ -36,15 +43,15 @@ function tierInfo(prof) {
   };
 }
 
-// 功法特效按火候兑现：生涩 0 → 初窥 1/4 → 渐熟 1/2 → 精纯 3/4 → 通玄与化境满额。
-// 下标是熟练度火候档（TIERS），不是走通关数的段位（STAGES）；两套名字不要混用。
-// 旧版是「练到精纯 6000 才一次性生效」，中前期所有特效都等于不存在，玩家自然会觉得
-// 「练了半天什么都没变」。逐档兑现之后，每一次火候提升都能在面板上看见一处变化。
-// 生涩是 0 而不是 1/8：刚习得还没练过，本条特效不该先白给。
+// 功法特效按档位兑现：未入门 0 → 入门 1/4 → 小成 1/2 → 大成 3/4 → 圆满与大圆满满额。
+// 档位就是这条功法的关卡进度（TIERS 门槛 = 段界关 +1），不再有第二条进度线。
+// 旧版是「练到某一档才一次性生效」，中前期所有特效都等于不存在，玩家自然会觉得
+// 「练了半天什么都没变」。逐档兑现之后，每换一段都能在面板上看见一处变化。
+// 未入门是 0 而不是 1/8：刚习得还没走通一关，本条特效不该先白给。
 const EFFECT_TIER_SCALE = [0, 0.25, 0.5, 0.75, 1, 1];
 
-function effectScaleOf(prof) {
-  return EFFECT_TIER_SCALE[tierIndex(prof)] || 0;
+function effectScaleOf(cleared) {
+  return EFFECT_TIER_SCALE[tierIndexOfCleared(cleared)] || 0;
 }
 
 function effectValue(state, type) {
@@ -53,7 +60,7 @@ function effectValue(state, type) {
     const s = skillData.SKILLS[i];
     const rec = state.skills[s.id];
     if (!rec || !rec.unlocked) continue;
-    const scale = EFFECT_TIER_SCALE[tierIndex(rec.prof)];
+    const scale = EFFECT_TIER_SCALE[tierIndexOfCleared(rec.cleared)];
     if (!scale) continue;
     if (s.effect.type === type) sum += s.effect.value * scale;
   }
@@ -68,8 +75,8 @@ function computeAttributes(state) {
     const s = skillData.SKILLS[i];
     const rec = state.skills[s.id];
     if (!rec || !rec.unlocked) continue;
-    // 属性 = 功法条目 × 熟练度段位系数 × 品阶系数（天阶 2.2 倍，黄阶 1.0）
-    const mul = worldData.TIERS[tierIndex(rec.prof)].bonus * practiceData.tierOf(s.tier).attr;
+    // 属性 = 功法条目 × 档位系数 × 品阶系数（天阶 2.2 倍，黄阶 1.0）
+    const mul = worldData.TIERS[tierIndexOfCleared(rec.cleared)].bonus * practiceData.tierOf(s.tier).attr;
     const keys = Object.keys(s.bonus);
     for (let k = 0; k < keys.length; k += 1) {
       attrs[keys[k]] = (attrs[keys[k]] || 0) + s.bonus[keys[k]] * mul;
@@ -104,30 +111,30 @@ function powerDetail(state, realmIndex) {
 
 function computePower(state) { return powerDetail(state).total; }
 
-// 这一门再涨一段，战力会多多少 —— 把「练功」与「破境」之间那一步算给玩家看。
+// 这一门再走通一段，战力会多多少 —— 把「练功」与「破境」之间那一步算给玩家看。
 //
 // 现状：功法卡上写的是「体魄 +0.8」，破境门槛读的是「战力 170」，中间这次换算从没有人
 // 算给玩家。于是「练这门到底有什么用」「还差 2 点该练哪门」只能靠猜，玩起来就像在玩
-// 一堆互不相干的小游戏。这里不新增公式：把这一门的熟练度换成下一段门槛，重算一次
-// computeAttributes + powerDetail，差值就是这一段的价。
+// 一堆互不相干的小游戏。这里不新增公式：把这一门的进度换成下一档门槛，重算一次
+// computeAttributes + powerDetail，差值就是这一档的价。
 //
 // 只读：构造的是浅拷贝，不改存档。
 function skillPowerGain(state, skillId) {
   const rec = state.skills ? state.skills[skillId] : null;
   if (!rec || !rec.unlocked) return 0;
-  const info = tierInfo(rec.prof);
+  const info = tierInfo(rec.cleared);
   if (info.maxed) return 0;
   const now = powerDetail(state).total;
   const skills = Object.assign({}, state.skills);
-  skills[skillId] = Object.assign({}, rec, { prof: info.nextThreshold });
+  skills[skillId] = Object.assign({}, rec, { cleared: info.nextThreshold });
   const after = powerDetail(Object.assign({}, state, { skills: skills })).total;
   return Math.max(0, after - now);
 }
 
 // 破境还差几点战力时，最该练哪一门：在已习得、尚未大圆满的功法里，
-// 取「离下一段熟练度最近的那门」——不是加成最大的那门。
-// 加成最大的往往是大成到圆满（差 18000 熟练度），那条路一年走不完；
-// 玩家要的是「今天再打几局就能动」的那一步。
+// 取「离下一档最近的那门」——不是加成最大的那门。
+// 加成最大的往往是大成到圆满（差 150 关），那条路要走很久；
+// 玩家要的是「今天再打几关就能动」的那一步。
 function nextPowerStep(state) {
   const ids = Object.keys(state.skills || {});
   let best = null;
@@ -135,11 +142,11 @@ function nextPowerStep(state) {
     const id = ids[i];
     const rec = state.skills[id];
     if (!rec || !rec.unlocked) continue;
-    const info = tierInfo(rec.prof);
+    const info = tierInfo(rec.cleared);
     if (info.maxed) continue;
     const gain = skillPowerGain(state, id);
     if (gain <= 0) continue;
-    const gap = Math.max(0, info.nextThreshold - rec.prof);
+    const gap = Math.max(0, info.nextThreshold - rec.cleared);
     if (!best || gap < best.gap || (gap === best.gap && gain > best.gain)) {
       const skill = skillData.getSkill(id);
       best = {
@@ -170,7 +177,7 @@ function qiCap(state) {
 // 它和 variance 特效走同一条出口（rollBattle 的 floor），所以两者能叠加、也有同一个上限。
 // 为什么要给身法一个独立出口：四个属性若都只进战力，玩家练哪门都一样，练功就没有方向。
 // 系数 = 1/3000 而不是 1/300：1/300 是「每 3 点 +1%」，身法 30 点就吃满 10% 封顶，
-// 之后再堆一点用都没有——身法会变成只在开局有用的属性，与 200 关的长线养成相反。
+// 之后再堆一点用都没有——身法会变成只在开局有用的属性，与 1000 关的长线养成相反。
 // 1/3000 下开局 11 点只 0.37%、十五门全大圆满 151 点约 5%，封顶 10% 留到以后扩属性。
 // 这条换算在 09-attributes 4.3 与玩家指南第 55 行都写着「每 30 点 +1%」，三处必须一致。
 const SHEN_FLOOR_PER = 1 / 3000;
@@ -254,7 +261,7 @@ function computeMetrics(state) {
     const rec = state.skills[skillData.SKILLS[i].id];
     if (!rec || !rec.unlocked) continue;
     unlockedCount += 1;
-    const t = tierIndex(rec.prof);
+    const t = tierIndexOfCleared(rec.cleared);
     if (t > maxTier) maxTier = t;
   }
   return {
@@ -305,7 +312,7 @@ module.exports = {
   setTwist: setTwist,
   shenFloorBonus: shenFloorBonus,
   skillPowerGain: skillPowerGain,
-  tierIndex: tierIndex,
+  tierIndexOfCleared: tierIndexOfCleared,
   tierInfo: tierInfo,
   twistsOff: twistsOff,
 };

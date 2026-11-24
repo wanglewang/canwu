@@ -1,10 +1,13 @@
 'use strict';
 
-// 参悟结算：耗气、评级落账、回关折减、连 S
+// 参悟结算：耗气、走通落账、回关
 // 由 utils/game.js 按关注点拆出；跨文件只用 require，不持有任何模块级可变状态。
+//
+// 参悟只产一件事：把这一门的关卡往前走一关（rec.cleared +1）。
+// 不产熟练度、不产资源——「练了什么就得到什么」在这款游戏里只有一种意思。
 
 const { copy, economyData, levelData, practiceData, skillData, worldData } = require('./base.js');
-const { checkTitles, computeAttributes, effectValue, powerDetail, qiCap, tierIndex } = require('./profs.js');
+const { checkTitles, computeAttributes, effectValue, powerDetail, qiCap, tierIndexOfCleared } = require('./profs.js');
 const { addLog, checkDaily, num } = require('./state.js');
 const { touchSkill } = require('./view.js');
 
@@ -20,9 +23,8 @@ function applyPractice(state, skillId, grade, options) {
   checkDaily(state);
   const rec = state.skills[skillId];
   // 一门就是一条 1–1000 的长线，所以这一局「打第几关」不是往上挑的，只能回关。
-  // 关卡决定这一局的参数与回关折减——「刷最低关」那条老最优解就是从这里堵掉的
-  // （见 practice.profByLevel）。熟练度本身仍只看评级与连 S，关卡不改变公式，只改变折减。
-  // 段位不再由熟练度定、也不再由玩家挑：它只是「已走通几关」的另一个说法。
+  // 关卡决定这一局的参数与耗气——「刷最低关」绕不过去，因为回关不推进度。
+  // 段位（未入门…大圆满）就是这条线的位置，不再有第二条进度。
   const cleared = practiceData.clearedOf(rec);
   // 本门当前关 = 已通 + 1；走通 1000 关后停在 1000（重打不推进，也不越界）。
   const curNo = practiceData.curLevelOf(rec);
@@ -30,9 +32,8 @@ function applyPractice(state, skillId, grade, options) {
   // 只能往回打，不能往上挑：打的是哪一关由进度决定，不是由参数决定。
   const levelFellBack = wantNo > curNo;
   const playedNo = Math.min(curNo, wantNo);
-  const beforeTier = tierIndex(rec.prof);
-  const profBefore = rec.prof;
-  // 战力是阶梯值：属性 = 功法条目 × 段位系数，段位不跳战力就不动。
+  const beforeTier = tierIndexOfCleared(cleared);
+  // 战力是阶梯值：属性 = 功法条目 × 档位系数，档位不跳战力就不动。
   // 先记下开场值，结算时才能如实说「这一局涨了没有」，而不是含糊带过。
   const powerBefore = powerDetail(state).total;
 
@@ -43,16 +44,16 @@ function applyPractice(state, skillId, grade, options) {
   const wiped = factor === 0;
   const attrs = computeAttributes(state);
   // 心法省的「气」：澄心 / 勘禁 / 太虚 / 并蒂 / 九宫 / 让路六门累加，封顶一半。
-  // 它不再是「参悟收益 +X%」——熟练度不许有倍率，收益位换成了成本位。
   const qiSave = effectValue(state, 'qiSave');
 
-  // 只奖不罚：同一门连练不再递减。攒「连 S 倍率」本来就要连练同一门，
-  // 若同时扣收益，等于在最该上瘾的临门一脚反着来。多样化靠换门的正激励，不靠惩罚专精。
+  // 只奖不罚：同一门连练不递减。进度线只剩「一局推一关」之后，
+  // 往回刷本来就一分不涨；此时再扣收益，等于对最该专精的人反着来。
+  // 多样化靠换门的正激励（CROSS_QI），不靠惩罚专精。
   const cross = !!state.lastPractice.skillId && state.lastPractice.skillId !== skillId;
 
-  // 一个维度只管一件事：难度档管局内参数与耗气基数、评级管这一局打得好不好、
+  // 一个维度只管一件事：段位管盘面参数与耗气基数、评级管这一局打得怎么样、
   // 境界管耗气有没有超限、品阶管运功消耗与属性系数。
-  // 品阶不进熟练度公式——「高级功法练得更快」会让低阶功法从成长线上被直接淘汰，
+  // 品阶不进进度公式——「高级功法练得更快」会让低阶功法从成长线上被直接淘汰，
   // 也和「难度跟人走」自相矛盾；品阶的价值在战力（attr）与可修境界（maxRealm）。
   const tier = practiceData.tierOf(skill.tier);
   const w = worldData.getWorld(state.worldId);
@@ -81,38 +82,9 @@ function applyPractice(state, skillId, grade, options) {
   // 段位与耗气都跟着「打的是第几关」走——关号是唯一入口，不再有第二个可选项。
   const stageIdx = levelData.stageOfLevel(playedNo);
   const stage = practiceData.STAGES[stageIdx];
-  // 回关折减：本关 ÷ 当前关（见 practice.profByLevel）。
-  // 耗气不跟着折——回关按本关所在段的基数照算，再折会让「回关刷分」变成省气的聪明选择。
-  const lowFactor = practiceData.levelFactor(playedNo, curNo);
-  // 「回关」= 打的不是本门当前关。不叠连 S、基础分按关折。
+  // 「回关」= 打的不是本门当前关。回关不推进度，但耗气按本段基数照算，
+  // 不能因为回关就便宜——否则「回关练手感」会变成省气的聪明选择。
   const belowCap = playedNo < curNo;
-
-  // 连 S 与回关完全解耦：只有本门当前关的 S 才叠层，本局按 34 × 1.5^(层数-1) 独立取整；
-  // 回关局不叠层、不砍连击收益、层数原样保留；失败（F）一律断连。
-  // 到 PROF_MAX 后熟练度封顶，但层数与纪录照常、灵力照扣：火候封顶是数值毕业，不是不许再练。
-  if (!state.sCombo) state.sCombo = {};
-  const comboBefore = Math.min(worldData.COMBO_MAX, Math.floor(num(state.sCombo[skillId], 0)));
-  let comboNow = comboBefore;
-  let comboGainNow = 0;
-  let rawGain = 0;
-  if (wiped) {
-    comboNow = 0;
-  } else if (belowCap) {
-    // 回关：只给基础分，按「本关 ÷ 当前关」折一次、四舍五入一次，
-    // 玩家按「34 × 400 ÷ 800 = 17」能复算。不再有「低档再折半」那道刀：
-    // 关卡只剩一条线，没有「打低档」这个动作了。
-    rawGain = practiceData.profByLevel(worldData.PROF_BASE[grade] || 0, playedNo, curNo);
-  } else if (grade === 'S') {
-    comboNow = Math.min(worldData.COMBO_MAX, comboBefore + 1);
-    comboGainNow = worldData.comboGain(comboNow);
-    rawGain = comboGainNow;
-  } else {
-    // C / B / A 是固定基础值，不叠层且断连。
-    comboNow = 0;
-    rawGain = worldData.PROF_BASE[grade] || 0;
-  }
-  const gain = Math.min(rawGain, Math.max(0, worldData.PROF_MAX - rec.prof));
-  state.sCombo[skillId] = comboNow;
 
   // 一局要烧多少灵力：难度档 × 时长系数 × 品阶 × 境界超限 × 心法省气 ÷ 悟性 ÷ 换门。
   // 系数全在 data/economy.js 一处算，页面只显示结果，不在页面上再推一遍。
@@ -159,22 +131,18 @@ function applyPractice(state, skillId, grade, options) {
   touchSkill(state, skillId);
   if (cross) state.stats.comboCount += 1;
 
-  // 三连 S 晋级已取消：火候不再被「补额」跳过，只由上面这一局的实得点数一格格涨。
-  rec.prof += gain;
-
-  // 做成目标才算走通。三连互换的终点是「做成即收工」，时辰走到头还没做成就是这一关没过：
-  // 熟练度照给（参悟只换熟练度，练过的功夫不会白练），但进度不推。
-  // 不报 F 是有意的：F 是「一局打崩」，没做完目标不是打崩，判成 F 会让玩家以为整局白打。
-  const goalMissed = !!opts.goalMissed;
   // 走通本门当前关才推进：失败不推、回关不推、没做成目标不推、走完 1000 关不推。一局只推一关。
+  // 「一局一关」是这条成长线的地基：推得动就一定有收获，推不动就一定有原因（写在日志里）。
+  const goalMissed = !!opts.goalMissed;
   const advanced = !wiped && !goalMissed && playedNo === curNo && cleared < levelData.LEVEL_MAX;
   if (advanced) rec.cleared = cleared + 1;
-  const stageBefore = levelData.stageIndexOfCleared(cleared);
-  const stageAfter = levelData.stageIndexOfCleared(cleared + (advanced ? 1 : 0));
-  const promoted = stageAfter > stageBefore;
+  const afterCleared = rec.cleared;
+  const beforeStage = levelData.stageIndexOfCleared(cleared);
+  const afterStage = levelData.stageIndexOfCleared(afterCleared);
+  const promoted = afterStage > beforeStage;
 
   // 运功的代价：灵力在起手时就烧掉了，失败也不退——这才是「失败」真正的分量。
-  // 参悟不再产灵力灵石：灵力的来路是闭关、份例与灵石兑换，灵石的来路只有对战。这一局只换熟练度。
+  // 参悟不再产灵力灵石：灵力的来路是闭关、份例与灵石兑换，灵石的来路只有对战。这一局只换一关。
   state.resources.qi -= qiCost;
 
   if (!wiped) {
@@ -191,28 +159,25 @@ function applyPractice(state, skillId, grade, options) {
   state.stats.practiceCount += 1;
   if (grade === 'S') state.stats.gradeS += 1;
   state.daily.count += 1;
-  const afterTier = tierIndex(rec.prof);
-  if (afterTier > beforeTier) {
-    state.stats.tierUps += (afterTier - beforeTier);
-    addLog(state, skill.name + ' 参悟至「' + worldData.TIERS[afterTier].name + '」', 'tier');
+  const afterTier = tierIndexOfCleared(rec.cleared);
+  const tierUp = afterTier > beforeTier;
+  if (tierUp) state.stats.tierUps += (afterTier - beforeTier);
+  // 日志一句话说清这一局的结果。不写「进度 +N」——进度就是一关，没有可加的分数；
+  // 晋档与没晋档要给两种说法，否则玩家会分不清「走了但没升」和「根本没走」。
+  if (advanced && tierUp) {
+    addLog(state, skill.name + ' 走通第 ' + rec.cleared + ' 关，入「' + worldData.TIERS[afterTier].name + '」', 'stage');
+  } else if (advanced) {
+    addLog(state, skill.name + ' 走通第 ' + rec.cleared + ' 关（灵力 −' + qiCost + '）', 'practice');
   } else if (goalMissed) {
-    addLog(state, '参悟 ' + skill.name + '，目标未达成，这一关还没通（熟练度 +' + gain + '）', 'practice');
+    addLog(state, '参悟 ' + skill.name + '，目标未达成，这一关还没通', 'practice');
   } else if (wiped) {
-    // 不能说「熟练度 +0」：玩家会以为是自己眼睛看错了，而不是这一局作废。
+    // 不能说「进度 +0」：玩家会以为是自己眼睛看错了，而不是这一局作废。
     addLog(state, '参悟 ' + skill.name + ' 失败，本局无所得', 'practice');
-  } else if (gain === 0 && rec.prof >= worldData.PROF_MAX) {
-    // 到顶后不许写「熟练度 +0」，那读起来像 bug。
-    addLog(state, '参悟 ' + skill.name + '，熟练度已圆满，本局只记战绩', 'practice');
+  } else if (belowCap) {
+    addLog(state, '参悟 ' + skill.name + ' 第 ' + playedNo + ' 关（回关，不推进度）', 'practice');
   } else {
-    addLog(state, '参悟 ' + skill.name + '，熟练度 +' + gain + '（灵力 −' + qiCost + '）', 'practice');
-  }
-  // 晋段最后记，让它排在日志最上面：这是这一局最该被看见的一刻
-  //（盘面换了、耗气涨了、段名变了）。以前它只在结算 notes 里一闪而过、日志里没有，
-  // 玩家过后翻不到「我什么时候进的小成」。放在熟练度记录之后才不会被那行压下去。
-  if (promoted && levelData.STAGES[stageAfter]) {
-    // 走通第 1000 关时 stageAfter 会指到不存在的第六段（满级没有下一段），
-    // 这里只记真正存在的段名，避免写「入 undefined」。promoted 的既有语义不动。
-    addLog(state, skill.name + ' 走通本段，入「' + levelData.STAGES[stageAfter].name + '」', 'stage');
+    // 走完 1000 关还会来练：这不是错，是「这门已经到顶了」。
+    addLog(state, skill.name + ' 已走通全部 ' + levelData.LEVEL_MAX + ' 关，本局只记战绩', 'practice');
   }
 
   // 机缘：只在石阶上拾得残卷，**不给灵力也不给灵石**。
@@ -247,18 +212,20 @@ function applyPractice(state, skillId, grade, options) {
     // 跨段：走通段界关那一刻由 false 变 true。stageName 报的是「刚打的那一关属于哪一段」，
     // stageAfterName 是「这一局之后是不是换段了」，两者不能混用一个字段。
     promoted: promoted,
-    stageAfterName: levelData.stageNameOfCleared(cleared + (advanced ? 1 : 0)),
+    stageAfterName: levelData.stageNameOfCleared(afterCleared),
     stageBeforeName: levelData.stageNameOfCleared(cleared),
-    // 失败＝作废：页面据此把收益行显示成「无」，而不是一排 +0。
+    // 失败＝作废：页面据此把结果行显示成「这一局什么都没得到」。
     wiped: wiped,
-    // 没做成目标：熟练度照给，但这一关不往上推。页面要单独写一行，不然玩家以为关卡卡住了。
+    // 没做成目标：进度不推，但也不判失败——页面要单独写一行，不然玩家以为关卡卡住了。
     goalMissed: goalMissed,
     gradeTitle: copy.GRADE_TITLE[grade] || '粗浅',
     gradeColor: worldData.GRADE_COLOR[grade] || '#8a8f83',
     skillName: skill.name,
     methodName: method.name,
-    gain: gain,
-    // 这一局烧掉的灵力：失败也照扣（起手就烧了），所以它和 gain 是两条独立的数。
+    // 功法的进度：这一局前后各走通了几关。页面用这两个数算进度条与「+1」。
+    clearedBefore: cleared,
+    clearedAfter: afterCleared,
+    // 这一局烧掉的灵力：失败也照扣（起手就烧了），与走没走通是两条独立的数。
     qiCost: qiCost,
     qiBefore: state.resources.qi + qiCost,
     qiAfter: state.resources.qi,
@@ -267,38 +234,24 @@ function applyPractice(state, skillId, grade, options) {
     // 本局耗气的三个可见修正：时长系数（这一门盘面多长）、品阶、是否超上限。
     methodQiFactor: Math.round(economyData.methodQiFactor(method.base) * 100) / 100,
     tierQiCost: tier.qiCost,
-    profBefore: profBefore,
-    // 战力在这一局前后的值：没跨段位就是相等的，不是算错。
+    // 战力在这一局前后的值：没跨档就是相等的，不是算错。
     powerBefore: powerBefore,
     powerAfter: powerDetail(state).total,
-    // 连 S 回执：本局叠到第几层、这一层给了多少、下一层能给多少。
-    // 三连晋级取消后，profAfter = profBefore + gain，不再有「补额」这一笔。
-    comboBefore: comboBefore,
-    comboNow: comboNow,
-    comboMax: worldData.COMBO_MAX,
-    comboGain: comboGainNow,
-    comboNextGain: worldData.comboGain(comboNow + 1),
-    comboCapped: comboNow >= worldData.COMBO_MAX,
-    comboActive: !wiped && !belowCap && grade === 'S',
-    comboTransparent: !wiped && belowCap,
-    profAfter: rec.prof,
     tierBefore: beforeTier,
     tierAfter: afterTier,
-    tierUp: afterTier > beforeTier,
+    tierUp: tierUp,
     tierName: worldData.TIERS[afterTier].name,
     cross: cross,
-    // 品阶、段位、境界现在都只影响「一局烧多少气」，不再有资源倍率这一串。
+    // 品阶、段位、境界现在都只影响「一局烧多少气」。
     tierKey: tier.key,
     tierLabel: tier.label,
     tierColor: tier.color,
     stageKey: stage.key,
     stageName: stage.name,
-    // 本门当前关与本局打的关：回关时基础熟练度按「本关 ÷ 当前关」折、本局不叠连 S，
-    // 结算要如实报出退了几关与系数。
+    // 本门当前关与本局打的关：回关时进度不推，结算要如实报出退了几关。
     curLevel: curNo,
     levelGap: curNo - playedNo,
     levelBelowCap: belowCap,
-    levelBelowFactor: lowFactor,
     levelFellBack: levelFellBack,
     // 境界超限只加耗气，不禁练：结算说的是「这局更贵」，不是「练不了」。
     realmOverCost: realmAbove ? economyData.REALM_OVER : 1,
@@ -307,7 +260,6 @@ function applyPractice(state, skillId, grade, options) {
     realmReason: realmAbove ? '已超「' + maxRealmName + '」上限' : (realmReady ? '' : '未到「' + needRealmName + '」门槛'),
     maxRealmName: maxRealmName,
     needRealmName: needRealmName,
-    profGrade: rawGain,
     gradeFactor: factor,
     newRecord: newRecord,
     bestScore: bestScore,

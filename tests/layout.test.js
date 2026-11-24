@@ -172,8 +172,8 @@ check('参悟吸底条只在有操作时出现', function () {
 
 check('两种 F 分开处置：结束作废，失败照常结算', function () {
   // 同一条 grade === 'F' 有两个来历，处置必须不同：
-  //   ① 玩家点「结束」→ 整局作废，不进 applyPractice，由 breakCombo 把连 S 归零；
-  //   ② 玩法判负（阵溃 / 心神尽 / 时辰到）→ 一局打完的结果，进结算、断连，但零收益。
+  //   ① 玩家点「结束」→ 整局作废，不进 applyPractice，只走 closeAbandonedRound 记钟；
+  //   ② 玩法判负（阵溃 / 心神尽 / 时辰到）→ 一局打完的结果，进结算，但零收益。
   // 旧写法把所有 F 都当 ①，于是「蓄力偏离」「阵溃」也被显示成「中途结束 · 这回不算数」，
   // 玩家既看不到自己栽在哪，也拿不到结算卡。
   const js = read('pages/practice/practice.js');
@@ -181,10 +181,13 @@ check('两种 F 分开处置：结束作废，失败照常结算', function () {
   assert.ok(/self\.aborting = true/.test(js), '玩家结束时没置位，结算分不出是哪种 F');
   assert.ok(/grade === 'F' && \(this\.aborting \|\| this\.mode === 'breakthrough'\)/.test(js),
     '所有 F 都被当成结束，失败拿不到结算');
-  assert.ok(/未走完，不计所得/.test(js), '失败结算没写清「一分不给」');
+  assert.ok(/本局未走完，本门不推进度/.test(js), '失败结算没写清「进度不推」');
+  assert.ok(/点灵力不退/.test(js), '失败结算没写清灵力不退');
   assert.ok(/r\.wiped/.test(js), '结算卡没把失败与正常局分开，会显示一排 +0');
-  assert.ok(/engine\.breakCombo\(/.test(js), '结束没把连 S 归零，能靠中途退出保住连击');
-  assert.ok(/连 S 归零/.test(js), '结束确认框没写明连 S 会断');
+  // 三条出口共用一个结账口，且那个口子不进 applyPractice。
+  assert.ok(/closeAbandonedRound: function/.test(js), '没有统一的中途结束结账口');
+  assert.ok(!/abandonRound/.test(js), '还在调已经删掉的 abandonRound');
+  assert.ok(/本局作废，不计所得；起手耗去的灵力不退/.test(js), '结束确认框没写清代价');
 });
 
 check('说明页写清本档四条线：C / B / A / S 各自要什么', function () {
@@ -444,7 +447,7 @@ check('战力明细收进「说明」真源，首屏只留数值；指南保留�
   const lines = (power ? power.lines : []).join('');
   assert.ok(lines.length > 0, '说明页缺战力专节');
   assert.ok(/体魄 ×1\.0/.test(lines) && /境界加成/.test(lines) && /功法特效/.test(lines), '说明没讲公式三项');
-  assert.ok(/突破境界/.test(lines) && /化境/.test(lines) && /换一门修习/.test(lines)
+  assert.ok(/突破境界/.test(lines) && /大圆满/.test(lines) && /换一门修习/.test(lines)
     && /不减所得/.test(lines), '说明没讲突破、特效与「只奖不罚」');
   const index = read('pages/index/index.wxml');
   const indexJs = read('pages/index/index.js');
@@ -556,7 +559,8 @@ check('战力是阶梯：结算与主页都要说「跳到多少」，不能只�
   const r = game.applyPractice(s, id, 'S', { difficulty: 'novice', score: 100 });
   assert.ok(r.ok, '参悟结算没跑通');
   assert.ok(typeof r.powerBefore === 'number' && typeof r.powerAfter === 'number', '结算没带战力前后值');
-  assert.ok(r.profAfter > r.profBefore, '熟练度没涨，断言前提不成立');
+  assert.strictEqual(r.advanced, true, '进度没推，断言前提不成立');
+  assert.strictEqual(r.clearedAfter, r.clearedBefore + 1);
 
   const page = read('pages/practice/practice.js');
   assert.ok(/k: '战力'/.test(page), '结算面板没摆战力');
@@ -786,27 +790,28 @@ check('九套经典玩法落地：注册、黄阶定位、盘面与方向键都�
   assert.ok(/showPad/.test(wxml) && /grid--compact/.test(wxml), '盘面没接矮格与按键台');
 });
 
-check('连 S 叠倍率：准备页有十格点数、结算页有回执、指南有专节', function () {
+check('连 S 那套已从页面上撤干净：不摆层数、不留回执、指南不再有专节', function () {
   const js = read('pages/practice/practice.js');
   const wxml = read('pages/practice/practice.wxml');
   const css = read('pages/practice/practice.wxss');
   const guide = read('pages/guide/guide.js');
   const engine = readEngine();
   const world = require('../data/world.js');
-  assert.ok(/COMBO_MAX/.test(engine) && /comboNextGain/.test(engine), '内核没有连 S 层数');
-  assert.ok(/comboDots/.test(js) && /comboText/.test(js), '准备页没算连 S 层数');
-  // 十格小圆点看层数，句子只写「下一局 S 值多少点」，整条曲线留给说明页。
-  assert.ok(/class="row combo-line/.test(wxml) && /combo-dot--on/.test(wxml), '准备页没画十格连 S 圆点');
-  assert.ok(/\.combo-dot--on\s*\{[^}]*var\(--c-imm-gold\)/.test(css), '连 S 圆点没有落在墨金体系里');
+  // 页面上给「连 S」画的那几样东西（十格点、下一局点数、回执）必须一起消失，
+  // 否则会留下一条只画不用的空行——比留着数字更让玩家困惑。
+  assert.ok(!/COMBO_MAX|comboNextGain|comboDots|combo-line|combo-dot/.test(js + wxml + css + engine),
+    '给「连 S」画的那几样东西还没删干净');
+  assert.ok(!/连 S 叠倍率/.test(guide), '指南还挂着连 S 专节');
+  // 顶上那一行改成「段位 + 已走通几关」，进度只有这一条线。
+  assert.ok(/class="pr-rank"/.test(wxml), '准备页没摆段位那一行');
+  assert.ok(!/\{\{prof\}\}/.test(wxml), '准备页还在印熟练度');
+  // 结算要报「+1 关」或「—」，而不是一串点数。
+  assert.ok(/settleGainLabel/.test(js) && /settleGainLabel/.test(wxml), '结算没写「这一局推了几关」');
   assert.ok(!/@media\s*\(\s*prefers-color-scheme/.test(css), '参悟页又按系统明暗翻转了，盘面会突然换色');
-  assert.ok(/r\.gain > 0/.test(js), '结算卡没用本局实得点数');
-  assert.ok(/r\.comboActive/.test(js) && /r\.comboNextGain/.test(js), '结算页没写连 S 回执');
-  assert.ok(/title: '七 · 连 S 叠倍率'/.test(guide) && /1307/.test(guide), '指南没有连 S 专节');
+  assert.ok(/title: '五 · 段位与境界'/.test(guide), '指南缺「段位与境界」专节');
   assert.ok(/title: '二 · 离线吐纳之规'/.test(guide), '新增专节后章节编号没顺延');
-  assert.ok(!/三连 S 直接晋级|promotionGain|sStreakGoal|r\.totalGain/.test(js),
-    '三连晋级的旧口径还留在参悟页');
-  assert.strictEqual(world.COMBO_MAX, 10);
-  assert.strictEqual(world.PROF_S_RUNS, 84);
+  assert.strictEqual(world.COMBO_MAX, undefined);
+  assert.strictEqual(world.PROF_S_RUNS, undefined);
 });
 
 check('页面骨架统一：三 tab + 子页用仙箓皮肤，导航只留原生一层', function () {
@@ -1106,8 +1111,8 @@ check('指南目录按新手阅读流排：先挂机保底与资源，主动玩�
   const names = [];
   for (const m of src.matchAll(/title: '[一二三四五六七八九十]+ · ([^']+)'/g)) names.push(m[1]);
   assert.deepStrictEqual(names, [
-    '怎么变强', '离线吐纳之规', '灵力与灵石', '战力从哪来', '熟练度与境界',
-    '参悟与盘面', '连 S 叠倍率', '切磋与战力码', '称号与道牒',
+    '怎么变强', '离线吐纳之规', '灵力与灵石', '战力从哪来', '段位与境界',
+    '参悟与盘面', '切磋与战力码', '称号与道牒',
     '存档与换设备', '成就与榜单',
   ], '指南目录顺序又变了：新手要先搞懂挂机保底与资源，再学主动玩法');
   assert.ok(/SECTIONS\.push\(glossarySection\('十二'\)\)/.test(src), '名词速查不在最后一节');
@@ -1372,7 +1377,7 @@ check('星罗烛天诀：简介对齐熄灯谜题，死门误触有独立触感'
     '提示按钮名没和 HUD 统一');
 });
 
-check('境界超限：文案只从 copy.js 出，讲清加价的是耗气而不是熟练度', function () {
+check('境界超限：文案只从 copy.js 出，讲清加价的是耗气而不是进度', function () {
   const copy = require('../data/copy.js');
   const page = read('pages/practice/practice.js');
   const eng = readEngine();
@@ -1380,12 +1385,16 @@ check('境界超限：文案只从 copy.js 出，讲清加价的是耗气而不�
     '准备页又自己拼衰减文案');
   assert.ok(/copy\.decayText\(/.test(eng), '图鉴又自己拼衰减文案');
   assert.ok(!/收益只剩三成/.test(page) && !/收益仅剩 30%/.test(eng), '还有硬编码的衰减句');
+  // 超上限是加价，还能练：三句都要在。
+  const above = copy.decayText('above', '元婴');
+  assert.ok(/人物境界已超/.test(above) && /耗气 ×1\.5/.test(above), '没说清加价落在耗气上');
+  assert.ok(/照样能练/.test(above), '超过上限那条没写明「还能练」，会被读成这门作废了');
+  assert.ok(/进度照推/.test(above) && /属性加成照拿/.test(above) && /评级门槛不变/.test(above),
+    '没排除属性与评级的误解');
+  // 未到门槛是硬门槛：这里只能说「修不动」，不许再写 ×1.5——那是加价，不是禁练。
   const below = copy.decayText('below', '金丹');
-  assert.ok(/人物境界/.test(below) && /耗气 ×1\.5/.test(below), '没说清加价落在耗气上');
-  assert.ok(/熟练度照给/.test(below), '没写明熟练度不受境界影响');
-  assert.ok(/属性加成照拿/.test(below) && /评级门槛不变/.test(below), '没排除属性与评级的误解');
-  assert.ok(/已超/.test(copy.decayText('above', '元婴')), '超过上限那条没区分');
-  assert.ok(/照样能练/.test(copy.decayText('above', '元婴')), '超过上限那条没写明「还能练」，会被读成这门作废了');
+  assert.ok(/修不动/.test(below), '未到门槛没写清是硬门槛');
+  assert.ok(!/×1\.5/.test(below), '未到门槛却说「加价」，会把禁练读成还能练');
 });
 
 check('「练不了」只由学习门槛决定：收益上限不许拿去拦人', function () {
@@ -1452,13 +1461,14 @@ check('只奖不罚：连练递减全站清零，换门的「省气」有单一�
   assert.ok(/copy\.practiceNote/.test(read('pages/practice/practice.js'))
     && /repeatNote/.test(read('pages/practice/practice.wxml')),
     '准备页没把「连练不减收益」写在开局前');
-  // 回关护栏：2026-11 起口径改成「局部」——同一个当前关下，回打更低的关不许比打当前关划算。
-  // 旧的「6000 点预算下只刷第 1 关不许反超逐关进」不是一个能成立的判据（见 08-待拍板清单.md D12），
-  // 它从 v9 起就空跑：刷法名改名之后两条曲线都落进 else 分支，等于拿逐关进比逐关进。
+  // 回关护栏：现在这条是**结构性**的，不再靠折减系数。
+  // 「回关不推进度」⇒ 往回刷的进度恒为 0，所以「哪条曲线更划算」这个问题不再需要算折减。
+  // 旧版的「6000 点预算下只刷第 1 关不许反超逐关进」从 v9 起就空跑：刷法名改名之后
+  // 两条曲线都落进 else 分支，等于拿逐关进比逐关进（见 08-待拍板清单.md D12）。
   const sim = read('scripts/simulate.js');
-  assert.ok(/回关不该更划算/.test(sim), '模拟里没有断言守着「回关不许比打当前关更划算」');
-  assert.ok(/for \(const cur of \[2, 21, 200, 800\]\)/.test(sim),
-    '回关护栏没在多个当前关上复算（只测一档会漏掉跨段那一刀）');
+  assert.ok(/只刷第 1 关推了/.test(sim), '模拟里没有断言守着「往回刷推不动关」');
+  assert.ok(/easy\.steps === 1/.test(sim) && /belowOne\.steps === 1/.test(sim),
+    '两条「往回刷」的曲线没被断言卡在第 1 关');
   assert.ok(!/mode: 'novice'|mode: 'below'/.test(sim),
     '刷法名又写回了 runBudget 不认识的值——那两条曲线会静默变成逐关进');
 });
@@ -1473,13 +1483,13 @@ check('已持玉简按最近练过的在前，藏经阁仍是兑换顺序', func
     '已持玉简没按 lastAt 排：最近练过的那门会沉下去');
   assert.ok(!/learned\.sort\([\s\S]{0,400}recommendScore/.test(js),
     '已持玉简又改回推荐排序了：列表会跟着推荐算法天天变');
-  // 第二级兜底必须是「熟练度降序」，不能直接落到正名。
+  // 第二级兜底必须是「已走通关数降序」，不能直接落到正名。
   // 2026-11 实测踩过：那份存档的 lastAt 与 records.at 全是 0，两级排序每次都落到
   // 字典序（14 门按码点 4e00 / 4e07 / 4e09 / 4e5d … 严格递增），玩家看到的是
   // 「改了但跟没改一样」。字典序是最没有信息量的顺序，兜底必须再带一层「投入」。
   // 比较函数在引擎里（`orderLearned`），另一头有跑结果的断言（`rank.test`）。
-  assert.ok(/function orderLearned[\s\S]{0,600}a\.prof !== b\.prof/.test(engine),
-    '引擎里的 orderLearned 少了「熟练度降序」这一级：全表无时间戳时会退化成按门名');
+  assert.ok(/function orderLearned[\s\S]{0,600}a\.cleared !== b\.cleared/.test(engine),
+    '引擎里的 orderLearned 少了「已走通关数降序」这一级：全表无时间戳时会退化成按门名');
   // 时间戳必须真的被写进去。只声明不写，全表 lastAt 恒 0，
   // 排序会静默退化成「按门名」——看起来正常，其实「最近玩」根本没生效。
   assert.ok(/rec\.lastAt = Date\.now\(\)/.test(engine), '参悟结算没有写 rec.lastAt');
@@ -1494,15 +1504,17 @@ check('已持玉简按最近练过的在前，藏经阁仍是兑换顺序', func
   assert.ok(/markTouched: function[\s\S]{0,400}engine\.touchSkill\(s, skillId\)/.test(pg),
     '记钟没走到 engine.touchSkill：结束一局回去列表顺序不变（玩家判定为「没生效」）');
   assert.ok(/onAbandon:[\s\S]{0,1600}self\.closeAbandonedRound\(\)/.test(pg),
-    '中途结束没走统一结账：它会不会断连 S 取决于另一条路，早晚分叉');
+    '中途结束没走统一结账：离开路径各写一套，早晚分叉');
   assert.ok(/onHide:[\s\S]{0,600}this\.closeAbandonedRound\(\)/.test(pg) &&
     /onUnload:[\s\S]{0,400}this\.closeAbandonedRound\(\)/.test(pg),
     '局中离开没结账：onHide 管切页/切后台，onUnload 管导航返回（返回只走后者）');
-  // 结账只写一处：断连 S + 记钟都要在 closeAbandonedRound 里，
-  // 不许某条离开路径只记钟不断连击（那等于留了一条不花钱的保连击路子）。
-  assert.ok(/closeAbandonedRound[\s\S]{0,500}this\.markTouched\(\)/.test(pg) &&
-    /closeAbandonedRound[\s\S]{0,500}engine\.breakCombo/.test(pg),
-    '局中离开没同时做「记钟」与「断连 S」');
+  // 结账只写一处：记钟在 closeAbandonedRound 里。
+  // 这一局作废，是靠「进度只在 applyPractice 里推」保证的——那个口子根本不进它。
+  const abandonBody = (pg.match(/closeAbandonedRound: function[\s\S]*?\n  \},/) || [''])[0];
+  assert.ok(abandonBody.length > 0, '没找到 closeAbandonedRound 的函数体');
+  assert.ok(/this\.markTouched\(\)/.test(abandonBody), '局中离开没记钟：列表看不到「刚碰过这门」');
+  assert.ok(!/applyPractice/.test(abandonBody),
+    '作废这一局竟然能走到 applyPractice：进度会被白送');
   // 主页「今日之课」仍只由 recommendScore 出，不许被列表顺序带过去。
   assert.ok(/function recommendScore/.test(engine) && /recommendScore: recommendScore/.test(engine),
     '推荐口径没有单一真源');
@@ -1720,10 +1732,10 @@ check('功法卡片紧凑单行：名字不竖排、按钮不抢宽度、阶段�
   assert.ok(/item\.cardName/.test(wxml) && /item\.metaText/.test(wxml), '卡片没用重排后的字段');
   assert.ok(/metaText: metaText/.test(js), '卡片没用统一的元信息字段');
   // 两个分区各写一行：已持讲「练到哪了」，藏经阁讲「这一门怎么玩」。
-  // 已持那行不许塞玩法名——小屏会先截掉属性；藏经阁那行没有熟练度可讲，只讲玩法。
+  // 已持那行不许塞玩法名——小屏会先截掉属性；藏经阁那行没有进度可讲，只讲玩法。
   // 已持那行的第二段从「体魄 +0.8」换成了「再练到小成：战力 +4」：破境门槛读的是战力，
   // 属性单位对不上，玩家没法判断练这门推不推得动筑基。属性明细仍在图鉴里。
-  assert.ok(/s\.profTierName \+ ' ' \+ s\.percent \+ '% · ' \+ \(gainText \|\| bonusText\)/.test(js),
+  assert.ok(/s\.rankName \+ ' ' \+ s\.percent \+ '% · ' \+ \(gainText \|\| bonusText\)/.test(js),
     '已持卡片的元信息没写成「段位 进度 · 再练一段能换多少战力」一行');
   // 这个数必须从引擎来：页面自己再算一遍，就会与破境页各说各话。
   assert.ok(/powerGain: rec\.unlocked \? skillPowerGain\(state, s\.id\) : 0/.test(readEngine()),

@@ -475,7 +475,7 @@ if (!/milestones:\s*milestones/.test(settleSrc) || !/const milestones = \[\]/.te
 if ((settleWxml.match(/result\.milestones\.length > 0/g) || []).length < 2) {
   errors.push('本局进境没有在两套结算 UI 都显示（舞台演出 / 普通弹层缺一处）');
 } else checked += 1;
-if (!/走通本段，入「/.test(engineSrc())) {
+if (!/走通第 ' \+ rec\.cleared \+ ' 关，入「/.test(engineSrc())) {
   errors.push('晋段没记进修行日志：玩家回看不到「我什么时候进的小成」');
 } else checked += 1;
 
@@ -535,7 +535,7 @@ for (const g of Object.keys(practiceMod.GAME_LABELS)) {
   else checked += 1;
 }
 
-// 8b-2. effect.text 的前缀是这门功法的门面（'九宫：参悟熟练度 +9%'），改名时最易漏。
+// 8b-2. effect.text 的前缀是这门功法的门面（'九宫：参悟耗灵力 −9%'），改名时最易漏。
 // 规则：门面词必须出现在这一门的正名里，只有两个意象词可以例外——刀意（开锋斩桩诀）、
 // 灯势（点灯破阵诀），它们说的是「这一门的气」，不是动作。白名单同样反向自检：
 // 有词没人用就得删，否则它只是给下一次漏改留了个后门。
@@ -1918,7 +1918,7 @@ if (!fs.existsSync(checklistPath)) {
   const gradeLine = Object.keys(copyData.GRADE_TITLE).join(' / ');
   if (doc.indexOf(gradeLine) < 0) errors.push('自检清单的评级档位与 copy.GRADE_TITLE 不一致（应为 ' + gradeLine + '）');
   else checked += 1;
-  // 关卡不再由熟练度算：清单必须写「1000 关五段、走通段界关才进下一段」，
+  // 关卡只由走通关数推：清单必须写「1000 关五段、走通段界关才进下一段」，
   // 且不许再留「熟练度到 X 解锁某档」的旧口径——那是这次改版特意拆掉的一层。
   if (doc.indexOf('1000 关') < 0) errors.push('自检清单没写「1000 关」');
   else checked += 1;
@@ -1952,44 +1952,50 @@ if (!fs.existsSync(checklistPath)) {
   else checked += 1;
   if (/分步新手引导[^\n]*明确不做/.test(doc)) errors.push('自检清单还把新手引导写成「明确不做」');
   else checked += 1;
-  // 回关折减与「关卡由走通推进」是同一根尺子的两面：文档写成另一套口径，
-  // 以后照文档调数值，玩家看到的和代码算的就对不上。
-  if (doc.indexOf('回关折减') < 0) errors.push('自检清单没写「回关折减」的口径');
+  // 关卡只由「走通」推进，回关不推：文档与代码必须是同一套口径。
+  if (doc.indexOf('回关不推进度') < 0) errors.push('自检清单没写「回关不推进度」的口径');
   else checked += 1;
   if (doc.indexOf('走通段界关') < 0) errors.push('自检清单没写「走通段界关才进下一段」');
   else checked += 1;
   const gameSrc = engineSrc();
-  if (!/practiceData\.profByLevel\(/.test(gameSrc)) errors.push('utils/game.js 没走 profByLevel() 按关折减');
+  // 熟练度折减与连 S 曲线已整条删除：再出现这些符号就是把旧机制接回来了。
+  if (/practiceData\.profByLevel\(/.test(gameSrc)) errors.push('utils/game.js 又用 profByLevel() 折熟练度（这条线已删）');
   else checked += 1;
-  // 关号只许由「走通了几关」推进；段位只许由 stageIndexOfCleared 算。
-  // levelFromProf 现在只剩迁移用途，运行时再调它就是把熟练度又接回关卡。
+  if (/worldData\.(comboGain|PROF_BASE|PROF_MAX|COMBO_MAX)|engine\.breakCombo|M\.breakCombo/.test(gameSrc)) {
+    errors.push('utils/game.js 还引用着已删的熟练度 / 连 S 符号');
+  } else checked += 1;
+  // 关号只许由「走通了几关」推进；档位只许由同一套段界算。
   if (/levelData\.levelFromProf\(/.test(gameSrc)) errors.push('utils/game.js 又用 levelFromProf() 算关卡了');
   else checked += 1;
   if (!/levelData\.stageIndexOfCleared\(/.test(gameSrc)) errors.push('utils/game.js 没按走通关数算段位');
   else checked += 1;
   if (!/\.cleared/.test(gameSrc)) errors.push('utils/game.js 没读写 cleared（本门走通了几关）');
   else checked += 1;
-  if (/Math\.round\(profBase \* lowFactor\)/.test(gameSrc)) {
-    errors.push('熟练度折减又退回「先乘总系数、最后取整一次」');
-  } else checked += 1;
-  if (doc.indexOf('四舍五入') < 0) errors.push('自检清单没写取整口径');
-  else checked += 1;
-  // 连 S 叠倍率是熟练度的唯一曲线：三连 S 晋级的旧字段必须整体消失，结束必须断连。
+  // 功法的级只有一个来源：TIERS 六档门槛必须等于段界关（data/levels.js 的 STAGES）。
   const worldSrc = fs.readFileSync(path.join(ROOT, 'data/world.js'), 'utf8');
-  if (!/function comboGain\(/.test(worldSrc)) errors.push('data/world.js 没有连 S 曲线真源 comboGain()');
-  else checked += 1;
-  if (doc.indexOf('连 S 叠倍率') < 0) errors.push('自检清单没写「连 S 叠倍率」机制');
-  else checked += 1;
-  if (doc.indexOf('1307') < 0) errors.push('自检清单没写连 S 第 10 层封顶值 1307');
-  else checked += 1;
+  if (/function comboGain\(|PROF_BASE|PROF_MAX|COMBO_MAX/.test(worldSrc)) {
+    errors.push('data/world.js 还留着熟练度 / 连 S 的常量或曲线');
+  } else checked += 1;
+  const levelMod = require(path.join(ROOT, 'data/levels.js'));
+  const worldMod = require(path.join(ROOT, 'data/world.js'));
+  const gates = levelMod.STAGES.map(function (x) { return x.to; });
+  if (worldMod.TIERS.length !== gates.length + 1) {
+    errors.push('TIERS 档位数不是「段数 + 1」：功法的级必须与关卡段一一对应');
+  } else checked += 1;
+  for (let i = 0; i < gates.length; i += 1) {
+    if (worldMod.TIERS[i + 1].threshold !== gates[i]) {
+      errors.push('TIERS 第 ' + (i + 1) + ' 档门槛不是段界关（' + gates[i] + '）：两套尺子漂了');
+    } else checked += 1;
+  }
   const pageSrc = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.js'), 'utf8');
-  if (!/engine\.breakCombo\(/.test(pageSrc)) errors.push('参悟页结束没接 breakCombo()，连击能靠中途退出保住');
+  // 中途结束只许走一个结账口；那个口子不许进 applyPractice（作废＝一分数值都不发）。
+  if (!/closeAbandonedRound: function/.test(pageSrc)) errors.push('参悟页没有 closeAbandonedRound()：中途结束没有统一结账口');
   else checked += 1;
   if (/S_STREAK_GOAL|promotionGain|sStreakGoal/.test(gameSrc)) {
     errors.push('utils/game.js 还留着三连 S 晋级的旧字段');
   } else checked += 1;
   const engineApi = require(path.join(ROOT, 'utils/game.js'));
-  if (engineApi.SAVE_VERSION !== 9) errors.push('存档版本没升到 v9（关卡改成 1000 关一条线，进度要按 cleared 存）');
+  if (engineApi.SAVE_VERSION !== 10) errors.push('存档版本没升到 v10（熟练度删除、功法的级改由 cleared 算）');
   else checked += 1;
   // 参悟页的说明是按功法现拼的，不能塞进静态主题表（那里只放整页主题）。
   const navData = require(path.join(ROOT, 'data/navigation.js'));
@@ -2094,10 +2100,19 @@ if (errors.length > 0) {
 }
 // 文档里的项数必须等于本次实际检查数。这个数字最容易漏改：它每加一条断言都会变，
 // 而人只会记得改代码。放在最后是因为 checked 到这里才定稿——只提示不递归。
+// 三个锚点都必须在场：只查一个「N 项」，会被正文里别的四位数（历史快照写的 1422 项、
+// 布局的 107 项）蒙过去——那一版就出现过「1801 与 1800 并存、校验照样绿」。
 const finalReadme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
-if (finalReadme.indexOf(checked + ' 项') < 0) {
+const countAnchors = [
+  '（' + checked + ' 项，含',
+  checked + ' 项静态检查',
+  checked + ' 项静态 +',
+  checked + ' 项里守着三页 IA',
+];
+const missingAnchor = countAnchors.filter(function (a) { return finalReadme.indexOf(a) < 0; });
+if (missingAnchor.length > 0) {
   console.error('静态校验失败（1 项）:');
-  console.error('  - README 里的静态项数没同步：本次实际 ' + checked + ' 项，请搜「项静态」或「项，含」对齐');
+  console.error('  - README 里的静态项数没同步：本次实际 ' + checked + ' 项，缺「' + missingAnchor.join('」「') + '」');
   process.exit(1);
 }
 console.log('静态校验通过：' + checked + ' 项检查，0 错误');

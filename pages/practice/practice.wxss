@@ -38,7 +38,7 @@
     gap: var(--sp-3);
 }
 
-/* 小印与「黄阶 ×1.00」分两处放：印在标题行、倍率在熟练度那一行。
+/* 小印与「黄阶 ×1.00」分两处放：印在标题行、倍率在关卡进度那一行。
    星级与一脉属于图鉴（功法页有谱系），不占开局前这一屏。 */
 /* 选两个类名叠起来：.rank-badge 的基础尺寸在本文件更靠后定义，
    单类选择器会被它盖回去，小印就又变回 46rpx。 */
@@ -129,7 +129,7 @@
     word-break: break-all;
 }
 
-.pr-prof {
+.pr-rank {
     margin-top: 28rpx;
 }
 
@@ -303,14 +303,6 @@
 .pr-hint__terms .tiny {
     color: var(--c-imm-text-2);
     line-height: 1.5;
-}
-
-/* ---------- 连 S 倍率：准备页只剩一行 ---------- */
-/* 十个小圆点看层数，句子只写「下一局 S 值多少点」。点压到 16rpx 才放得进一行。 */
-.combo-line {
-    align-items: center;
-    gap: 6rpx;
-    flex-wrap: wrap;
 }
 
 .combo-chip {
@@ -2063,7 +2055,7 @@
    页面本身（准备页、HUD、结算）只认 --c-imm-*。系统切到深色时整页不变，
    盘面也不会突然变成另一种颜色。 */
 
-/* ---------- 本门新法：熟练度阶段解锁的规则变化 ---------- */
+/* ---------- 本门新法：走到某一段才解锁的规则变化 ---------- */
 .stage-rule {
   display: flex;
   align-items: flex-start;
@@ -2096,19 +2088,6 @@
   border-color: var(--c-imm-gold-dim);
   color: var(--c-imm-gold-text);
 }
-
-/* ---------- 连 S 倍率的十格圆点 ---------- */
-/* 圆点还在（形状比数字快），但不铺十张卡片；亮到第 10 格就是封顶。 */
-.combo-dot {
-  width: 16rpx;
-  height: 16rpx;
-  border: 1rpx solid var(--c-imm-gold-dim);
-  border-radius: 50%;
-  background: transparent;
-  box-sizing: border-box;
-}
-
-.combo-dot--on { background: var(--c-imm-gold); border-color: var(--c-imm-gold-text); }
 
 /* ---------- 三套经典玩法的盘面：矮格 / 灵纹 / 落石 / 方向键 ---------- */
 /* 6 列以上、8 行的盘面要把格子压矮，否则小屏装不下；只在 vm.extras.compact 时启用。 */

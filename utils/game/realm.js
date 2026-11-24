@@ -211,7 +211,7 @@ function battleRival(state, rival, moveIds) {
     moves: fight.moves, qiCost: fight.qiCost, qiAfter: state.resources.qi, qiMax: qiCap(state),
     stone: stone, stoneFactor: Math.round(stoneFactor * 1000) / 1000,
     battleNo: winsBefore + (win ? 1 : 0), dropName: '',
-    line: win ? '这一场赢得干净，对方留了句「后会有期」。' : '对方收招：「道友根基还差些火候。」',
+    line: win ? '这一场赢得干净，对方留了句「后会有期」。' : '对方收招：「道友根基还差些。」',
     realmName: rival.realmName || '未知境界',
     newTitles: checkTitles(state),
   };

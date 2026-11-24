@@ -8,7 +8,7 @@
     </view>
   </view>
 
-  <!-- 藏经阁分区才报身家：已持玉简里看的是熟练度，不是还有多少灵力。 -->
+  <!-- 藏经阁分区才报身家：已持玉简里看的是这门走到哪了，不是还有多少灵力。 -->
   <view wx:if="{{tab === 'shop'}}" class="imm-panel sk-wallet">
     <view class="imm-stats">
       <view class="imm-stat">
@@ -118,13 +118,12 @@
         </block>
         <block wx:else>
           <view class="codex__kv">
-            <text class="codex__note grow">{{detail.prof}} 熟练度 · {{detail.profTierName}}</text>
-            <text class="codex__note">{{detail.nextText}}</text>
+            <text class="codex__note grow">{{detail.rankName}} · 已走通 {{detail.cleared}} / {{detail.levelTotal}} 关</text>
+            <text wx:if="{{!detail.maxed}}" class="codex__note">距「{{detail.nextName}}」还差 {{detail.nextThreshold - detail.cleared}} 关</text>
           </view>
           <view class="imm-bar imm-bar--thin">
             <view class="imm-bar__fill" style="width:{{detail.percent}}%"></view>
           </view>
-          <text class="codex__note">连 S {{detail.sCombo}} / {{detail.sComboMax}} 层 · 下一局 S {{detail.comboNextGain}} 点</text>
           <text wx:if="{{detail.bestText}}" class="codex__note">最佳 {{detail.bestText}}</text>
           <!-- 已习得的门如果超出可修上限，说清「还能练，只是这一局更费气」，不要让人以为这门作废了。 -->
           <text wx:if="{{detail.decayed}}" class="codex__note codex__warn">{{detail.decayText}}</text>

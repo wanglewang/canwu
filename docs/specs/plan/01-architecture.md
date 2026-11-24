@@ -6,9 +6,9 @@
 
 我把这套分层想成一条单行道：数字在最上游生成，玩法只管把盘面算出来，引擎负责换算与写存档，页面最后把结果显示出来。依赖只能顺着这条道往下走，任何一层想回头去够上一层，都是一次埋雷。
 
-这条纪律守的是一件特别具体的事——**「没有第二处算同一个数」**。熟练度一旦在玩法模块里也算一遍，改数值时必然有一处漏掉，玩家就会看到「这页写的和那页不一样」。我宁可多加几层转发，也不让一个数有两个出处。
+这条纪律守的是一件特别具体的事——**「没有第二处算同一个数」**。进度一旦在玩法模块里也算一遍，改数值时必然有一处漏掉，玩家就会看到「这页写的和那页不一样」。我宁可多加几层转发，也不让一个数有两个出处。
 
-这也是为什么我敢让玩法模块可以独立测试：它不知道熟练度、不知道货币、不知道境界，只吃参数、吐结果。把世界隔开，测试才能只测一件事。
+这也是为什么我敢让玩法模块可以独立测试：它不知道进度、不知道货币、不知道境界，只吃参数、吐结果。把世界隔开，测试才能只测一件事。
 
 ## 1. 概述
 
@@ -31,19 +31,19 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 **硬约束**：
 
 - `minigames/` **不许** `require` `data/visual.js`（玩法不知道自己的主题色）；
-- `minigames/` **不许** `require` `utils/game.js`（玩法不知道熟练度、货币、境界）；
+- `minigames/` **不许** `require` `utils/game.js`（玩法不知道进度、货币、境界）；
 - `data/` **不许** `require` `pages/` 或 `utils/`（除了 `economy.js` 这类纯常量互相引用）；
-- 页面**不许**自己算熟练度、耗气、评级线——一律从 `utils/game.js`（门面）或 `data/practice.js` 拿。
+- 页面**不许**自己算进度、耗气、评级线——一律从 `utils/game.js`（门面）或 `data/practice.js` 拿。
 
 ## 3. `data/` —— 十三个文件，各自管什么
 
-拆这么细不是洁癖，是为了让一次改动的爆炸半径足够小——动灵力上限只碰两个文件，动熟练度只碰一个。
+拆这么细不是洁癖，是为了让一次改动的爆炸半径足够小——动灵力上限只碰两个文件，动进度只碰一个。
 
 | 文件 | 行数 | 管什么 |
 | --- | --- | --- |
 | `economy.js` | 186 | 七条经济常量、`practiceQiCost()`、`qiCapOf()`、`breakthroughStone()` |
 | `world.js` | 155 | 四境界、四属性（含 `role`）、世界列表 |
-| `practice.js` | 834 | 15 门参悟方式、五段难度、`buildParams()`、`TIERS`、熟练度阶梯、`STAGE_RULES` |
+| `practice.js` | 834 | 15 门参悟方式、五段难度、`buildParams()`、`TIERS`、进度阶梯、`STAGE_RULES` |
 | `skills.js` | 327 | 15 门功法（属性加成、特效、价格、获取途径）+ `NAME_RULE` |
 | `guides.js` | 397 | 每门的 `goal` / `steps` / `terms` / `scoring` / `tip` |
 | `help.js` | 565 | 说明页的静态主题表 + `practiceTopic()` 现拼 |
@@ -55,7 +55,7 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 | `opponents.js` | 102 | 七个同门 + 三处秘境 |
 | `weapons.js` | 136 | **兵器轴**：同一套「顺光划过刀桩」引擎靠 `profile` 分出刀与剑；当前只有 `dao` 启用（`剑` 是预留） |
 
-**为什么拆这么细**：一次「灵力上限」改动只该动 `economy.js` 与 `world.js`；一次「熟练度」改动只该动 `practice.js`。文件越大，改动越容易跨职责。
+**为什么拆这么细**：一次「灵力上限」改动只该动 `economy.js` 与 `world.js`；一次「进度」改动只该动 `practice.js`。文件越大，改动越容易跨职责。
 
 ## 4. `minigames/` —— 二十三个文件：20 门玩法 + 3 个基础设施
 
@@ -86,9 +86,9 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 | `game/index.js` | 96 | 逐键列出对外接口。内部小工具（`num` / `pad2` / `rollBattle`）留在目录内，不往公共面上漏 |
 | `game/base.js` | 82 | 底座：`data/` 依赖、存档常量、`readStorage` / `writeStorage`、`todayKey` / `checkCode` |
 | `game/state.js` | 277 | 存档：`createNewState` / `migrateState` / `normalizeState` / `load` / `save` / `checkDaily` |
-| `game/profs.js` | 280 | 熟练度 / 属性 / 战力：`tierIndex` / `computeAttributes` / `computePower` / `qiCap` / `effectValue` |
+| `game/profs.js` | 280 | 进度 / 属性 / 战力：`tierIndex` / `computeAttributes` / `computePower` / `qiCap` / `effectValue` |
 | `game/idle.js` | 229 | 挂机与闭关：`idlePending` / `settleOffline` / `meditate` / `claimDaily` / `buffInfo` |
-| `game/settle.js` | 333 | 参悟结算：`applyPractice` / `practiceCostOf`、回关折减与连 S |
+| `game/settle.js` | 333 | 参悟结算：`applyPractice` / `practiceCostOf`、一局一关、回关 +0 |
 | `game/battle.js` | 328 | 对战与本场运功：`battle` / `rollWithMoves` / `moveBoard` / `battleCode` / `parseBattleCode` |
 | `game/realm.js` | 271 | 境界 / 藏经阁 / 称号：`breakthroughInfo` / `applyBreakthrough` / `checkTitles` / `buySkill` |
 | `game/view.js` | 617 | 视图数据：`getOverview` / `getSkillList` / `getSkillDetail` / `orderLearned` / `getChallengeList` |
@@ -133,12 +133,12 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
   ↓ 终局 ctx.finish({ grade, score, summary })
 [页面] onFinish
   ↓ engine.applyPractice(s, skillId, grade, { difficulty, score })
-[引擎] 算熟练度 → 写 state → checkTitles() → addLog()
+[引擎] 算进度 → 写 state → checkTitles() → addLog()
   ↓ store.commit()（内部 scheduleFlush 防抖 1200ms）
 [存储] 落本地 → 收 pending →（非游客）上云
 ```
 
-**关键点**：玩法层不知道 `applyPractice` 存在。它只吐一个 `{ grade, score }`，怎么换算成熟练度是引擎的事。
+**关键点**：玩法层不知道 `applyPractice` 存在。它只吐一个 `{ grade, score }`，怎么换算成进度是引擎的事。
 
 这也是「玩法可以独立测试」的原因：`tests/minigames.test.js` 直接驱动模块，不需要存档。
 
@@ -150,7 +150,7 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 | 本局耗气 | `economy.practiceQiCost` | 页面（准备页与结算） |
 | 评级四条线 | 玩法模块的 `lines()` | 页面 HUD、结算、说明页 |
 | 评级本身 | 玩法模块内部 `gradeOf()` | 玩法 → 引擎 |
-| 熟练度 | `game.applyPractice` | 存档 |
+| 进度 | `game.applyPractice` | 存档 |
 | 灵力上限 | `economy.qiCapOf` | 页面、引擎 |
 | 战力 | `game.powerDetail` | 页面、引擎 |
 | 进度百分比 | `game.tierInfo` / `TIERS` | 页面 |
@@ -183,12 +183,12 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 
 ## 10. 被否决的方案
 
-这些否决里藏着这个项目最重要的一条纪律：一件事只在一处做。玩法不算熟练度、页面不算耗气、页面不直接写存档——每一条都是为了防止同一个数在两个地方各算一遍。拆分内核那次也是同一个道理：搬文件就只搬文件，不顺手改状态模型，否则红了都不知道是谁的错。
+这些否决里藏着这个项目最重要的一条纪律：一件事只在一处做。玩法不算进度、页面不算耗气、页面不直接写存档——每一条都是为了防止同一个数在两个地方各算一遍。拆分内核那次也是同一个道理：搬文件就只搬文件，不顺手改状态模型，否则红了都不知道是谁的错。
 
 | 方案 | 为什么否掉 |
 | --- | --- |
 | 拆 `game.js` 时顺手改成「对象式状态容器」（`this.state`） | 那是另一件事。拆分只搬文件、不动「传 state 进来原地改」的契约，才能用现有 1000+ 条断言兜住；两件事一起做，红了分不清是谁的错 |
-| 玩法模块自己算熟练度 | 数值改一处要动 16 个模块 |
+| 玩法模块自己算进度 | 数值改一处要动 16 个模块 |
 | 每页自己算耗气 | 一处不一致，玩家立刻发现「这页写的和气不一样」 |
 | 页面直接写存档 | 会绕过 `checkTitles` / `addLog` / 迁移 |
 | `data/` 里放页面逻辑 | 数据层要能被 Node 直接 require（测试与 sim 都依赖这点） |

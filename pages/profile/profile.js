@@ -127,7 +127,7 @@ Page({
     const ov = engine.getOverview(state);
     const top = engine.getTopSkills(state, 3);
     // 人物页要报「走到了哪一段、第几关」：这一把尺子在静室里藏得太深，
-    // 玩家不进功法就完全看不到。主修用熟练度最高的那门，名字只取正名。
+    // 玩家不进功法就完全看不到。主修用走通关数最多的那门，名字只取正名。
     const main = top[0];
     const progressLine = main
       ? String(main.name).split(skillsData.NAME_RULE.sep).pop() + ' · ' + main.stageName
@@ -418,7 +418,7 @@ Page({
     const self = this;
     wx.showModal({
       title: '重置存档',
-      content: '所有熟练度、功法、称号与灵力灵石都会清空，且无法撤销。',
+      content: '所有关卡进度、功法、称号与灵力灵石都会清空，且无法撤销。',
       confirmText: '确认重置',
       confirmColor: '#b4453c',
       success: function (res) {

@@ -7,7 +7,7 @@ const { copy, economyData, guideData, levelData, opponentData, practiceData, ski
 const { hashString, todayKey } = require('./base.js');
 const { moveBoard } = require('./battle.js');
 const { buffInfo } = require('./idle.js');
-const { computeAttributes, computeMetrics, computePower, effectScaleOf, powerDetail, qiCap, shenFloorBonus, skillPowerGain, tierIndex, tierInfo } = require('./profs.js');
+const { computeAttributes, computeMetrics, computePower, effectScaleOf, powerDetail, qiCap, shenFloorBonus, skillPowerGain, tierIndexOfCleared, tierInfo } = require('./profs.js');
 const { breakthroughInfo } = require('./realm.js');
 const { checkDaily, num } = require('./state.js');
 
@@ -179,7 +179,7 @@ function realmNameOf(state, realmNo) {
 // 单独成一个函数，是因为**有一批确实打过的局不走 applyPractice**：
 // 中途结束（本局作废、不计所得）、局中切页或返回（那一盘直接丢掉）。
 // 2026-11 真机反馈就在这里翻车——玩家打完一局点了结束再回去，列表纹丝不动，
-// 因为那条路只断了连 S，没写钟；而 applyPractice 里的注释早写着「失败也记」。
+// 因为那条路没写钟；而 applyPractice 里的注释早写着「失败也记」。
 // **「不计所得」管的是数值，不管顺序**：认真打了一段就该往前排，跟给不给分是两件事。
 function touchSkill(state, skillId) {
   const rec = state && state.skills ? state.skills[skillId] : null;
@@ -188,26 +188,26 @@ function touchSkill(state, skillId) {
   return true;
 }
 
-// 功法页「已持玉简」的顺序：最近练过的在前 → 熟练度降序 → 正名。
+// 功法页「已持玉简」的顺序：最近练过的在前 → 走通关数降序 → 正名。
 //
 // **三级缺一不可，第二级是实战补的。** 第一版只有「时间 → 正名」两级，
 // 上线后真机截图里 14 门严格按码点排（4e00 / 4e07 / 4e09 / 4e5d / 540c …），
 // 因为那份存档的 `lastAt` 与 `records.at` 都是 0——两级排序每次都落到字典序。
 // 字典序是最没有信息量的顺序：玩家看到的结论是「你改了，但跟没改一样」。
-// 熟练度是存档里唯一还带着「我投入了多少」的量，拿它兜底最差也比字典序有道理。
+// 走通关数是存档里唯一还带着「我投入了多少」的量，拿它兜底最差也比字典序有道理。
 //
 // 放在引擎里而不是页面里，是为了能被断言直接跑：静态匹配只能证明「写了这一行」，
 // 证明不了「全 0 存档排出来的顺序不是字典序」。`tests/rank.test.js` 跑的就是后者。
 function orderLearned(a, b) {
   if (a.lastAt !== b.lastAt) return b.lastAt - a.lastAt;
-  if (a.prof !== b.prof) return b.prof - a.prof;
+  if (a.cleared !== b.cleared) return b.cleared - a.cleared;
   const ka = a.name.split(skillData.NAME_RULE.sep)[1] || a.name;
   const kb = b.name.split(skillData.NAME_RULE.sep)[1] || b.name;
   return ka < kb ? -1 : (ka > kb ? 1 : 0);
 }
 
 // 「这一门走到哪一段、走通了几关」只有这一个算法，功法列表与人物页共用。
-// 两处各算一套的后果 2026-11 真机见过一次：getTopSkills 只回 name/prof/tierName，
+// 两处各算一套的后果 2026-11 真机见过一次：getTopSkills 只回 name/cleared/tierName，
 // 人物页照着功法列表的字段名去读，整行变成「吐纳周天诀 · undefined · 已走通 undefined / undefined 关」。
 function stageOfRec(rec) {
   const cleared = practiceData.clearedOf(rec);
@@ -222,8 +222,8 @@ function getSkillList(state) {
   const realmNow = state.realmIndex + 1;
   for (let i = 0; i < skillData.SKILLS.length; i += 1) {
     const s = skillData.SKILLS[i];
-    const rec = state.skills[s.id] || { unlocked: false, prof: 0 };
-    const info = tierInfo(rec.prof);
+    const rec = state.skills[s.id] || { unlocked: false, cleared: 0 };
+    const info = tierInfo(rec.cleared);
     const method = practiceData.getMethod(s.method);
     const tier = practiceData.tierOf(s.tier);
     const stage = stageOfRec(rec);
@@ -245,7 +245,7 @@ function getSkillList(state) {
       desc: s.desc,
       flavor: s.flavor,
       unlocked: rec.unlocked,
-      prof: rec.prof,
+      cleared: rec.cleared,
       // 功法页「最近练过的在前」用它排序；0 表示从没练过，页面自己决定垫哪。
       // 老存档在 2026-11 之前没有这个字段，退回「本门最佳成绩的时间」——
       // 那只在破纪录时写，比真时间旧一点，但足够让老玩家一进来就按熟悉度排上，
@@ -271,7 +271,7 @@ function getSkillList(state) {
       tierDesc: tier.desc,
       tierQiCost: tier.qiCost,
       rewardText: '耗气 ×' + tier.qiCost.toFixed(2),
-      // 可修境界：超上限只能更费气（×1.5），熟练度照涨、练照样能练。
+      // 可修境界：超上限只能更费气（×1.5），进度照推、练照样能练。
       // realmReady 才是「能不能修习」；页面不许拿 decayed 去当门槛用。
       maxRealm: tier.maxRealm,
       maxRealmName: realmNameOf(state, tier.maxRealm),
@@ -284,7 +284,7 @@ function getSkillList(state) {
       needRealmName: realmNameOf(state, tier.needRealm),
       realmReady: realmReady,
       realmAbove: realmAbove,
-      // 段位：只看走通了几关（十关一组往上走，走通段界关即入下一段），与品阶、熟练度都无关。
+      // 段位：只看走通了几关（十关一组往上走，走通段界关即入下一段），与品阶、评级都无关。
       stageName: stageNow.name,
       stageLevel: clearedNow,
       levelTotal: levelData.LEVEL_MAX,
@@ -294,14 +294,11 @@ function getSkillList(state) {
       stageText: '「' + stageNow.name + '」已走通 ' + clearedNow + ' / ' + levelData.LEVEL_MAX
         + ' 关 · 基础耗气 ' + stageNow.qi,
       bestText: best ? best.score + ' 分 · ' + best.grade + ' 档' : '',
-      // 连 S 层数：功法页与准备页都能直接显示「下一局 S 值多少点」。
-      sCombo: comboOf(state, s.id),
-      sComboMax: worldData.COMBO_MAX,
-      comboNextGain: worldData.comboGain(comboOf(state, s.id) + 1),
-      tierIndex: info.index,
-      profTierName: info.name,
-      profTierColor: info.color,
-      profTierDesc: info.desc,
+      // 档位就是这条功法的关卡进度：rankIndex 0–5 对应未入门…大圆满。
+      rankIndex: info.index,
+      rankName: info.name,
+      rankColor: info.color,
+      rankDesc: info.desc,
       percent: info.percent,
       nextName: info.nextName,
       nextThreshold: info.nextThreshold,
@@ -312,10 +309,10 @@ function getSkillList(state) {
       // 未习得与已大圆满都是 0：前者还不知道自己有多少，后者已经练到头。
       powerGain: rec.unlocked ? skillPowerGain(state, s.id) : 0,
       effectText: s.effect.text,
-      // 特效按火候兑现（0 / 25% / 50% / 75% / 100%），不再是「到精纯才有」。
-      effectScale: effectScaleOf(rec.prof),
-      effectPercent: Math.round(effectScaleOf(rec.prof) * 100),
-      effectUnlocked: rec.unlocked && effectScaleOf(rec.prof) > 0,
+      // 特效按档位兑现（0 / 25% / 50% / 75% / 100%），档位就是这条功法的关卡进度。
+      effectScale: effectScaleOf(rec.cleared),
+      effectPercent: Math.round(effectScaleOf(rec.cleared) * 100),
+      effectUnlocked: rec.unlocked && effectScaleOf(rec.cleared) > 0,
       sourceText: sourceText(s),
       canBuy: !rec.unlocked && s.source.kind === 'shop',
       cost: s.source.cost || null,
@@ -325,16 +322,14 @@ function getSkillList(state) {
 }
 
 // 特效当前发挥到几成：图鉴与详情弹窗共用这一句，不各写一遍。
-// 说法要跟「按火候兑现」对齐，不能再说「练到精纯才有」——那已经是旧规则。
+// 说法要跟「按档位兑现」对齐：档位就是关卡进度，不再有第二条进度线。
 function effectNoteOf(detail) {
   if (!detail) return '';
-  // 特效按**火候**兑现（EFFECT_TIER_SCALE 的下标就是火候档），不是按关卡段位。
-  // 这两句原来说的是「入门 25% → 圆满 100%」——那是段位名，且「入门」在火候里不存在。
-  if (!detail.unlocked) return '习得后按火候逐级发挥：初窥 25% → 通玄满额';
+  if (!detail.unlocked) return '习得后按档位逐级发挥：入门 25% → 圆满满额';
   const pct = detail.effectPercent || 0;
-  if (pct <= 0) return '火候尚在生涩 · 练到初窥即开始发挥';
+  if (pct <= 0) return '尚未走通一关 · 走通第 1 关即开始发挥';
   if (pct >= 100) return '已满额发挥';
-  return detail.profTierName + ' · 已发挥 ' + pct + '%';
+  return detail.rankName + ' · 已发挥 ' + pct + '%';
 }
 
 // 练成之后：所得逐条写清「是什么、现在给多少」。
@@ -343,7 +338,7 @@ function effectNoteOf(detail) {
 function gainLinesOf(state, skill, detail) {
   const tier = practiceData.tierOf(skill.tier);
   const rec = state.skills[skill.id];
-  const mul = worldData.TIERS[tierIndex(rec ? rec.prof : 0)].bonus * tier.attr;
+  const mul = worldData.TIERS[tierIndexOfCleared(rec ? rec.cleared : 0)].bonus * tier.attr;
   // 顺序就是「练了得什么」的优先级：属性 → 本门特效 → 代价 → 气海。
   // 准备页只取前两行，所以前两行必须是「所得」，而不是「代价」。
   const lines = [
@@ -401,16 +396,16 @@ function getSkillDetail(state, id) {
   });
 }
 
-// 推荐排序口径：不看品阶也不看熟练度绝对值，看「离下一个阶段还有多远」，
-// 并按阶段跨度归一，免得高熟练度功法永远霸榜；已达可修上限的往后压，已圆满的再往后。
+// 推荐排序口径：不看品阶也不看走通关数绝对值，看「离下一段还有多远」，
+// 并按段跨度归一，免得进度高的功法永远霸榜；已达可修上限的往后压，已圆满的再往后。
 // 主页的「今日之课」与功法页的默认排序共用这一份，不各写一套规则。
 function recommendScore(s) {
-  const floor = worldData.TIERS[s.tierIndex] ? worldData.TIERS[s.tierIndex].threshold : 0;
+  const floor = worldData.TIERS[s.rankIndex] ? worldData.TIERS[s.rankIndex].threshold : 0;
   const span = Math.max(1, s.nextThreshold - floor);
-  const ratio = Math.max(0, s.nextThreshold - s.prof) / span;
+  const ratio = Math.max(0, s.nextThreshold - s.cleared) / span;
   // 三段分明：按标价练的在前，境界超上限（耗气 ×1.5）的整段压后，已圆满的最后。
   // 列表不隐藏任何一门，只靠分段表达「现在该练谁」；主页推荐再从第一段里挑一个。
-  const bias = (s.decayed ? 1 : 0) - (s.prof === 0 ? 0.05 : 0) + (s.maxed ? 2 : 0);
+  const bias = (s.decayed ? 1 : 0) - (s.cleared === 0 ? 0.05 : 0) + (s.maxed ? 2 : 0);
   return { ratio: ratio, score: ratio + bias };
 }
 
@@ -434,7 +429,7 @@ function recommend(state) {
     // 不写死门数：加一门功法就要回来改一次文案，等于给下次漏改埋雷。
     return {
       id: '', name: '诸门皆已圆满', methodName: '本门无新课',
-      profTierName: '大圆满', profTierColor: worldData.TIERS[worldData.TIERS.length - 1].color,
+      rankName: '大圆满', rankColor: worldData.TIERS[worldData.TIERS.length - 1].color,
       gap: 0, percent: 100, maxed: true,
       reason: '手上的 ' + skillData.SKILLS.length + ' 门功法都练到了大圆满',
       next: '去仙门切磋找还没首胜的对手，或去秘境探索攒兑换用的灵石。',
@@ -442,9 +437,9 @@ function recommend(state) {
   }
 
   const s = pick.skill;
-  const gap = Math.max(0, s.nextThreshold - s.prof);
-  // 段位不再靠熟练度解锁，所以「下一段」的提示不能说「练到 300 分解锁」。
-  // 改成报本段还剩几关：那是玩家下一步真要做的事，而且他点上就能看见。
+  const gap = Math.max(0, s.nextThreshold - s.cleared);
+  // 档位就是关卡进度，所以「下一档」的提示直接报本段还剩几关：
+  // 那是玩家下一步真要做的事，而且他点上就能看见。
   const recNow = state.skills[s.id] || {};
   const clearedNow = practiceData.clearedOf(recNow);
   const curStageIdx = Math.min(practiceData.STAGES.length - 1, levelData.stageIndexOfCleared(clearedNow));
@@ -459,12 +454,12 @@ function recommend(state) {
     id: s.id,
     name: s.name,
     methodName: s.methodName,
-    profTierName: s.profTierName,
-    profTierColor: s.profTierColor,
+    rankName: s.rankName,
+    rankColor: s.rankColor,
     gap: gap,
     percent: Math.round((1 - pick.ratio) * 100),
     maxed: false,
-    reason: '距「' + s.nextName + '」还差 ' + gap + ' 熟练度',
+    reason: '距「' + s.nextName + '」还差 ' + gap + ' 关',
     next: next,
   };
 }
@@ -605,35 +600,20 @@ function getTopSkills(state, count) {
       id: s.id,
       name: s.name,
       type: s.type,
-      prof: rec.prof,
-      tierName: worldData.TIERS[tierIndex(rec.prof)].name,
-      color: worldData.TIERS[tierIndex(rec.prof)].color,
+      cleared: rec.cleared,
+      rankName: worldData.TIERS[tierIndexOfCleared(rec.cleared)].name,
+      color: worldData.TIERS[tierIndexOfCleared(rec.cleared)].color,
       stageName: stage.stage.name,
       stageLevel: stage.cleared,
       levelTotal: stage.total,
     });
   }
-  arr.sort(function (a, b) { return b.prof - a.prof; });
+  arr.sort(function (a, b) { return b.cleared - a.cleared; });
   return arr.slice(0, n);
-}
-
-function comboOf(state, id) {
-  return Math.min(worldData.COMBO_MAX, Math.floor(num(state.sCombo && state.sCombo[id], 0)));
-}
-
-// 主动结束：这一局不进 applyPractice（不作数），但连 S 必须归零，
-// 否则「预感这局拿不到 S 就中途结束」能把连击永久保住，断连惩罚形同虚设。
-// 突破局的「气机一乱」不是参悟，页面不会调这里，不会误伤别的门。
-function breakCombo(state, skillId) {
-  if (!state.sCombo) state.sCombo = {};
-  state.sCombo[skillId] = 0;
-  return { ok: true, skillId: skillId, combo: 0 };
 }
 
 module.exports = {
   bonusText: bonusText,
-  breakCombo: breakCombo,
-  comboOf: comboOf,
   dailyChance: dailyChance,
   effectNoteOf: effectNoteOf,
   gainLinesOf: gainLinesOf,

@@ -38,14 +38,13 @@
 | `roleName` | string | 道号（≤12 字） |
 | `portrait` | number | 道相编号 0–5 |
 | `realmIndex` | number | 境界下标 0–3 |
-| `skills` | object | 每门功法 `{ unlocked, prof, cleared, onboarded, teachSeen }`；`cleared` 是本门已走通的关数（0–1000）；`teachSeen` 是五段引导各看过没有，`onboarded` 保留为「首段看过」的旧别名 |
+| `skills` | object | 每门功法 `{ unlocked, cleared, onboarded, teachSeen, lastAt }`；`cleared` 是本门已走通的关数（0–1000），**它也是这门功法的「级」**；`teachSeen` 是五段引导各看过没有，`onboarded` 保留为「首段看过」的旧别名 |
 | `resources` | object | `{ qi, stone }` |
 | `lastPractice` | object | `{ skillId, at }`，判「换门」与「挂机喂哪门」 |
 | `buff` | object | `{ multiplier, until }`，参悟后的闭关加速 |
 | `defeated` | string[] | 已首胜 / 首过的对手 id |
 | `stats` | object | 计数：参悟、胜场、换门、S 次数、领份例、升段 |
 | `records` | object | 每门最佳 `{ score, grade, at }` |
-| `sCombo` | object | 每门连 S 层数（0–10） |
 | `twists` | object | 每门被关掉的阶段新法名单 |
 | `daily` | object | `{ date, count, claimed, battleWins }` |
 | `gifts` | object | 一次性发放的记账：`{ 礼包 id: 发放时间 }`。发过的不再发，所以它是「这笔钱只能拿一次」的唯一凭据；只认当前在架的 id，老档里已下线的 id 读档时丢掉 |
@@ -67,16 +66,17 @@
 | v1 | 初版 | — |
 | v2 | 加头像路径 | **已废弃**（道相是唯一形象，没有可补的键，不单独占版本号） |
 | v3 | 各门局内最佳纪录 | `records: {}` |
-| v4 | 品阶改天地玄黄、难度改由熟练度解锁 | 只升版本号（字段未变） |
+| v4 | 品阶改天地玄黄、难度改由进度解锁 | 只升版本号（字段未变） |
 | v5 | 每门连续 S 计数（`sStreak`） | `sStreak: {}` |
-| v6 | 三连 S 晋级退役，换连 S 叠倍率 | `sCombo: {}`，`delete sStreak` |
+| v6 | 三连 S 晋级退役，换连 S 叠倍率（后来也删了，见 v10） | `sCombo: {}`，`delete sStreak` |
 | v7 | 经济重做：参悟烧灵力、功法只收灵石、破境备灵石 | 灵力补到 `START_QI`（只补不削）、补 `daily.battleWins` |
-| v8 | 难度与熟练度解耦：五段各 40 关、各记各的进度，走通本段开下一段 | 老档只有 `prof`，按 `legacyLevelFromProf()` 反推全书关号再拆成 `levels`：前面几档记满 40、当前档记「段内关号 − 1」、之后各段留 0 |
+| v8 | 难度与进度解耦：五段各 40 关、各记各的进度，走通本段开下一段 | 老档只有 `prof`，按 `legacyLevelFromProf()` 反推全书关号再拆成 `levels`：前面几档记满 40、当前档记「段内关号 − 1」、之后各段留 0 |
 | **v9** | 关卡收成一条 1–1000 的线、分五段；没有段位可选，段位只由已走通关数决定 | `levels` 五个数相加得老制的「已走通关数」（0–200），再 ×5 落成 0–1000；更老的档没有 `levels`，先按 `legacyLevelFromProf(prof) − 1` 反推再 ×5。最后 `delete levels` |
+| **v10** | 熟练度整条线删除：功法的「级」只由 `cleared` 决定，`TIERS` 六档门槛 = 段界关 | `delete rec.prof`、`delete next.sCombo`。**纯摘字段，不重算**：`cleared` 在 v9 就已经是对的，老档的 `prof` 不再参与任何计算 |
 
 ### 值得记住的迁移决策
 
-1. **v5 → v6 不换算旧计数**：`sStreak`（三连 S 的连数）与 `sCombo`（连 S 层数）语义不同，硬换算会给出一个凭空的层数。一律从 0 重数。
+1. **v5 → v6 不换算旧计数**：`sStreak`（三连 S 的连数）与 `sCombo`（连 S 层数）语义不同，硬换算会给出一个凭空的层数。一律从 0 重数。（这两个字段到 v10 都摘掉了，但这条判断本身仍然成立——**语义不同的两个数不许硬换算**。）
 2. **v6 → v7 只补不削**：旧档的灵力常常是 0（那时灵力只在买功法时被顺带扣），直接沿用会导致更新后**第一局都开不了**。补到 160 是最低要求。
 3. **v2 不占版本号**：下游 v3/v4/v5 都按「原始版本号」判断，v1 老档照旧一路升上来。少一个空版本，迁移链更短。
 4. **v7 → v8 是「把走过的路拆成五条线」**：老档里没有 `levels`，只有一条 `prof`。用旧规则 `levelFromProf()` 反推出全书关号，
@@ -92,6 +92,9 @@
    老档那个布尔本来就等于「首段看过引导」，直接映射成 `teachSeen[0] = onboarded`，其余四段留 `false`。
    这么做还有个副作用是**故意的**：升级上来的老玩家会在第 11 / 51 / 201 / 501 关各看到一次段界引导。
    给新版字段补默认值本来就该在 `normalizeState` 里做，占一个版本号只会让迁移链多一环。
+7. **v9 → v10 是「摘字段」而非「换算字段」**：删 `rec.prof` 与 `sCombo`，一个数都不改写。
+   原因是功法的「级」在 v9 就已经能从 `cleared` 读出来（`stageIndexOfCleared`），`prof` 那条线只是并排躺着没人读。
+   凡是「删掉一条并行的记录」都该走这一步——**先确认没人读，再删**，别顺手重算一个可能算错的数。
 
 ## 4. 规范化：所有入口的最后一道
 
@@ -158,7 +161,7 @@ importSaveCode(code)  → normalizeState(JSON.parse(...))
 
 ## 9. 待验
 
-- 存档码的长度（整份 JSON 无压缩）在微信「复制到剪贴板 / 粘贴」链路里是否会被截断。目前 15 门满熟练度 + 日志的存档可能到几 KB。
+- 存档码的长度（整份 JSON 无压缩）在微信「复制到剪贴板 / 粘贴」链路里是否会被截断。目前 15 门满进度 + 日志的存档可能到几 KB。
 - `normalizeState` 对 `log` 数组的处理（环形日志上限）未在文档中固定，需看实现。
 - 云端版本号与本机 `pending.baseVersion` 的冲突判定，在「同一账号两台设备先后登录」时是否会误报（见 `19-cloud-guest.md`）。
 

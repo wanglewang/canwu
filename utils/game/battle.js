@@ -4,7 +4,7 @@
 // 由 utils/game.js 按关注点拆出；跨文件只用 require，不持有任何模块级可变状态。
 
 const { BATTLE_PREFIX, checkCode, economyData, moveData, opponentData, skillData, todayKey, worldData } = require('./base.js');
-const { checkTitles, computePower, effectScaleOf, qiCap, shenFloorBonus, tierIndex, tierInfo } = require('./profs.js');
+const { checkTitles, computePower, effectScaleOf, qiCap, shenFloorBonus, tierIndexOfCleared, tierInfo } = require('./profs.js');
 const { addLog, num } = require('./state.js');
 
 // ---------------------------------------------------------------- 对战
@@ -35,8 +35,8 @@ function battleMoves(state, ids) {
     if (!id || seen[id]) continue;
     const rec = state.skills[id];
     if (!rec || !rec.unlocked) continue;
-    // 没入门（段位系数 0）运不出去：这一式还没成形。
-    const scale = effectScaleOf(rec.prof);
+    // 未入门（档位系数 0）运不出去：这一式还没成形。
+    const scale = effectScaleOf(rec.cleared);
     if (!scale) continue;
     const m = moveData.moveOf(id);
     if (!m) continue;
@@ -67,7 +67,7 @@ function moveCard(state, id, scale) {
   const rec = state.skills[id];
   const stance = moveData.stanceOf(id, scale);
   const relief = moveData.reliefOf(id, scale);
-  const tier = rec ? tierInfo(rec.prof) : null;
+  const tier = rec ? tierInfo(rec.cleared) : null;
   return {
     id: id,
     // 印章那一格取招式名首字：破 / 叠 / 合 / 落 / 护 … 十五个字互不重复。
@@ -99,7 +99,7 @@ function moveBoard(state, ids) {
     const sk = skillData.SKILLS[i];
     const rec = state.skills[sk.id];
     if (!rec || !rec.unlocked) continue;
-    const scale = effectScaleOf(rec.prof);
+    const scale = effectScaleOf(rec.cleared);
     if (!scale || !moveData.MOVES[sk.id]) continue;
     const card = moveCard(state, sk.id, scale);
     if (!card) continue;
@@ -140,7 +140,7 @@ function pickMoves(state) {
     const s = skillData.SKILLS[i];
     const rec = state.skills[s.id];
     if (!rec || !rec.unlocked) continue;
-    const scale = effectScaleOf(rec.prof);
+    const scale = effectScaleOf(rec.cleared);
     const m = moveData.MOVES[s.id];
     if (!scale || !m) continue;
     pool.push({ id: s.id, act: m.act, weight: s.effect.value * scale });
@@ -256,7 +256,7 @@ function battleCode(state) {
   let tiers = '';
   for (let i = 0; i < skillData.SKILLS.length && tiers.length < 6; i += 1) {
     const rec = state.skills[skillData.SKILLS[i].id];
-    tiers += rec && rec.unlocked ? String(tierIndex(rec.prof)) : '0';
+    tiers += rec && rec.unlocked ? String(tierIndexOfCleared(rec.cleared)) : '0';
   }
   const raw = [p, r, tiers].join('.');
   return BATTLE_PREFIX + p + '-' + r + '-' + tiers + '-' + checkCode(raw);
