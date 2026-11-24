@@ -10,6 +10,8 @@
     "sim": "node scripts/simulate.js",
     "audit:diff": "node scripts/difficulty-audit.js",
     "audit:gap": "node scripts/stage-gap.js",
+    "audit:alerts": "node scripts/diff-alerts.js",
+    "audit:fidelity": "node scripts/fidelity-check.js",
     "icons": "node scripts/gen-icons.js",
     "sfx": "node scripts/gen-sfx.js",
     "check": "npm run verify && npm run test && npm run sim && npm run lint"

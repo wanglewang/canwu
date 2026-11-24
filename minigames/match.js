@@ -583,7 +583,11 @@ function create(ctx) {
     vm.goal = paceHint();
     if (goalType) {
       const val = goalType === 2 ? goalChains : goalGot;
-      vm.meter = { label: '目标 ' + GOAL_NAMES[goalType] + ' ' + goalText(), value: Math.min(goalCount, val), max: goalCount,
+      // label 只放目标种类，进度交给 value / max —— 全局约定（其余门都是纯文字 label）。
+      // 曾经把 goalText()（自带「连锁 0/5 次」）拼进来，读成「目标 连锁 连锁 0/5 次」，
+      // HUD 再拼一次 value/max 就成了「…0/5 次 0 / 5」。「次」字必须留：写成「层」会让人去凑五连。
+      const goalLabel = goalType === 2 ? '目标 连锁次数' : '目标 ' + GOAL_NAMES[goalType];
+      vm.meter = { label: goalLabel, value: Math.min(goalCount, val), max: goalCount,
         detail: goalDone ? '已达成 · 收工' : '' };
     } else {
       vm.meter = { label: '已收灵草', value: Math.min(100, harvested), max: 100 };

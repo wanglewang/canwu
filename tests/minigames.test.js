@@ -3277,8 +3277,10 @@ check('三连互换：灵种不能换、不进三连、随空位下落，落底�
     });
     c3.start();
     assert.ok(cvm.meter && /目标.*连锁/.test(cvm.meter.label), '段三没有连锁目标进度条');
-    assert.ok(/连锁 0\/5 次/.test(cvm.meter.label), '连锁目标文案没写「次」（写成「层」会让人去凑五连）：' + cvm.meter.label);
-    assert.ok(!/层/.test(cvm.meter.label), '连锁目标文案还带着「层」：' + cvm.meter.label);
+    // label 只放目标种类、进度归 value/max（全局约定）；「次」字保留，写成「层」会让人去凑五连。
+    assert.ok(/连锁次数/.test(cvm.meter.label), '连锁目标 label 没写「次」（写成「层」会让人去凑五连）：' + cvm.meter.label);
+    assert.ok(!/层|\d+\/\d+/.test(cvm.meter.label), '连锁目标 label 混进了「层」或进度数字，会和 HUD 的 value/max 重复：' + cvm.meter.label);
+    assert.ok(cvm.meter.value === 0 && cvm.meter.max === 5, '连锁进度没走 value/max：' + JSON.stringify(cvm.meter));
     const matchLines = mod.lines(data.buildParamsAt(sanxiu(), 51)).items.join(' ');
     assert.ok(/做出 5 次连锁/.test(matchLines), '评级卡把连锁目标写成了「层」：' + matchLines);
     c3.destroy();

@@ -16,6 +16,10 @@ const ROOT = path.join(__dirname, '..');
 const SKIP_DIRS = new Set(['.git', '.workbuddy', '.obsidian', 'node_modules', 'miniprogram_npm', '90-reference', 'reviews']);
 const errors = [];
 let checked = 0;
+// 逐断言观测标记：关键静态断言通过时立刻打印一行 `OK  [SC-ID] ...`，供 audit:alerts 按 ID 匹配。
+// 和末尾「静态校验通过：N 项」的整链绿灯不同——改弱哪条断言，哪一行就消失，能定位到具体场景。
+// 只记「通过」不记「失败」：失败本身由 errors + 退出码报，不在这里重复。
+function observe(id, label) { console.log('OK  [' + id + '] ' + label); }
 
 function walk(dir, out) {
   for (const name of fs.readdirSync(dir)) {
@@ -304,7 +308,10 @@ const practiceMod = require('../data/practice.js');
 if (skillMod.SKILLS.length !== practiceMod.PRACTICE_METHODS.length
   || practiceMod.TIERS.length !== 4 || practiceMod.STAGES.length !== 5) {
   errors.push('功法数与参悟方式数不等，或品阶数 / 关卡段数不符合约定');
-} else checked += 1;
+} else {
+  checked += 1;
+  observe('SC-SKILL-ALL-COUNT', '功法数与参悟方式数相等，集齐门槛不写字面量');
+}
 const tierSeen = {};
 for (const s of skillMod.SKILLS) {
   if (!practiceMod.TIERS.some((t) => t.key === s.tier)) errors.push('功法品阶非法: ' + s.id);
@@ -1190,13 +1197,16 @@ for (const f of files) {
     } else checked += 1;
   });
   // 四个键都要有消费端；只写进 out. 就算生成，没人读就是假方向。
+  let allConsumed = true;
   [['p.special', '特效等级'], ['p.goalType', '本局目标'],
     ['p.swapAny', '挪苗次数'], ['p.twist', '本局劫变']].forEach(function (pair) {
     if (mtSrc.indexOf(pair[0]) < 0) {
+      allConsumed = false;
       errors.push('minigames/match.js 没有读 ' + pair[0] + '（' + pair[1]
         + '只是参数表里的摆设）');
     } else checked += 1;
   });
+  if (allConsumed) observe('SC-DECIDE-ALL-CONSUMERS', '四个判定键都有消费端，目标判定/评级/settle 三处同改');
   if (!/showActive/.test(mtSrc) || !/showActive/.test(wxml) || !/onActive/.test(pgSrc)) {
     errors.push('挪苗按钮没有从玩法层接到 WXML 再到页面事件：玩家点不到这个主动手段');
   } else checked += 1;
@@ -1647,22 +1657,27 @@ if (importTokensAt < 0 || importSceneAt < 0 || importTokensAt > importSceneAt) {
 // 三档皮肤必须真的落到每一页：类名挂在页面根节点、同步调在 onLoad/onShow。
 // 漏一页的症状是「这一页永远是白天」，而且不报错——只能一页一页翻着找。
 const uiTheme = require(path.join(ROOT, 'utils/theme.js'));
+let themeSyncAll = true;
 for (const pagePath of appJson.pages) {
   const pageWxml = path.join(ROOT, pagePath + '.wxml');
   const pageJs = path.join(ROOT, pagePath + '.js');
   if (!fs.existsSync(pageWxml) || !fs.existsSync(pageJs)) {
+    themeSyncAll = false;
     errors.push('页面文件缺失: ' + pagePath);
     continue;
   }
   const wxmlSrc = fs.readFileSync(pageWxml, 'utf8');
   if (!/^<view class="[^"]*pg--t-\{\{themeTone\}\}/.test(wxmlSrc)) {
+    themeSyncAll = false;
     errors.push(pagePath + ' 的根节点没挂 pg--t-{{themeTone}}，这一页不会跟着皮肤换');
   } else checked += 1;
   const jsSrc = fs.readFileSync(pageJs, 'utf8');
   if (jsSrc.indexOf('pageTheme.syncPage(this)') < 0) {
+    themeSyncAll = false;
     errors.push(pagePath + ' 没有调用 pageTheme.syncPage(this)：原生栏与 tabBar 不会跟着皮肤换');
   } else checked += 1;
 }
+if (themeSyncAll) observe('SC-UI-THEME-SYNC', '每页根节点挂了主题令牌且 onLoad/onShow 都同步皮肤');
 // 运行时的原生栏颜色只有一份真源（theme.js 的 CHROME），theme.json 必须与它逐字相同；
 // 不同值时冷启动那一瞬间（JS 还没跑）会先闪一帧错的导航栏，之后再被改回来。
 const CHROME_PAIRS = [
@@ -2091,13 +2106,122 @@ else checked += 1;
 // 抄给玩家看，还写着已经被撤掉的那一族体裁字——玩家读不懂，改规则时也没人记得来改它。
 // 命名规范只有一处真源：docs/specs/spec/系统设计/11-skill-taxonomy.md。
 if (/体裁字/.test(helpSrc)) errors.push('说明页又在讲命名规范（体裁字），那是设计文档的事，不是玩家规则');
-else checked += 1;
+else {
+  checked += 1;
+  observe('SC-TEACH-HELP-PLAYER-RULE', '说明页只讲玩家规则，没有泄回命名规范体裁字');
+}
 
 if (errors.length > 0) {
   console.error('静态校验失败（' + errors.length + ' 项）:');
   for (const e of errors) console.error('  - ' + e);
   process.exit(1);
 }
+// ---------------- 10 组：规格文档新鲜度（S/T/D 链条自检） ----------------
+// 前 9 组查代码与文案，这一组查「规格自己有没有过期」。2026-11-24 复查发现：
+// 删熟练度整条线之后，三张覆盖度卡仍把已删机制当活承诺，而 npm run check 全绿——
+// 机器守卫只盯着实现，不盯顶层视图。这里补三条最小自检，把「人肉扫出来」变成「当场报红」。
+const SPEC_DIRS = ['constitution', 'spec', 'plan', 'tasks'];
+const specRoot = path.join(ROOT, 'docs/specs');
+const specReadme = fs.readFileSync(path.join(specRoot, 'README.md'), 'utf8');
+const specLayerReadme = fs.readFileSync(path.join(specRoot, 'spec/README.md'), 'utf8');
+const methodDoc = fs.readFileSync(path.join(specRoot, 'constitution/06-评审方法论.md'), 'utf8');
+const rootReadmeFresh = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+const courseSrc = fs.readFileSync(path.join(ROOT, '.workbuddy/memory/MEMORY.md'), 'utf8');
+const actualCounts = {};
+for (const layer of SPEC_DIRS) {
+  actualCounts[layer] = walk(path.join(specRoot, layer), []).filter(function (f) { return f.endsWith('.md'); }).length;
+}
+// 1) 四层篇数：三份文档声明必须等于实际文件数。spec 层 140（原 141，v10 删两篇新建一篇）。
+if (actualCounts.spec !== 140) errors.push('spec 层实际 ' + actualCounts.spec + ' 篇，期望 140（篇数声明要一起改）');
+else checked += 1;
+const countClaims = [
+  ['docs/specs/README.md', specReadme, 140],
+  ['docs/specs/spec/README.md', specLayerReadme, 140],
+  ['docs/specs/constitution/06-评审方法论.md', methodDoc, 140],
+  ['README.md', rootReadmeFresh, 140],
+  ['.workbuddy/memory/MEMORY.md', courseSrc, 140],
+];
+for (const [where, src, n] of countClaims) {
+  if (src.indexOf(n + ' 篇') < 0 && src.indexOf(n + '篇') < 0) errors.push(where + ' 的 spec 篇数没同步到 ' + n);
+  else checked += 1;
+}
+// 只守总数不够：反证时把「系统设计 18」改成 19，总数 140 没动，校验照样绿。
+// 分项也逐组核实际目录，防止篇数在几份文档里互相抄错却保持总和。
+// 每项两份文档都要对：spec/README.md 用「`目录/` N」逐组列，docs/specs/README.md 用中文名空格列。
+// 契约那组在总目录里合并写成「六份行为契约」，不在分项表里，所以只核 spec/README.md。
+const subDirs = [
+  ['00-契约', '00-契约', 7, false],
+  ['系统设计', '系统设计', 18, true],
+  ['玩法设计', '玩法设计', 97, true],
+  ['界面设计', '界面', 13, true],
+  ['数值平衡', '数值', 4, true],
+];
+for (const [dirName, label, claim, inTopReadme] of subDirs) {
+  const actual = walk(path.join(specRoot, 'spec', dirName), []).filter(function (f) { return f.endsWith('.md'); }).length;
+  if (actual !== claim) errors.push('spec/' + dirName + ' 实际 ' + actual + ' 篇，声明 ' + claim);
+  else checked += 1;
+  if (specLayerReadme.indexOf('`' + dirName + '/` ' + claim) < 0) errors.push('spec/README.md 的 ' + dirName + ' 分项篇数没同步');
+  else checked += 1;
+  if (inTopReadme) {
+    if (specReadme.indexOf(label + ' ' + claim) < 0) errors.push('docs/specs/README.md 的 ' + dirName + ' 分项篇数没同步');
+    else checked += 1;
+  }
+}
+// 2) R 卡引用的 spec 路径必须真实存在。只抽反引号里的 .md 路径，避开通配符和历史叙述。
+const reviewCards = ['10-规格覆盖.md', '11-测试覆盖.md', '12-运行覆盖.md'];
+for (const card of reviewCards) {
+  const src = fs.readFileSync(path.join(ROOT, 'docs/reviews', card), 'utf8');
+  const refs = new Set();
+  for (const m of src.matchAll(/`(docs\/[^`\s]+\.md)`/g)) refs.add(m[1]);
+  for (const ref of refs) {
+    if (!fs.existsSync(path.join(ROOT, ref))) errors.push(card + ' 引用了不存在的文档：' + ref);
+    else checked += 1;
+  }
+}
+// 3) 场景 ID 跨 R_S/R_T 一致。ID 一旦退役必须从两张活表里一起消失——
+//    上一版 R_S 还挂着 SC-PROF-CAP / SC-COMBO-CAP，差集从此不可信。
+function liveSceneIds(file) {
+  const src = fs.readFileSync(path.join(ROOT, 'docs/reviews', file), 'utf8');
+  const out = new Set();
+  for (const m of src.matchAll(/`(SC-[A-Z0-9-]+)`/g)) out.add(m[1]);
+  return out;
+}
+const rsIds = liveSceneIds('10-规格覆盖.md');
+const rtIds = liveSceneIds('11-测试覆盖.md');
+if (rsIds.size !== 31) errors.push('R_S 活场景 ID 应有 31 个，实为 ' + rsIds.size);
+else checked += 1;
+const idDiff = [];
+for (const id of rsIds) if (!rtIds.has(id)) idDiff.push('R_T 缺 ' + id);
+for (const id of rtIds) if (!rsIds.has(id)) idDiff.push('R_T 多 ' + id);
+if (idDiff.length > 0) errors.push('场景 ID 跨 R 卡不一致：' + idDiff.join('、'));
+else checked += 1;
+const RETIRED_IDS = ['SC-PROF-CAP', 'SC-PROF-NO-RESOURCE', 'SC-COMBO-CAP', 'SC-NAME-NO-MIX'];
+for (const card of reviewCards) {
+  const src = fs.readFileSync(path.join(ROOT, 'docs/reviews', card), 'utf8');
+  for (const id of RETIRED_IDS) {
+    if (src.indexOf('`' + id + '`') >= 0) errors.push(card + ' 还在用已退役的场景 ID：' + id);
+    else checked += 1;
+  }
+}
+// 退役 ID 也会被当「现行例子」写进活文档（方法论 §3 就漏过一次），三张 R 卡之外也要扫。
+// R_S 的退役表刻意不用反引号包 ID，所以这条不会误报那张说明表。历史轮次卡按纪律不回改，不扫。
+const liveDocs = ['README.md', 'docs/specs/README.md', 'docs/reviews/OVERVIEW.md',
+  'docs/reviews/10-规格覆盖.md', 'docs/reviews/11-测试覆盖.md', 'docs/reviews/12-运行覆盖.md'];
+for (const layer of SPEC_DIRS) {
+  for (const f of walk(path.join(specRoot, layer), [])) {
+    if (f.endsWith('.md')) liveDocs.push(path.relative(ROOT, f));
+  }
+}
+const retiredLeaks = [];
+for (const file of liveDocs) {
+  const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
+  for (const id of RETIRED_IDS) {
+    if (src.indexOf('`' + id + '`') >= 0) retiredLeaks.push(file + ' → ' + id);
+  }
+}
+if (retiredLeaks.length > 0) errors.push('已退役场景 ID 还在活文档里当例子：' + retiredLeaks.join('、'));
+else checked += 1;
+
 // 文档里的项数必须等于本次实际检查数。这个数字最容易漏改：它每加一条断言都会变，
 // 而人只会记得改代码。放在最后是因为 checked 到这里才定稿——只提示不递归。
 // 三个锚点都必须在场：只查一个「N 项」，会被正文里别的四位数（历史快照写的 1422 项、
@@ -2110,9 +2234,13 @@ const countAnchors = [
   checked + ' 项里守着三页 IA',
 ];
 const missingAnchor = countAnchors.filter(function (a) { return finalReadme.indexOf(a) < 0; });
-if (missingAnchor.length > 0) {
-  console.error('静态校验失败（1 项）:');
-  console.error('  - README 里的静态项数没同步：本次实际 ' + checked + ' 项，缺「' + missingAnchor.join('」「') + '」');
+// 不能只打印自己这一条：上面任何一组红了，checked 也会跟着变，这里必然同时红。
+// 只报项数会把真正的根因（比如「系统设计 19」）掩盖掉——反证时亲眼见过。
+if (errors.length > 0 || missingAnchor.length > 0) {
+  const all = errors.slice();
+  if (missingAnchor.length > 0) all.push('README 里的静态项数没同步：本次实际 ' + checked + ' 项，缺「' + missingAnchor.join('」「') + '」');
+  console.error('静态校验失败（' + all.length + ' 项）:');
+  for (const e of all) console.error('  - ' + e);
   process.exit(1);
 }
 console.log('静态校验通过：' + checked + ' 项检查，0 错误');

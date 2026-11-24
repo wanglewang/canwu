@@ -490,7 +490,7 @@ function practiceTopic(opts) {
             });
         }
 
-        const diffLines = ['每门功法一条 1–1000 关的长线，五段。段名就是「这门练到哪」——',
+        const diffLines = ['每门功法一条 1–1000 关的长线，五段。段名就是「这门练到哪」——'
             + '它同时也是这门功法的级：属性加成、本门新法、特效发挥全按它算，与品阶无关：'];
         practiceData.STAGES.forEach(function (d, i) {
             diffLines.push(d.name + ' · 第 ' + d.from + '–' + d.to + ' 关 · 基础耗气 '

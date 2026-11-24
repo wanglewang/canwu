@@ -211,6 +211,32 @@ check('说明页写清本档四条线：C / B / A / S 各自要什么', function
   assert.ok(/本段「未入门」/.test(line), '没带段位时没回落到第一段');
 });
 
+check('说明页每一行都是给人读的话：不冒 NaN、不丢句', function () {
+  const help = require('../data/help.js');
+  const pd = require('../data/practice.js');
+  // diffLines 那种「逗号 + 下一行一元加号」会把整句求成 NaN，
+  // WXML 直接 {{line}} 渲染，玩家就看到一行「NaN」，原来的句子还整句丢了。
+  // 遍历每门、每段、每节：任何一行都必须是非空文字，且不冒空值字面量。
+  for (const m of pd.PRACTICE_METHODS) {
+    for (const st of [0, 2, 4]) {
+      const t = help.practiceTopic({ method: m.id, stage: st });
+      for (const sec of t.sections) {
+        for (const line of sec.lines) {
+          assert.strictEqual(typeof line, 'string',
+            m.id + ' 段' + st + '「' + sec.title + '」节有一行不是文字：' + String(line));
+          assert.ok(!/NaN|undefined|null|\[object/.test(line),
+            m.id + ' 段' + st + '「' + sec.title + '」节冒出空值：' + line);
+        }
+      }
+    }
+  }
+  // 正向：耗气节那句「级 = 段位」必须真的在，防止有人靠删行来「修」NaN。
+  const diff = help.practiceTopic({ method: pd.PRACTICE_METHODS[0].id, stage: 0 })
+    .sections.filter(function (x) { return x.key === 'difficulty'; })[0];
+  assert.ok(diff.lines.some(function (l) { return /它同时也是这门功法的级/.test(l); }),
+    '耗气节丢了「段位就是这门功法的级」那句——不许靠删行掩盖 NaN');
+});
+
 check('规则分层：准备页一行、局内两行、整篇在说明页', function () {
   const s = read('pages/practice/practice.wxml');
   const js = read('pages/practice/practice.js');
@@ -1503,6 +1529,20 @@ check('已持玉简按最近练过的在前，藏经阁仍是兑换顺序', func
   // 记钟只有一处实现（markTouched），结束 / 返回 / 切页都调它。
   assert.ok(/markTouched: function[\s\S]{0,400}engine\.touchSkill\(s, skillId\)/.test(pg),
     '记钟没走到 engine.touchSkill：结束一局回去列表顺序不变（玩家判定为「没生效」）');
+  // 主页「今日之课」仍只由 recommendScore 出，不许被列表顺序带过去。
+  assert.ok(/function recommendScore/.test(engine) && /recommendScore: recommendScore/.test(engine),
+    '推荐口径没有单一真源');
+  // 藏经阁分区是兑换顺序，不是推荐顺序：换得起的不该被「离圆满最近但买不起」的顶下去。
+  assert.ok(/pending\.sort\(/.test(js), '藏经阁分区没有自己的排序');
+  assert.ok(!/pending\.sort\([\s\S]{0,240}recommendScore/.test(js),
+    '藏经阁分区改用推荐排序了：换得起的会被换不起的顶到下面');
+});
+
+// 2026-11-24 从「玉简排序」那条里拆出：原来断言体里验了三出口作废，但用例标题
+// 只讲排序，机器按输出标题做差集时认不出这个场景（R_D 报缺陷 SC-RUN-LEAVE-VOID）。
+// 一条断言指认一个场景，标题本身就是观测特征。
+check('局中切页与导航返回都走统一作废结账口', function () {
+  const pg = read('pages/practice/practice.js');
   assert.ok(/onAbandon:[\s\S]{0,1600}self\.closeAbandonedRound\(\)/.test(pg),
     '中途结束没走统一结账：离开路径各写一套，早晚分叉');
   assert.ok(/onHide:[\s\S]{0,600}this\.closeAbandonedRound\(\)/.test(pg) &&
@@ -1515,13 +1555,6 @@ check('已持玉简按最近练过的在前，藏经阁仍是兑换顺序', func
   assert.ok(/this\.markTouched\(\)/.test(abandonBody), '局中离开没记钟：列表看不到「刚碰过这门」');
   assert.ok(!/applyPractice/.test(abandonBody),
     '作废这一局竟然能走到 applyPractice：进度会被白送');
-  // 主页「今日之课」仍只由 recommendScore 出，不许被列表顺序带过去。
-  assert.ok(/function recommendScore/.test(engine) && /recommendScore: recommendScore/.test(engine),
-    '推荐口径没有单一真源');
-  // 藏经阁分区是兑换顺序，不是推荐顺序：换得起的不该被「离圆满最近但买不起」的顶下去。
-  assert.ok(/pending\.sort\(/.test(js), '藏经阁分区没有自己的排序');
-  assert.ok(!/pending\.sort\([\s\S]{0,240}recommendScore/.test(js),
-    '藏经阁分区改用推荐排序了：换得起的会被换不起的顶到下面');
 });
 
 check('左上角返回与「结束」是同一件事：都先问一句', function () {
