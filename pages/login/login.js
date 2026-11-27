@@ -22,6 +22,10 @@ Page({
         this.setData({ reason: reason });
     },
 
+    onShow() {
+        pageTheme.syncPage(this);
+    },
+
     // 先不登录：直接用本机进度。标记由 app 落盘，冷启动不会再挡这一页。
     onGuest() {
         if (this.data.busy) return;

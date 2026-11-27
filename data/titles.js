@@ -19,7 +19,7 @@ const TITLES = [
   { id: 't10', name: '万法归一', desc: '习得全部 ' + skillData.SKILLS.length + ' 门功法', metric: 'unlockedCount', target: skillData.SKILLS.length },
   { id: 't11', name: '触类旁通', desc: '触发 10 次触类旁通', metric: 'comboCount', target: 10 },
   { id: 't12', name: '日日精进', desc: '完成 1 次每日参悟', metric: 'dailyClaimed', target: 1 },
-  { id: 't13', name: '一击圆满', desc: '取得 10 次 S 档', metric: 'gradeS', target: 10 },
+  { id: 't13', name: '一击圆满', desc: '取得 10 次 S', metric: 'gradeS', target: 10 },
   { id: 't14', name: '返璞归真', desc: '任意一门功法练至大圆满', metric: 'maxTier', target: 5 },
 ];
 

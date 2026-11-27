@@ -539,7 +539,7 @@
   <view class="mask" wx:if="{{swapOpen}}" bindtap="onToggleSwap">
     <view class="modal" catchtap="noop">
       <text class="modal__title">{{copy.sections.swapTitle}}</text>
-      <text class="modal__sub">换的是这一页对着哪一门，进度一点不动</text>
+      <text class="modal__sub">换的是本页对着哪一门，进度一点不动</text>
       <view class="imm-list mt12">
         <view class="imm-row pressable" hover-class="pressable--on" wx:for="{{swapList}}" wx:key="id" data-id="{{item.id}}" bindtap="onSwapTo">
           <view class="imm-row__mark">{{item.mark}}</view>
@@ -561,7 +561,7 @@
   <view class="mask" wx:if="{{pickerOpen}}" bindtap="onCloseLevelPicker">
     <view class="modal lv-picker" catchtap="noop">
       <text class="modal__title">选关</text>
-      <text class="modal__sub">{{stageName}} · 已走到第 {{levelMax}} 关，其后的关尚不可选</text>
+      <text class="modal__sub">{{stageName}} · 已走到第 {{levelMax}} 关，其后的关还不能选</text>
       <scroll-view scroll-y class="lv-grid" scroll-into-view="{{pickerScrollTo}}">
         <view class="lv-cells">
           <view wx:for="{{pickerLevels}}" wx:key="v" id="lv-{{item.v}}"

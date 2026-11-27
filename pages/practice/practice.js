@@ -1106,7 +1106,7 @@ Page({
         + Math.ceil(lack / worldData.getWorld().idle.qiPerMinute)
         + ' 分钟就够了' + (this.data.stone > 0 ? '；等不及的话，回洞府拿灵石换（1 枚 100 点）' : '')
         + '。上限不够用时，破境或练真元都能把气海拓深。',
-      confirmText: '回洞府打坐',
+      confirmText: '回洞府',
       cancelText: copy.UI.actions.cancelStart,
       success: function (res) {
         if (res.confirm) wx.switchTab({ url: '/pages/index/index' });
@@ -1935,6 +1935,13 @@ Page({
           : (r.promoted ? '晋段 · ' + r.stageAfterName : '参悟完成'),
         subline: r.methodName + ' · ' + res.summary,
         summary: res.summary,
+        // 演出大字与准备页「上局战绩」都读这几个字段。曾只把它们写进结算明细
+        // lines，rv 自己没带：走通一关也恒显示「— / 未推进」，上局那行只剩标题。
+        advanced: !!r.advanced,
+        clearedAfter: r.clearedAfter,
+        goalMissed: !!r.goalMissed,
+        levelBelowCap: !!r.levelBelowCap,
+        wiped: !!r.wiped,
         lines: lines,
         milestones: milestones,
         notes: notes,
@@ -2088,7 +2095,7 @@ Page({
     const data = card.dataOf(store.get(), engine);
     if (!data) { wx.showToast({ title: '当前环境不支持生成图片', icon: 'none' }); return; }
     card.makeCard('shareCanvas', data, function () {
-      wx.showToast({ title: '生成图片失败，可长按玉简截图', icon: 'none' });
+      wx.showToast({ title: '生成图片失败，可长按道牒图截图', icon: 'none' });
     });
   },
 

@@ -106,7 +106,7 @@ check('低频信息不占首屏：日志独立成页，诸界与设置默认折�
   assert.ok(!/titlesOpen/.test(profile), '称号仍然埋在人物页折叠区里');
 });
 
-check('所有弹窗统一「次操作在左、主操作在右」', function () {
+check('所有弹窗统一「次操作在左、主操作在右」，原生弹窗按钮不超 4 字', function () {
   let blocks = 0;
   for (const rel of WXML) {
     const s = read(rel);
@@ -129,6 +129,16 @@ check('所有弹窗统一「次操作在左、主操作在右」', function () {
     }
   }
   assert.ok(blocks >= 7, '弹窗数量异常：' + blocks);
+  // wx.showModal 的按钮文字最多 4 个字，超长由基础库截断；自绘弹窗不受此限，
+  // 所以只扫原生 showModal 的字面量参数，变量文案由真源自己负责。
+  const jsFiles = ['app.js'].concat(pageFiles('.js').map(function (p) { return p.rel; }));
+  for (const rel of jsFiles) {
+    const src = read(rel);
+    for (const m of src.matchAll(/(?:confirmText|cancelText):\s*'([^']*)'/g)) {
+      assert.ok([...m[1]].length <= 4,
+        rel + ' 的原生弹窗按钮「' + m[1] + '」超过 4 字，真机会被截断');
+    }
+  }
 });
 
 check('不可撤销操作使用警示样式并与常规操作分区', function () {
@@ -833,6 +843,12 @@ check('连 S 那套已从页面上撤干净：不摆层数、不留回执、指�
   assert.ok(!/\{\{prof\}\}/.test(wxml), '准备页还在印熟练度');
   // 结算要报「+1 关」或「—」，而不是一串点数。
   assert.ok(/settleGainLabel/.test(js) && /settleGainLabel/.test(wxml), '结算没写「这一局推了几关」');
+  // 大字位与上局战绩读的是 rv，不是结算明细里的 lines。只写进 lines 会
+  // 让推进一关也恒显示「— / 未推进」——曾真发生过，字段名断言拦不住。
+  for (const key of ['advanced', 'clearedAfter', 'goalMissed', 'levelBelowCap', 'wiped']) {
+    assert.ok(new RegExp(key + ': (!!)?r\\.' + key + ',').test(js),
+      '结算对象 rv 没带上引擎的 ' + key + '：演出大字与上局战绩会恒为默认值');
+  }
   assert.ok(!/@media\s*\(\s*prefers-color-scheme/.test(css), '参悟页又按系统明暗翻转了，盘面会突然换色');
   assert.ok(/title: '五 · 段位与境界'/.test(guide), '指南缺「段位与境界」专节');
   assert.ok(/title: '二 · 离线吐纳之规'/.test(guide), '新增专节后章节编号没顺延');
@@ -1069,7 +1085,7 @@ check('术语解释：组件、词典与指南速查读同一份数据', functio
     assert.ok(fs.existsSync(path.join(ROOT, 'components/term/term' + ext)), '术语组件缺 ' + ext);
   }
   const guide = read('pages/guide/guide.js');
-  assert.ok(/glossarySection\('十二'\)/.test(guide) && /copy\.TERMS/.test(guide),
+  assert.ok(/glossarySection\('十一'\)/.test(guide) && /copy\.TERMS/.test(guide),
     '指南名词速查不是由术语词典生成的');
 });
 
@@ -1141,7 +1157,7 @@ check('指南目录按新手阅读流排：先挂机保底与资源，主动玩�
     '参悟与盘面', '切磋与战力码', '称号与道牒',
     '存档与换设备', '成就与榜单',
   ], '指南目录顺序又变了：新手要先搞懂挂机保底与资源，再学主动玩法');
-  assert.ok(/SECTIONS\.push\(glossarySection\('十二'\)\)/.test(src), '名词速查不在最后一节');
+  assert.ok(/SECTIONS\.push\(glossarySection\('十一'\)\)/.test(src), '名词速查不在最后一节');
   const no = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一'];
   let i = 0;
   for (const m of src.matchAll(/title: '([一二三四五六七八九十]+) · /g)) {

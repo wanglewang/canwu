@@ -268,11 +268,6 @@ function getSkill(id) {
   return SKILL_MAP[id] || null;
 }
 
-function tierOfSkill(id) {
-  const s = getSkill(id);
-  return s ? s.tier : 'huang';
-}
-
 // 按功法类别分组：同类共用一套游戏族，族内按品阶从低到高排成变体链。
 // 多门的类别排在前面，缺档的阶位由调用方补空槽，族内的断层一眼可见。
 function chainsOf() {
@@ -311,7 +306,6 @@ module.exports = {
   NAME_RULE: NAME_RULE,
   validateNames: validateNames,
   getSkill: getSkill,
-  tierOfSkill: tierOfSkill,
   chainsOf: chainsOf,
   chainOfType: chainOfType,
 };

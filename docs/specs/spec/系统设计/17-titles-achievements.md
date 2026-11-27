@@ -158,7 +158,7 @@ getAchievements(state) → ACHIEVEMENTS.map(a => ({
 ## 代码指路
 
 - `data/titles.js` —— `TITLES`（14）
-- `data/achievements.js` —— `ACHIEVEMENTS`（14）+ `getAchievement()`
+- `data/achievements.js` —— `ACHIEVEMENTS`（14）
 - `utils/game/` —— `computeMetrics()`、`checkTitles()`、`equipTitle()`、`getAchievements()`、`achievementMetric()`
 - `pages/titles/` —— 称号簿
 - `pages/profile/` —— 成就区与人物卡片

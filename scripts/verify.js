@@ -381,7 +381,10 @@ else checked += 1;
     const src = fs.readFileSync(f, 'utf8');
     const quoteOnly = EXTERNAL_QUOTE_DOCS.has(rel(f));
     const badLines = src.split(/\r?\n/).filter(function (line) {
-      return line.indexOf('灵气') >= 0 && !(quoteOnly && /^\s*>/.test(line));
+      // 先去空白再匹配：旧名曾被人写成「灵 气」绕过字面量扫描，
+      // 玩家读到的是同一个错口径，闸门不能只看连续两个字。
+      const compact = line.replace(/\s+/g, '');
+      return compact.indexOf('灵气') >= 0 && !(quoteOnly && /^\s*>/.test(line));
     });
     if (badLines.length) errors.push(rel(f) + ' 还写着旧资源名「灵气」（外部摘录的引用行除外）');
     else checked += 1;
@@ -393,7 +396,7 @@ else checked += 1;
     if (!fs.existsSync(p)) { errors.push('外部摘录白名单文件不存在：' + doc); continue; }
     const lines = fs.readFileSync(p, 'utf8').split(/\r?\n/);
     const inQuote = lines.filter(function (line) {
-      return /^\s*>/.test(line) && line.indexOf('灵气') >= 0;
+      return /^\s*>/.test(line) && line.replace(/\s+/g, '').indexOf('灵气') >= 0;
     }).length;
     if (!inQuote) errors.push(doc + ' 没有含原文旧名的引用行：放行口子已失效，应从白名单移除');
     else checked += 1;
@@ -1672,9 +1675,13 @@ for (const pagePath of appJson.pages) {
     errors.push(pagePath + ' 的根节点没挂 pg--t-{{themeTone}}，这一页不会跟着皮肤换');
   } else checked += 1;
   const jsSrc = fs.readFileSync(pageJs, 'utf8');
-  if (jsSrc.indexOf('pageTheme.syncPage(this)') < 0) {
+  // 上面那句「onLoad/onShow 都同步」此前只查了「出现过一次」：长文页只有 onLoad，
+  // 从子页返回时原生栏就停在旧色，闸门照样绿。两处都要有，才算真同步。
+  const syncCalls = (jsSrc.match(/pageTheme\.syncPage\(this\)/g) || []).length;
+  if (syncCalls < 2) {
     themeSyncAll = false;
-    errors.push(pagePath + ' 没有调用 pageTheme.syncPage(this)：原生栏与 tabBar 不会跟着皮肤换');
+    errors.push(pagePath + ' 的 pageTheme.syncPage(this) 只有 ' + syncCalls
+      + ' 处：onLoad 与 onShow 都要同步皮肤');
   } else checked += 1;
 }
 if (themeSyncAll) observe('SC-UI-THEME-SYNC', '每页根节点挂了主题令牌且 onLoad/onShow 都同步皮肤');

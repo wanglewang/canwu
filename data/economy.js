@@ -95,11 +95,6 @@ function practiceQiCost(o) {
   return Math.max(QI_COST_MIN, Math.round(cost));
 }
 
-// 五段耗气的对照表（按「36 基准 / 黄阶 / 悟性 0 / 不换门」算），给说明页与测试复算用。
-function runQiTable() {
-  return RUN_QI.slice();
-}
-
 // ---------------------------------------------------------------- 灵力：气海的上限
 // 上限 =（境界基数 + 真元 × 每点增益）×（1 + 功法扩池，封顶 QI_CAP_SKILL_MAX）。
 //
@@ -206,7 +201,6 @@ module.exports = {
   PRACTICE_SAVE_MAX: PRACTICE_SAVE_MAX,
   QI_COST_MIN: QI_COST_MIN,
   practiceQiCost: practiceQiCost,
-  runQiTable: runQiTable,
   QI_CAP_PER_LING: QI_CAP_PER_LING,
   QI_CAP_SKILL_MAX: QI_CAP_SKILL_MAX,
   qiCapOf: qiCapOf,

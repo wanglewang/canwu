@@ -35,6 +35,7 @@ Page({
     onLoad: function (query) {
         pageTheme.syncPage(this);
         // 参悟页的说明是「一门一册」，要按功法现拼；其余主题是静态表。
+        // （onShow 只同步皮肤，主题内容留在 onLoad 现拼一次。）
         const q = query || {};
         // 分享要落回同一册：主题 key 记在实例上（不放进 data，WXML 用不到）。
         this.topicKey = q.topic || '';
@@ -72,6 +73,10 @@ Page({
             }),
             termsOpen: false,
         });
+    },
+
+    onShow: function () {
+        pageTheme.syncPage(this);
     },
 
     onToggle: function (event) {

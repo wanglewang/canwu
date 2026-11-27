@@ -23,14 +23,6 @@ const ACHIEVEMENTS = [
   { id: 'power_170', name: '金丹之资', desc: '战力达到 170', glyph: '丹', group: '境界', key: 'power', goal: 170 },
 ];
 
-function getAchievement(id) {
-  for (let i = 0; i < ACHIEVEMENTS.length; i += 1) {
-    if (ACHIEVEMENTS[i].id === id) return ACHIEVEMENTS[i];
-  }
-  return null;
-}
-
 module.exports = {
   ACHIEVEMENTS: ACHIEVEMENTS,
-  getAchievement: getAchievement,
 };

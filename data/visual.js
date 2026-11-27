@@ -1,6 +1,6 @@
 'use strict';
 
-// 视觉标准唯一真源：舞台色板、四支主题色板、动效预算、结算分镜。
+// 视觉标准唯一真源：四支主题色板、动效预算、结算分镜。舞台色归 styles/scene.wxss 与 tokens.wxss。
 // 色板只有四支——兵刃 / 心法 / 丹道（赤金）/ 阵法；功法类别有十六种，
 // 多族共用一支，映射见下方 FAMILY_OF。原「符箓」一类已随功法归类调整撤掉：
 // 那门改为阵法·洞微勘禁诀，色板归阵法；太虚照见诀是心法，归心法。
@@ -9,24 +9,6 @@
 // 页面挂 .pg--imm 把 --c-* 映到 --c-imm-*；参悟页挂上 .pg--scene 时，
 // 再由 styles/scene.wxss 把同一组令牌映射到「夜里的那一支」。
 // 舞台与页面夜皮肤共用 tokens.wxss 的 --night-*，所以系统深色模式下两者同色、进局无硬切。
-
-const STAGE = {
-  base: '#08131c',
-  sky: '#0e2030',
-  haze: '#153146',
-  ground: '#0b1a26',
-  moon: '#e3f1f8',
-  ridgeFar: '#173347',
-  ridgeMid: '#102437',
-  ridgeNear: '#0c1c29',
-  gate: '#07121b',
-  altar: '#0b2331',
-  altarEdge: '#2a6280',
-  stone: '#102c3e',
-  stoneEdge: '#1b3b50',
-  text: '#e3f1f8',
-  textDim: '#9fc3d4',
-};
 
 // 统一的是品质与骨架，不同的是母题、色彩、道具、动画与音色。
 // 每类 = 主辉光 + 辅光 + 场景暗底；盘面永远是全场最高对比。
@@ -155,7 +137,6 @@ function settleTimeline(grade) {
 }
 
 module.exports = {
-  STAGE: STAGE,
   FAMILIES: FAMILIES,
   FAMILY_OF: FAMILY_OF,
   ENABLED: ENABLED,

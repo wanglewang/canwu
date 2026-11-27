@@ -107,11 +107,6 @@ function progressOf(level) {
   return levelInStage(level) / (s.to - s.from + 1);
 }
 
-// 整条线的进度（0–1），准备页那条进度条用它。
-function totalProgressOf(level) {
-  return clampLevel(level) / LEVEL_MAX;
-}
-
 // 灵纹牌的主题轮换：每 LINK_THEME_EVERY 关换一套纹样（灵植 / 甜点 / 海洋 / 灵兽）。
 // 这是并蒂引「难度不变、盘面变了」的第一条旋钮（第二条是下面的盘形）——段内其余参数
 // 都是逐关微收，相邻两关在屏幕上几乎一样（D9 记的就是这一笔）。
@@ -256,7 +251,6 @@ module.exports = {
   levelInStage: levelInStage,
   stageOf: stageOf,
   progressOf: progressOf,
-  totalProgressOf: totalProgressOf,
   linkThemeOf: linkThemeOf,
   LINK_THEME_EVERY: LINK_THEME_EVERY,
   LINK_THEME_COUNT: LINK_THEME_COUNT,

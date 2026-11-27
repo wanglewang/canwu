@@ -196,8 +196,8 @@ App({
         wx.showModal({
             title: '进度有冲突',
             content: '另一台设备也更新了这份进度。用云端那份，还是用本机这份覆盖？',
-            confirmText: '用本机覆盖',
-            cancelText: '用云端进度',
+            confirmText: '本机覆盖',
+            cancelText: '云端进度',
             success: async function (res) {
                 const result = await store.resolveConflict(!res.confirm);
                 if (!result.ok) {

@@ -1,6 +1,6 @@
 'use strict';
 
-// 道牒图：一份绘制，两个入口（人物页「生成卡片图」、静室页结算卡「生成道牒」）。
+// 道牒图：一份绘制，两个入口（人物页「生成道牒」、静室页结算卡「生成道牒」）。
 // 抽出来的原因是两页共用同一张图——复制一份画布代码，改一处忘一处，
 // 玩家会在两个入口看到不一样的名帖。这里只做绘制与导出，不碰状态、不产资源。
 
@@ -76,7 +76,7 @@ function drawCard(ctx, data) {
 function dataOf(state, engine) {
   const ov = engine.getOverview(state);
   const attrsLine = ov.attrs.map(function (a) { return a.name + ' ' + a.value; }).join(' · ')
-    + ' · 灵力上限 ' + ov.qi + ' / ' + ov.qiMax;
+    + ' · 灵力 ' + ov.qi + ' / ' + ov.qiMax;
   const clearedTotal = engine.getSkillList(state).reduce(function (sum, s) {
     return sum + (s.stageLevel || 0);
   }, 0);
