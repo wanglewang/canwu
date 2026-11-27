@@ -1,6 +1,3 @@
 {
-  "navigationBarTitleText": "",
-  "usingComponents": {
-    "term": "../../components/term/term"
-  }
+  "navigationBarTitleText": ""
 }

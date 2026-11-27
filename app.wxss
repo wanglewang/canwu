@@ -467,7 +467,7 @@ button::after {
 
 /* ---------- 暗色模式 ----------
    绝大多数适配已在 tokens.wxss 通过重定义变量完成；这里只兜底评级圆章
-   这类由内联 style 注入底色、需要固定亮字的元素。 */
-@media (prefers-color-scheme: dark) {
-    .grade { color: var(--c-on-ink); }
-}
+   这类由内联 style 注入底色、需要固定亮字的元素。
+   不走 prefers-color-scheme：皮肤由手选档位决定，跟着系统翻会出现「手选亮色、
+   系统暗色」时字色反了。与 tokens.wxss 的夜间档同一作用域。 */
+.pg--t-night .grade { color: var(--c-on-ink); }

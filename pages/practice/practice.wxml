@@ -153,6 +153,8 @@
         <text class="lv-cost__r">余 {{qi}} / {{qiMax}}</text>
       </view>
       <text wx:else class="warn-note mt8">灵力 {{qi}} / {{qiMax}}，本局要 {{qiCost}} 点。回洞府闭关可补上；气海不够用时，破境或练真元都能拓深。</text>
+      <!-- 境界门槛/超限的耗气修正算过却没接，玩家只在结算 notes 里才知道被 ×1.5。 -->
+      <text wx:if="{{decayTip}}" class="warn-note mt8">{{decayTip}}</text>
       <!-- 折减只在真的回关时出现一行：说清退了几关、为什么这一局不推进度。 -->
       <text wx:if="{{retreatText}}" class="warn-note mt8">{{retreatText}}</text>
       <!-- 本局盘面是一组：先说整盘规格，再说这一关动了哪一处。

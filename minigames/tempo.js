@@ -327,7 +327,9 @@ function create(ctx) {
     vm.combo = combo;
     vm.comboText = combo >= 2 ? '连拍 ×' + combo : '';
     vm.gradeNow = gradeNow();
-    vm.goal = C.goalFor(vm.gradeNow, Math.max(0, Math.round((band.sMin - points()) * 10) / 10), '分');
+    // 原写法差口用 Math.round、HUD 用 fmt，同一帧能出现「计 12.5 分」与
+    // 「还差 12 分」并存。差口改向上取整：照着差口补，补满就一定够。
+    vm.goal = C.goalFor(vm.gradeNow, Math.max(0, Math.ceil((band.sMin - points()) * 10) / 10), '分');
     vm.cue.cursor = Math.floor(ms / s.unitMs) % s.bar;
     updateCoach(ms);
   }

@@ -259,7 +259,9 @@ Page({
     this.levelOverride = 0;
     this.maxIdxSeen = -1;
     this.mode = query && query.mode === 'breakthrough' ? 'breakthrough' : 'practice';
-    this.skillId = (query && query.skillId) || '';
+    // 分享深链 / 手工链接可能不带 skillId：用上次对着练的那门兜底（写它在功法页、
+    // 主页吸底、换门三处）。app.js.globalData 的注释承诺过这条兜底，此前只写不读。
+    this.skillId = (query && query.skillId) || getApp().globalData.lastSkillId || '';
     sfx.warm();
 
     if (this.mode === 'breakthrough') {
@@ -1751,6 +1753,13 @@ Page({
       if (this.mode === 'breakthrough') {
         // 冲关不成也是花钱的：布阵的灵石散掉一半，得在结算里如实说。
         btFail = store.commitCritical(function (s) { return engine.applyBreakthrough(s, 'F'); });
+        // 灵石不够 / 境界已满时引擎拒绝结算，返回的只有 ok:false 与 msg。
+        // 不拦会在结算卡里写出「散了 undefined 枚」。
+        if (btFail && btFail.ok === false) {
+          toast(btFail.msg || '这一局没能结算');
+          this.onQuitToPrep();
+          return;
+        }
       }
       rv = {
         kind: 'abandon',
@@ -1779,6 +1788,11 @@ Page({
       };
     } else if (this.mode === 'breakthrough') {
       const r = store.commitCritical(function (s) { return engine.applyBreakthrough(s, grade); });
+      if (r && r.ok === false) {
+        toast(r.msg || '这一局没能结算');
+        this.onQuitToPrep();
+        return;
+      }
       rv = {
         kind: 'breakthrough',
         grade: grade,
@@ -1808,6 +1822,14 @@ Page({
           level: lv, score: res.score || 0, goalMissed: res.goalMissed,
         });
       });
+      // 引擎拒绝开局时不带结算字段：地阶功法在筑基期能进静室、能打完，
+      // 但 applyPractice 会因境界不足直接返回 {ok:false}。不拦就会读
+      // r.buffMultiplier.toFixed 抛异常，玩家只看到一屏空卡。
+      if (r && r.ok === false) {
+        toast(r.msg || '这一局没能结算');
+        this.onQuitToPrep();
+        return;
+      }
       // 参悟只换关卡进度，不产资源：结算卡里灵力是「花掉的」，不是「赚到的」。
       // 这一行是玩家唯一能核对的账，所以耗气的三个修正也要在同一屏写清（见 notes）。
       const lines = r.wiped
@@ -1996,7 +2018,13 @@ Page({
   onPrimary: function () {
     const rv = this.data.result;
     if (!rv) return;
-    if (rv.kind === 'breakthrough' || this.mode === 'breakthrough') { this.onBack(); return; }
+    // 突破结算的金按钮写「回洞府」=主页。此前走 onBack()：冲关页从人物页
+    // navigateTo 进来，栈深>1 时 navigateBack 回的是人物页，与按钮文案不符。
+    if (rv.kind === 'breakthrough' || this.mode === 'breakthrough') {
+      this.disarmLeaveGuard();
+      wx.switchTab({ url: '/pages/index/index' });
+      return;
+    }
     this.onAgain();
   },
 

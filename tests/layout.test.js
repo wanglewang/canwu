@@ -123,6 +123,46 @@ check('关键守卫不是恒真的：正则、截取范围、对比对象都真�
     '劫变候选断言还是自己和自己比');
 });
 
+// globalData 里写了却没人读的字段，等于注释在说谎。lastSkillId 的兜底承诺过、
+// 却只写不读；加了这条守卫，谁再删掉读取端就会红。
+check('globalData 的约定字段都有读取端，不是只写不读', function () {
+  const app = read('app.js');
+  const practice = read('pages/practice/practice.js');
+  assert.ok(app.indexOf('lastSkillId') >= 0, 'app.js 不再声明 lastSkillId');
+  assert.ok(practice.indexOf('|| getApp().globalData.lastSkillId ||') >= 0,
+    '参悟页没读 lastSkillId：分享深链缺 skillId 时没了兜底');
+});
+
+// 引擎的 apply* 在「境界不够 / 灵石不够 / 功法未解锁」时返回 {ok:false,msg}，
+// 没有结算字段。页面若直接读 r.buffMultiplier.toFixed 就会抛异常，玩家只看到空卡。
+// 三个结算口都要先拦再构造 rv。
+check('每次结算都拦住引擎的 ok:false，不读空结果的字段', function () {
+  const js = read('pages/practice/practice.js');
+  const guards = (js.match(/\.ok === false/g) || []).length;
+  assert.ok(guards >= 3, '结算守卫不足 3 处（参悟 / 突破成功 / 突破失败），实际 ' + guards);
+  const calls = (js.match(/engine\.apply(Practice|Breakthrough)\(/g) || []).length;
+  assert.strictEqual(calls, 3, '结算调用点数量变了，守卫要跟着加');
+});
+
+// decayTip 算过两轮（境界门槛 / 超限 ×1.5）却只写进 setData，没接 WXML，
+// 玩家只在结算 notes 里才知道被加了价。补这类「算了不显示」的守卫。
+check('准备页算出的境界耗气提示有渲染端', function () {
+  const js = read('pages/practice/practice.js');
+  const wxml = read('pages/practice/practice.wxml');
+  assert.ok(js.indexOf('decayTip: decayTip') >= 0, '准备页不再算 decayTip');
+  assert.ok(/\{\{decayTip\}\}/.test(wxml), 'decayTip 算了没渲染：耗气加价玩家看不见');
+});
+
+// 突破结算的金按钮写「回洞府」=主页，但 onPrimary 走 onBack()：
+// 从人物页 navigateTo 进来时栈深>1，navigateBack 回的是人物页，按钮说了谎。
+check('结算「回洞府」按钮真的回主页，不是回来源页', function () {
+  const js = read('pages/practice/practice.js');
+  const start = js.indexOf('onPrimary: function');
+  const body = js.slice(start, js.indexOf('onStay: function', start));
+  assert.ok(body.indexOf('switchTab({ url: ') >= 0 && body.indexOf('/pages/index/index') >= 0,
+    '突破结算点「回洞府」没走 switchTab 回主页');
+});
+
 check('所有弹窗统一「次操作在左、主操作在右」，原生弹窗按钮不超 4 字', function () {
   let blocks = 0;
   for (const rel of WXML) {
@@ -1175,6 +1215,12 @@ check('指南目录按新手阅读流排：先挂机保底与资源，主动玩�
     '存档与换设备', '成就与榜单',
   ], '指南目录顺序又变了：新手要先搞懂挂机保底与资源，再学主动玩法');
   assert.ok(/SECTIONS\.push\(glossarySection\('十一'\)\)/.test(src), '名词速查不在最后一节');
+  // 段位举例的关数必须跟着真源走：038 轮战力表改对后，相邻的「小成＝第 11 关」
+  // 还是错的（11 是入门），只有对着 world.TIERS 算才拦得住。
+  const tiers = require('../data/world.js').TIERS;
+  const minor = tiers.filter(function (t) { return t.name === '小成'; })[0];
+  assert.ok(minor && src.indexOf('「这门小成了」与「这门走通第 ' + minor.threshold + ' 关」') >= 0,
+    '指南的段位举例关数与 world.TIERS 不一致');
   const no = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一'];
   let i = 0;
   for (const m of src.matchAll(/title: '([一二三四五六七八九十]+) · /g)) {
@@ -2779,6 +2825,17 @@ check('文案真源不留死键：copy.UI 每一条都得有人引用', function
 
   assert.strictEqual(dead.length, 0,
     '这些文案没人读了，删掉或接上：' + dead.join(' / '));
+});
+
+// README 里抄了本文件的项数，抄错不红就等于文档可以随便漂移。
+// 这条算上自己：跑完它之后 passed 才递增到文档里写的那个数。
+check('README 里的布局断言项数与本文件实际条数一致', function () {
+  const doc = read('README.md');
+  const match = /layout\.test\.js[\s\S]*?（(\d+) 项）/.exec(doc);
+  assert.ok(match, 'README 里找不到 layout.test.js 的项数');
+  const stated = Number(match[1]);
+  assert.strictEqual(stated, passed + 1,
+    'README 写 ' + stated + ' 项，本文件实际 ' + (passed + 1) + ' 项');
 });
 
 console.log('\n布局断言全部通过：' + passed + ' 项');

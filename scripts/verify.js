@@ -1549,8 +1549,11 @@ const tokenSrc = fs.readFileSync(path.join(ROOT, 'styles/tokens.wxss'), 'utf8');
 // 皮肤是三档设置（跟随系统 / 白天 / 夜晚），由 utils/theme.js 解析成 light / night，
 // 页面根节点挂 .pg--t-night。CSS 里不许再留 prefers-color-scheme：两条路径同时存在时，
 // 「系统说是夜、玩家选的是白天」只能靠选择器权重压过去，而权重是改样式的人看不见的。
-if (/@media\s*\(prefers-color-scheme/.test(tokenSrc)) {
-  errors.push('tokens.wxss 仍有 prefers-color-scheme：皮肤档位只能由 utils/theme.js 解析，CSS 只留 .pg--t-night 一块');
+// 曾经 app.wxss 里也藏过一块 prefers-color-scheme，只查 tokens 会漏。
+// 全局样式（app.wxss + styles/）一律不许按系统明暗翻色。
+const globalCss = [tokenSrc, fs.readFileSync(path.join(ROOT, 'app.wxss'), 'utf8')].join('\n');
+if (/@media\s*\(prefers-color-scheme/.test(globalCss)) {
+  errors.push('全局样式仍有 prefers-color-scheme：皮肤档位只能由 utils/theme.js 解析，CSS 只留 .pg--t-night 一块');
 } else checked += 1;
 // 注释里也会提到 .pg--t-night，必须匹配带 { 的真正规则块。
 const darkMatch = /\.pg--t-night\s*\{/.exec(tokenSrc);
