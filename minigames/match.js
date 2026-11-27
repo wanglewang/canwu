@@ -437,6 +437,9 @@ function create(ctx) {
   vm.extras.showHint = true;
   vm.extras.showCombo = true;
   vm.extras.compact = true;
+  // 目标进度条必须真上屏：WXML 用 showMeter 门控 meter，少这一行目标就只在
+  // syncHud 里算出来、玩家一列都看不到——「达标即收工」变成了一个隐藏规则。
+  vm.extras.showMeter = true;
 
   // 一格三连 12 分，连锁每层 ×(1 + 0.5×(层数-1))；一局打得顺能收十几次。
   // S 线的基数与每档增量由 data/practice.js 的 params 同源送入，准备页照同一份数写给玩家看。
@@ -1148,16 +1151,10 @@ function lines(p) {
   const seals = p && typeof p.seals === 'number' ? p.seals : 0;
   const cap = p && typeof p.shuffleCap === 'number' ? p.shuffleCap : 99;
   const special = p && typeof p.special === 'number' ? p.special : 0;
-  const goal = p && typeof p.goalType === 'number' ? p.goalType : 0;
-  const goalN = p && typeof p.goalCount === 'number' ? p.goalCount : 0;
   const swap = p && typeof p.swapAny === 'number' ? p.swapAny : 0;
   const swapPrice = p && typeof p.swapCost === 'number' ? p.swapCost : 3;
-  const goalLine = goal === 1 ? '本局目标：收够指定色 ' + goalN + ' 株'
-    : goal === 2 ? '本局目标：做出 ' + goalN + ' 次连锁（每次至少 2 层）'
-      : goal === 3 ? '本局目标：破开 ' + goalN + ' 格石皮'
-        : goal === 4 ? '本局目标：收够指定色且做出 ' + goalN + ' 层连锁'
-          : goal === 5 ? '本局目标：' + goalN + ' 枚灵种全部落到底行'
-            : goal === 6 ? '本局目标：收灵草 ' + goalN + ' 株' : '';
+  // 与准备页共用同一份目标文案，别在评级卡里再拼一遍数量。
+  const goalLine = practiceData.matchGoalLine(p);
   return {
     // 终点口径写在这一行：做成目标就收工，没打掉的步数折成分数，慢慢磨到手数尽只会掉档。
     rule: '做成目标即收工，未用完的手数折成分数（无效互换不扣手、只降评级；每步 ' + MATCH_STEP_SEC + ' 秒，超时才扣一手；手数尽仍未做成算未走通）',

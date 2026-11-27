@@ -160,6 +160,9 @@
       <!-- 本局盘面是一组：先说整盘规格，再说这一关动了哪一处。
            这一段还收紧了哪几处（亮起时长 / 口诀轮数…）与 S 线门槛都归这一组。 -->
       <view class="lv-spec">
+        <!-- 本局目标先说：这是终点条件，不是又一条盘面规格。
+             数量由本关 params 给，和局内目标进度条、评级卡同一句真源。 -->
+        <text wx:if="{{roundGoalText}}" class="lv-goal">{{roundGoalText}}</text>
         <text wx:if="{{stageBoardBrief}}" class="lv-spec__main">{{stageBoardBrief}}</text>
         <text class="lv-spec__sub">{{levelChange}}</text>
         <text wx:if="{{goalText}}" class="lv-spec__sub">{{goalText}}</text>

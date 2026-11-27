@@ -1409,6 +1409,24 @@ check('三连互换：S 线与提示按钮名各只有一份真源', function ()
     'match.js 的 gradeLimits 没走数据层的 gradeLinesOf（三条线必须同源）');
   assert.ok(/goalText/.test(read('pages/practice/practice.wxml')), '准备页没显示本档 S 线');
   assert.ok(/goalText: sLine/.test(read('pages/practice/practice.js')), '准备页没从同源数生成 S 线文案');
+  // S 线只说「几成手数拿哪档」，不等于这一局要做什么。五段目标都要带数量上屏，
+  // 并与局内 meter / 评级卡共用 matchGoalLine——准备页写 18 株、局内判定 15 株就是骗人。
+  const goalLines = [1, 11, 51, 201, 501].map(function (lv) {
+    return pd.matchGoalLine(pd.buildParamsAt(method, lv));
+  });
+  ['收灵草 100 株', '收够指定色 18 株', '做出 5 次连锁', '破开 5 格石皮', '2 枚灵种全部落到底行']
+    .forEach(function (want, i) {
+      assert.ok(goalLines[i].indexOf(want) >= 0, '第 ' + (i + 1) + ' 段目标没写出数量：' + goalLines[i]);
+    });
+  const pgJs = read('pages/practice/practice.js');
+  assert.ok(/class="lv-goal">\{\{roundGoalText\}\}/.test(read('pages/practice/practice.wxml')),
+    '准备页没渲染本局目标那一行');
+  assert.ok(/roundGoalText: roundGoalText/.test(pgJs) && /practiceData\.matchGoalLine\(/.test(pgJs),
+    '准备页没从目标真源取文案');
+  assert.ok(/practiceData\.matchGoalLine\(p\)/.test(read('minigames/match.js')),
+    '评级卡又拼了一份目标文案');
+  assert.ok(/vm\.extras\.showMeter = true/.test(read('minigames/match.js')),
+    '局内目标进度条被 showMeter 挡着，目标算出来却不上屏');
   const gd = require('../data/guides.js').guideOf('match');
   const rules = gd.scoring + gd.steps.join('');
   assert.ok(/做成即收工/.test(rules), '评级口径没写清「做成即收工」');

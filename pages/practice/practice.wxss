@@ -1951,6 +1951,19 @@
 /* 本局盘面：整盘规格 → 这一关动了哪一处 → S 线门槛，三行一组、行距紧。
    组与组之间（账 / 盘面 / 加成）留 sp-4，组内只留 sp-1。 */
 .lv-spec { margin-top: var(--sp-4); }
+/* 本局目标是终点条件，不是又一条盘面规格：在规格组里先亮一行，
+   颜色和评级卡上的目标同源（藤黄做文字走 gold-text），扫一眼知道在赶什么。 */
+.lv-goal {
+    display: block;
+    margin-bottom: var(--sp-2);
+    padding: 10rpx 12rpx;
+    border-left: 4rpx solid var(--c-imm-gold-dim);
+    background: var(--c-imm-gold-soft);
+    color: var(--c-imm-gold-text);
+    font-size: var(--fs-body-sm);
+    font-weight: 600;
+    line-height: 1.5;
+}
 .lv-spec__main {
     display: block;
     color: var(--c-imm-text-2);

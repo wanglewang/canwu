@@ -821,6 +821,24 @@ function sLineOf(method, level) {
   return buildParamsAt(method, level || 1).sLine;
 }
 
+// 三秀「本局目标」的唯一文案真源：准备页、评级卡都从这里取。
+// 玩法层的 meter 只负责当前进度（value / max），不再另拼一份目标句——
+// 以前准备页只报「几色几手」、局内 meter 又被 showMeter 挡着，玩家从头到尾
+// 看不到「这一关要收几株 / 连几次」，目标明明决定终点却像不存在。
+// 数字必须跟 params 走：段内不换目标种类，劫变「锢元」会把 goalCount 削掉四成，
+// 写死在文案里就会和真判定对不上。
+function matchGoalLine(p) {
+  const goal = p && typeof p.goalType === 'number' ? p.goalType : 0;
+  const n = Math.max(1, Math.round((p && p.goalCount) || 1));
+  if (goal === 1) return '本局目标：收够指定色 ' + n + ' 株';
+  if (goal === 2) return '本局目标：做出 ' + n + ' 次连锁（每次至少 2 层）';
+  if (goal === 3) return '本局目标：破开 ' + n + ' 格石皮';
+  if (goal === 4) return '本局目标：收够指定色且做出 ' + n + ' 层连锁';
+  if (goal === 5) return '本局目标：' + n + ' 枚灵种全部落到底行';
+  if (goal === 6) return '本局目标：收灵草 ' + n + ' 株';
+  return '';
+}
+
 // 准备页那一整行 S 线文案：分数线与盘数线口径不同，别在页面 JS 里各拼一遍。
 function sLineText(method, level) {
   if (!method) return '';
@@ -2055,6 +2073,7 @@ module.exports = {
   stageDetail: stageDetail,
   sLineOf: sLineOf,
   sLineText: sLineText,
+  matchGoalLine: matchGoalLine,
   lightsLevelOf: lightsLevelOf,
   LIGHTS_LEVELS: LIGHTS_LEVELS,
   sudokuLevelOf: sudokuLevelOf,

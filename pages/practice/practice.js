@@ -535,6 +535,11 @@ Page({
     // S 线只写在准备页：局内只报「还差几分」，这里给出本档门槛与评级口径。
     // 分数线（三连互换）与盘数线（阵灯推演）都由 practiceData 同源生成，换段跟着变。
     const sLine = practiceData.sLineText(method, level);
+    // 本关目标单独成行：sLine 讲的是「几成手数能拿哪档」，
+    // 不写「这一局要收几株 / 连几次」，玩家就不知道自己在赶什么。
+    // 按本关参数现算，和局内 meter、评级卡共用 matchGoalLine 一处真源。
+    const roundGoalText = method && method.game === 'match'
+      ? practiceData.matchGoalLine(practiceData.buildParamsAt(method, level)) : '';
     // 开局卡那一行：整篇规则在说明页，首屏只留「这一局做什么」。
     const guideData = guides.guideOf(method.game);
     const ruleText = guideData ? guideData.goal : method.desc;
@@ -663,6 +668,7 @@ Page({
       // 局内只报短版：整句罚时与 S 线留在准备页，盘上这一行要一眼读完。
       stageBoardShort: stageInfo.short,
       goalText: sLine,
+      roundGoalText: roundGoalText,
       rankLabel: tier.label,
       rankChar: tier.name,
       rankColor: tier.color,

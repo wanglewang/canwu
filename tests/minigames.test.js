@@ -3345,6 +3345,7 @@ check('三连互换：灵种不能换、不进三连、随空位下落，落底�
       tip: 't', theme: {}, render: function (v) { cvm = v; }, finish: function () {},
     });
     c3.start();
+    assert.strictEqual(cvm.extras.showMeter, true, '段三连锁目标进度条被 showMeter 挡住了');
     assert.ok(cvm.meter && /目标.*连锁/.test(cvm.meter.label), '段三没有连锁目标进度条');
     // label 只放目标种类、进度归 value/max（全局约定）；「次」字保留，写成「层」会让人去凑五连。
     assert.ok(/连锁次数/.test(cvm.meter.label), '连锁目标 label 没写「次」（写成「层」会让人去凑五连）：' + cvm.meter.label);
@@ -4411,11 +4412,14 @@ check('三连互换：九类方向真的生效，不是参数表里的摆设', f
     // 那一段的玩家会学成「等表走完」，而不是这一门的节奏。段一是「收灵草」，不指定色。
     const s1 = mk(1);
     s1.ctrl.start();
+    // 算出来不等于上屏：WXML 用 showMeter 门控 meter，缺这一行玩家根本看不到目标。
+    assert.strictEqual(s1.vm.extras.showMeter, true, '首段目标进度算了却不显示');
     assert.ok(/目标/.test(s1.vm.meter.label), '首段没有本局目标：这一档没有终点条件');
     assert.ok(/收灵草/.test(s1.vm.meter.label), '首段的目标不是「收灵草」：' + s1.vm.meter.label);
     s1.ctrl.destroy();
     const s2 = mk(11);
     s2.ctrl.start();
+    assert.strictEqual(s2.vm.extras.showMeter, true, '入门段目标进度算了却不显示');
     assert.ok(/目标/.test(s2.vm.meter.label), '入门段没有本局目标进度');
     assert.ok(/收够指定色/.test(mod.lines(data.buildParamsAt(m, 11)).items.join(' ')),
       '评级卡旁没写清本局目标');

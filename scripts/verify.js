@@ -1218,6 +1218,23 @@ for (const f of files) {
     } else checked += 1;
   });
   if (allConsumed) observe('SC-DECIDE-ALL-CONSUMERS', '四个判定键都有消费端，目标判定/评级/settle 三处同改');
+  // 目标必须走到玩家眼前：数据层给带数量的文案，准备页渲染，局内把 meter 放上屏。
+  // 只钉 meter 算没用——WXML 用 showMeter 门控，少设一次就整局看不到要做什么。
+  const goalDataSrc = fs.readFileSync(path.join(ROOT, 'data/practice.js'), 'utf8');
+  if (!/function matchGoalLine\(p\)/.test(goalDataSrc)
+      || !/practiceData\.matchGoalLine\(p\)/.test(mtSrc)
+      || !/roundGoalText/.test(pgSrc) || !/class="lv-goal">\{\{roundGoalText\}\}/.test(wxml)
+      || !/vm\.extras\.showMeter = true/.test(mtSrc)) {
+    errors.push('三秀本局目标没接到准备页与局内 HUD：目标算出来玩家却看不到');
+  } else checked += 1;
+  const goalMethod = practiceMod.getMethod('harvest');
+  const goalLines = [1, 11, 51, 201, 501].map(function (lv) {
+    const q = practiceMod.buildParamsAt(goalMethod, lv);
+    return practiceMod.matchGoalLine(q).indexOf(String(q.goalCount)) >= 0;
+  });
+  if (goalLines.some(function (ok) { return !ok; })) {
+    errors.push('三秀准备页目标文案没写本关 goalCount，或没走 matchGoalLine 真源');
+  } else checked += 1;
   if (!/showActive/.test(mtSrc) || !/showActive/.test(wxml) || !/onActive/.test(pgSrc)) {
     errors.push('挪苗按钮没有从玩法层接到 WXML 再到页面事件：玩家点不到这个主动手段');
   } else checked += 1;
