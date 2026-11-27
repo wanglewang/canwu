@@ -164,8 +164,8 @@ SPEED_KEY   = 'speed'   // 方向相反：除以 pace
 
 | 表 | 谁 | 内容 |
 | --- | --- | --- |
-| `MATCH_LEVELS` | 三连互换 | cols / rows（6×6→10×10，换段各换一副盘）/ kinds / duration / missCost / shuffleCost / hintCost / perMove / seals / shuffleCap / special / goalType / goalColor / goalCount / swapAny / swapCost / twist |
-| `MATCH_MOVE_SEC` / `MATCH_CLEAR_K` / `MATCH_GRADE_X` | 三连互换 | 1.2 息 / 2.5 / 0.40·0.65·0.90 —— 三个标定常数：一手多久、剩余每息折几手、三条线各用几成时辰。`gradeLinesOf()` 是唯一出处（分数线不写进表里） |
+| `MATCH_LEVELS` | 三连互换 | cols / rows（6×6→10×10，换段各换一副盘）/ kinds / duration（**手数预算**，段基准 57/53/48/43/38，不是秒）/ missCost / shuffleCost / hintCost（三者是**降档权重**，单位「手当量」，不扣预算）/ perMove / seals / shuffleCap / special / goalType / goalColor / goalCount / swapAny / swapCost / twist |
+| `MATCH_STEP_SEC` / `MATCH_MOVE_SEC` / `MATCH_CLEAR_K` / `MATCH_GRADE_X` | 三连互换 | 30 秒 / 1（duration 已是手数）/ 2.5 / 0.40·0.65·0.90 —— 标定常数：每步思考限时（落子后重新计满，超时才扣 1 手，不随段收紧、不进评级）、一手折几个预算单位、每手当量折几分、三条线各用几成手数。`gradeLinesOf()` 是唯一出处（分数线不写进表里） |
 | `LIGHTS_LEVELS` | 阵灯推演 | size / min / hi / slack（最优步数区间 / 步数余量） |
 | `SUDOKU_LEVELS` | 九宫填数 | size / holes / timeLimit / tS / tA / tB |
 | `KLOTSKI_LEVELS` | 滑块让路 | minOpt / maxOpt |

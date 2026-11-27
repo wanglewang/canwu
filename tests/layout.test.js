@@ -1273,17 +1273,17 @@ check('三连互换：局内 hint 必须留住代价句，不许被纯计数覆�
   const m = read('minigames/match.js');
   const pd = require('../data/practice.js');
   const tip = pd.getMethod('harvest').tip;
-  assert.ok(/少 \d+ 息/.test(tip), '准备页代价句没写清罚多少：' + tip);
+  assert.ok(/降 \d+ 手当量/.test(tip), '准备页代价句没写清降多少：' + tip);
   assert.ok(/const costText = ctx\.tip \|\|/.test(m), '局内没接住准备页的代价句');
   assert.ok(/vm\.hint = costText \+/.test(m), 'syncHud 又把 hint 冲成纯计数了');
   assert.ok(!/vm\.hint = '照畦/.test(m), 'hint 又变回提示按钮的说明');
   const page = read('pages/practice/practice.js');
   assert.ok(/tip = practiceData\.tipFor\(/.test(page), '准备页没把按档代价句传给玩法');
   assert.ok(!/tip: method\.tip/.test(page), '参悟页还有一处写死的功法表代价句没跟着档走');
-  // 罚息按档变，代价句不能还是那句写死的「少 2 息」。
-  assert.ok(/少 1 息/.test(pd.tipFor(pd.getMethod('harvest'), 'novice'))
-    && /少 3 息/.test(pd.tipFor(pd.getMethod('harvest'), 'full')),
-    '代价句没跟着本档罚息走');
+  // 降档权重按档变，代价句不能还是那句写死的「降 2 手当量」。
+  assert.ok(/降 1 手当量/.test(pd.tipFor(pd.getMethod('harvest'), 'novice'))
+    && /降 3 手当量/.test(pd.tipFor(pd.getMethod('harvest'), 'full')),
+    '代价句没跟着本档降档权重走');
 });
 
 check('「错换」已统一为「无效互换」：玩家可见文件不留旧词', function () {

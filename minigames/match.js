@@ -11,9 +11,11 @@
 const C = require('./common.js');
 const practiceData = require('../data/practice.js');
 const gradeLinesOf = practiceData.gradeLinesOf;
-// 剩余时辰折分的汇率与三条评级线的时间口径都在数据层：玩法层只读，不自己乘系数。
+// 步数制的三个汇率与三条评级线都在数据层：玩法层只读，不自己乘系数。
+// MATCH_MOVE_SEC 恒为 1（duration 已是手数）；MATCH_CLEAR_K 把剩余手折成分；
+// MATCH_GRADE_X 把「用掉几成手数」翻成三条线。MATCH_STEP_SEC 是每步思考限时，不进评级。
 const MATCH_CLEAR_K = practiceData.MATCH_CLEAR_K;
-const MATCH_MOVE_SEC = practiceData.MATCH_MOVE_SEC;
+const MATCH_STEP_SEC = practiceData.MATCH_STEP_SEC;
 const MATCH_GRADE_X = practiceData.MATCH_GRADE_X;
 const K = require('./teach-kit.js');
 const CREST = require('./crest.js');
@@ -290,14 +292,14 @@ function makeBoard(cols, rows, kinds) {
 function plantSeeds(board, cols, rows, count) {
   const placed = [];
   const usedCol = {};
-  // 起摆固定在「距底 4 行」。位置是难度旋钮，而且必须按**段末**的时辰定，不能只按段首：
+  // 起摆固定在「距底 4 行」。位置是难度旋钮，而且必须按**段末**的预算定，不能只按段首：
   // 只靠「collapse 按空位下压」的话灵种在随机盘上根本走不到底行——10×10 实测
   // 1850 手里底行被消 0 次（行分布 1216 / 1085 / 951 / 511 / 236 / 87 / 29 / 7 / 1 / 0），
   // 所以补了「本列塌一格它沉一格」。按这条规则量下来：
   //   盘顶起摆（距底 9）   瞄准 68% / 随手 36%
-  //   第 2~3 行（距底 7）  瞄准 73% / 随手 44%  —— 段首够用，但段末只有 31 息
+  //   第 2~3 行（距底 7）  瞄准 73% / 随手 44%  —— 段首够用，但段末只有约 25 手
   //   距底 4 行                        ← 取这一档
-  // 判据不只是「段首能不能成」，还有「段末成不成」：段五时辰从 45 收到 31 息（25 手），
+  // 判据不只是「段首能不能成」，还有「段末成不成」：段五预算从 38 手收到约 27 手（= 旧 45→31 息），
   // 距底 7 格在 25 手里要同一列被清七次，实测只剩三成局做得完——那不是难度，是做不到。
   const base = Math.max(0, rows - 4);
   const span = Math.max(1, Math.min(2, rows - 1 - base));
@@ -375,15 +377,15 @@ function sealCells(board, cols, rows, count, sealed) {
 
 // 一手的演出节拍。消消乐的一手不是一个瞬间，是「收走 → 落下 → 再查一轮」三个拍子：
 // 全压进一次渲染，盘面就从满的跳到满的，中间没有一帧是空的，玩家只能靠浮字知道收了东西。
-// 数值比业界通行量级（消除 200–250ms）再紧一档，因为这一门是限时计分而不是步数制：
-// 动画占掉的每一毫秒都直接是玩家少掉的思考时间，单手要压在 0.5 秒以内。
-// 演出期间不收输入，但表照走——停表会让手快的人拿动画换时间，一局打不完。
+// 数值比业界通行量级（消除 200–250ms）再紧一档，让一手从看到落定不拖沓。
+// 演出期间不收输入；每步 30 秒的思考限时在演出期间暂停——演出不是玩家在「想」，
+// 拿动画时间去扣他的手，等于惩罚手快的人。
 const BEAT = {
   clear: 170,
   fallBase: 120,
   fallPer: 26,
   fallMax: 250,
-  // 做成目标之后停一拍再进结算：这一拍是玩家读「用了多少息、折了多少分」的唯一时机。
+  // 做成目标之后停一拍再进结算：这一拍是玩家读「用了几手、折了多少分」的唯一时机。
   settleHold: 900,
 };
 
@@ -406,8 +408,12 @@ function create(ctx) {
   const crestTheme = Math.max(0, Math.min(CREST.MATCH_CRESTS.length - 1, Math.round(p.theme || 0)));
   const stage = typeof perks.tier === 'number' ? perks.tier : 0;
   // 五档各改什么，全部由 data/practice.js 的 MATCH_LEVELS 注入；这里一个数字都不写死，
-  // 否则准备页写「本段 55 息」、局内却按 60 息跑，玩家会以为规则骗人。
-  let duration = Math.max(25, p.duration || 60);
+  // 否则准备页写「本段 40 手」、局内却按 57 手跑，玩家会以为规则骗人。
+  // duration 在步数制下是**手数预算**，不是秒；每步思考限时另由 MATCH_STEP_SEC 给。
+  let duration = Math.max(1, Math.round(p.duration || 40));
+  const moveSec = Math.max(5, MATCH_STEP_SEC);
+  // 下面几项是「评级降档权重」：失误 / 提示 / 挪苗 / 重排不扣真实手数，
+  // 只把等效手数记进 penalty，结算时从折分里扣——玩家的手数预算一分不少。
   const missCost = Math.max(1, p.missCost || 2);
   const shuffleCost = Math.max(1, p.shuffleCost || 3);
   // 大成起的两个新旋钮：石皮封印格数与「原价重排」的次数（99 = 不限，前三段就是 99）。
@@ -422,12 +428,11 @@ function create(ctx) {
   const hintCost = Math.max(1, (p.hintCost || 2) - (stage >= 3 ? 1 : 0));
   const realShuffleCost = Math.max(1, shuffleCost - (stage >= 5 ? 1 : 0));
   const chainBonus = stage >= 5 ? 0.25 : 0;
-  // 代价句由准备页按本段罚息生成（tipFor），局内一直挂在 hint 上。以前写死「少 2 息」，
-  // 改了难度档就成假话；现在连浮字也取 missCost，三个地方说的是同一个数。
-  const costText = ctx.tip || ('换不出三连少 ' + missCost + ' 息');
+  // 代价句由准备页按本段降档权重生成（tipFor），局内一直挂在 hint 上。
+  const costText = ctx.tip || ('换不出三连 · 评级降 ' + missCost + ' 手当量');
 
   const vm = C.makeVm(cols, n, '换两株相邻灵草，三株同色连成一线就收走', costText);
-  vm.timeText = C.mmss(duration);
+  vm.timeText = C.mmss(moveSec);
   vm.scoreText = '得分 0';
   vm.extras.showHint = true;
   vm.extras.showCombo = true;
@@ -449,36 +454,40 @@ function create(ctx) {
   let harvested = 0;
   let mistakes = 0;
   let shuffles = 0;
+  // 评级降档累计的「等效手数」：失误 / 提示 / 挪苗 / 重排往这里记，不碰真实手数预算。
+  // 结算时按每等效手 = perMove×MATCH_CLEAR_K 从总分里扣——与「少走一手」同一个量纲，
+  // 所以玩家看到的是「评级降 N 手当量」，不是莫名其妙的一档。
+  let penalty = 0;
   // 原价重排只剩几次：用尽后仍可重排（绝不把玩家卡死），但代价翻倍。
   // 注意「原价」不是「免费」——前三段每次重排本来就扣 shuffleCost，这里只是不涨价。
   let shufflesLeft = shuffleCap;
-  // 目标类型：这一局不再只是「攒够分」，还要在时辰里做成一件事——
+  // 目标类型：这一局不再只是「攒够分」，还要在步数里做成一件事——
   // 收够某色 / 做出几层连锁 / 破几格石皮 / 引苗落底 / 收任意色若干株。
-  // **做成即收工**：达成那一刻这一局就结束，没打掉的时辰折成分数（见 finishClear）。
+  // **做成即收工**：达成那一刻这一局就结束，没打掉的步数折成分数（见 finishClear）。
   let goalType = Math.min(6, Math.max(0, Math.round(p.goalType || 0)));
   const goalColor = Math.max(1, Math.min(kinds, Math.round(p.goalColor || 1)));
   let goalCount = Math.max(1, Math.round(p.goalCount || 1));
   let goalGot = 0;
   let goalChains = 0;
   let goalDone = false;
-  // 达成那一刻冻结的剩余时辰。负数 = 还没达成。
-  // 必须冻结：达成之后演出还要走几百毫秒，若让表继续走，折分就会少一两息，
+  // 达成那一刻冻结的剩余手数。负数 = 还没达成。
+  // 必须冻结：达成之后演出还要走几百毫秒，若让计时继续走，折分就会少一手，
   // 而且「几点达成的」在结算里报出去也不是当时那个数。
-  let clearLeft = -1;
+  let clearSteps = -1;
   let clockFrozen = false;
-  // 主动手段：挪苗单局几次，花息换一次「不要求相邻」的挪动。
+  // 主动手段：挪苗单局几次，降评级换一次「不要求相邻」的挪动。
   // 与照畦不是一回事——照畦是买信息（指出哪两株），挪苗是买一步操作（自己换哪两株）。
   let activeMax = Math.max(0, Math.round(p.swapAny || 0));
   const activeCost = Math.max(1, p.swapCost || 3);
   let activeLeft = activeMax;
   let activeMode = false;
   let activeFirst = -1;
-  // 本局变数：圆满段开局先给两条劫变，玩家点一条才发盘、才开始走时辰。
+  // 本局变数：圆满段开局先给两条劫变，玩家点一条才发盘、才开始走手数。
   const twistWanted = Math.round(p.twist || 0) > 0;
   let twistChosen = false;
   vm.twistPick = twistWanted ? (p.twistChoices || []).slice() : null;
   vm.extras.showActive = activeMax > 0;
-  vm.activeLabel = '挪苗 ' + activeLeft + '（' + activeCost + ' 息）';
+  vm.activeLabel = '挪苗 ' + activeLeft + '（降 ' + activeCost + ' 手当量）';
   // 石皮封印绑格：true 表示这一格的牌不能换。收走这一格的牌即解封。
   const sealed = new Array(n).fill(false);
   let maxChain = 0;
@@ -490,9 +499,10 @@ function create(ctx) {
   let fallAt = [];
   // 演出中：这一手还没演完，先不收输入。玩家在牌飞的时候点下一手，
   // 会点到一格「即将被换掉」的位置，他看到的和规则里的不是同一个盘面。
-  // 表照走——限时玩法里把动画时间白送给玩家，等于手越快局越长。
+  // 思考限时也在演出期间暂停：演出是他们看结果的几百毫秒，不该从「想下一手」里扣。
   let busy = false;
-  let left = duration;
+  let stepsLeft = duration;
+  let moveLeft = moveSec;
   let done = false;
   let started = false;
 
@@ -544,41 +554,43 @@ function create(ctx) {
     vm.match = { board: board.slice(), cols: cols, rows: rows, first: selected };
   }
 
-  // 剩余每息折几手产出。放在玩法层算，是因为劫变会改时辰、而「一手值多少分」只认本局参数；
-  // 汇率本身（MATCH_CLEAR_K）在数据层，与三条评级线同源。
+  // 剩余每手折几手产出。放在玩法层算，是因为劫变会改预算、而「一手值多少分」只认本局参数；
+  // 汇率本身（MATCH_CLEAR_K）在数据层，与三条评级线同源。步数制下 1 手就是 1 手。
   function clearRate() {
-    return Math.max(1, ((p.perMove || 50) / MATCH_MOVE_SEC) * MATCH_CLEAR_K);
+    return Math.max(1, (p.perMove || 50) * MATCH_CLEAR_K);
   }
-  // 现在做成能拿多少分：已收的 + 剩余时辰折算。这是 HUD 上报的那个档位的唯一口径。
+  // 现在做成能拿多少分：已收的 + 剩余手数折算 − 失误降档。这是 HUD 上报档位的唯一口径。
   function pendingScore() {
-    const leftNow = goalDone ? clearLeft : Math.max(0, left);
-    return score + Math.round(leftNow * clearRate());
+    const leftNow = goalDone ? clearSteps : Math.max(0, stepsLeft);
+    // 每「等效手」按一手产出的汇率从折分里扣：失误不减预算，但少拿早收工的溢价。
+    return Math.max(0, score + Math.round(leftNow * clearRate()) - Math.round(penalty * clearRate()));
   }
   function paceHint() {
     if (!goalType) return '';
     if (goalDone) return '目标达成 · 收工';
-    // S 线对应的就是「用掉四成时辰」，所以玩家能自己算的余量只有这一条；
-    // 不报「再 N 分入 S」——那一句在这一门口径下是错的（分里有一大半是折出来的）。
-    const used = Math.max(0, duration - Math.max(0, left));
+    // S 线对应的就是「用掉四成手数」，玩家能自己数的余量只有这一条。
+    const used = Math.max(0, duration - Math.max(0, stepsLeft)) + penalty;
     const room = duration * MATCH_GRADE_X.s - used;
-    return room >= 0 ? 'S 余 ' + Math.max(0, Math.ceil(room)) + ' 息' : 'S 已过';
+    return room >= 0 ? 'S 余 ' + Math.max(0, Math.ceil(room)) + ' 手' : 'S 已过';
   }
 
   function syncHud() {
-    const shown = goalDone ? clearLeft : left;
-    vm.timeText = C.mmss(Math.max(0, shown));
-    vm.activeLabel = '挪苗 ' + activeLeft + '（' + activeCost + ' 息）' + (activeMode ? ' · 点两株' : '');
-    // 进度条读「用掉了几成时辰」：这一门的时间压力是「别拖」，不是「别耗尽」。
+    // 两个量都要看得见：timeText 是本步思考限时（30 秒倒数），progressText 是还剩几手。
+    // 旧的单一「剩余时辰」被拆成这两行，正是步数制要表达的东西。
+    vm.timeText = C.mmss(Math.max(0, moveLeft));
+    vm.activeLabel = '挪苗 ' + activeLeft + '（降 ' + activeCost + ' 手当量）' + (activeMode ? ' · 点两株' : '');
+    // 进度条读「用掉了几成手数」：这一门的压力是「别浪费手」，不是「别耗尽秒」。
     // 达成之后冻住在这一格，玩家看到的是自己交卷的位置。
-    vm.progress = C.pct(duration - Math.min(Math.max(0, shown), duration), duration);
+    const stepsUsed = Math.min(duration, Math.max(0, duration - stepsLeft));
+    vm.progress = C.pct(stepsUsed, duration);
     vm.progressText = goalDone
-      ? '用时 ' + Math.round(duration - Math.min(clearLeft, duration)) + ' / ' + duration + ' 息'
-      : Math.max(0, Math.round(left)) + ' 息';
+      ? '用了 ' + (duration - Math.max(0, clearSteps)) + ' / ' + duration + ' 手'
+      : '余 ' + Math.max(0, stepsLeft) + ' 手';
     vm.scoreText = '得分 ' + score;
     vm.combo = maxChain;
     vm.comboText = maxChain >= 2 ? '最高连锁 ' + maxChain : '';
-    // 局内档位报的是「现在做成会拿什么档」：这一门的分有一大半是剩余时辰折出来的，
-    // 只看已收的分会让玩家以为自己离 S 很远，其实早点做完就到手了。
+    // 局内档位报的是「现在做成会拿什么档」：这一门的分有一大半是剩余手数折出来的，
+    // 只看已收的分会让玩家以为自己离 S 很远，其实早点收工就到手了。
     vm.gradeNow = C.gradeBy(pendingScore(), sLimit, aLimit, bLimit);
     vm.goal = paceHint();
     if (goalType) {
@@ -599,7 +611,7 @@ function create(ctx) {
     vm.hint = costText + ' · 无效互换 ' + mistakes + ' · 重排 ' + shuffles
       + (shuffleCap < 99 ? '（原价 ' + shufflesLeft + '）' : '')
       + (sealLeft ? ' · 石皮 ' + sealLeft : '')
-      + (activeMax ? ' · 挪苗 ' + activeLeft + '（' + activeCost + ' 息）' : '')
+      + (activeMax ? ' · 挪苗 ' + activeLeft + '（降 ' + activeCost + ' 手当量）' : '')
       + (goalType ? ' · ' + goalText() : '');
   }
 
@@ -626,29 +638,32 @@ function create(ctx) {
     ctx.finish(out);
   }
 
-  // 达成即收工：把没打掉的时辰折成分数再评级。
-  // 这一句是「终点认目标」的全部实现——不给返息、不给第二次机会，做成就是这一局的终点。
+  // 达成即收工：把没打掉的手数折成分数、扣掉失误降档，再评级。
+  // 这一句是「终点认目标」的全部实现——不给返手、不给第二次机会，做成就是这一局的终点。
   function finishClear() {
     if (done) return;
-    const bonus = Math.round(Math.max(0, clearLeft) * clearRate());
-    const total = score + bonus;
+    const bonus = Math.round(Math.max(0, clearSteps) * clearRate());
+    const drop = Math.round(penalty * clearRate());
+    const total = Math.max(0, score + bonus - drop);
     const grade = C.gradeBy(total, sLimit, aLimit, bLimit);
-    const used = Math.max(0, Math.round(duration - clearLeft));
-    finishOnce(grade, '收 ' + harvested + ' 株 · 最高连锁 ' + maxChain + ' · 用时 ' + used + ' / ' + duration + ' 息 · 余息折 ' + bonus + ' 分', {
+    const used = Math.max(0, Math.round(duration - Math.max(0, clearSteps)));
+    finishOnce(grade, '收 ' + harvested + ' 株 · 最高连锁 ' + maxChain + ' · 用了 ' + used + ' / ' + duration
+      + ' 手 · 余手折 ' + bonus + ' 分 · 降档 ' + drop + ' 分', {
       score: total,
       goalDone: true,
-      goalBonus: bonus,
+      goalBonus: Math.max(0, bonus - drop),
     });
   }
 
-  // 时辰耗尽：先看目标做成没有。做成了（理论上走不到这里）按收工算；
-  // 没做成就是这一关没过——分数只算真收的株，没有剩余时辰可折，自然落在 B 线以下。
+  // 手数用尽：先看目标做成没有。做成了（理论上走不到这里）按收工算；
+  // 没做成就是这一关没过——分数只算真收的株，没有剩余手数可折，自然落在 B 线以下。
   function finish() {
     if (done) return;
     if (goalDone) { finishClear(); return; }
-    const grade = C.gradeBy(score, sLimit, aLimit, bLimit);
-    finishOnce(grade, '收 ' + harvested + ' 株 · 最高连锁 ' + maxChain + ' · 无效互换 ' + mistakes + ' · 时辰已尽 · 目标未达成', {
-      score: score,
+    const total = Math.max(0, score - Math.round(penalty * clearRate()));
+    const grade = C.gradeBy(total, sLimit, aLimit, bLimit);
+    finishOnce(grade, '收 ' + harvested + ' 株 · 最高连锁 ' + maxChain + ' · 无效互换 ' + mistakes + ' · 手数已尽 · 目标未达成', {
+      score: total,
       goalMissed: !!goalType,
     });
   }
@@ -659,8 +674,8 @@ function create(ctx) {
   }
 
   // 死局重排：保留颜色数量与石皮位置，只换牌位；重排到有可行换位为止。
-  // shuffleCap 是「能以原价重排几次」，不是「总共能重排几次」：用尽后代价翻倍，
-  // 但绝不拒绝——把玩家卡在一个死盘前，比多扣两息坏得多。
+  // shuffleCap 是「能以原价降几档」，不是「总共能重排几次」：用尽后降档翻倍，
+  // 但绝不拒绝——把玩家卡在一个死盘前，比多降一档坏得多。重排本身不扣手数。
   function reshuffle() {
     const cost = shufflesLeft > 0 ? realShuffleCost : realShuffleCost * 2;
     if (shufflesLeft > 0) shufflesLeft -= 1;
@@ -681,8 +696,8 @@ function create(ctx) {
       if (!matchesOf(board, cols, rows).length && findMove(board, cols, rows, sealed)) break;
     }
     shuffles += 1;
-    left = Math.max(0, left - cost);
-    C.flash(vm, '灵畦自整 · 少 ' + cost + ' 息'
+    penalty += cost;
+    C.flash(vm, '灵畦自整 · 评级降 ' + cost + ' 手当量'
       + (shuffleCap < 99 && shufflesLeft <= 0 ? '（原价重排已尽）' : ''), 'good');
   }
 
@@ -700,7 +715,7 @@ function create(ctx) {
     return '破石皮 ' + Math.min(goalCount, goalGot) + '/' + goalCount;
   }
 
-  // 达成即收工：这里只做三件事——冻结表、记下剩余几息、立起「这一手演完就结算」的标记。
+  // 达成即收工：这里只做三件事——冻结计时、记下剩余几手、立起「这一手演完就结算」的标记。
   // 不在这里 flash，也不在这里 finish：
   //   ① 达成多半发生在连锁的某一层，当场报会被下一层的「连锁 N 层」盖掉；
   //   ② 当场结算会把还在飞的牌切成半空的盘面。
@@ -709,7 +724,7 @@ function create(ctx) {
     if (goalDone) return;
     goalDone = true;
     clockFrozen = true;
-    clearLeft = Math.max(0, left);
+    clearSteps = Math.max(0, stepsLeft);
   }
 
   // 目标只认「这一手真收走的」，重复连锁里收走的同一格算两次（连锁本来就是重新数）。
@@ -842,8 +857,8 @@ function create(ctx) {
     // 报账与结算不能挤在同一帧——那句「目标达成」会被结算卡直接盖掉，
     // 玩家只看到评级，不知道自己是因为做成了才结束的。所以先报一句，停一拍再结算。
     if (goalDone) {
-      const bonus = Math.round(Math.max(0, clearLeft) * clearRate());
-      C.flash(vm, '目标达成 · 余 ' + Math.round(clearLeft) + ' 息折 ' + bonus + ' 分', 'gold');
+      const bonus = Math.round(Math.max(0, clearSteps) * clearRate());
+      C.flash(vm, '目标达成 · 余 ' + Math.round(clearSteps) + ' 手折 ' + bonus + ' 分', 'gold');
       paint();
       syncHud();
       render();
@@ -854,10 +869,12 @@ function create(ctx) {
     paint();
     syncHud();
     render();
-    if (left <= 0) finish();
+    // 这一手演完、目标没做成、手数又用尽：这一关才算没走过。演出期间不扣手，
+    // 所以这个检查必须落在 busy 归零之后，不能靠计时器替我们做。
+    if (stepsLeft <= 0) finish();
   }
 
-  // 主动手段：挪苗。花息换一次「不要求相邻」的换位，与照畦（买信息）不是一回事。
+  // 主动手段：挪苗。降评级换一次「不要求相邻」的换位，与照畦（买信息）不是一回事。
   // 仍要能成立才生效——否则玩家会拿它当廉价洗牌，代价就不再是代价。
   function active() {
     if (done || busy || vm.phase !== 'playing') return;
@@ -868,7 +885,7 @@ function create(ctx) {
     activeMode = !activeMode;
     activeFirst = -1;
     selected = -1;
-    if (activeMode) C.flash(vm, '挪苗已启：点任意两株换位 · ' + activeCost + ' 息', 'good');
+    if (activeMode) C.flash(vm, '挪苗已启：点任意两株换位 · 降 ' + activeCost + ' 手当量', 'good');
     paint();
     syncHud();
     render();
@@ -910,12 +927,14 @@ function create(ctx) {
       if (!hits.length && !fxA && !fxB) {
         board[a] = va; board[index] = vb;
         activeMode = false;
-        C.flash(vm, '挪苗没连成三株 · 不扣息，再试', 'bad');
+        C.flash(vm, '挪苗没连成三株 · 不降档，再试', 'bad');
         paint(); syncHud(); render();
         return;
       }
       activeLeft -= 1;
-      left = Math.max(0, left - activeCost);
+      stepsLeft = Math.max(0, stepsLeft - 1);
+      moveLeft = moveSec;
+      penalty += activeCost;
       activeMode = false;
       const all = {};
       hits.forEach(function (i) { all[i] = true; });
@@ -923,11 +942,11 @@ function create(ctx) {
       if (fxB) triggerFx(board, cols, rows, a, kinds, va).forEach(function (i) { all[i] = true; });
       busy = true;
       stageClear(Object.keys(all).map(Number), 1);
-      if (left <= 0) finish();
+      if (stepsLeft <= 0) finish();
       return;
     }
     // 灵种比石皮还硬：它不能换，也不能被别人换走，只能靠下方清空后自己往下掉。
-    // 点它不扣息，但必须说清「怎么让它动」——不说，玩家会以为点错了，一直点。
+    // 点它不降档，但必须说清「怎么让它动」——不说，玩家会以为点错了，一直点。
     if (isSeed(board[index])) {
       selected = -1;
       fxSeq += 1;
@@ -939,7 +958,7 @@ function create(ctx) {
       render();
       return;
     }
-    // 石皮封住的牌不能换：不扣息（玩家没做错事，是规则不让换），但必须当场说清是哪一格。
+    // 石皮封住的牌不能换：不降档（玩家没做错事，是规则不让换），但必须当场说清是哪一格。
     if (sealed[index]) {
       selected = -1;
       fxSeq += 1;
@@ -967,21 +986,24 @@ function create(ctx) {
       board[a] = va;
       board[index] = vb;
       mistakes += 1;
-      left = Math.max(0, left - missCost);
+      // 失误不扣手：只把等效手数记进评级账，预算一分不少。这是步数制与旧时辰制的分水岭。
+      penalty += missCost;
       // 换出去又弹回来，光靠浮字说「不行」是看不见的：
       // 两格自己抖一下，玩家才知道是「这一步不成立」而不是「没点上」。
       fxSeq += 1;
       shakeAt = [a, index];
       goneAt = [];
       fallAt = [];
-      C.flash(vm, '换不出三连 · 少 ' + missCost + ' 息', 'bad');
+      C.flash(vm, '换不出三连 · 评级降 ' + missCost + ' 手当量', 'bad');
       paint();
       syncHud();
-      if (left <= 0) { finish(); return; }
       render();
       return;
     }
-    // 成立了：接下来是演出，一拍一拍演完才交还输入。
+    // 成立了：扣一手、重置本步思考限时，接下来是演出，一拍一拍演完才交还输入。
+    // 连锁的后续层不在这里——stageClear 只认「这一手打出几层」，不按层重复扣手。
+    stepsLeft = Math.max(0, stepsLeft - 1);
+    moveLeft = moveSec;
     busy = true;
     if (fxA || fxB) {
       // 两张符相撞就是组合：清行 + 清列 = 十字；同色符会把那一色整片带走。
@@ -1012,8 +1034,9 @@ function create(ctx) {
     if (!move) { reshuffle(); paint(); syncHud(); render(); return; }
     clearHint();
     hintPair = move;
-    left = Math.max(0, left - hintCost);
-    vm.status = '照畦：少 ' + hintCost + ' 息，换这两株';
+    // 照畦是买信息：不扣手，只把等效手数记进评级账。
+    penalty += hintCost;
+    vm.status = '照畦：评级降 ' + hintCost + ' 手当量，换这两株';
     paint();
     syncHud();
     render();
@@ -1023,24 +1046,24 @@ function create(ctx) {
       paint();
       render();
     }, hintMs);
-    if (left <= 0) finish();
   }
 
   function pickTwist(id) {
     if (done || twistChosen || vm.phase !== 'twist') return;
     if (!(p.twistChoices || []).some(function (x) { return x.id === id; })) return;
     twistChosen = true;
-    // 一紧一松同时生效；S 线按改后的本局时辰现算，抽到「穷息」不会还拿原分数线。
+    // 一紧一松同时生效；S 线按改后的本局手数现算，抽到「穷步」不会还拿原分数线。
     if (id === 'lean') { kinds = Math.max(3, kinds - 1); sealCount += 4; }
     else if (id === 'flood') { kinds = Math.min(GLYPHS.length, kinds + 1); fxTier = Math.min(3, fxTier + 1); }
-    else if (id === 'haste') { duration = Math.max(25, duration - 5); activeMax += 1; }
+    else if (id === 'haste') { duration = Math.max(12, duration - 4); activeMax += 1; }
     else if (id === 'brace') { sealCount += 3; goalCount = Math.max(1, Math.round(goalCount * 0.6)); }
     activeLeft = activeMax;
-    // 劫变改了时辰就得按新时辰重算三条线：S/A/B 都是「用掉几成时辰」换算出来的，
-    // 时辰一变，同一个比例对应的分就变。不重算就是「抽到穷息的局天然追不到 S」。
+    // 劫变改了手数就得按新手数重算三条线：S/A/B 都是「用掉几成手数」换算出来的，
+    // 手数一变，同一个比例对应的分就变。不重算就是「抽到穷步的局天然追不到 S」。
     lim = gradeLinesOf({ duration: duration, perMove: p.perMove || 60 });
     sLimit = lim.s; aLimit = lim.a; bLimit = lim.b;
-    left = duration;
+    stepsLeft = duration;
+    moveLeft = moveSec;
     vm.twistPick = null;
     begin();
   }
@@ -1077,11 +1100,19 @@ function create(ctx) {
     syncHud();
     render();
     bag.every(function () {
-      // 达成之后表就冻住了：剩余的几息已经记进 clearLeft，再走下去只会白白吃掉评级。
-      if (done || clockFrozen) return;
-      left -= 1;
+      // 三种情况下不扣思考秒：整局已结束、目标已达成冻结、演出还在走（那几百毫秒不是玩家在想）。
+      if (done || clockFrozen || busy) return;
+      // 每步 30 秒只是「别挂着不动」的兜底：归零才扣一手，然后重新计满。
+      // 它不是全局时辰——玩家慢慢想只要不超时，手数预算一分不掉。
+      moveLeft -= 1;
       syncHud();
-      if (left <= 0) { finish(); return; }
+      if (moveLeft <= 0) {
+        stepsLeft = Math.max(0, stepsLeft - 1);
+        moveLeft = moveSec;
+        C.flash(vm, '想得太久 · 少 1 手', 'bad');
+        syncHud();
+        if (stepsLeft <= 0) { finish(); return; }
+      }
       render();
     }, 1000);
   }
@@ -1100,9 +1131,9 @@ function create(ctx) {
 }
 
 // 三条评级线的唯一出处：data/practice.js 的 gradeLinesOf。
-// 这一门的分有一大半是「剩余时辰折出来的」，所以三条线不是彼此的固定倍数，
-// 而是各自对应一个「用掉几成时辰」的比例（0.40 / 0.65 / 0.90）。
-// 写成「S 的 0.68 倍」那种派生，在时辰收紧时会让 A/B 跟着漂，与标定对不上。
+// 这一门的分有一大半是「剩余手数折出来的」，所以三条线不是彼此的固定倍数，
+// 而是各自对应一个「用掉几成手数」的比例（0.40 / 0.65 / 0.90）。
+// 写成「S 的 0.68 倍」那种派生，在手数收紧时会让 A/B 跟着漂，与标定对不上。
 function gradeLimits(p) {
   return gradeLinesOf({ duration: p && p.duration, perMove: p && p.perMove });
 }
@@ -1122,21 +1153,22 @@ function lines(p) {
           : goal === 5 ? '本局目标：' + goalN + ' 枚灵种全部落到底行'
             : goal === 6 ? '本局目标：收灵草 ' + goalN + ' 株' : '';
   return {
-    // 终点口径写在这一行：做成目标就收工，没打掉的时辰折成分数，慢慢磨到时辰尽只会掉档。
-    rule: '做成目标即收工，未用完的时辰折成分数（无效互换只少息、不扣分；时辰尽仍未做成算未走通）',
+    // 终点口径写在这一行：做成目标就收工，没打掉的步数折成分数，慢慢磨到手数尽只会掉档。
+    rule: '做成目标即收工，未用完的手数折成分数（无效互换不扣手、只降评级；每步 30 秒，超时才扣一手；手数尽仍未做成算未走通）',
     items: [
-      'S：四成时辰内做成',
+      'S：四成手数内做成',
       'A：六成半内做成',
       'B：九成内做成',
-      'C：用尽时辰才做成，或未做成',
+      'C：用尽手数才做成，或未做成',
       // 每条新机制都要在评级卡旁说清：玩家在盘上看见它，就得当场查到它是什么意思。
       seals ? '石皮封印 ' + seals + ' 格：封住的牌不能换，收走它才解封' : '',
-      cap < 99 ? '重排前 ' + cap + ' 次原价，之后每次双倍扣息' : '',
+      cap < 99 ? '重排前 ' + cap + ' 次原价，之后每次双倍降档' : '',
       special >= 1 ? '四连凝直行/直列符：下一次换到它就清整行/整列' : '',
       special >= 2 ? '五连凝同色符：与哪株换位就清掉那一色' : '',
       special >= 3 ? '横竖交叉凝四邻符：清周围一圈；两张符相撞效果叠加' : '',
       goalLine,
-      swap ? '挪苗 ' + swap + ' 次：每次 ' + swapPrice + ' 息，可换任意两株（仍须成三连）' : '',
+      swap ? '挪苗 ' + swap + ' 次：每次降 ' + swapPrice + ' 手当量，可换任意两株（仍须成三连）' : '',
+      '每步 ' + MATCH_STEP_SEC + ' 秒：落子后重新计满，超时扣 1 手',
     ].filter(Boolean),
   };
 }
@@ -1148,7 +1180,7 @@ const TEACH_BOARD = [1, 2, 1, 3, 1, 3, 2, 3, 2];
 const TEACH_COLS = 3;
 const TEACH_SWAP = [4, 5];
 // 五段的盘面与色数：与 data/practice 的 MATCH_LEVELS 同值。
-// 段界教学盘按本段真实规格摆：盘面、花色、罚息、石皮、符箓、目标、挪苗、劫变全取本段的值。
+// 段界教学盘按本段真实规格摆：盘面、花色、降档权重、石皮、符箓、目标、挪苗、劫变全取本段的值。
 // 只摆一格石皮 / 一枚符做示范，真盘上的数量写在说明里——教学的目的是认得出，不是数得清。
 const TEACH_LEVELS = [
   { cols: 6, rows: 6, kinds: 5, missCost: 1, seals: 0, special: 0, goalType: 6, swapAny: 0, twist: 0 },
@@ -1287,9 +1319,9 @@ function createTeach(ctx) {
         + (seal >= 0 ? ' · 真盘上封 ' + TEACH_LEVELS[stage].seals + ' 格' : '')
         + (TEACH_LEVELS[stage].goalType ? ' · 目标：' + TEACH_GOAL[TEACH_LEVELS[stage].goalType] : '')
         + (seed >= 0 ? '（盘上这枚换不动，清掉它下面它自己会落下）' : '')
-        + (TEACH_LEVELS[stage].swapAny ? ' · 挪苗 ' + TEACH_LEVELS[stage].swapAny + ' 次（花息换长手）' : '')
+        + (TEACH_LEVELS[stage].swapAny ? ' · 挪苗 ' + TEACH_LEVELS[stage].swapAny + ' 次（降评级换长手）' : '')
         + (TEACH_LEVELS[stage].twist ? ' · 开局二选一劫变' : '')
-        + ' · 换不出三连少 ' + TEACH_LEVELS[stage].missCost + ' 息',
+        + ' · 换不出三连评级降 ' + TEACH_LEVELS[stage].missCost + ' 手当量',
   });
 }
 

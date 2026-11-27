@@ -3094,7 +3094,65 @@ check('三连互换：一手分成「留空」与「落下」两个拍子，中�
   } finally { restoreClock(); }
 });
 
-check('三连互换：石皮封印格换不动、不扣息、收走才解封，重排用尽只变贵不判负', function () {
+check('三连互换：步数制——思考不扣手、超时才扣一手、失误只降评级不扣预算', function () {
+  // 步数制与旧时辰制的分水岭就这三条。任何一条回退，玩家都会退回到「时间太短玩不过来」。
+  // ① 慢慢想不该花钱：30 秒内盘面预算不动；② 一直不落子才算超时，扣 1 手再计满；
+  // ③ 无效互换不减手数，只把等效手记进评级账（结算时从折分里扣）。
+  const mod = require('../minigames/match.js');
+  const pd = require('../data/practice.js');
+  installClock();
+  try {
+    const mk = function (lv) {
+      let vm = null;
+      let result = null;
+      const ctrl = mod.create({
+        params: data.buildParamsAt(sanxiu(), lv),
+        difficulty: 3, perks: { tier: 0 }, tip: 't', theme: {},
+        render: function (v) { vm = v; }, finish: function (r) { result = r; },
+      });
+      ctrl.start();
+      return { ctrl: ctrl, vm: vm, getResult: function () { return result; } };
+    };
+
+    // 段一没有劫变，起手就是 playing。手数取本关真源（第 1 关已按段内进度收过一刀）。
+    const g = mk(1);
+    const budget = data.buildParamsAt(sanxiu(), 1).duration;
+    const startSteps = g.vm.progressText;
+    assert.ok(startSteps.indexOf('余 ' + budget + ' 手') >= 0,
+      '段一开局手数不是本关真源 ' + budget + '：' + startSteps);
+    assert.strictEqual(g.vm.timeText, '00:30', '每步思考限时不是 30 秒：' + g.vm.timeText);
+
+    // ① 思考 29 秒：预算纹丝不动（这一点旧时辰制做不到，正好是这次改造的立场）。
+    advance(29000);
+    assert.strictEqual(g.vm.progressText, startSteps, '想了 29 秒就扣手了（思考不该收费）');
+    assert.strictEqual(g.vm.timeText, '00:01', '思考秒没在倒数：' + g.vm.timeText);
+
+    // ② 再等 1 秒：超时扣 1 手，倒计时重新计满 30 秒。
+    advance(1000);
+    assert.strictEqual(g.vm.progressText, '余 ' + (budget - 1) + ' 手',
+      '超时没扣手：' + g.vm.progressText);
+    assert.strictEqual(g.vm.timeText, '00:30', '超时后没重新计满 30 秒：' + g.vm.timeText);
+
+    // ③ 无效互换的具体盘面是随机的，行为断言容易挑到「恰好成立」的换位而空转，
+    // 所以在源码层钉死：失误 / 照畦只进 penalty，不再扣预算。行为层由下面两条与
+    // 「挪苗扣手、石皮不扣手」两条测试共同覆盖。
+    g.ctrl.destroy();
+
+    // 源码层再钉一次三条口径，防止旧写法回来。
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(path.join(__dirname, '..', 'minigames', 'match.js'), 'utf8');
+    assert.ok(/penalty \+= missCost/.test(src), '失误没有记进评级账');
+    assert.ok(/penalty \+= hintCost/.test(src), '照畦没有记进评级账');
+    assert.ok(!/left = Math\.max\(0, left - missCost\)/.test(src),
+      '源码里还有旧制「失误扣息」的写法');
+    assert.ok(/moveLeft -= 1/.test(src) && /stepsLeft = Math\.max\(0, stepsLeft - 1\)/.test(src),
+      '超时扣一手的逻辑没接上');
+    assert.strictEqual(pd.MATCH_STEP_SEC, 30, '每步思考限时不是 30 秒');
+  } finally { restoreClock(); }
+});
+
+check('三连互换：石皮封印格换不动、不扣手、收走才解封，重排用尽只变贵不判负', function () {
   // 这两条从第二段起逐段加密。它们的共同失败方式是「生成了但没生效」：
   // 参数进了表、盘上没画、点了没反应，或者反过来——点了就扣息，玩家会以为自己换错了。
   const mod = require('../minigames/match.js');
@@ -3127,7 +3185,7 @@ check('三连互换：石皮封印格换不动、不扣息、收走才解封，�
       }
       return out;
     };
-    const secs = function (vm) { return vm.timeText; };
+    const secs = function (vm) { return vm.progressText; };
 
     // 首段一格都不许封：第一段要先把「换两株凑三连」教会，加点石头就是干扰。
     const early = mk(1);
@@ -3149,19 +3207,19 @@ check('三连互换：石皮封印格换不动、不扣息、收走才解封，�
     assert.strictEqual(sealedIdx(full.vm).length, 14, '圆满段封印格数不是 14');
     full.ctrl.destroy();
 
-    // 点石皮：不选中、不扣息、当场说清是哪一格。
+    // 点石皮：不选中、不扣手、当场说清是哪一格。
     const before = secs(major.vm);
     const firstBoard = major.vm.match.board.slice();
     major.ctrl.tap(sealed[0]);
     assert.strictEqual(major.vm.match.first, -1, '石皮格被选中了，接下来会真的尝试换位');
-    assert.strictEqual(secs(major.vm), before, '点了一下石皮就扣息了（玩家会以为自己换错了）');
+    assert.strictEqual(secs(major.vm), before, '点了一下石皮就扣手了（玩家会以为自己换错了）');
     assert.ok(major.vm.fx && /石皮/.test(major.vm.fx.text), '点了石皮没有任何说明，玩家只看到「没反应」');
     // 石皮格当起点也不行：先选旁边一格，再点石皮，两边都不许动。
     const neighbour = sealed[0] % major.vm.match.cols > 0 ? sealed[0] - 1 : sealed[0] + 1;
     major.ctrl.tap(neighbour);
     major.ctrl.tap(sealed[0]);
     assert.deepStrictEqual(major.vm.match.board, firstBoard, '石皮格被换动了');
-    assert.strictEqual(secs(major.vm), before, '拿石皮格换位扣了息');
+    assert.strictEqual(secs(major.vm), before, '拿石皮格换位扣了手');
     advance(1200);
     assert.deepStrictEqual(major.vm.match.board, firstBoard, '石皮格的牌在演出之后又变了');
 
@@ -3177,12 +3235,12 @@ check('三连互换：石皮封印格换不动、不扣息、收走才解封，�
     assert.ok(move.every(function (i) { return !sealedSet[i]; }),
       'findMove 把石皮格当成了可换格');
     // 收走石皮格的牌即解封：牌一换位、成三连，那格就该从 sealed 名单里掉出去。
-    const left0 = major.vm.timeText;
+    const left0 = major.vm.progressText;
     major.ctrl.tap(move[0]);
     major.ctrl.tap(move[1]);
     advance(14000);
     assert.ok(sealedIdx(major.vm).length <= 9, '收牌之后封印格反而变多了');
-    assert.ok(major.vm.timeText !== left0, '一手打完时辰没有动（表没在走）');
+    assert.ok(major.vm.progressText !== left0, '一手打完没有扣手（步数预算没生效）');
     major.ctrl.destroy();
 
     // 重排限次是「原价 N 次 + 用尽翻倍 + 不判负」，三条缺一就变成另一条规则。
@@ -3253,13 +3311,13 @@ check('三连互换：灵种不能换、不进三连、随空位下落，落底�
     assert.ok(seedIdx.every(function (i) { return Math.floor(i / vm.match.cols) < vm.match.rows - 1; }),
       '灵种开局就摆在底行（等于白送目标）');
 
-    // 点灵种：不选中、不换、不扣息，但要说清怎么让它动。
-    const before = vm.timeText;
+    // 点灵种：不选中、不换、不扣手，但要说清怎么让它动。
+    const before = vm.progressText;
     const board0 = vm.match.board.slice();
     ctrl.tap(seedIdx[0]);
     assert.strictEqual(vm.match.first, -1, '灵种格被选中了');
     assert.deepStrictEqual(vm.match.board, board0, '灵种被换动了');
-    assert.strictEqual(vm.timeText, before, '点了一下灵种就扣息了');
+    assert.strictEqual(vm.progressText, before, '点了一下灵种就扣手了');
     assert.ok(/灵种/.test((vm.fx && vm.fx.text) || ''), '点灵种没有任何说明，玩家只会以为没点上');
     ctrl.destroy();
 
@@ -3287,7 +3345,7 @@ check('三连互换：灵种不能换、不进三连、随空位下落，落底�
 
     // 达成即收工：目标压到「收 1 株同色」，几手之内必然触发。
     // 这一条钉三件事：① 达成之后这一局真的结束，不再让玩家继续打；
-    // ② 结算分里含「剩余时辰折的分」；③ 浮字里说清折了多少。
+    // ② 结算分里含「剩余手数折的分」；③ 浮字里说清折了多少。
     const gp = Object.assign({}, data.buildParamsAt(sanxiu(), 11), {
       cols: 5, rows: 5, kinds: 3, goalType: 1, goalColor: 1, goalCount: 1,
       duration: 600, missCost: 1, shuffleCost: 1, seals: 0, special: 0, twist: 0, swapAny: 0,
@@ -4352,9 +4410,9 @@ check('三连互换：九类方向真的生效，不是参数表里的摆设', f
       '评级卡旁没写清本局目标');
     s2.ctrl.destroy();
 
-    // 主动手段：挪苗花息换一次不要求相邻的操作，次数用尽就不能再启。
-    // 这一条只验挪苗的代价，所以把石皮关掉：段二盘上有 2 格封住的牌，
-    // findMove 返回的第一对可能正好踩在封格上，点了不扣息——那会让这条断言变成看运气。
+    // 主动手段：挪苗不要求相邻，次数用尽就不能再启。
+    // 新制下代价有两笔：扣 1 手（progressText 的余手数会掉）+ 评级降 N 手当量。
+    // 不能再拿 timeText 当判据——它现在是每步 30 秒倒计时，挪苗落子后会重新计满。
     let vm2 = null;
     const c2 = mod.create({
       params: Object.assign({}, data.buildParamsAt(m, 11), { seals: 0 }), difficulty: 1, perks: { tier: 0 },
@@ -4362,13 +4420,13 @@ check('三连互换：九类方向真的生效，不是参数表里的摆设', f
     });
     c2.start();
     assert.ok(vm2.extras.showActive, '段二没有挪苗按钮（主动手段没生效）');
-    const before = vm2.timeText;
+    const beforeSteps = vm2.progressText;
     c2.active();
     assert.ok(/点两株/.test(vm2.activeLabel), '挪苗启用了却没告诉玩家现在点两株');
     const mv = mod.findMove(vm2.match.board.slice(), vm2.match.cols, vm2.match.rows);
     assert.ok(mv, '开局没有可行换位');
     c2.tap(mv[0]); c2.tap(mv[1]);
-    assert.notStrictEqual(vm2.timeText, before, '挪苗没扣息：主动手段没有代价');
+    assert.notStrictEqual(vm2.progressText, beforeSteps, '挪苗没扣手：主动手段没花掉一步预算');
     assert.ok(/挪苗 0/.test(vm2.activeLabel), '挪苗次数没减少');
     c2.destroy();
 

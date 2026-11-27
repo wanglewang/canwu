@@ -1180,8 +1180,8 @@ check('三连互换：五档整表同管盘面、时辰、罚息与 S 线，不�
         k + ' 的 ' + g + ' 线没按用时比例算：' + lines[g] + ' vs ' + want);
     });
     util.push(lines.s / base);
-    assert.ok(practice.tipFor(method, k).indexOf('少 ' + lv[i].missCost + ' 息') >= 0,
-      k + ' 的代价句还在写别的档的罚息');
+    assert.ok(practice.tipFor(method, k).indexOf('评级降 ' + lv[i].missCost + ' 手当量') >= 0,
+      k + ' 的代价句还在写别的档的降档权重');
     assert.ok(practice.sLineText(method, { novice: 1, entry: 11, minor: 51, major: 201, full: 501 }[k])
       .indexOf('做成目标即收工') >= 0,
       k + ' 的准备页没说清终点是怎么算的');
@@ -1191,7 +1191,7 @@ check('三连互换：五档整表同管盘面、时辰、罚息与 S 线，不�
   const sFactor = practice.MATCH_CLEAR_K - (practice.MATCH_CLEAR_K - 1) * practice.MATCH_GRADE_X.s;
   assert.ok(util.every(function (u) { return Math.abs(u - sFactor) < 0.02; }),
     '五档的 S 线折算系数不一致：' + util.map(function (u) { return u.toFixed(2); }).join('/'));
-  // 代价句按档变，不许五档共用一句写死的「少 2 息」。
+  // 代价句按档变，不许五档共用一句写死的「降 2 手当量」。
   assert.strictEqual(new Set(keys.map(function (k) { return practice.tipFor(method, k); })).size, 3);
   assert.strictEqual(practice.tipFor(practice.getMethod('forge'), 'novice'),
     practice.tipFor(practice.getMethod('forge'), 'full'), '别的门不该被按档改写代价句');

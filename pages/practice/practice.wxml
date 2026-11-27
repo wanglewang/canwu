@@ -232,6 +232,9 @@
                只写「普通」会让人以为自己还在一个叫「普通」的池子里。 -->
           <text class="eyebrow hud__skill">{{title}}<text wx:if="{{stageName}}"> · {{stageName}} · 第 {{level}} 关</text></text>
           <text class="hud__time">{{vm.timeText || '正在参悟'}}</text>
+          <!-- 三秀是步数制：主时间是「本步 30 秒」，余几手必须另给一行，
+               否则玩家只看到进度条，说不出自己还剩几手可走。vm.match 只在三秀存在。 -->
+          <text wx:if="{{vm.match && vm.progressText}}" class="hud__speed">{{vm.progressText}}</text>
           <!-- 小字行不写秒数：这一门靠耳朵走，秒数是给节拍器对表用的。
                写「一小节几下」——数得出来，也对得上下面的提示轨。 -->
           <text wx:if="{{vm.beatText}}" class="hud__speed">{{vm.beatText}}</text>

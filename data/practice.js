@@ -104,9 +104,9 @@ const PRACTICE_METHODS = [
     desc: '在灵畦里互换相邻两株，凑齐三株同色即采收；新苗落下还能再连锁。',
     // 这份是不带 params 的测试探针与「未选档」兜底，取简单档的值；局内与准备页一律走 tipFor()。
     // 由 tests/rank.test.js 守着它必须等于 tipFor(..., 'easy')，不许两处漂成不同的数。
-    tip: '换不出三连少 1 息',
+    tip: '换不出三连 · 评级降 1 手当量',
     base: 34,
-    params: { duration: 60, cols: 6, rows: 6, kinds: 5, flashMs: 760 },
+    params: { duration: 57, cols: 6, rows: 6, kinds: 5, flashMs: 760 },
   },
   // 下面六门也是「看一眼就会玩」的经典盘面玩法，与上面三套一样挂黄阶：
   // 品阶按「这门功课有多难」定，这六门规则都直白，前期就该买得起。
@@ -466,19 +466,24 @@ const MINES_HEARTS = MINES_LEVELS.map(function (lv) { return lv.hearts; });
 // 是照旧盘标定的；盘换成 9×9 / 10×10 后，每手能收的株数与连锁都变了，同一条绝对分
 // 在最后一段只剩「三秒动一手也能 S」：实测第 1000 关 42 息、随机合法手 3 秒一手仍得 1021 分，
 // 而 S 线是 950——评级线形同虚设，越到后面越松。
-// 2026-11-20 起，这一门是「达成即收工」：目标达成的瞬间这一局就结束，
-// **不必打满时辰**；没打掉的那部分时辰按 MATCH_CLEAR_K 折成分数。
-// 于是评级问的不再是「时限内攒了多少分」，而是「用掉了几成时辰就做成了目标」。
-//   perMove 是「每手平均得分」的实测值，只用来把「一手」换算成分数尺度；
-//   MATCH_MOVE_SEC 是一手从看到落定的节奏（含 0.4 息动画）；
-//   MATCH_CLEAR_K 是剩余每息折算成几手产出的溢价——大于 1 才有意义：
-//     等于 1 时「早收工」与「打满」完全等价，玩家无感，等于没改。
-//   MATCH_GRADE_X 是三条评级线各自对应的「用掉的时辰比例」，0.40 / 0.65 / 0.90：
-//     S = 四成时辰内做成，A = 六成半，B = 九成；用光时辰才做成是 C。
-// 这个口径把「未达成」自然压到 C 以下：没有剩余时辰可折，总分只剩实际收株，
-// 达不到 B 线。所以本条改动必须与「未达成不算走通」同批落地，否则目标又变成彩头。
-// 标定口径：高手约 75–95% 拿得到 S、常人 5–25%，由 tests/rank.test.js 守。
-const MATCH_MOVE_SEC = 1.2;
+// 2026-11-26 起再改成**步数制**：全局时辰(retire) → 每局给固定手数 + 每步 30 秒思考限时。
+// 原因是时辰制把「想清楚」也算进消耗：10×10 盘上真人找一手要 2–4 秒，
+// 而旧评级线 MATCH_MOVE_SEC=1.2 是按 1.2 秒一手标定的，慢一点的玩家根本走不完预算。
+// 步数制把这两个量拆开：预算是手数（想多久都不掉），30 秒是「别挂着不动」的兜底，
+// 超时才扣一手。失败/失误/提示/挪苗/重排都只吃「等效手数」，不减真实预算。
+//
+// 代数上新旧完全等价，所以三条线的口径与比例一个都不用动：
+//   旧：base = perMove × floor(时辰 / 1.2)，S = base × 1.9
+//   新：base = perMove × floor(步数 / 1)，  S = base × 1.9
+// 把 MATCH_MOVE_SEC 从 1.2 改成 1、五段 duration 从秒换成 ÷1.2 取整的手数，
+// 「用掉四成预算拿 S」这句话连同 tests/rank.test.js 的公式结构一起平移过来。
+// MATCH_MOVE_SEC 保留这个名字与导出，是为了断言结构不动；它的新义是「一手折几个预算单位」，
+// 恒为 1，即 duration 本就是手数，不再做秒→手换算。
+const MATCH_MOVE_SEC = 1;
+// 每步思考限时（秒）：玩家落子后重新计满，30 秒内不落子才算超时扣一手。
+// 它只管节奏、不管评级——所以**不能**进 LEVEL_TIME_KEYS 被段内收紧，
+// 否则越到后面思考时间越短，正好把步数制带来的从容又吃回去。
+const MATCH_STEP_SEC = 30;
 const MATCH_CLEAR_K = 2.5;
 const MATCH_GRADE_X = { s: 0.4, a: 0.65, b: 0.9 };
 const MATCH_LEVELS = [
@@ -488,30 +493,33 @@ const MATCH_LEVELS = [
   // swapAny 是挪苗次数（照畦之外玩家自己挑两株的主动手段）；twist 2 = 圆满段开局二选一劫变。
   // 段一也有目标（收任意色）：终点统一成「做成目标就收工」，入门段不该是唯一一档
   // 没有终点条件的——那样玩家在段一学的就不是这一门的节奏，而是「等表走完」。
-  { cols: 6, rows: 6, kinds: 5, duration: 68, missCost: 1, shuffleCost: 2, hintCost: 1,
+  // duration 现在是**手数预算**（不是秒）：旧表 68/63/57/51/45 息 ÷1.2 取整 = 57/53/48/43/38 手。
+  // 用旧的理论手数做新预算，是为了让「四成手数内做成拿 S」和旧的「四成时辰内做成」是同一个难度。
+  { cols: 6, rows: 6, kinds: 5, duration: 57, missCost: 1, shuffleCost: 2, hintCost: 1,
     perMove: 66, seals: 0, shuffleCap: 99,
     special: 0, goalType: 6, goalColor: 1, goalCount: 100, swapAny: 0, swapCost: 3, twist: 0 },
-  { cols: 7, rows: 7, kinds: 6, duration: 63, missCost: 2, shuffleCost: 3, hintCost: 2,
+  { cols: 7, rows: 7, kinds: 6, duration: 53, missCost: 2, shuffleCost: 3, hintCost: 2,
     perMove: 62, seals: 2, shuffleCap: 99,
     special: 0, goalType: 1, goalColor: 1, goalCount: 18, swapAny: 1, swapCost: 3, twist: 0 },
-  { cols: 8, rows: 8, kinds: 7, duration: 57, missCost: 2, shuffleCost: 3, hintCost: 2,
+  { cols: 8, rows: 8, kinds: 7, duration: 48, missCost: 2, shuffleCost: 3, hintCost: 2,
     perMove: 48, seals: 5, shuffleCap: 99,
     special: 1, goalType: 2, goalColor: 1, goalCount: 5, swapAny: 1, swapCost: 3, twist: 0 },
-  { cols: 9, rows: 9, kinds: 7, duration: 51, missCost: 3, shuffleCost: 4, hintCost: 3,
+  { cols: 9, rows: 9, kinds: 7, duration: 43, missCost: 3, shuffleCost: 4, hintCost: 3,
     perMove: 50, seals: 9, shuffleCap: 3,
     special: 2, goalType: 3, goalColor: 1, goalCount: 5, swapAny: 2, swapCost: 4, twist: 0 },
   // 圆满段的目标换成「引苗落底」：盘上一共几枚灵种，全落到底行才算达成。
   // 它比计数类目标多一层空间判断（清哪一列、什么时候清），这是目标类型轴最后一块空缺。
-  { cols: 10, rows: 10, kinds: 7, duration: 45, missCost: 3, shuffleCost: 4, hintCost: 3,
+  { cols: 10, rows: 10, kinds: 7, duration: 38, missCost: 3, shuffleCost: 4, hintCost: 3,
     perMove: 53, seals: 14, shuffleCap: 3,
     special: 3, goalType: 5, goalColor: 2, goalCount: 2, swapAny: 2, swapCost: 4, twist: 2 },
 ];
 
-// 三条评级线：给定「用掉几成时辰」，算出那一档的分数线。
-// 唯一出处在这里，玩法层（劫变改了时辰之后）也调它，不自己乘系数。
-// 段内时辰收紧时 base 跟着收紧，所以同一条线在段末不会放水。
+// 三条评级线：给定「用掉几成预算」，算出那一档的分数线。
+// 唯一出处在这里，玩法层（劫变改了预算之后）也调它，不自己乘系数。
+// 段内预算收紧时 base 跟着收紧，所以同一条线在段末不会放水。
 function gradeLineOf(q, x) {
   const hours = Math.max(8, (q && q.duration) || 60);
+  // MATCH_MOVE_SEC 恒为 1：duration 已是手数，这一行就是把预算折成手数，不再做秒→手换算。
   const moves = Math.max(1, Math.floor(hours / MATCH_MOVE_SEC));
   const per = (q && q.perMove) || 60;
   const base = Math.max(1, per * moves);
@@ -535,7 +543,7 @@ function matchSLineOf(q) {
 const MATCH_TWISTS = [
   { id: 'lean', name: '劫·寡色', tight: '花色少一种，同色更好凑', loose: '石皮多 4 格，换不动的地方更多' },
   { id: 'flood', name: '劫·繁花', tight: '花色多一种，凑齐三株更难', loose: '符箓提前一档，四连就能出同色符' },
-  { id: 'haste', name: '劫·穷息', tight: '时辰少 5 息', loose: '挪苗多 1 次，花息换一步长手' },
+  { id: 'haste', name: '劫·穷步', tight: '手数少 4 手，落子前要想清楚', loose: '挪苗多 1 次，换一步长手' },
   { id: 'brace', name: '劫·锢元', tight: '石皮多 3 格', loose: '本局目标少四成，专攻一边' },
 ];
 // 同一关两条候选必须固定（重开还是这两条），不同关再换——否则玩家刷同一关就是在抽卡。
@@ -692,12 +700,13 @@ function linkPairsOf(q) {
   return Math.max(1, ((q.cols || 0) * (q.rows || 0)) / 2);
 }
 
-// 局内那行代价句要跟着本段罚息走：以前写死「少 2 息」，改了档就变成假话。
-// 只有三连互换的罚息按档变，其余门沿用 method.tip 这一份真源。
+// 局内那行代价句要跟着本段的降档权重走：以前写死「少 2 息」，改了档就变成假话。
+// 步数制下失误不扣手，只把「等效手数」记进评级——所以这句说的是降档，不是扣预算。
+// 只有三连互换的惩罚按档变，其余门沿用 method.tip 这一份真源。
 function tipFor(method, stageIndex) {
   if (!method) return '';
   if (method.game === 'match') {
-    return '换不出三连少 ' + matchLevelOf(stageIndexLike(stageIndex)).missCost + ' 息';
+    return '换不出三连 · 评级降 ' + matchLevelOf(stageIndexLike(stageIndex)).missCost + ' 手当量';
   }
   return method.tip;
 }
@@ -819,11 +828,11 @@ function sLineText(method, level) {
     // 这里必须用本关那一份（不是段表里的基准值）：段内已按 LEVEL_TIGHTEN 收过一刀，
     // 照表写会和准备页的倒计时差几息。种类 / 罚息 / 封印也一并从 params 取，不再回头读表。
     const q = buildParamsAt(method, level || 1);
-    // 这一门口径变了：做成目标就收工，没打掉的时辰折成分数。
-    // 所以准备页要报的不是「分数线」而是「几条线各要几成时辰」——那才是玩家能自己算的东西。
-    return '本关 ' + q.kinds + ' 色 · ' + q.duration + ' 息 · 换不出少 ' + q.missCost + ' 息'
+    // 这一门口径：做成目标就收工，没打掉的步数折成分数；每步 30 秒只是「别挂着」的兜底。
+    // 所以准备页要报的不是「分数线」而是「几条线各要几成手数」——玩家能自己数的东西。
+    return '本关 ' + q.kinds + ' 色 · ' + q.duration + ' 手 · 每步 30 秒 · 换不出降 ' + q.missCost + ' 手当量'
       + (q.seals ? ' · 封印 ' + q.seals + ' 格' : '')
-      + ' · 做成目标即收工：四成时辰内做成 S，六成半 A，九成 B';
+      + ' · 做成目标即收工：四成手数内做成 S，六成半 A，九成 B';
   }
   if (method.game === 'lights') {
     const lv = lightsLevelOf(levelData.stageOfLevel(Math.max(1, Math.round(level) || 1)));
@@ -1378,6 +1387,8 @@ function levelSpecItems(method, q, limit) {
   // 灵纹连线的总时辰换章时会被盘变大顶上去，能比的是「一对平均给几息」。
   if (method && method.game === 'link' && num(q.duration) && num(q.cols) && num(q.rows)) {
     out.push('每对 ' + (q.duration / linkPairsOf(q)).toFixed(2) + ' 息');
+  } else if (method && method.game === 'match' && num(q.duration)) {
+    out.push('预算 ' + Math.round(q.duration) + ' 手');
   } else if (num(q.duration)) out.push('时辰 ' + Math.round(q.duration) + ' 秒');
   else if (num(q.timeLimit)) out.push('时辰 ' + Math.round(q.timeLimit) + ' 秒');
   return out.slice(0, limit || 3);
@@ -1393,8 +1404,8 @@ function levelSpanItems(method, from, to, limit) {
   const add = function (s) { if (s && out.length < cap) out.push(s); };
   const pair = function (k) {
     if (!num(from[k]) || !num(to[k]) || from[k] === to[k]) return;
-    const a = levelFmt(k, from[k]);
-    const b = levelFmt(k, to[k]);
+    const a = levelFmt(k, from[k], method);
+    const b = levelFmt(k, to[k], method);
     if (a === b) return;
     add(labelOf(method, k) + ' ' + a + ' → ' + b);
   };
@@ -1555,8 +1566,8 @@ function levelDelta(method, level) {
     if (now[k] === prev[k]) return;
     // 格式化之后一样就不再报：毫秒级差 1ms 写出来是「0.82 秒 → 0.82 秒」，
     // 玩家只会以为这游戏在骗他。
-    const a = levelFmt(k, prev[k]);
-    const b = levelFmt(k, now[k]);
+    const a = levelFmt(k, prev[k], method);
+    const b = levelFmt(k, now[k], method);
     if (a === b) return;
     out.push({ key: k, label: lineLabelOf(method, k), text: lineLabelOf(method, k) + ' ' + a + ' → ' + b });
   };
@@ -1669,7 +1680,8 @@ function stageSpec(method, level) {
   const spec = d.filter(function (x) { return x.key !== 'chapter' && x.key !== 'sameBoard'; })
     .map(function (x) { return x.text; }).join(' · ');
   let out = c.label + '（' + c.name + '）· '
-    + (spec ? '本段换了一副：' + spec : '沿用上一副盘，改的是时辰与节奏');
+    + (spec ? '本段换了一副：' + spec
+      : (method && method.game === 'match' ? '沿用上一副盘，改的是手数与节奏' : '沿用上一副盘，改的是时辰与节奏'));
   // 并蒂引的容错按段收（见 LINK_FAIR），它不是「本关变化」，所以不进 levelDelta 的额度，
   // 挂在这一句常驻规格里：玩家一进段就知道这一段的死局与照纹各有几次。
   if (method && method.game === 'link') {
@@ -1678,7 +1690,7 @@ function stageSpec(method, level) {
       + ' · 照纹 ' + (f.hints >= 99 ? '不限' : f.hints + ' 次');
   }
   // 三秀的石皮封印与原价重排是同一性质：按段给、段内恒定，不是「这一关比上一关变了什么」。
-  // 它们比「换不出少 2 息 → 3 息」更像新规则（牌被钉住了，照老习惯换不动），
+  // 它们比「换不出降 2 手当量 → 3 手当量」更像新规则（牌被钉住了，照老习惯换不动），
   // 所以放在常驻规格里，不去抢 levelDelta 那三条额度。
   if (method && method.game === 'match') {
     const q = buildParamsAt(method, level);
@@ -1689,10 +1701,10 @@ function stageSpec(method, level) {
     // 前三段重排不限次，不必单说一句；从第四段起限次了，进段第一眼就得知道还剩几次。
     if (q.shuffleCap < 99) out += ' · 重排原价 ' + q.shuffleCap + ' 次（用尽翻倍）';
     if (q.special) out += ' · ' + levelFmt('special', q.special);
-    // 目标是「做成即收工」——达成那一刻这一局就结束，没打掉的时辰折成分数。
+    // 目标是「做成即收工」——达成那一刻这一局就结束，没打掉的步数折成分数。
     // 这段规格里必须点明它是终点条件，不写玩家会以为目标只是个彩头。
     if (q.goalType) out += ' · ' + levelFmt('goalType', q.goalType) + '（做成即收工）';
-    if (q.swapAny) out += ' · 挪苗 ' + q.swapAny + ' 次（每次 ' + q.swapCost + ' 息）';
+    if (q.swapAny) out += ' · 挪苗 ' + q.swapAny + ' 次（每次降 ' + q.swapCost + ' 手当量）';
     if (q.twist) out += ' · 开局二选一劫变';
   }
   return out;
@@ -1710,11 +1722,13 @@ function lineLabelOf(method, key) {
   if (key === 'lineScale' && method && method.game === 'schulte') return '评级线';
   // 同一个键在不同门里不是一回事：三秀的 kinds 是花色、灵纹连线的是纹种；
   // 滑块让路的 capFactor 是步数预算、推石入位的是推数预算。局内与准备页要说同一句话。
-  if (key === 'kinds' || key === 'capFactor') return labelOf(method, key);
+  if (key === 'kinds' || key === 'capFactor' || key === 'duration') return labelOf(method, key);
   return LEVEL_LABELS[key] || FIELD_LABELS[key] || key;
 }
 
-function levelFmt(key, value) {
+function levelFmt(key, value, method) {
+  // 三秀的 duration 是手数预算，不是秒——同一个键两种口径，跟 labelOf 那里的特判同源。
+  if (key === 'duration' && method && method.game === 'match') return Math.round(value) + ' 手';
   if (key === 'fourRate') return Math.round(value * 100) + '%';
   // 节律判定的格长 / 判定窗都要写到毫秒：一章收 12% 摊到 40 关，每关只动几毫秒，
   // 四舍五入成整数就永远是「500 → 500」，那一行会一直是空的。
@@ -1770,6 +1784,8 @@ function labelOf(method, key) {
   if (key === 'lineScale') return lineLabelOf(method, key);
   // 同一个键在不同门里不是同一件事：三连互换的 kinds 是花色，灵纹连线的是纹样。
   if (key === 'kinds') return method && method.game === 'match' ? '花色' : '灵纹';
+  // 三秀的 duration 是手数预算（步数制），其余门仍是秒表时辰。
+  if (key === 'duration') return method && method.game === 'match' ? '手数' : '时辰';
   if (key === 'cols') return '盘面宽';
   if (key === 'rows') return '盘面高';
   return LEVEL_LABELS[key] || FIELD_LABELS[key] || key;
@@ -1806,12 +1822,11 @@ function stageDetail(method, stageIndex) {
   if (method && method.game === 'match') {
     const lv = matchLevelOf(idx);
     const q = buildParamsAt(method, levelData.stageRange(idx).from);
-    brief = lv.cols + '×' + lv.rows + ' 盘 · ' + lv.kinds + ' 色 · ' + q.duration + ' 息'
-      + ' · 换不出少 ' + lv.missCost + ' 息 · 重排少 ' + lv.shuffleCost + ' 息'
+    brief = lv.cols + '×' + lv.rows + ' 盘 · ' + lv.kinds + ' 色 · ' + q.duration + ' 手 · 每步 30 秒'
+      + ' · 换不出降 ' + lv.missCost + ' 手当量 · 重排降 ' + lv.shuffleCost + ' 手当量'
       + (lv.seals ? ' · 封印 ' + lv.seals + ' 格' : '')
-      // 这一门口径是「做成即收工」，所以这里报时间线而不是分数线：
-      // 玩家能自己算的是「还剩几息还能拿 S」，不是「还差多少分」。
-      + ' · 四成时辰内做成 S';
+      // 这一门口径是「做成即收工」，玩家能自己算的是「还剩几手还能拿 S」。
+      + ' · 四成手数内做成 S';
   } else if (method && method.game === 'lights') {
     const lv = lightsLevelOf(idx);
     brief = lv.size + '×' + lv.size + ' 盘 · 最优 ' + lv.min + '～' + lv.hi + ' 步'
@@ -1929,11 +1944,11 @@ const STAGE_RULES = {
     { at: 5, name: '层叠', short: '化层多一成', desc: '大圆满起每化一层的得分再高一成' },
   ],
   // 十二原则第十一节：阶段新法要「加规则」而不是「减难度」，便利必须留明码代价。
-  // 所以「照畦不扣息 / 重排不扣息」改成「各少扣 1 息」——仍然要付，只是练到后面更划算；
-  // 连锁加成也改成「连锁三层起才额外加成」，得先打出连锁才拿得到，不是白送。
+  // 步数制下代价从「扣息」变成「降评级」：照畦 / 重排仍要付，只是练到后面降得更轻；
+  // 连锁加成也要求「连锁三层起才额外加成」，得先打出连锁才拿得到，不是白送。
   harvest: [
-    { at: 3, name: '照畦', short: '提示少扣 1 息', desc: '大成起「照畦」少扣 1 息（仍要付），卡局时不必再为这两息犹豫' },
-    { at: 5, name: '连收', short: '三层起加成', desc: '大圆满起连锁第 3 层起额外加成、重排少扣 1 息：奖励打出长连锁，不是白送分' },
+    { at: 3, name: '照畦', short: '提示少降 1 手当量', desc: '大成起「照畦」评级少降 1 手当量（仍要付），卡局时不必再为降档犹豫' },
+    { at: 5, name: '连收', short: '三层起加成', desc: '大圆满起连锁第 3 层起额外加成、重排评级少降 1 手当量：奖励打出长连锁，不是白送分' },
   ],
   // 九宫填数同样是黄阶入门：阶段新法只给「看得更清」，不往数独里塞新规则。
   // 密勘只标「这里是唯一空位」，连校只标「同一个数在哪」——两条都不说该填几。
@@ -1979,6 +1994,7 @@ module.exports = {
   LINK_BUDGET: LINK_BUDGET,
   LINK_FAIR: LINK_FAIR,
   MATCH_MOVE_SEC: MATCH_MOVE_SEC,
+  MATCH_STEP_SEC: MATCH_STEP_SEC,
   MATCH_CLEAR_K: MATCH_CLEAR_K,
   MATCH_GRADE_X: MATCH_GRADE_X,
   gradeLineOf: gradeLineOf,
