@@ -154,7 +154,10 @@ function migrateState(raw) {
 function normalizeState(input) {
   const base = createNewState();
   const raw = migrateState(input);
-  if (!raw || typeof raw !== 'object' || !raw.skills) return base;
+  if (!raw || typeof raw !== 'object') return base;
+  // skills 缺失或类型不对时不能再整档早退：那会把 raw 里其余已恢复的字段一起丢掉。
+  // 当空表继续走，其余字段照常读，坏档最多丢功法进度，不再清空整份存档。
+  const skills = raw.skills && typeof raw.skills === 'object' ? raw.skills : {};
   base.worldId = worldData.getWorld(raw.worldId).id;
   base.roleName = typeof raw.roleName === 'string' ? raw.roleName.slice(0, 12) : base.roleName;
   base.portrait = Math.floor(num(raw.portrait, 0)) % 6;
@@ -164,7 +167,7 @@ function normalizeState(input) {
 
   for (let i = 0; i < skillData.SKILLS.length; i += 1) {
     const s = skillData.SKILLS[i];
-    const r = raw.skills[s.id];
+    const r = skills[s.id];
     if (!r) continue;
     base.skills[s.id] = {
       // 入门即得的门类不认旧存档里的 false：这一批从藏经阁改成默认赠送之后，
@@ -197,7 +200,8 @@ function normalizeState(input) {
     base.lastPractice.at = num(raw.lastPractice.at, 0);
   }
   if (raw.buff) {
-    base.buff.multiplier = num(raw.buff.multiplier, 1) || 1;
+    // 写入点最高 1.8（加速 30 分钟）；畸形档写 1e300 时不许把结算翻成 Infinity。
+    base.buff.multiplier = Math.min(3, Math.max(1, num(raw.buff.multiplier, 1) || 1));
     base.buff.until = num(raw.buff.until, 0);
   }
   if (Array.isArray(raw.defeated)) base.defeated = raw.defeated.filter(function (x) { return typeof x === 'string'; });
@@ -310,6 +314,8 @@ function checkDaily(state) {
   const key = todayKey(Date.now());
   // 单调日历：设备时间被调回过去时不重置，避免把已领过的份例再领一次。
   // 只在日期真正前进时才开启新的一天。
+  // 注意：跨设备时钟超前会把日期顶到未来、看起来像「份例锁死」，但这是
+  // 防改钟重领的代价，属口径决策，不能在这里单方面改成「未来就重置」。
   if (key <= state.daily.date) return;
   state.daily.date = key;
   state.daily.count = 0;

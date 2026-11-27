@@ -62,6 +62,8 @@ function settleOffline(state) {
   const now = Date.now();
   const last = num(state.lastSeen, now);
   // 时钟倒退（改系统时间，或云端存档来自时间超前的设备）：不结算、也不把回拨值写进存档。
+  // 时钟倒退（改系统时间，或云端存档来自时间超前的设备）：不结算、也不把回拨值写进存档。
+  // 跨设备时钟超前会暂时不结算离线收益，这是防改钟刷收益的代价，属口径决策。
   if (last > now) {
     state.lastSeen = last;
     checkDaily(state);

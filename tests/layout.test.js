@@ -106,6 +106,23 @@ check('低频信息不占首屏：日志独立成页，诸界与设置默认折�
   assert.ok(!/titlesOpen/.test(profile), '称号仍然埋在人物页折叠区里');
 });
 
+// 假断言比没有断言更坏：闸门是绿的，人却以为有人守着。这些坑都在真项目里出现过——
+// 退格字符正则、同一个正则写两遍、截取长度刚好漏掉目标、纯函数自己和自己比。
+check('关键守卫不是恒真的：正则、截取范围、对比对象都真的能分出对错', function () {
+  const verify = read('scripts/verify.js');
+  const mini = read('tests/minigames.test.js');
+  // 用字符串查找而不是再写一层套娃正则：那正是这些断言当初写软的原因。
+  assert.ok(verify.indexOf('params\\.(cols|rows)\\b') >= 0, '落石尺寸断言没有真正查 params.cols');
+  assert.ok(verify.indexOf('missingHooks') >= 0 && verify.indexOf('syncIn(h)') >= 0,
+    '主题同步断言退化成只数次数');
+  assert.ok(verify.indexOf('function (h) { return !syncIn(h); }') >= 0,
+    '主题同步断言没逐个钩子查');
+  assert.ok(mini.indexOf('const rsh = src.slice(rshStart, rshEnd)') >= 0,
+    '重排断言还在截固定字符数，刚好漏掉函数尾部的判负');
+  assert.ok(mini.indexOf('assert.notDeepStrictEqual(other, first502,') >= 0,
+    '劫变候选断言还是自己和自己比');
+});
+
 check('所有弹窗统一「次操作在左、主操作在右」，原生弹窗按钮不超 4 字', function () {
   let blocks = 0;
   for (const rel of WXML) {
@@ -2637,6 +2654,15 @@ check('文案用现代汉语：仿古词不许进玩家文案', function () {
     blobs.forEach(function (blob, i) {
       assert.ok(blob.indexOf(w) < 0, '玩家文案里还有禁用词「' + w + '」（第 ' + (i + 1) + ' 份），'
         + '口径见 docs/specs/constitution/04-文案口吻规范.md §一');
+    });
+  });
+  // 04 §五 硬规则 3：分享标题不写招揽语。此前只写在文档里，没有任何闸门，
+  // copy.SHARE 与 utils/share.js 各漏了一句，直到人眼扫到才发现。
+  const SOLICIT = ['来试试', '来切磋吗', '快来玩', '快来看', '试试吧'];
+  const shareBlobs = [JSON.stringify(copy.SHARE), read('utils/share.js')];
+  SOLICIT.forEach(function (w) {
+    shareBlobs.forEach(function (blob) {
+      assert.ok(blob.indexOf(w) < 0, '分享标题还有招揽语「' + w + '」，口径见 04-文案口吻规范.md §五');
     });
   });
 });

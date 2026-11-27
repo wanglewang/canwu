@@ -106,6 +106,22 @@ check('存档码导出导入往返一致', function () {
 check('非法存档码被拒绝', function () {
   assert.strictEqual(game.importSaveCode('hello').ok, false);
   assert.strictEqual(game.importSaveCode('CANWU1:{broken').ok, false);
+  // JSON 能解析不等于是一份存档：CANWU1:null 曾让 normalizeState 早退成全新档，
+  // 玩家一点确认，本机与云端进度一起被清。这类码必须在门口就拒。
+  for (const bad of ['CANWU1:null', 'CANWU1:[]', 'CANWU1:{"skills":null}', 'CANWU1:"x"']) {
+    assert.strictEqual(game.importSaveCode(bad).ok, false, '非存档码被当成存档接收：' + bad);
+  }
+  // 坏档即使绕过导入（云端 hydrate）也不该整档清空：非 skills 字段照常恢复。
+  const n = game.normalizeState({ version: game.SAVE_VERSION, skills: null,
+    roleName: '青云散人', resources: { qi: 77, stone: 99 } });
+  assert.strictEqual(n.roleName, '青云散人', 'skills 坏掉把整档身份也丢了');
+  assert.strictEqual(n.resources.qi, 77, 'skills 坏掉把灵力也丢了');
+  // 加速倍率写入点最高 1.8；畸形档写 Infinity 不许把结算翻成 Infinity。
+  const s = game.createNewState();
+  s.buff = { multiplier: Infinity, until: Date.now() + 60000 };
+  const back = game.normalizeState(s);
+  assert.ok(Number.isFinite(back.buff.multiplier) && back.buff.multiplier <= 3,
+    '畸形加速倍率没夹住：' + back.buff.multiplier);
 });
 
 check('每日份例不会因时钟回拨而重开', function () {

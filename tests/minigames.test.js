@@ -3249,8 +3249,19 @@ check('三连互换：石皮封印格换不动、不扣手、收走才解封，�
       '重排用尽之后没有翻倍');
     assert.ok(/if \(shufflesLeft > 0\) shufflesLeft -= 1/.test(src),
       '重排没有计次');
-    const rsh = src.slice(src.indexOf('function reshuffle'), src.indexOf('function reshuffle') + 900);
-    assert.ok(!/finishOnce\(|finish\(/.test(rsh), '重排用尽把这一局判负了（死局是运气，不许罚运气）');
+    // 原写法只截 900 字符，刚好停在函数末尾的 finish() 之前，断言恒真。
+    // 按完整函数体查「无条件判负」；息尽走 finish() 是全局正常收场，不算额外罚运气。
+    const rshStart = src.indexOf('function reshuffle');
+    // match.js 的下一个函数不叫 marked：按大括号配对找 reshuffle 的真实结尾，
+    // 不用固定字符数（原写法截 900 字符正好漏掉函数尾部）。
+    let rshEnd = rshStart;
+    let depth = 0;
+    for (let i = src.indexOf('{', rshStart); i >= 0; i += 1) {
+      if (src[i] === '{') depth += 1;
+      else if (src[i] === '}') { depth -= 1; if (depth === 0) { rshEnd = i + 1; break; } }
+    }
+    const rsh = src.slice(rshStart, rshEnd);
+    assert.ok(!/finishOnce\(/.test(rsh), '重排用尽把这一局判负了（死局是运气，不许罚运气）');
   } finally { restoreClock(); }
 });
 
@@ -4467,9 +4478,13 @@ check('三连互换：九类方向真的生效，不是参数表里的摆设', f
     assert.ok(vm5.cells.some(function (c) { return c.crest; }), '选完劫变盘上还没有牌');
     assert.ok(data.matchTwistChoices(502).some(function (x) { return x.id === pick.id; }),
       '选到了不在候选里的劫变');
-    // 同一关重开还是那两条：随机只决定摆哪两条，不决定玩家抽到哪条。
-    assert.deepStrictEqual(data.matchTwistChoices(502).map(function (x) { return x.id; }),
-      data.matchTwistChoices(502).map(function (x) { return x.id; }), '同一关候选随重开变了');
+    // 候选由关号确定，不靠随机数。原断言两次调用同一个纯函数、自己和自己比，
+    // 恒真；改成确认不同关给出不同候选，同时确认同一关重复调用结果一致。
+    const first502 = data.matchTwistChoices(502).map(function (x) { return x.id; });
+    const again502 = data.matchTwistChoices(502).map(function (x) { return x.id; });
+    const other = data.matchTwistChoices(503).map(function (x) { return x.id; });
+    assert.deepStrictEqual(again502, first502, '同一关候选随重开变了');
+    assert.notDeepStrictEqual(other, first502, '不同关候选一样：关号没进候选算法');
     c5.destroy();
   } finally { restoreClock(); }
 });

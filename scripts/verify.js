@@ -743,7 +743,12 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
 {
   const blocksMod = gameMod.MODULES.blocks;
   const blocksSrc = fs.readFileSync(path.join(ROOT, 'minigames/blocks.js'), 'utf8');
-  if (/ps*.s*(cols|rows)/.test(blocksSrc)) {
+  // 原写法里 \b 被写成了真实的退格字符，这条守卫从落地起就没匹配过任何东西。
+  // 落石盘面固定 10×20，不许从参数读 cols/rows。
+  // 只扫代码行：注释里写着「不接 params.cols / rows」也会被字面量正则命中，
+  // 那是规则说明，不是真在读参数。
+  const blocksCode = blocksSrc.split(/\r?\n/).filter(function (l) { return !/^\s*(\/\/|\*)/.test(l); }).join('\n');
+  if (/params\.(cols|rows)\b/.test(blocksCode)) {
     errors.push('落石垒基从 params 读盘面尺寸（标准场地固定 10×20，盘面不是难度旋钮）');
   } else checked += 1;
   if (!Array.isArray(blocksMod.GRAVITY_MS) || blocksMod.GRAVITY_MS.length !== 15) {
@@ -940,7 +945,10 @@ practiceMod.BIGGEST_LEVELS.forEach(function (lv, i) {
     const body = /function reshuffle\(\)[\s\S]*?\n  }/.exec(linkSrc)[0];
     const fair = practiceMod.LINK_FAIR;
     const freeOk = fair[0].shuffleCost === 0 && fair[1].shuffleCost === 0 && fair[2].shuffleCost === 0;
-    if (/finishOnce\('F'/.test(body) || /finishOnce\('F'/.test(body)) {
+    // 原写法两个分支是同一个正则（复制粘贴），等价于只查一次。
+    // 只拦「无条件判负」finishOnce('F')：reshuffle 末尾那种息尽收场调用 finish()
+    // 是全局唯一的正常收场路径，不是「重排用尽就罚运气」，不能误伤。
+    if (/finishOnce\('F'/.test(body)) {
       errors.push('link.js 的自移用尽会判负：死局是运气，罚到 F 就是罚运气');
     } else if (!/const over = reshufflesLeft <= 0/.test(body) || !/\* \(over \? 2 : 1\)/.test(body)) {
       errors.push('link.js 的自移没做成「原价 N 次、用尽翻倍」：有限次数的代价只剩一种写法');
@@ -1675,13 +1683,16 @@ for (const pagePath of appJson.pages) {
     errors.push(pagePath + ' 的根节点没挂 pg--t-{{themeTone}}，这一页不会跟着皮肤换');
   } else checked += 1;
   const jsSrc = fs.readFileSync(pageJs, 'utf8');
-  // 上面那句「onLoad/onShow 都同步」此前只查了「出现过一次」：长文页只有 onLoad，
-  // 从子页返回时原生栏就停在旧色，闸门照样绿。两处都要有，才算真同步。
-  const syncCalls = (jsSrc.match(/pageTheme\.syncPage\(this\)/g) || []).length;
-  if (syncCalls < 2) {
+  // 只数调用次数不算数：两处都写在 onLoad 里也能混过。要逐钩子查函数体，
+  // 且同时兼容 onLoad: function () {} 与 login 页的 onLoad() {} 两种写法。
+  const syncIn = function (hook) {
+    const m = new RegExp(hook + '\\s*(?::\\s*function\\s*\\([^)]*\\)|\\([^)]*\\))\\s*\\{([\\s\\S]*?)\\n\\s*\\}').exec(jsSrc);
+    return !!m && /pageTheme\.syncPage\(this\)/.test(m[1]);
+  };
+  const missingHooks = ['onLoad', 'onShow'].filter(function (h) { return !syncIn(h); });
+  if (missingHooks.length) {
     themeSyncAll = false;
-    errors.push(pagePath + ' 的 pageTheme.syncPage(this) 只有 ' + syncCalls
-      + ' 处：onLoad 与 onShow 都要同步皮肤');
+    errors.push(pagePath + ' 的 ' + missingHooks.join('/') + ' 没调 pageTheme.syncPage(this)：原生栏不会跟着皮肤换');
   } else checked += 1;
 }
 if (themeSyncAll) observe('SC-UI-THEME-SYNC', '每页根节点挂了主题令牌且 onLoad/onShow 都同步皮肤');
@@ -1959,7 +1970,10 @@ if (!fs.existsSync(checklistPath)) {
   else checked += 1;
   // 兑换口径：灵石单向兑灵力。这条必须写进清单，而且要带上汇率——
   // 反向（灵力换灵石）永远不开：那是「挂机时长直接印钱」的入口，比数值失衡严重得多。
-  if (doc.indexOf('灵石可单向兑灵力') < 0 || doc.indexOf(String(economyData.QI_PER_STONE)) < 0) {
+  // 原写法只查数字「100」出没出现：文档里随便一个 1000 关就能让它通过，
+  // 汇率本身写错也无人拦。改成查「1 枚 = 100 点」这个完整口径。
+  const exchangeLine = '1 枚 = ' + economyData.QI_PER_STONE + ' 点';
+  if (doc.indexOf('灵石可单向兑灵力') < 0 || doc.indexOf(exchangeLine) < 0) {
     errors.push('自检清单没写「灵石可单向兑灵力（1 枚 = ' + economyData.QI_PER_STONE + ' 点），灵力换不回灵石」的兑换口径');
   } else checked += 1;
   // 结算按钮文案抄自 copy.js 真源，不硬编码——文案换词时断言自动跟随，

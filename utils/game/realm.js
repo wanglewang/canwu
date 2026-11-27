@@ -169,6 +169,11 @@ function importSaveCode(code) {
   if (typeof code !== 'string' || code.indexOf(SAVE_PREFIX) !== 0) return { ok: false, msg: '存档码格式不对' };
   try {
     const obj = JSON.parse(code.slice(SAVE_PREFIX.length));
+    // 能解析不等于是一份存档：CANWU1:null 曾让 normalizeState 早退成全新档，
+    // 导入确认后本机与云端一起被清。先看有没有 skills，再交给归一化。
+    if (!obj || typeof obj !== 'object' || !obj.skills || typeof obj.skills !== 'object') {
+      return { ok: false, msg: '存档码里没有进度，拒绝导入' };
+    }
     return { ok: true, state: normalizeState(obj) };
   } catch (e) {
     return { ok: false, msg: '存档码无法解析' };

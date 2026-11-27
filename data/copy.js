@@ -225,7 +225,7 @@ const SHARE = {
     help: '修仙入门：规则与术语一页说清',
     // 参悟页战场报：{skill} 是功法正名，{realm} / {power} 是分享者的身份，
     // 由页面用引擎现值填。外人哪怕不认识功法名，也看得懂「筑基 · 战力 150」。
-    practice: '我在参悟「{skill}」· {realm} 战力 {power}，来试试？',
+    practice: '我在参悟「{skill}」· {realm} 战力 {power}',
 };
 
 function termOf(key) {

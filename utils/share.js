@@ -11,7 +11,7 @@ const HOME = '/pages/index/index?from=share';
 
 function titleOf(state) {
   const ov = engine.getOverview(state);
-  return '我在《' + copy.BRAND.name + '》修到「' + ov.realmName + '」，战力 ' + ov.power + '，来切磋吗？';
+  return '我在《' + copy.BRAND.name + '》修到「' + ov.realmName + '」，战力 ' + ov.power;
 }
 
 function appMessage(state) {

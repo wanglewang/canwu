@@ -232,6 +232,10 @@ Page({
     this.lastTones = [];
     this.lastClearKey = 0;
     this.sparkTimer = null;
+    // onLoad 失败分支的 900ms 自动返回：页面若已被手动关掉，这个定时器必须撤，
+    // 否则会多退一层，把玩家从上一页也带走。
+    this.leaveTimer = null;
+    this.invalidEntry = false;
     // 探禁：上次演过的盘面特效序号与撤场定时器。
     this.lastMineFxKey = 0;
     this.mineFxTimer = null;
@@ -262,14 +266,16 @@ Page({
       const info = engine.breakthroughInfo(store.get());
       if (!info.available) {
         toast(info.maxed ? '已是当前最高境界' : '战力还不够，先去参悟');
-        setTimeout(function () { wx.navigateBack(); }, 900);
+        this.invalidEntry = true;
+        this.leaveTimer = setTimeout(function () { wx.navigateBack(); }, 900);
         return;
       }
     }
     const s = skillData.getSkill(this.skillId);
     if (this.mode === 'practice' && (!s || !store.get().skills[this.skillId] || !store.get().skills[this.skillId].unlocked)) {
       toast('暂未习得这门功法');
-      setTimeout(function () { wx.navigateBack(); }, 900);
+      this.invalidEntry = true;
+      this.leaveTimer = setTimeout(function () { wx.navigateBack(); }, 900);
       return;
     }
     this.setData({ mode: this.mode, showDifficulty: this.mode === 'practice' });
@@ -279,7 +285,7 @@ Page({
 
   onShow: function () {
     pageTheme.syncPage(this);
-    if (!this.pageAlive || !this.mode) return;
+    if (!this.pageAlive || !this.mode || this.invalidEntry) return;
     this.refresh();
     if (this.needsRebuild && !this.data.showResult) {
       this.needsRebuild = false;
@@ -390,6 +396,7 @@ Page({
     this.closeAbandonedRound();
     this.disarmLeaveGuard();
     if (this.sparkTimer) { clearTimeout(this.sparkTimer); this.sparkTimer = null; }
+    if (this.leaveTimer) { clearTimeout(this.leaveTimer); this.leaveTimer = null; }
     this.stopTeach();
     if (this.controller) this.controller.destroy();
     this.controller = null;
@@ -675,6 +682,10 @@ Page({
 
   buildGame: function () {
     if (this.controller) this.controller.destroy();
+    // 演出序号归零：连开两局时上一局末帧的键值还留着，新局第一次消行/连线
+    // 若碰巧同号就被当成「演过了」吞掉。与 onLoad 的初始化同一组。
+    this.lastLineKey = 0;
+    this.lastLinkKey = 0;
     // 新一局默认不是「主动结束」：这个标记只由 onAbandon 置位，结算读完即失效。
     // 同一条 F 有两种来历——主动退出（整局作废）与失败（一局打完但没成），
     // 处置完全不同（一个作废、一个照常结算），所以必须在页面上分开。
