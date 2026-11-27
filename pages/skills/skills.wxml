@@ -12,7 +12,7 @@
   <view wx:if="{{tab === 'shop'}}" class="imm-panel sk-wallet">
     <view class="imm-stats">
       <view class="imm-stat">
-        <text class="imm-stat__label">灵 气</text>
+        <text class="imm-stat__label">灵 力</text>
         <text class="imm-stat__value">{{qi}}</text>
       </view>
       <view class="imm-stat">

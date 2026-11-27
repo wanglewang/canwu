@@ -978,6 +978,9 @@ check('getTopSkills 与 getSkillList 报同一套段位与关数（人物页照�
     assert.strictEqual(item.stageName, same.stageName, item.name + ' 段名与功法列表不一致');
     assert.strictEqual(item.stageLevel, same.stageLevel, item.name + ' 关数与功法列表不一致');
     assert.strictEqual(item.levelTotal, same.levelTotal, item.name + ' 关数上限与功法列表不一致');
+    // 品阶中文名是人物页「主修 · X 黄阶」那一行读的字段。
+    // 曾经只回 stageName 一套、人物页照抄功法列表的 tierName，整行渲染成 undefined。
+    assert.strictEqual(item.tierLabel, same.tierLabel, item.name + ' 品阶中文名与功法列表不一致');
   }
 });
 

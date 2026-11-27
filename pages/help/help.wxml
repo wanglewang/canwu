@@ -19,7 +19,7 @@
   <view class="help-sec">
     <view class="help-sec__head pressable" hover-class="pressable--on" bindtap="onToggleTerms">
       <text class="help-sec__idx">◇</text>
-      <text class="help-sec__title grow">名词速查</text>
+      <text class="help-sec__title grow">{{copy.sections.glossary}}</text>
       <text class="help-sec__arrow">{{termsOpen ? '−' : '+'}}</text>
     </view>
     <view wx:if="{{termsOpen}}" class="help-sec__body">

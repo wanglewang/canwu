@@ -327,7 +327,7 @@ function effectNoteOf(detail) {
   if (!detail) return '';
   if (!detail.unlocked) return '习得后按档位逐级发挥：入门 25% → 圆满满额';
   const pct = detail.effectPercent || 0;
-  if (pct <= 0) return '尚未走通一关 · 走通第 1 关即开始发挥';
+  if (pct <= 0) return '还没走通一关 · 走通第 1 关即开始发挥';
   if (pct >= 100) return '已满额发挥';
   return detail.rankName + ' · 已发挥 ' + pct + '%';
 }
@@ -596,12 +596,16 @@ function getTopSkills(state, count) {
     const rec = state.skills[s.id];
     if (!rec || !rec.unlocked) continue;
     const stage = stageOfRec(rec);
+    // 人物页要写「主修 · 功法名 黄阶」：这里读的是功法品阶（黄阶），
+    // 不是段位（入门）。曾照抄功法列表的 tierName，页面渲染成 undefined。
+    const skillTier = practiceData.tierOf(s.tier);
     arr.push({
       id: s.id,
       name: s.name,
       type: s.type,
       cleared: rec.cleared,
       rankName: worldData.TIERS[tierIndexOfCleared(rec.cleared)].name,
+      tierLabel: skillTier.label,
       color: worldData.TIERS[tierIndexOfCleared(rec.cleared)].color,
       stageName: stage.stage.name,
       stageLevel: stage.cleared,

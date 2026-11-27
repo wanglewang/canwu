@@ -4430,7 +4430,26 @@ check('三连互换：九类方向真的生效，不是参数表里的摆设', f
     assert.ok(/挪苗 0/.test(vm2.activeLabel), '挪苗次数没减少');
     c2.destroy();
 
-    // 本局变数：圆满段先二选一，选完才发盘、才开始走时辰；S 线随改后的时辰现算。
+    // 最后一手挪苗：不得当场收场。普通落子扣完最后一手要等 stageFall → settle
+    // 把连锁与灵种落底演完才结算；挪苗曾在这里提前 finish()，bag.clear() 取消演出，
+    // 同一手棋在两条输入路径上给出相反的 goalMissed。
+    let lastVm = null;
+    let lastFinished = 0;
+    const cLast = mod.create({
+      params: Object.assign({}, data.buildParamsAt(m, 11), { seals: 0, duration: 1, swapAny: 1 }),
+      difficulty: 1, perks: { tier: 0 },
+      tip: 't', theme: {}, render: function (v) { lastVm = v; },
+      finish: function () { lastFinished += 1; },
+    });
+    cLast.start();
+    const lastMove = mod.findMove(lastVm.match.board.slice(), lastVm.match.cols, lastVm.match.rows);
+    assert.ok(lastMove, '最后一手场景开局没有可行换位');
+    cLast.active();
+    cLast.tap(lastMove[0]); cLast.tap(lastMove[1]);
+    assert.strictEqual(lastFinished, 0, '最后一手挪苗当场结算了：连锁与灵种落底的演出被取消');
+    cLast.destroy();
+
+    // 本局变数：圆满段先二选一，选完才发盘、才开始走手数；S 线随改后的手数现算。
     let vm5 = null;
     const c5 = mod.create({
       params: data.buildParamsAt(m, 502), difficulty: 1, perks: { tier: 0 },

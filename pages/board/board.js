@@ -20,6 +20,7 @@ Page({
     ov: null,
     rows: [],
     myRank: 0,
+    rankText: copy.formatRank(0),
     rival: null,
     loading: true,
     error: '',
@@ -52,6 +53,8 @@ Page({
     this.setData({
       rows: rows.slice(0, 10),
       myRank: myRank,
+      // 名次写法走文案真源：主页已经用 copy.formatRank，这里曾自己拼一遍还漏了「名」。
+      rankText: copy.formatRank(myRank),
       rival: social.pickRival(rows, '', engine.computePower(state)),
       error: result.board.ok ? '' : (result.board.message || '榜单暂不可用'),
       loading: false,

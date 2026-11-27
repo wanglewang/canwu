@@ -23,7 +23,6 @@ function decorate(list) {
       // 起手 / 守势是百分数，养息是灵力点数：两套单位在一行里必须一眼分得开。
       val: x.act === 'qi' ? '省 ' + x.relief + ' 灵力' : '+' + x.percent + '%',
       tier: x.tier || '',
-      line: x.line || '',
       on: !!x.on,
     });
   }
@@ -61,6 +60,5 @@ Component({
     // 默认收起：三式已经在牌上摆着，候选池是「想换才展开」的低频操作。
     onToggle: function () { this.setData({ open: !this.data.open }); },
     onPick: function (event) { this.triggerEvent('pick', { id: event.currentTarget.dataset.id }); },
-    noop: function () {},
   },
 });

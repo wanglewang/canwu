@@ -662,9 +662,13 @@ function create(ctx) {
     if (goalDone) { finishClear(); return; }
     const total = Math.max(0, score - Math.round(penalty * clearRate()));
     const grade = C.gradeBy(total, sLimit, aLimit, bLimit);
-    finishOnce(grade, '收 ' + harvested + ' 株 · 最高连锁 ' + maxChain + ' · 无效互换 ' + mistakes + ' · 手数已尽 · 目标未达成', {
+    // 本关没配目标时（goalType 0，如圆满段引苗放不下退回无目标）没有「漏目标」这回事，
+    // summary 要跟 goalMissed 同一口径：否则玩家会读到「目标未达成」却又推进一关。
+    const missed = !!goalType;
+    finishOnce(grade, '收 ' + harvested + ' 株 · 最高连锁 ' + maxChain + ' · 无效互换 ' + mistakes + ' · 手数已尽'
+      + (missed ? ' · 目标未达成' : ''), {
       score: total,
-      goalMissed: !!goalType,
+      goalMissed: missed,
     });
   }
 
@@ -942,7 +946,9 @@ function create(ctx) {
       if (fxB) triggerFx(board, cols, rows, a, kinds, va).forEach(function (i) { all[i] = true; });
       busy = true;
       stageClear(Object.keys(all).map(Number), 1);
-      if (stepsLeft <= 0) finish();
+      // 不在这里 finish()：和普通落子同一条路——让 stageFall → settle 把连锁、
+      // 灵种落底演完，收场统一由 settle 末尾按 stepsLeft 兜底。
+      // 曾在这里提前收场，bag.clear() 会取消已排好的演出，最后一手挪苗能成的目标被判成没成。
       return;
     }
     // 灵种比石皮还硬：它不能换，也不能被别人换走，只能靠下方清空后自己往下掉。
@@ -1154,7 +1160,7 @@ function lines(p) {
             : goal === 6 ? '本局目标：收灵草 ' + goalN + ' 株' : '';
   return {
     // 终点口径写在这一行：做成目标就收工，没打掉的步数折成分数，慢慢磨到手数尽只会掉档。
-    rule: '做成目标即收工，未用完的手数折成分数（无效互换不扣手、只降评级；每步 30 秒，超时才扣一手；手数尽仍未做成算未走通）',
+    rule: '做成目标即收工，未用完的手数折成分数（无效互换不扣手、只降评级；每步 ' + MATCH_STEP_SEC + ' 秒，超时才扣一手；手数尽仍未做成算未走通）',
     items: [
       'S：四成手数内做成',
       'A：六成半内做成',

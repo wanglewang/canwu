@@ -13,7 +13,7 @@
   <view class="help-sec">
     <view class="help-sec__head pressable" hover-class="pressable--on" bindtap="onToggleWorld">
       <text class="help-sec__idx">◇</text>
-      <text class="help-sec__title grow">诸 界</text>
+      <text class="help-sec__title grow">诸界</text>
       <text class="help-sec__arrow">{{worldOpen ? '−' : '+'}}</text>
     </view>
     <view wx:if="{{worldOpen}}" class="help-sec__body">

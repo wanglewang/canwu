@@ -1887,8 +1887,8 @@ Page({
       // 只在真被修正时才展开，标准档位不啰嗦。
       if (r.methodQiFactor !== 1 || r.tierQiCost > 1 || r.realmOverCost > 1 || r.qiSave > 0) {
         notes.push('本局耗气 ' + r.qiCost + '：' + r.stageName + '段基数'
-          + (r.methodQiFactor !== 1 ? ' × 时长 ' + r.methodQiFactor.toFixed(2) : '')
-          + (r.tierQiCost > 1 ? ' × ' + r.tierLabel + '品阶 ' + r.tierQiCost.toFixed(2) : '')
+          + (r.methodQiFactor !== 1 ? ' × 节奏 ' + r.methodQiFactor.toFixed(2) : '')
+          + (r.tierQiCost > 1 ? ' × ' + r.tierLabel + ' ' + r.tierQiCost.toFixed(2) : '')
           + (r.realmOverCost > 1 ? ' × 境界超限 ' + r.realmOverCost.toFixed(1) : '')
           + (r.qiSave > 0 ? '，心法省 ' + Math.round(r.qiSave * 100) + '%' : '')
           + '，悟性再省一截。');
@@ -2088,7 +2088,7 @@ Page({
     const data = card.dataOf(store.get(), engine);
     if (!data) { wx.showToast({ title: '当前环境不支持生成图片', icon: 'none' }); return; }
     card.makeCard('shareCanvas', data, function () {
-      wx.showToast({ title: '生成图片失败，可长按卡片截图', icon: 'none' });
+      wx.showToast({ title: '生成图片失败，可长按玉简截图', icon: 'none' });
     });
   },
 

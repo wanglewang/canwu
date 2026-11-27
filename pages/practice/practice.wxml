@@ -517,7 +517,7 @@
   <view wx:if="{{vm.twistPick && vm.phase === 'twist'}}" class="mask">
     <view class="modal">
       <text class="modal__title">本局劫变 · 二选一</text>
-      <text class="modal__sub">一紧一松，选完才发盘、才开始走时辰</text>
+      <text class="modal__sub">一紧一松，选完才发盘、才开始走手数</text>
       <view wx:for="{{vm.twistPick}}" wx:key="id" class="twist-choice" data-id="{{item.id}}" bindtap="onPickTwist">
         <text class="twist-choice__name">{{item.name}}</text>
         <text class="twist-choice__line">紧 · {{item.tight}}</text>
@@ -612,7 +612,7 @@
       <text wx:if="{{settlePhase >= 4 && result.canStay}}" class="text-link text-link--muted settle__again pressable" hover-class="pressable--on" catchtap="onStay">{{copy.actions.stay}} ›</text>
       <text wx:if="{{settlePhase >= 4}}" class="text-link text-link--muted settle__again pressable" hover-class="pressable--on" catchtap="onMakeCard">{{copy.actions.makeCard}} ›</text>
     </view>
-    <text wx:if="{{settlePhase < 4}}" class="settle__skip">点任意处跳过演出</text>
+    <text wx:if="{{settlePhase < 4}}" class="settle__skip">轻点任意处跳过演出</text>
   </view>
 
   <view class="mask" wx:elif="{{showResult && result}}">

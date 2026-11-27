@@ -49,7 +49,7 @@
         <text class="imm-row__name">{{copy.sections.battleCode}}</text>
         <text class="imm-row__sub">不用同时在线：给对方一个码，打的是他的镜像</text>
       </view>
-      <text class="imm-row__value">{{codeOpen ? '收起' : '展开'}}</text>
+      <text class="imm-row__value">{{codeOpen ? copy.actions.collapse : copy.actions.expand}}</text>
     </view>
   </view>
 

@@ -86,7 +86,7 @@
         <text class="fold-row__desc">{{attrsLine}}</text>
         <text class="fold-row__desc">战力码 {{myCode}}</text>
         <view class="btn-row btn-row--tight">
-          <button class="imm-btn--ghost imm-btn--sm" bindtap="onMakeCard">生成卡片图</button>
+          <button class="imm-btn--ghost imm-btn--sm" bindtap="onMakeCard">{{copy.actions.makeCard}}</button>
           <button class="imm-btn--ghost imm-btn--sm" bindtap="onCopyCode">复制战力码</button>
         </view>
         <view class="link-row">

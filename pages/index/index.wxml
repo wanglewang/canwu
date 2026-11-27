@@ -165,7 +165,7 @@
         <text class="tiny muted exchange__hint">{{exchange.hint}}</text>
       </view>
       <view class="modal__actions">
-        <button class="imm-btn imm-btn--ghost" bindtap="onCloseExchange">收起</button>
+        <button class="imm-btn imm-btn--ghost" bindtap="onCloseExchange">{{copy.actions.collapse}}</button>
         <button class="imm-btn" disabled="{{!exchange.ready}}" bindtap="onExchange">兑 1 枚 · +{{exchange.rate}}</button>
       </view>
     </view>

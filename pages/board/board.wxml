@@ -2,7 +2,7 @@
   <view class="imm-panel">
     <view class="imm-panel__head">
       <text class="imm-panel__label">{{copy.sections.myPower}}</text>
-      <text class="imm-chip">{{myRank > 0 ? '榜上第 ' + myRank : '暂未上榜'}}</text>
+      <text class="imm-chip">{{rankText}}</text>
     </view>
     <text class="imm-realm">{{ov ? ov.power : 0}}</text>
     <view class="imm-strip">
@@ -22,7 +22,7 @@
   </view>
   <view wx:elif="{{error}}" class="state state--inline">
     <text class="state__desc">{{error}}</text>
-    <text class="text-link" bindtap="onRefresh">重试</text>
+    <text class="text-link" bindtap="onRefresh">{{copy.actions.retry}}</text>
   </view>
   <!-- 榜是空的要说一句，不能只剩一个「前 十」标题下面一片白：
        文案原文一直在 copy.emptyBoard 里躺着，没人接。 -->

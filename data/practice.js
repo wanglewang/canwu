@@ -830,7 +830,7 @@ function sLineText(method, level) {
     const q = buildParamsAt(method, level || 1);
     // 这一门口径：做成目标就收工，没打掉的步数折成分数；每步 30 秒只是「别挂着」的兜底。
     // 所以准备页要报的不是「分数线」而是「几条线各要几成手数」——玩家能自己数的东西。
-    return '本关 ' + q.kinds + ' 色 · ' + q.duration + ' 手 · 每步 30 秒 · 换不出降 ' + q.missCost + ' 手当量'
+    return '本关 ' + q.kinds + ' 色 · ' + q.duration + ' 手 · 每步 ' + MATCH_STEP_SEC + ' 秒 · 换不出降 ' + q.missCost + ' 手当量'
       + (q.seals ? ' · 封印 ' + q.seals + ' 格' : '')
       + ' · 做成目标即收工：四成手数内做成 S，六成半 A，九成 B';
   }
@@ -1822,7 +1822,7 @@ function stageDetail(method, stageIndex) {
   if (method && method.game === 'match') {
     const lv = matchLevelOf(idx);
     const q = buildParamsAt(method, levelData.stageRange(idx).from);
-    brief = lv.cols + '×' + lv.rows + ' 盘 · ' + lv.kinds + ' 色 · ' + q.duration + ' 手 · 每步 30 秒'
+    brief = lv.cols + '×' + lv.rows + ' 盘 · ' + lv.kinds + ' 色 · ' + q.duration + ' 手 · 每步 ' + MATCH_STEP_SEC + ' 秒'
       + ' · 换不出降 ' + lv.missCost + ' 手当量 · 重排降 ' + lv.shuffleCost + ' 手当量'
       + (lv.seals ? ' · 封印 ' + lv.seals + ' 格' : '')
       // 这一门口径是「做成即收工」，玩家能自己算的是「还剩几手还能拿 S」。

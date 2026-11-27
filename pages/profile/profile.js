@@ -140,7 +140,7 @@ Page({
       return { id: w.id, label: w.label, name: w.name, enabled: w.enabled, intro: w.intro, style: w.style };
     });
     const attrsLine = ov.attrs.map(function (a) { return a.name + ' ' + a.value; }).join(' · ')
-      + ' · 灵力上限 ' + ov.qi + ' / ' + ov.qiMax;
+      + ' · 灵力 ' + ov.qi + ' / ' + ov.qiMax;
     const sync = syncView(store.getSyncStatus());
     const achievements = engine.getAchievements(state);
     const sorted = achievements.slice().sort(function (a, b) {
@@ -178,7 +178,7 @@ Page({
       off: false,
     }]).concat(top.map(function (s) {
       return {
-        text: '主修 · ' + s.name + ' ' + s.tierName,
+        text: '主修 · ' + s.name + ' ' + s.tierLabel,
         mark: '·',
         markCls: 'imm-check__mark--ref',
         off: false,
@@ -343,7 +343,7 @@ Page({
       ov.equippedTitleName + ' / ' + ov.realmName + ' / 战力 ' + ov.power,
       this.data.attrsLine,
       this.data.statsLine,
-      '代表功法：' + this.data.topSkills.map(function (s) { return s.name + '（' + s.tierName + '）'; }).join('、'),
+      '代表功法：' + this.data.topSkills.map(function (s) { return s.name + '（' + s.tierLabel + '）'; }).join('、'),
       '战力码 ' + this.data.myCode,
       copy.BRAND.slogan,
     ];
@@ -362,7 +362,7 @@ Page({
     const data = card.dataOf(store.get(), engine);
     if (!data) { toast('当前环境不支持生成图片'); return; }
     card.makeCard('shareCanvas', data, function () {
-      toast('生成图片失败，可长按卡片截图');
+      toast('生成图片失败，可长按玉简截图');
     });
   },
 
