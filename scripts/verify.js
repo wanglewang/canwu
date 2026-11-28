@@ -47,6 +47,17 @@ function engineSrc() {
     .join('\n');
 }
 
+// 参悟页同引擎：页面目录下的 js 拼起来再匹配。结算演出（settle-view）、特效层（fx-layer）、
+// 选关器（level-picker）都是从 practice.js 拆出去的，断言若只认 practice.js 一个文件，
+// 搬一次就红一次——而红的不是代码，是断言找错了地方。
+function practicePageSrc() {
+  const dir = path.join(ROOT, 'pages', 'practice');
+  return fs.readdirSync(dir)
+    .filter(function (f) { return f.endsWith('.js'); })
+    .map(function (f) { return fs.readFileSync(path.join(dir, f), 'utf8'); })
+    .join('\n');
+}
+
 // 1. 所有 JSON 可解析
 for (const f of files.filter(function (x) { return x.endsWith('.json'); })) {
   try {
@@ -477,7 +488,7 @@ if (!/makeCard: '生成道牒'/.test(fs.readFileSync(path.join(ROOT, 'data/copy.
 
 // 8a-5. 本局进境：结算卡正面必须把「这一局让修士变了的事」显示出来。
 // 两套结算 UI（舞台演出 / 普通弹层）都要有，少一套就有一门看不到。
-const settleSrc = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.js'), 'utf8');
+const settleSrc = practicePageSrc();
 const settleWxml = fs.readFileSync(path.join(ROOT, 'pages/practice/practice.wxml'), 'utf8');
 if (!/milestones:\s*milestones/.test(settleSrc) || !/const milestones = \[\]/.test(settleSrc)) {
   errors.push('结算没构造本局进境（milestones）：打一局与修仙变强之间没有可见因果');

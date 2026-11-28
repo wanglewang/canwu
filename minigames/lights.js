@@ -640,6 +640,9 @@ function lines(params) {
   };
 }
 
+// 触感调性（声明，不是判断）：触死门 / 余量用尽这类误判只给轻震，与三连互换同一档。
+const HAPTIC = { bad: 'light' };
+
 module.exports = {
   id: 'lights',
   name: '阵灯推演',
@@ -647,4 +650,5 @@ module.exports = {
   solve: solve,
   effectOf: effectOf,
   teach: teach,
+  haptic: HAPTIC,
 };

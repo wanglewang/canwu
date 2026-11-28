@@ -1330,8 +1330,13 @@ function createTeach(ctx) {
 
 const teach = { create: createTeach };
 
+// 触感调性（声明，不是判断）：误判（tone 'bad'）只给轻震——这一门的「换不出三连」是玩家
+// 自己一手一手的判断，震重了像在训人。特效层只读这张表，不认门名；没声明的门默认误判不震。
+const HAPTIC = { bad: 'light' };
+
 module.exports = {
   id: 'match', name: '三连互换', create: create, lines: lines, teach: teach,
+  haptic: HAPTIC,
   matchesOf: matchesOf, findMove: findMove, collapse: collapse, GLYPHS: GLYPHS,
   seedsAtBottom: seedsAtBottom, plantSeeds: plantSeeds, sinkSeeds: sinkSeeds, sealCells: sealCells,
   matchShape: matchShape, triggerFx: triggerFx, FX: FX, isFx: isFx, isSeed: isSeed, FX_WORD: FX_WORD,

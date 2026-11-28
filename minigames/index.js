@@ -38,6 +38,13 @@ function createGame(gameId, ctx) {
   return mod.create(ctx);
 }
 
+// 触感调性：玩法模块自己声明（如 haptic.bad = 'light' 表示误判轻震），没声明就是空表。
+// 特效层据此决定震不震、震多重——「哪一门误判该震」是玩法的反馈设计，不是页面该认的门名。
+function hapticOf(gameId) {
+  const mod = MODULES[gameId];
+  return mod && mod.haptic && typeof mod.haptic === 'object' ? mod.haptic : {};
+}
+
 // 首局手把手：不是每套玩法都有，模块自己导出 teach 才算有。
 // 没有脚本的玩法直接跳过引导进正式局——引导是给「第一手看不懂」的玩法补的，
 // 不是给所有玩法硬塞一段过场。
@@ -67,6 +74,7 @@ module.exports = {
   GAME_NAMES: GAME_NAMES,
   PRACTICE_GAMES: PRACTICE_GAMES,
   createGame: createGame,
+  hapticOf: hapticOf,
   gameName: gameName,
   gradeLines: gradeLines,
   hasTeach: hasTeach,

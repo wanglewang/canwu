@@ -30,6 +30,15 @@ function readEngine() {
     .map(function (f) { return fs.readFileSync(path.join(dir, f), 'utf8'); })
     .join('\n');
 }
+// 参悟页同理（2026-11 起拆出 settle-view / fx-layer / level-picker）：
+// 读参悟页逻辑的断言一律走这里，不然搬一次函数就红一次，红的还不是代码。
+function readPracticePage() {
+  const dir = path.join(ROOT, 'pages', 'practice');
+  return fs.readdirSync(dir)
+    .filter(function (f) { return f.endsWith('.js'); })
+    .map(function (f) { return fs.readFileSync(path.join(dir, f), 'utf8'); })
+    .join('\n');
+}
 
 function pageFiles(ext) {
   const out = [];
@@ -125,19 +134,30 @@ check('关键守卫不是恒真的：正则、截取范围、对比对象都真�
 
 // globalData 里写了却没人读的字段，等于注释在说谎。lastSkillId 的兜底承诺过、
 // 却只写不读；加了这条守卫，谁再删掉读取端就会红。
+// 读写都收在 utils/nav-params.js 之后，断言分两层：参悟页必须经 skillIdOf 认门、
+// skillIdOf 必须兜到 lastSkill()；并且任何页面都不再直写这两个字段（否则又是两处真源）。
 check('globalData 的约定字段都有读取端，不是只写不读', function () {
   const app = read('app.js');
-  const practice = read('pages/practice/practice.js');
+  const practice = readPracticePage();
+  const navParams = read('utils/nav-params.js');
   assert.ok(app.indexOf('lastSkillId') >= 0, 'app.js 不再声明 lastSkillId');
-  assert.ok(practice.indexOf('|| getApp().globalData.lastSkillId ||') >= 0,
-    '参悟页没读 lastSkillId：分享深链缺 skillId 时没了兜底');
+  assert.ok(practice.indexOf('navParams.skillIdOf(query)') >= 0,
+    '参悟页没经 navParams.skillIdOf 认门：分享深链缺 skillId 时没了兜底');
+  assert.ok(/function skillIdOf\(query\)\s*\{\s*return \(query && query\.skillId\) \|\| lastSkill\(\)/.test(navParams),
+    'navParams.skillIdOf 不再兜底到 lastSkill()');
+  const pages = pageFiles('.js').map(function (p) { return p.rel; });
+  for (const f of pages) {
+    const src = read(f);
+    assert.ok(src.indexOf('globalData.lastSkillId') < 0, f + ' 直写了 globalData.lastSkillId：应走 navParams.setLastSkill');
+    assert.ok(src.indexOf('globalData.skillsTab') < 0, f + ' 直写了 globalData.skillsTab：应走 navParams.setSkillsTab / takeSkillsTab');
+  }
 });
 
 // 引擎的 apply* 在「境界不够 / 灵石不够 / 功法未解锁」时返回 {ok:false,msg}，
 // 没有结算字段。页面若直接读 r.buffMultiplier.toFixed 就会抛异常，玩家只看到空卡。
 // 三个结算口都要先拦再构造 rv。
 check('每次结算都拦住引擎的 ok:false，不读空结果的字段', function () {
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   const guards = (js.match(/\.ok === false/g) || []).length;
   assert.ok(guards >= 3, '结算守卫不足 3 处（参悟 / 突破成功 / 突破失败），实际 ' + guards);
   const calls = (js.match(/engine\.apply(Practice|Breakthrough)\(/g) || []).length;
@@ -147,7 +167,7 @@ check('每次结算都拦住引擎的 ok:false，不读空结果的字段', func
 // decayTip 算过两轮（境界门槛 / 超限 ×1.5）却只写进 setData，没接 WXML，
 // 玩家只在结算 notes 里才知道被加了价。补这类「算了不显示」的守卫。
 check('准备页算出的境界耗气提示有渲染端', function () {
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   const wxml = read('pages/practice/practice.wxml');
   assert.ok(js.indexOf('decayTip: decayTip') >= 0, '准备页不再算 decayTip');
   assert.ok(/\{\{decayTip\}\}/.test(wxml), 'decayTip 算了没渲染：耗气加价玩家看不见');
@@ -156,7 +176,7 @@ check('准备页算出的境界耗气提示有渲染端', function () {
 // 突破结算的金按钮写「回洞府」=主页，但 onPrimary 走 onBack()：
 // 从人物页 navigateTo 进来时栈深>1，navigateBack 回的是人物页，按钮说了谎。
 check('结算「回洞府」按钮真的回主页，不是回来源页', function () {
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   const start = js.indexOf('onPrimary: function');
   const body = js.slice(start, js.indexOf('onStay: function', start));
   assert.ok(body.indexOf('switchTab({ url: ') >= 0 && body.indexOf('/pages/index/index') >= 0,
@@ -211,7 +231,7 @@ check('不可撤销操作使用警示样式并与常规操作分区', function (
 
 check('参悟局内结束放在屏幕上方且带二次确认', function () {
   const s = read('pages/practice/practice.wxml');
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   assert.ok(/class="hud__quit" bindtap="onAbandon"/.test(s), '结束不在局内 HUD 上方的独立小入口');
   const bar = (s.match(/<view[^>]*class="sticky-bar[^"]*"[\s\S]*?<\/view>/) || [])[0] || '';
   assert.ok(bar.length > 0, '局内缺少吸底辅助操作条');
@@ -227,7 +247,7 @@ check('参悟局内隐藏功法头卡，盘面优先', function () {
 
 check('参悟吸底条只在有操作时出现', function () {
   const s = read('pages/practice/practice.wxml');
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   assert.ok(/class="pg pg--imm pg--t-\{\{themeTone\}\} \{\{barMode \? 'pg--with-bar' : ''\}\}[^"]*"/.test(s), '页面未按 barMode 留底部空间（或根节点没挂 pg--t-{{themeTone}}）');
   assert.ok(/sceneOn && started && !showResult \? 'pg--scene' : ''/.test(s), '沉浸舞台没有按样板开关与局内状态挂载');
   assert.ok(/barMode === 'start'/.test(s) && /barMode === 'tools'/.test(s), '吸底条缺少开始/工具两种形态');
@@ -243,11 +263,13 @@ check('两种 F 分开处置：结束作废，失败照常结算', function () {
   //   ② 玩法判负（阵溃 / 心神尽 / 时辰到）→ 一局打完的结果，进结算，但零收益。
   // 旧写法把所有 F 都当 ①，于是「蓄力偏离」「阵溃」也被显示成「中途结束 · 这回不算数」，
   // 玩家既看不到自己栽在哪，也拿不到结算卡。
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   assert.ok(/this\.aborting = false/.test(js), '新一局没清掉结束标记');
   assert.ok(/self\.aborting = true/.test(js), '玩家结束时没置位，结算分不出是哪种 F');
-  assert.ok(/grade === 'F' && \(this\.aborting \|\| this\.mode === 'breakthrough'\)/.test(js),
+  // 2026-11 起判定与文案搬进 settle-view.js（ctx.aborting 由页面传入），页面只负责置位与传入。
+  assert.ok(/grade === 'F' && \((this|ctx)\.aborting \|\| (this\.)?mode === 'breakthrough'\)/.test(js),
     '所有 F 都被当成结束，失败拿不到结算');
+  assert.ok(/aborting: this\.aborting/.test(js), '页面没把 aborting 传给结算视图，结算分不出是哪种 F');
   assert.ok(/本局未走完，本门不推进度/.test(js), '失败结算没写清「进度不推」');
   assert.ok(/点灵力不退/.test(js), '失败结算没写清灵力不退');
   assert.ok(/r\.wiped/.test(js), '结算卡没把失败与正常局分开，会显示一排 +0');
@@ -306,7 +328,7 @@ check('说明页每一行都是给人读的话：不冒 NaN、不丢句', functi
 
 check('规则分层：准备页一行、局内两行、整篇在说明页', function () {
   const s = read('pages/practice/practice.wxml');
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   // 准备页只留一行「这一局做什么」：整篇步骤与术语表搬去了说明页。
   assert.ok(/\{\{ruleText\}\}/.test(s), '准备页没有一行「本局规则」');
   assert.ok(/guides\.guideOf\(method\.game\)/.test(js) && /ruleText: ruleText/.test(js),
@@ -333,7 +355,7 @@ check('规则分层：准备页一行、局内两行、整篇在说明页', func
 
 check('顺光扫斩：透明触摸层 + 坐标插值还原划动轨迹', function () {
   const s = read('pages/practice/practice.wxml');
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   const css = read('pages/practice/practice.wxss');
   const common = read('minigames/common.js');
   assert.ok(/class="swipe-layer"/.test(s) && /catchtouchmove="onBoardTouchMove"/.test(s), '盘面没有独立的划动触摸层');
@@ -367,7 +389,7 @@ check('音效保持柔和不叠加（刺耳问题不退回去）', function () {
 
 check('局内音效有资源、有开关、跟着判定浮字走', function () {
   const sfx = read('utils/sfx.js');
-  const practice = read('pages/practice/practice.js');
+  const practice = readPracticePage();
   const profile = read('pages/profile/profile.wxml');
   for (const f of ['tap', 'hit', 'miss', 'gold', 'tick', 'go', 'clear', 'settle', 'fail']) {
     assert.ok(new RegExp('\\b' + f + ':\\s*\\{').test(sfx), 'sfx 缺少音效：' + f);
@@ -456,7 +478,7 @@ check('视觉标准落在唯一真源，样板阶段只对刀法·开锋破军�
 
 check('三层场景与游戏化 HUD 已接线，玩法模块不碰视觉', function () {
   const s = read('pages/practice/practice.wxml');
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   for (const cls of ['scene__sky', 'scene__moon', 'scene__ridge', 'scene__gate', 'scene__clouds', 'scene__qi']) {
     assert.ok(s.indexOf(cls) >= 0, '缺少场景层：' + cls);
   }
@@ -474,7 +496,7 @@ check('三层场景与游戏化 HUD 已接线，玩法模块不碰视觉', funct
 
 check('结算五段演出可跳过，且只替换样板玩法的弹窗', function () {
   const s = read('pages/practice/practice.wxml');
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   for (let i = 1; i <= 4; i += 1) {
     assert.ok(s.indexOf('settlePhase >= ' + i) >= 0, '结算缺少第 ' + i + ' 段');
   }
@@ -587,7 +609,7 @@ check('洞微勘禁诀：推理深度真被生成端读走，盘面反馈有专�
 
 check('探禁特效不挡数字：翻片半秒内收、环随列数缩不越格', function () {
   const wxss = read('pages/practice/practice.wxss');
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   const wxml = read('pages/practice/practice.wxml');
   const base = Number((wxss.match(/animation:\s*mineRing\s+(\d+)ms/) || [])[1]);
   const strike = Number((wxss.match(/\.mine-fx--strike \.mine-fx__ring \{[^}]*animation-duration:\s*(\d+)ms/) || [])[1]);
@@ -655,7 +677,7 @@ check('战力是阶梯：结算与主页都要说「跳到多少」，不能只�
   assert.strictEqual(r.advanced, true, '进度没推，断言前提不成立');
   assert.strictEqual(r.clearedAfter, r.clearedBefore + 1);
 
-  const page = read('pages/practice/practice.js');
+  const page = readPracticePage();
   assert.ok(/k: '战力'/.test(page), '结算面板没摆战力');
   assert.ok(/距离「/.test(page), '结算面板没摆「离下一境还差多少」');
   assert.ok(/跨段才涨/.test(page), '战力没跳时没解释原因，玩家会以为白练');
@@ -689,7 +711,7 @@ check('局内两行不说同一句话：tip 讲代价，inline 讲操作', funct
 
 check('准备页交代「下一段给什么」与「这一段收紧了什么」', function () {
   const wxml = read('pages/practice/practice.wxml');
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   const world = require('../data/world.js');
   const practice = require('../data/practice.js');
   // 只写「距小成还差 114」等于只给数字：练到那一步能拿什么，得从 world.TIERS 里搬出来。
@@ -710,7 +732,7 @@ check('局内速记只列已解锁的进阶机制，收起态不吓新手', func
   assert.ok(guides.guideOf('lights').inline.indexOf('忌') < 0, '阵灯推演的速记又提前写了死门');
   // 折叠态把「已解锁且开着」的阶段新法缩成一行（死门＝✕ 格点不得）；
   // 未解锁的、被玩家关掉的都不列——速记里也不许提前剧透。
-  assert.ok(/stageBrief/.test(wxml) && /'＝' \+ r\.short/.test(read('pages/practice/practice.js')),
+  assert.ok(/stageBrief/.test(wxml) && /'＝' \+ r\.short/.test(readPracticePage()),
     '折叠态没接已解锁的阶段新法');
   assert.ok(!/guide__inline-more/.test(wxml), '速记里又塞了一遍未解锁的规则');
   for (const id of Object.keys(practice.STAGE_RULES)) {
@@ -724,7 +746,7 @@ check('阶段新法可关：只有「改规矩」的才给开关，关了真的�
   const practice = require('../data/practice.js');
   const engine = require('../utils/game.js');
   const wxml = read('pages/practice/practice.wxml');
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
 
   // 逆诵会改点击方向、死门会多一格不能碰的、收势要求停一拍——这些是「改规矩」，
   // 练到解锁之后玩家该能关掉。照影 / 照纹 / 稳基是纯加成，关掉没有任何好处，
@@ -797,7 +819,7 @@ check('斜向擦角：插值只认中心内圈，抬手仍用整格命中补定'
 });
 
 check('斜向擦角：页面接了输入工具，玩法层摘掉擦角桩再判，说明里讲清', function () {
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   const click = read('minigames/click.js');
   const g = read('data/guides.js');
   assert.ok(/require\('\.\.\/\.\.\/utils\/swipe\.js'\)/.test(js), '页面没接划刀输入工具');
@@ -865,7 +887,7 @@ check('九套经典玩法落地：注册、黄阶定位、盘面与方向键都�
   const practice = read('data/practice.js');
   const index = read('minigames/index.js');
   const wxml = read('pages/practice/practice.wxml');
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   const guides = read('data/guides.js');
   const classics = [
     ['lingqi', 'link', '灵纹连线'], ['leiyue', 'blocks', '落石垒基'], ['sanxiu', 'match', '三连互换'],
@@ -884,7 +906,7 @@ check('九套经典玩法落地：注册、黄阶定位、盘面与方向键都�
 });
 
 check('连 S 那套已从页面上撤干净：不摆层数、不留回执、指南不再有专节', function () {
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   const wxml = read('pages/practice/practice.wxml');
   const css = read('pages/practice/practice.wxss');
   const guide = read('pages/guide/guide.js');
@@ -952,7 +974,7 @@ check('加载 / 空 / 错误状态统一用 .state 占位，不再白屏', funct
       name + ' 数据未就绪时没有状态占位');
   }
   // 参悟页不设空态：没习得这门功法就直接说一句并退回，不把人留在一张空页上。
-  assert.ok(/toast\('暂未习得这门功法'\)/.test(read('pages/practice/practice.js')),
+  assert.ok(/toast\('暂未习得这门功法'\)/.test(readPracticePage()),
     '参悟页没有「暂未习得」的兜底');
   // 榜单的内联错误态跟着榜单走，现在它在战力仙榜页。
   assert.ok(/class="state state--inline"/.test(read('pages/board/board.wxml')), '榜单错误没有用内嵌状态');
@@ -1356,7 +1378,7 @@ check('三连互换：局内 hint 必须留住代价句，不许被纯计数覆�
   assert.ok(/const costText = ctx\.tip \|\|/.test(m), '局内没接住准备页的代价句');
   assert.ok(/vm\.hint = costText \+/.test(m), 'syncHud 又把 hint 冲成纯计数了');
   assert.ok(!/vm\.hint = '照畦/.test(m), 'hint 又变回提示按钮的说明');
-  const page = read('pages/practice/practice.js');
+  const page = readPracticePage();
   assert.ok(/tip = practiceData\.tipFor\(/.test(page), '准备页没把按档代价句传给玩法');
   assert.ok(!/tip: method\.tip/.test(page), '参悟页还有一处写死的功法表代价句没跟着档走');
   // 降档权重按档变，代价句不能还是那句写死的「降 2 手当量」。
@@ -1408,7 +1430,7 @@ check('三连互换：S 线与提示按钮名各只有一份真源', function ()
   assert.ok(/return gradeLinesOf\(/.test(read('minigames/match.js')),
     'match.js 的 gradeLimits 没走数据层的 gradeLinesOf（三条线必须同源）');
   assert.ok(/goalText/.test(read('pages/practice/practice.wxml')), '准备页没显示本档 S 线');
-  assert.ok(/goalText: sLine/.test(read('pages/practice/practice.js')), '准备页没从同源数生成 S 线文案');
+  assert.ok(/goalText: sLine/.test(readPracticePage()), '准备页没从同源数生成 S 线文案');
   // S 线只说「几成手数拿哪档」，不等于这一局要做什么。五段目标都要带数量上屏，
   // 并与局内 meter / 评级卡共用 matchGoalLine——准备页写 18 株、局内判定 15 株就是骗人。
   const goalLines = [1, 11, 51, 201, 501].map(function (lv) {
@@ -1418,7 +1440,7 @@ check('三连互换：S 线与提示按钮名各只有一份真源', function ()
     .forEach(function (want, i) {
       assert.ok(goalLines[i].indexOf(want) >= 0, '第 ' + (i + 1) + ' 段目标没写出数量：' + goalLines[i]);
     });
-  const pgJs = read('pages/practice/practice.js');
+  const pgJs = readPracticePage();
   assert.ok(/class="lv-goal">\{\{roundGoalText\}\}/.test(read('pages/practice/practice.wxml')),
     '准备页没渲染本局目标那一行');
   assert.ok(/roundGoalText: roundGoalText/.test(pgJs) && /practiceData\.matchGoalLine\(/.test(pgJs),
@@ -1432,7 +1454,7 @@ check('三连互换：S 线与提示按钮名各只有一份真源', function ()
   assert.ok(/做成即收工/.test(rules), '评级口径没写清「做成即收工」');
   assert.ok(!/控制无效互换次数|同时控制/.test(rules), '把无效互换错写成 S 档附加条件');
   assert.strictEqual(pd.hintLabelOf('match'), '照畦', '提示按钮名没和局内、名词速查统一');
-  assert.ok(/hintLabel: practiceData\.hintLabelOf\(gameId\)/.test(read('pages/practice/practice.js')),
+  assert.ok(/hintLabel: practiceData\.hintLabelOf\(gameId\)/.test(readPracticePage()),
     '页面又把提示按钮名硬编码成三元');
 });
 
@@ -1493,8 +1515,11 @@ check('星罗烛天诀：简介对齐熄灯谜题，死门误触有独立触感'
   const sk = require('../data/skills.js').SKILLS.filter(function (s) { return s.method === 'arrayEye'; })[0];
   assert.ok(/上下左右四格/.test(sk.desc), '功法简介没讲清翻转四格');
   assert.ok(/上下左右四格/.test(read('data/practice.js')), '准备页副标题没讲清翻转四格');
-  const page = read('pages/practice/practice.js');
-  assert.ok(/gameId === 'lights'/.test(page), '触了死门没有轻震反馈');
+  const page = readPracticePage();
+  // 死门误触的轻震：由玩法模块声明（haptic.bad），页面经 hapticOf 带进特效层——不再按门名判断。
+  assert.strictEqual(require('../minigames/index.js').hapticOf('lights').bad, 'light', '阵灯推演没声明「误判轻震」，触了死门没有触感');
+  assert.ok(/haptic: self\.haptic/.test(page) && /ctx\.haptic && ctx\.haptic\.bad/.test(page),
+    '页面没把玩法的触感声明带进特效层，死门误触不震');
   assert.ok(/触了死门/.test(read('minigames/lights.js')), '死门没有独立浮字');
   assert.ok(/HINT_LABELS[\s\S]{0,120}lights: '阵眼感应'/.test(read('data/practice.js')),
     '提示按钮名没和 HUD 统一');
@@ -1502,7 +1527,7 @@ check('星罗烛天诀：简介对齐熄灯谜题，死门误触有独立触感'
 
 check('境界超限：文案只从 copy.js 出，讲清加价的是耗气而不是进度', function () {
   const copy = require('../data/copy.js');
-  const page = read('pages/practice/practice.js');
+  const page = readPracticePage();
   const eng = readEngine();
   assert.ok(/copy\.decayText\('below'/.test(page) && /copy\.decayText\('above'/.test(page),
     '准备页又自己拼衰减文案');
@@ -1542,8 +1567,8 @@ check('评级中文名只有一份真源，且避开段位词', function () {
   }
   assert.ok(!/const GRADE_TITLE|GRADE_TITLE: GRADE_TITLE/.test(read('data/world.js')),
     'world.js 还留着第二份评级名');
-  assert.ok(!/gradeName = \{/.test(read('pages/practice/practice.js')), '参悟页还自写一套评级名');
-  assert.ok(/copy\.GRADE_TITLE/.test(read('pages/practice/practice.js')), '参悟页没走评级名真源');
+  assert.ok(!/gradeName = \{/.test(readPracticePage()), '参悟页还自写一套评级名');
+  assert.ok(/copy\.GRADE_TITLE/.test(readPracticePage()), '参悟页没走评级名真源');
   assert.ok(/copy\.GRADE_TITLE/.test(readEngine()), 'utils/game/ 没走评级名真源');
 });
 
@@ -1581,7 +1606,7 @@ check('只奖不罚：连练递减全站清零，换门的「省气」有单一�
     'practiceQiCost 没把换门省气乘进去');
   const world = require('../data/world.js');
   assert.strictEqual(world.CROSS_BONUS, undefined, 'world.js 还留着旧换门倍率');
-  assert.ok(/copy\.practiceNote/.test(read('pages/practice/practice.js'))
+  assert.ok(/copy\.practiceNote/.test(readPracticePage())
     && /repeatNote/.test(read('pages/practice/practice.wxml')),
     '准备页没把「连练不减收益」写在开局前');
   // 回关护栏：现在这条是**结构性**的，不再靠折减系数。
@@ -1622,7 +1647,7 @@ check('已持玉简按最近练过的在前，藏经阁仍是兑换顺序', func
   // 可中途结束与局中返回根本不经过它。两头都守：函数在引擎，两处在页面调。
   assert.ok(/function touchSkill/.test(engine) && /touchSkill: touchSkill/.test(engine),
     '引擎没有 touchSkill：结束 / 返回这两条路没法记钟');
-  const pg = read('pages/practice/practice.js');
+  const pg = readPracticePage();
   // 记钟只有一处实现（markTouched），结束 / 返回 / 切页都调它。
   assert.ok(/markTouched: function[\s\S]{0,400}engine\.touchSkill\(s, skillId\)/.test(pg),
     '记钟没走到 engine.touchSkill：结束一局回去列表顺序不变（玩家判定为「没生效」）');
@@ -1639,7 +1664,7 @@ check('已持玉简按最近练过的在前，藏经阁仍是兑换顺序', func
 // 只讲排序，机器按输出标题做差集时认不出这个场景（R_D 报缺陷 SC-RUN-LEAVE-VOID）。
 // 一条断言指认一个场景，标题本身就是观测特征。
 check('局中切页与导航返回都走统一作废结账口', function () {
-  const pg = read('pages/practice/practice.js');
+  const pg = readPracticePage();
   assert.ok(/onAbandon:[\s\S]{0,1600}self\.closeAbandonedRound\(\)/.test(pg),
     '中途结束没走统一结账：离开路径各写一套，早晚分叉');
   assert.ok(/onHide:[\s\S]{0,600}this\.closeAbandonedRound\(\)/.test(pg) &&
@@ -1655,7 +1680,7 @@ check('局中切页与导航返回都走统一作废结账口', function () {
 });
 
 check('左上角返回与「结束」是同一件事：都先问一句', function () {
-  const pg = read('pages/practice/practice.js');
+  const pg = readPracticePage();
   // 2026-11 真机反馈：右上角「结束」会弹确认，左上角返回静默丢盘，同一个页面两种脾气。
   // 小程序没有 onBackPress，拦原生返回只有官方这一个口子：
   // wx.enableAlertBeforeUnload —— 导航栏返回 / 安卓 back 键会先弹询问。
@@ -1677,7 +1702,7 @@ check('左上角返回与「结束」是同一件事：都先问一句', functio
 });
 
 check('结算与终局底栏的「返回功法」都回本门静室，不是退回列表', function () {
-  const pg = read('pages/practice/practice.js');
+  const pg = readPracticePage();
   const wxml = read('pages/practice/practice.wxml');
   // 2026-11 真机反馈两次：先是中途结束点「返回」落到列表，后来打完一局点
   // 「返回功法」又落到列表。玩家要的是这一门的静室准备屏（品阶、火候、连 S、
@@ -1717,7 +1742,7 @@ check('结算与终局底栏的「返回功法」都回本门静室，不是退�
 });
 
 check('选段在外层、选关只铺当前段：未至的关也显示，只是不可选', function () {
-  const pg = read('pages/practice/practice.js');
+  const pg = readPracticePage();
   const wxml = read('pages/practice/practice.wxml');
   // 2026-11 真机反馈：面板只列到「已到达」，后半段关号凭空消失，
   // 玩家读不出这一段还有多少关。走没走到是进度，看不看得见是面板的事。
@@ -1726,20 +1751,25 @@ check('选段在外层、选关只铺当前段：未至的关也显示，只是�
   assert.ok(/locked: lv > levelMax/.test(pg), '未至的关没有标记，样式挂不上');
   assert.ok(/lv-cell--lock/.test(wxml), '未至的关没有压暗');
   // 压暗只是提示不是禁用：真点下去必须答一句差在哪，否则就是「点了没反应」。
-  assert.ok(/lv > this\.data\.levelMax[\s\S]{0,200}toast\(/.test(pg),
+  // 选关器（level-picker.js）只返回 { toast }，由页面负责弹——两处都要在。
+  assert.ok(/lv > data\.levelMax\) \{\s*return \{ toast: /.test(pg),
     '点未至的关一声不响，玩家会以为面板卡住');
+  assert.ok(/if \(r\.toast\) \{ toast\(r\.toast\); return; \}/.test(pg),
+    '选关器答了话，页面没把它弹出来');
   // 段在外层切：胶囊要能点，弹层里不许再摆一套段位条。
   assert.ok(/bindtap="onPickStage"/.test(wxml), '外层段位胶囊没有切段入口');
   assert.ok(!/lv-segs|onPickSegment|pickerSegs|buildPickerSegs/.test(wxml + pg),
     '弹层里又摆回段位分栏：外面切段、里面选关只剩一层');
   // 段的锁只问有没有走到：回打到早段时，进度所在的段仍要能点回去。
   assert.ok(/locked: !reached/.test(pg), '段的锁仍按「是否走完」算，回打后进度段被误锁');
-  assert.ok(/onPickStage:[\s\S]{0,600}levelMax < d\.from[\s\S]{0,120}toast\(/.test(pg),
+  // 判定在选关器 pickStage（返回 { toast }），弹由页面 applyPick 负责——两处都要在。
+  assert.ok(/function pickStage\([\s\S]{0,600}levelMax < d\.from[\s\S]{0,120}toast: /.test(pg)
+    && /onPickStage:[\s\S]{0,200}applyPick\(/.test(pg),
     '点未至的段没有任何回应');
 });
 
 check('关卡大字分母取当前段末关，不写全局 1000', function () {
-  const pg = read('pages/practice/practice.js');
+  const pg = readPracticePage();
   const wxml = read('pages/practice/practice.wxml');
   // 段已切到准备页外层：大字读「第 500 / 500 关」（大成段末关），
   // 全局进度仍由下一行「已走通 657 / 1000 关」说，段内位置由标题右侧说。
@@ -1752,7 +1782,7 @@ check('关卡大字分母取当前段末关，不写全局 1000', function () {
 
 check('节律判定：写下拍速、响出拍子、环在正中', function () {
   const tempo = read('minigames/tempo.js');
-  const pg = read('pages/practice/practice.js');
+  const pg = readPracticePage();
   const sx = read('utils/sfx.js');
   const gen = read('scripts/gen-sfx.js');
   const wxml = read('pages/practice/practice.wxml');
@@ -1902,10 +1932,12 @@ check('藏经阁分区装全部未习得，不是只装能换的那几门', func
 });
 
 check('参悟页带 ?skillId 认门，「这一门」与换门都在页内', function () {
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   const wxml = read('pages/practice/practice.wxml');
   const cfg = JSON.parse(read('pages/practice/practice.json'));
-  assert.ok(/query && query\.skillId/.test(js), '参悟页不认 ?skillId：点哪门都进同一门');
+  // 认门收在 utils/nav-params.js（query 优先、缺参兜底 lastSkill），页面只调 skillIdOf。
+  assert.ok(/query && query\.skillId/.test(read('utils/nav-params.js')) && /navParams\.skillIdOf\(query\)/.test(js),
+    '参悟页不认 ?skillId：点哪门都进同一门');
   // 页面名是「参悟」，功法名由卡片里的 h1 承担：导航标题再写一遍功法名，
   // 一屏两处同字，而且冲关局根本没有功法可写。
   assert.strictEqual(cfg.navigationBarTitleText, '参悟', '参悟页导航标题被改成别的了');
@@ -2019,7 +2051,7 @@ check('阵灯推演：盘面规格与步数预算同源、阵眼术语收敛、H
   // 预算不再是写死的参数：它是「本盘最优 + 余量」，在玩法层现算。表里若又出现 cap，
   // 说明那两处迟早会脱钩（旧表预算是最优的 3–4.5 倍，文档却写着「够 A、不够乱点」）。
   assert.ok(!/cap:/.test(JSON.stringify(pd.LIGHTS_LEVELS)), '档位表又写回了绝对步数预算');
-  assert.ok(/goalText: sLine/.test(read('pages/practice/practice.js')), '准备页的 S 线没走同源文案');
+  assert.ok(/goalText: sLine/.test(readPracticePage()), '准备页的 S 线没走同源文案');
 
   // 「阵眼」只留给提示技能：开局横幅、印章、风味与特效不再混用这个词。
   assert.ok(themes.themeOf('arrayEye', 'lights').banner.indexOf('阵眼') < 0,
@@ -2062,7 +2094,7 @@ check('阵灯推演：翻转范围微光是一次性动画，不占常驻预算'
 
 check('参悟结算：金按钮再来一局、留在本页留的是刚打完那一屏', function () {
   const wxml = read('pages/practice/practice.wxml');
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   const copy = require('../data/copy.js');
   assert.strictEqual(copy.UI.actions.stay, '留在本页', '「留在本页」文案没进真源');
   assert.strictEqual(copy.UI.actions.again, '再来一局', '「再来一局」文案没进真源');
@@ -2090,8 +2122,11 @@ check('参悟结算：金按钮再来一局、留在本页留的是刚打完那�
     '本局已终还挂着结束 / 操作提示');
   // 留住的盘面是「这一局」的，不能在换局路上活着：建局与再来一局都要把标记清掉，
   // 否则下一局开局就被当成已终局，底栏摆着终局三项却点不动盘面。
-  const build = /buildGame: function \(\) \{[\s\S]*?lastTones = \[\];/.exec(js);
+  // 上一帧纹样游标（lastTones）已随特效层搬进 fx-layer.js，这里只按方法边界截 buildGame。
+  const build = /buildGame: function \(\) \{[\s\S]*?\n  \},/.exec(js);
   assert.ok(build && /boardHeld: false/.test(build[0]), '建新局没清掉「盘面留住」标记');
+  assert.ok(/function resetRound\(\) \{[\s\S]{0,400}lastTones = \[\];/.test(js),
+    '特效层换局没清上一帧纹样游标，新局第一次收牌会取错颜色');
   const again = /onAgain: function \(\) \{[\s\S]*?\n  \}/.exec(js);
   assert.ok(again && /boardHeld: false/.test(again[0]), '再来一局没清掉「盘面留住」标记');
   assert.ok(/onOpenRecord: function/.test(js) && /recordBrief && !showResult/.test(wxml),
@@ -2108,7 +2143,7 @@ check('参悟结算：金按钮再来一局、留在本页留的是刚打完那�
 
 check('首局手把手：盘上引导而不是全屏弹窗，跳过有入口、文案走真源', function () {
   const wxml = read('pages/practice/practice.wxml');
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   const copy = require('../data/copy.js');
   const game = require('../utils/game.js');
   const index = require('../minigames/index.js');
@@ -2154,7 +2189,7 @@ check('首局手把手：盘上引导而不是全屏弹窗，跳过有入口、�
 
 check('阵灯推演：结算说清「为什么不是 S」，用了辅助如实说明', function () {
   const lights = read('minigames/lights.js');
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   assert.ok(/function gradeNotes/.test(lights), '没有评级依据');
   assert.ok(/正好走最优/.test(lights) && /S 要一步不差/.test(lights), '没写清 S 的条件');
   assert.ok(/最高只到 A/.test(lights), '用了辅助没说封顶');
@@ -2167,7 +2202,7 @@ check('收牌迸溅与选中跳动：只动 transform / opacity，都是一次�
   const wxml = read('pages/practice/practice.wxml');
   const css = read('pages/practice/practice.wxss');
   const crest = read('styles/crest.wxss');
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   const v = require('../data/visual.js');
 
   // 「这一手收走了哪几格」必须由玩法交出来。让页面去 diff 盘面是不成立的：
@@ -2657,7 +2692,7 @@ check('局内与结算的盘面规格取自同一份 stageDetail', function () {
       assert.ok(d.short.split(' · ').length <= 2, s.name + ' 的短版塞进了第三截');
     }
   }
-  const js = read('pages/practice/practice.js');
+  const js = readPracticePage();
   const wxml = read('pages/practice/practice.wxml');
   assert.ok(/stageBoardShort:\s*stageInfo\.short/.test(js), '准备页没把短版送进 data');
   assert.strictEqual((wxml.match(/wx:if="\{\{stageBoardShort\}\}"/g) || []).length, 2,

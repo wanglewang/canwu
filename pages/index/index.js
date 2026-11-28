@@ -1,6 +1,8 @@
 'use strict';
 
 const pageTheme = require('../../utils/theme.js');
+const kit = require('../../utils/page-kit.js');
+const navParams = require('../../utils/nav-params.js');
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
 const share = require('../../utils/share.js');
@@ -51,8 +53,7 @@ Page({
 
   onLoad: function () {
     pageTheme.syncPage(this);
-    this.listener = this.refresh.bind(this);
-    store.subscribe(this.listener);
+    kit.bind(this);
     this.refresh();
   },
 
@@ -308,7 +309,7 @@ Page({
       wx.switchTab({ url: '/pages/skills/skills' });
       return;
     }
-    getApp().globalData.lastSkillId = id;
+    navParams.setLastSkill(id);
     wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
   },
 

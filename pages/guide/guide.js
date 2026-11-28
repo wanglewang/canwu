@@ -10,6 +10,7 @@ const pageTheme = require('../../utils/theme.js');
 // action 是「看完这节就能去」的下一步，只给三节：给多了按钮反而把正文挤散。
 const store = require('../../utils/store.js');
 const share = require('../../utils/share.js');
+const navParams = require('../../utils/nav-params.js');
 const copy = require('../../data/copy.js');
 
 const SECTIONS = [
@@ -215,7 +216,7 @@ Page({
         if (!act) return;
         // 藏品与功法都在功法页：先记下去向，切过去时由功法页自己认这个标记。
         if (act.kind === 'tabSkills') {
-            getApp().globalData.skillsTab = act.tab || 'learned';
+            navParams.setSkillsTab(act.tab || 'learned');
             wx.switchTab({ url: '/pages/skills/skills' });
             return;
         }

@@ -7,6 +7,7 @@ const copy = require('../../data/copy.js');
 const nav = require('../../data/navigation.js');
 const skillsData = require('../../data/skills.js');
 const share = require('../../utils/share.js');
+const navParams = require('../../utils/nav-params.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
@@ -58,14 +59,12 @@ Page({
     this.refresh();
   },
 
-  // 别处（指南页、人物页）想让玩家落在哪个分区，切过来前先写 globalData.skillsTab。
+  // 别处（指南页、人物页）想让玩家落在哪个分区，切过来前经 navParams.setSkillsTab 写一次。
   // tab 页不能带 query，这是 switchTab 唯一的传参办法；读完即清，免得下次再进还停在那儿。
   onShow: function () {
     pageTheme.syncPage(this);
-    const app = getApp();
-    const want = app.globalData.skillsTab;
-    if (want === 'learned' || want === 'shop') {
-      app.globalData.skillsTab = '';
+    const want = navParams.takeSkillsTab();
+    if (want) {
       this.setData({ tab: want }, this.refresh.bind(this));
       return;
     }
@@ -173,7 +172,7 @@ Page({
   // 参悟页就是这一门的静室：印、品阶、修为、这一门、难度与规则都在那一屏。
   // 原来中间还夹着一层「功法详情」页，点进去再点「开始参悟」才开局——那一步已经并掉了。
   goPractice: function (id) {
-    getApp().globalData.lastSkillId = id;
+    navParams.setLastSkill(id);
     wx.navigateTo({ url: '/pages/practice/practice?skillId=' + id });
   },
 
@@ -191,7 +190,7 @@ Page({
 
   buy: function (id) {
     const r = store.commitCritical(function (s) { return engine.buySkill(s, id); });
-    if (r.ok) getApp().globalData.lastSkillId = id;
+    if (r.ok) navParams.setLastSkill(id);
     toast(r.ok ? '习得《' + r.name + '》，已归入已持玉简' : r.msg);
     this.refresh();
   },

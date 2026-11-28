@@ -1,5 +1,8 @@
 'use strict';
 
+// 页面只管三件事：生命周期与输入、把模块给的补丁挂上屏、把玩家动作转给控制器。
+// 结算文案在 settle-view.js，粒子 / 音效 / 触感在 fx-layer.js，选段选关在 level-picker.js，
+// 皮肤与订阅骨架在 utils/page-kit.js——新增一门玩法不必再改这个文件（2026-11 架构整改）。
 const pageTheme = require('../../utils/theme.js');
 const store = require('../../utils/store.js');
 const engine = require('../../utils/game.js');
@@ -16,71 +19,15 @@ const sfx = require('../../utils/sfx.js');
 const swipeInput = require('../../utils/swipe.js');
 const copy = require('../../data/copy.js');
 const nav = require('../../data/navigation.js');
+const navParams = require('../../utils/nav-params.js');
 const share = require('../../utils/share.js');
 const card = require('../../utils/card.js');
+const settleView = require('./settle-view.js');
+const fxLayer = require('./fx-layer.js');
+const levelPicker = require('./level-picker.js');
 
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 1800 });
-}
-
-// 盘面样式的作用域钩子：只有这几门在 wxss 里有自己的一套尺寸或配色。
-// 不挂到钩子上的门，`.grid--cN .cell` 那套通用规格照旧生效。
-const BOARD_CLS = {
-  mines: 'board--mines',   // 哑光低亮的一套色（探禁）
-  link: 'board--link',     // 竖屏盘形的格子高度（并蒂连枝引）
-  match: 'board--match',   // 石皮封印那一档牌的底色（三秀撷英诀·大成起）
-};
-
-function heartsToFlags(h) {
-  const out = [];
-  if (!h) return out;
-  for (let i = 0; i < h.max; i += 1) out.push({ id: i, on: i < h.value });
-  return out;
-}
-
-// 连线：转折点换成「横段 / 竖段」。相邻两点必定同行或同列（minigames/link 里压过共线点），
-// 所以只算宽高，不用算角度。坐标是外扩网格，盘外那一圈刚好落在负百分比上。
-function linkSegs(linkPath, cols, rows) {
-  const out = [];
-  if (!linkPath || !linkPath.points || !cols || !rows) return out;
-  const pts = linkPath.points.map(function (p) {
-    return { x: (p.c - 0.5) / cols * 100, y: (p.r - 0.5) / rows * 100 };
-  });
-  for (let i = 1; i < pts.length; i += 1) {
-    const a = pts[i - 1];
-    const b = pts[i];
-    if (Math.abs(a.y - b.y) < 0.01) {
-      out.push({ id: i, dir: 'h', left: Math.min(a.x, b.x), top: a.y, len: Math.abs(b.x - a.x) });
-    } else {
-      out.push({ id: i, dir: 'v', left: a.x, top: Math.min(a.y, b.y), len: Math.abs(b.y - a.y) });
-    }
-  }
-  return out;
-}
-
-// 下一块放不进主盘：它是一块 4×4 以内的小形状，摆成固定的四乘四预告格，
-// 玩家一眼看出「来的是长条还是方块」。居中对齐，不给旋转、不给颜色之外的信息。
-function previewCells(piece) {
-  const out = [];
-  for (let i = 0; i < 16; i += 1) out.push({ key: i, on: false, tone: 0 });
-  if (!piece || !piece.cells || !piece.cells.length) return out;
-  let maxR = 0;
-  let maxC = 0;
-  for (let i = 0; i < piece.cells.length; i += 1) {
-    maxR = Math.max(maxR, piece.cells[i][0]);
-    maxC = Math.max(maxC, piece.cells[i][1]);
-  }
-  const offR = Math.floor((4 - (maxR + 1)) / 2);
-  const offC = Math.floor((4 - (maxC + 1)) / 2);
-  for (let i = 0; i < piece.cells.length; i += 1) {
-    const r = piece.cells[i][0] + offR;
-    const c = piece.cells[i][1] + offC;
-    if (r < 0 || r > 3 || c < 0 || c > 3) continue;
-    const k = r * 4 + c;
-    out[k].on = true;
-    out[k].tone = piece.tone;
-  }
-  return out;
 }
 
 Page({
@@ -221,30 +168,20 @@ Page({
     this.teachGiven = false;
     this.countdownTimers = [];
     this.needsRebuild = false;
-    this.lastFxKey = 0;
     this.settleTimers = [];
-    this.burstId = 0;
-    this.lastCombo = 0;
-    // 上一帧的拍号：换拍才播节拍音，同一拍不许重复响。
-    this.lastBeatKey = -1;
-    // 收牌迸溅要读「上一帧每格是第几号纹」：牌一被收走 tone 就归零，
-    // 等这一帧再读只剩 0，取不到颜色。所以页面自己留一份上一帧的快照。
-    this.lastTones = [];
-    this.lastClearKey = 0;
-    this.sparkTimer = null;
+    // 特效层：粒子 / 音效 / 触感的游标与撤场定时器全在它肚子里，
+    // 页面只注入 setData 与存活判据；onUnload 一把清（旧版散在页面上，卸载时漏清）。
+    const self = this;
+    this.fx = fxLayer.createFxLayer({
+      setData: function (patch) { if (self.pageAlive) self.setData(patch); },
+      isAlive: function () { return self.pageAlive; },
+    });
+    // 选关器：回打游标与「未至的关点了有答」的规则都在 level-picker.js。
+    this.picker = levelPicker.createPicker();
     // onLoad 失败分支的 900ms 自动返回：页面若已被手动关掉，这个定时器必须撤，
     // 否则会多退一层，把玩家从上一页也带走。
     this.leaveTimer = null;
     this.invalidEntry = false;
-    // 探禁：上次演过的盘面特效序号与撤场定时器。
-    this.lastMineFxKey = 0;
-    this.mineFxTimer = null;
-    // 落石垒基：上次演过的「化行」序号与行闪的撤场定时器。
-    this.lastLineKey = 0;
-    this.lineFlashTimer = null;
-    // 连连看：上次演过的连线序号与撤场定时器。
-    this.lastLinkKey = 0;
-    this.linkTimer = null;
     this.cellRects = [];
     this.swipePath = null;
     // 最后一次「进入新格」的时间：抬手时用它算在靶心停住多久，供收势判定。
@@ -253,15 +190,10 @@ Page({
     this.lastTouchY = 0;
     this.theme = themes.themeOf('forge', 'click');
     this.twist = '';
-    // 关卡不落存档之外的任何地方：每次进这一页都按存档里本门走通的关数现算
-    // （默认停在「已通 + 1」）。override 只记「这一次停留里玩家往回翻到第几关」，
-    // 换页即弃——否则半年前回打过第 3 关，练到第 700 关还默认从第 3 关开局。
-    this.levelOverride = 0;
-    this.maxIdxSeen = -1;
     this.mode = query && query.mode === 'breakthrough' ? 'breakthrough' : 'practice';
-    // 分享深链 / 手工链接可能不带 skillId：用上次对着练的那门兜底（写它在功法页、
-    // 主页吸底、换门三处）。app.js.globalData 的注释承诺过这条兜底，此前只写不读。
-    this.skillId = (query && query.skillId) || getApp().globalData.lastSkillId || '';
+    // 分享深链 / 手工链接可能不带 skillId：用上次对着练的那门兜底。
+    // 读写都收在 utils/nav-params.js，页面不再直写 globalData 字段名。
+    this.skillId = navParams.skillIdOf(query);
     sfx.warm();
 
     if (this.mode === 'breakthrough') {
@@ -397,7 +329,8 @@ Page({
     // 所以结账与撤守卫都要在这里再来一次；已经算过的局靠 roundClosed 挡住。
     this.closeAbandonedRound();
     this.disarmLeaveGuard();
-    if (this.sparkTimer) { clearTimeout(this.sparkTimer); this.sparkTimer = null; }
+    // 特效层的撤场定时器（迸溅 / 探禁环 / 行闪 / 连线）一把清，不再逐个点名。
+    this.fx.destroy();
     if (this.leaveTimer) { clearTimeout(this.leaveTimer); this.leaveTimer = null; }
     this.stopTeach();
     if (this.controller) this.controller.destroy();
@@ -468,10 +401,9 @@ Page({
     // 一门一条 1–1000 的长线，五段。段位只由「走通了几关」定，玩家没有挑档这个动作：
     // 只能往前走（走通才推进一关），或往回翻（回关不推进度，只练手感）。
     const cleared = practiceData.clearedOf(rec);
-    // 本门当前关 = 已通 + 1；走完 1000 关停在 1000。
+    // 本门当前关 = 已通 + 1；走完 1000 关停在 1000。回打游标由选关器持有。
     const curNo = practiceData.curLevelOf(rec);
-    const override = Math.round(this.levelOverride) || 0;
-    const level = Math.max(1, Math.min(curNo, override || curNo));
+    const level = this.picker.resolveLevel(curNo);
     const levelMax = curNo;
     const stageIdx = levelData.stageOfLevel(level);
     const stageDef = practiceData.STAGES[stageIdx];
@@ -583,7 +515,7 @@ Page({
       // 并蒂引挂 board--link：只有这一门的盘面按竖屏重排过（5×5 / 6×6 / 6×8），
       // 格子高度必须跟着列数走；别的门拿到这个类会被带歪。
       // 两个钩子都只在 wxss 里挑一组尺寸与颜色，不入样式判断。
-      boardCls: BOARD_CLS[method.game] || '',
+      boardCls: fxLayer.BOARD_CLS[method.game] || '',
       // 与局内那一行同源：三连互换的罚息按档变，这里不许留一句写死的「少 2 息」。
       tip: practiceData.tipFor(method, stageIdx),
       ruleText: ruleText,
@@ -691,9 +623,8 @@ Page({
   buildGame: function () {
     if (this.controller) this.controller.destroy();
     // 演出序号归零：连开两局时上一局末帧的键值还留着，新局第一次消行/连线
-    // 若碰巧同号就被当成「演过了」吞掉。与 onLoad 的初始化同一组。
-    this.lastLineKey = 0;
-    this.lastLinkKey = 0;
+    // 若碰巧同号就被当成「演过了」吞掉。游标全在特效层，这里一把清。
+    this.fx.resetRound();
     // 新一局默认不是「主动结束」：这个标记只由 onAbandon 置位，结算读完即失效。
     // 同一条 F 有两种来历——主动退出（整局作废）与失败（一局打完但没成），
     // 处置完全不同（一个作废、一个照常结算），所以必须在页面上分开。
@@ -721,8 +652,9 @@ Page({
       // 关掉的阶段新法跟着这一局走：玩家在准备页关掉逆诵，进局就该真的不逆诵。
       : { easy: tier >= 3, tier: tier, offTwists: engine.twistsOff(state, this.skillId) };
 
-    // 反馈调性按玩法分档（刀法凌厉 / 心法沉静 / 灵植温润），render 里读它决定震动强度。
+    // 反馈调性按玩法分档（刀法凌厉 / 心法沉静 / 灵植温润）：由玩法模块声明，特效层只读。
     this.gameId = gameId;
+    this.haptic = minigames.hapticOf(gameId);
     const self = this;
     this.controller = minigames.createGame(gameId, {
       params: params,
@@ -734,136 +666,17 @@ Page({
       methodName: methodName,
       theme: this.theme,
       twist: this.twist,
+      // 一帧 vm → 一揽子补丁：粒子 / 音效 / 触感 / 拍子全在 fx-layer 按通用信号处理，
+      // 页面不认识任何具体玩法的特效字段。
       render: function (vm) {
         if (!self.pageAlive) return;
-        const progress = typeof vm.progress === 'number' ? vm.progress : 0;
-        const incense = Math.max(0, Math.min(100, 100 - progress));
-        const lampMax = vm.hearts && vm.hearts.max ? vm.hearts.max : 3;
-        const lampOn = vm.hearts ? vm.hearts.value : Math.ceil(incense / 34);
-        const sceneLamps = [];
-        for (let i = 0; i < lampMax; i += 1) sceneLamps.push({ id: i, on: i < lampOn });
-
-        let burstList = self.data.burstList;
-        // 浮字是玩法里唯一的「判定结果」信号：音效与视觉反馈都跟着它走。
-        if (vm.fx && vm.fx.key !== self.lastFxKey) {
-          self.lastFxKey = vm.fx.key;
-          sfx.tone(vm.fx.tone);
-          // 触感分两档：金招（重斩 / 连锁）中量；误判只给轻震——三连互换的无效互换、
-          // 阵灯推演触了死门或提示用尽都算。灵植与阵法要温润沉敛，别跟着刀法猛震。
-          if (typeof wx !== 'undefined' && wx.vibrateShort) {
-            const strong = vm.fx.tone === 'gold';
-            const gentle = vm.fx.tone === 'bad' && (self.gameId === 'match' || self.gameId === 'lights');
-            if (strong || gentle) {
-              try { wx.vibrateShort({ type: strong ? 'medium' : 'light' }); } catch (e) { /* 部分环境不支持震动 */ }
-            }
-          }
-          if (self.data.sceneOn) {
-            const tone = vm.fx.tone;
-            if (tone === 'bad') burstList = [self.makeBurst(0)];
-            else if (tone === 'gold') burstList = [self.makeBurst(3)];
-            else burstList = [self.makeBurst(1)];
-          }
-        }
-        const combo = parseInt(String(vm.comboText || '').replace(/\D/g, ''), 10) || 0;
-        if (self.data.sceneOn && combo !== self.lastCombo && [5, 10, 20].indexOf(combo) >= 0) {
-          burstList = [self.makeBurst(2)];
-        }
-        self.lastCombo = combo;
-
-        // 节律判定：拍子到了就响一声。它不改变玩法（光环照走），只把「数拍」
-        // 这件本来就靠耳朵的事交还给耳朵——音效关掉时这一门仍然能靠眼睛打。
-        // 小节头那一格给重音：没有强弱，一串哒声里数不出小节线在哪，
-        // 第三段起提示轨只剩小节头，玩家就没有任何东西可以锚定第几小节了。
-        if (vm.beatKey !== undefined && vm.beatKey !== self.lastBeatKey) {
-          self.lastBeatKey = vm.beatKey;
-          sfx.play(vm.beatAccent ? 'beataccent' : 'beat');
-        }
-
-        // 迸溅要在 setData 之前算：它读的是上一帧的纹样快照。
-        const sparks = self.sparksFrom(vm);
-        // 探禁的盘面反馈：玩法层带 key 的信号变了才重播，其余门读不到字段直接跳过。
-        const mineFx = self.mineFxFrom(vm);
-
-        // 落石垒基：下一块预告与刚化的行。这两样只在这一门出现，
-        // 别的玩法 vm.blocks 为 null，算出来是空数组，页面不会多摆一行。
-        // 落石垒基：暂存格 + 三块预告。别的玩法 vm.blocks 为 null，两个数组都是空，
-        // 页面不会多摆那一条。
-        let nextList = [];
-        let holdCells = [];
-        if (vm.blocks) {
-          holdCells = previewCells(vm.blocks.hold);
-          const q = vm.blocks.queue || [];
-          for (let qi = 0; qi < q.length; qi += 1) {
-            nextList.push({ id: qi, cells: previewCells(q[qi]) });
-          }
-        }
-        // 连连看的连线：只在收走一对的那一帧出现，320ms 后撤。
-        let linkPathList = self.data.linkPathList;
-        if (vm.linkPath && vm.linkPath.key !== self.lastLinkKey) {
-          self.lastLinkKey = vm.linkPath.key;
-          const lk = vm.link;
-          linkPathList = linkSegs(vm.linkPath, (lk && lk.cols) || vm.cols, (lk && lk.rows) || 4);
-          if (self.linkTimer) clearTimeout(self.linkTimer);
-          self.linkTimer = setTimeout(function () {
-            self.linkTimer = null;
-            if (!self.pageAlive) return;
-            self.setData({ linkPathList: [] });
-          }, 340);
-        }
-        let lineFlashList = self.data.lineFlashList;
-        if (vm.linesClear && vm.linesClear.key !== self.lastLineKey) {
-          self.lastLineKey = vm.linesClear.key;
-          const rowsN = vm.blocks && vm.blocks.rows ? vm.blocks.rows : 8;
-          const key = vm.linesClear.key;
-          lineFlashList = vm.linesClear.rows.map(function (r) {
-            return {
-              id: key + '-' + r,
-              top: (r / rowsN * 100).toFixed(2),
-              height: (100 / rowsN).toFixed(2),
-            };
-          });
-          if (self.lineFlashTimer) clearTimeout(self.lineFlashTimer);
-          self.lineFlashTimer = setTimeout(function () {
-            self.lineFlashTimer = null;
-            if (!self.pageAlive) return;
-            self.setData({ lineFlashList: [] });
-          }, 460);
-        }
-
-        self.setData({
-          vm: vm,
-          chargeWidth: vm.charge ? Math.max(0, vm.charge.end - vm.charge.start) : 0,
-          gradeNowColor: worldData.GRADE_COLOR[vm.gradeNow] || '#8a8f83',
-          heartList: heartsToFlags(vm.hearts),
-          meterPercent: vm.meter && vm.meter.max ? Math.round(vm.meter.value / vm.meter.max * 100) : 0,
-          slashList: vm.slash ? [vm.slash] : [],
-          trailLen: vm.trail ? vm.trail.path.length : 0,
-          sceneLamps: sceneLamps,
-          incensePercent: incense,
-          scoreNum: Number(String(vm.scoreText || '').replace(/\D/g, '')) || 0,
-          burstList: burstList,
-          sparkList: sparks || self.data.sparkList,
-          mineFxList: mineFx || self.data.mineFxList,
-          nextList: nextList,
-          holdCells: holdCells,
-          lineFlashList: lineFlashList,
-          linkPathList: linkPathList,
-        });
-        // 留一份「这一帧每格是第几号纹」给下一帧取色。vm.cells 是同一个对象，
-        // 下一帧玩法会把它改写成收走后的样子，到那时就读不到被收走那张牌的颜色了。
-        const cells = vm.cells || [];
-        const tones = [];
-        for (let i = 0; i < cells.length; i += 1) tones.push(cells[i].tone);
-        self.lastTones = tones;
+        self.setData(self.fx.frame(vm, self.data, { sceneOn: self.data.sceneOn, haptic: self.haptic }));
         self.syncBar();
       },
       finish: function (res) { self.onFinish(res); },
     });
     const stage = visual.stageOf(this.theme.key);
-    this.lastFxKey = 0;
-    this.lastCombo = 0;
-    // 上一帧的拍号：换拍才播节拍音，同一拍不许重复响。
-    this.lastBeatKey = -1;
+    this.fx.resetRound();
     this.roundClosed = false;
     this.setData({
       started: false,
@@ -880,36 +693,7 @@ Page({
       mineFxList: [],
       settlePhase: 0,
     });
-    // 换局 / 重开：上一局的迸溅游标必须归零，否则新局第一次收牌
-    // 可能正好撞上旧 key，页面会以为「已经演过了」而不迸。
-    this.lastClearKey = 0;
-    this.lastTones = [];
-    this.lastMineFxKey = 0;
     this.syncBar();
-  },
-
-  // 命中爆发：一次判定生成一批粒子，id 自增让 WXML 重建节点，CSS 动画才会重播。
-  makeBurst: function (level) {
-    const dots = [];
-    if (level > 0) {
-      const n = level >= 3 ? visual.MOTION.particles : level === 2 ? 6 : 4;
-      const dist = level >= 3 ? 190 : level === 2 ? 150 : 110;
-      for (let i = 0; i < n; i += 1) {
-        dots.push({
-          id: i,
-          a: Math.round(360 * i / n),
-          d: dist + (i % 3) * 24,
-          delay: (i % 4) * 18,
-        });
-      }
-    }
-    this.burstId = (this.burstId || 0) + 1;
-    return {
-      id: this.burstId,
-      level: level,
-      dots: dots,
-      flash: level === 0 ? 'miss' : level >= 3 ? 'gold' : '',
-    };
   },
 
   clearSettleTimers: function () {
@@ -918,153 +702,17 @@ Page({
     this.settleTimers = [];
   },
 
-  // 收牌迸溅：玩法把「这一手收走了哪几格」交上来（vm.cleared），这里按格位算坐标，
-  // 在原位炸一小把，颜色取被收走那张牌的纹样色。
-  // 为什么不在盘面上做「格子自己炸开」：连连看收完留空格（格子可以演），
-  // 消消乐收完立刻掉落重排（格子当场就换了内容，演不出来）。做成独立的浮层，
-  // 两门功课才能共用一套；也不会被格子的 overflow 与状态色牵制。
-  // 返回 null 表示这一帧没有新迸溅（保持现状）。
-  sparksFrom: function (vm) {
-    const c = vm && vm.cleared;
-    if (!c || !c.key || c.key === this.lastClearKey) return null;
-    this.lastClearKey = c.key;
-    const n = vm.cells ? vm.cells.length : 0;
-    if (!n || !c.cells || !c.cells.length) return null;
-    const cols = vm.cols || 6;
-    const rows = Math.max(1, Math.round(n / cols));
-    const tones = this.lastTones || [];
-    const hue = visual.CREST_HUE;
-    const dots = [];
-    const count = visual.MOTION.sparkDots;
-    for (let d = 0; d < count; d += 1) {
-      dots.push({
-        id: d,
-        // 角度错开、距离与大小各不相同：等分角度 + 等大会被读成「一圈珠子挂在环上」，
-        // 尺寸差一点点就散成了碎屑。偏移量写死（不用随机），同一次收牌每次呈现都一样。
-        a: Math.round(360 * d / count + 12 + (d % 2 ? 9 : -6)),
-        d: visual.MOTION.sparkDist - (d % 3) * 18,
-        size: 16 + (d % 3) * 3,
-        mt: -(16 + (d % 3) * 3) / 2,
-        delay: (d % 3) * 22,
-      });
-    }
-    const list = [];
-    // 一次最多画 2 处、每处 6 粒 = 12 枚，正好用满动效预算（MOTION.particleCap）。
-    // 消消乐一把能收十几格，全画就是满屏烟花，既盖住盘面也顶不住低端机的帧；
-    // 相邻格本来就会重叠，取前两处已经够表达「刚刚收了一把」。
-    for (let k = 0; k < c.cells.length && list.length < 2; k += 1) {
-      const i = c.cells[k];
-      if (i < 0 || i >= n) continue;
-      const tone = tones[i] || 1;
-      list.push({
-        // key 里带 clearSeq：相邻两次收牌的下标完全可能相同，靠 id 区分才会重播动画。
-        id: c.key + '-' + i,
-        x: ((i % cols + 0.5) / cols * 100).toFixed(2),
-        y: ((Math.floor(i / cols) + 0.5) / rows * 100).toFixed(2),
-        color: hue[(tone - 1 + hue.length) % hue.length] || hue[0],
-        dots: dots,
-      });
-    }
-    if (!list.length) return null;
-    this.scheduleSparkClear();
-    return list;
-  },
-
-  // 动画走完就把节点撤掉：这些粒子是绝对定位的浮层，留着不撤会一直在盘面上堆节点。
-  scheduleSparkClear: function () {
-    const self = this;
-    if (this.sparkTimer) clearTimeout(this.sparkTimer);
-    this.sparkTimer = setTimeout(function () {
-      self.sparkTimer = null;
-      if (!self.pageAlive) return;
-      self.setData({ sparkList: [] });
-    }, visual.MOTION.sparkMs + 80);
-  },
-
-  // 探禁的盘面反馈。玩法层只抛「哪一手、哪一格」，这里决定长什么样：
-  // 翻格是青石屑向外散、踩禁是朱砂冲击环、连开是金色扫光、钉旗是一枚小金圈。
-  // 颜色写成字面量是因为粒子靠内联 style 上色（跟 visual.CREST_HUE 同一条路），
-  // 不落进 wxss；只有这一门用，不进通用动效表。
-  mineFxFrom: function (vm) {
-    const f = vm && vm.mineFx;
-    if (!f || !f.key || f.key === this.lastMineFxKey) return null;
-    this.lastMineFxKey = f.key;
-    const n = vm.cells ? vm.cells.length : 0;
-    if (!n) return null;
-    const cols = vm.cols || 6;
-    const rows = Math.max(1, Math.round(n / cols));
-    // 环不越格：盘宽约 690rpx（750 设计稿扣掉页边距），每格 690/cols，再留 6rpx 给格缘。
-    // 写死一个直径在 6×6 上正好、到 12×12 就会压住邻格刚翻开的数字。
-    const ringSize = Math.min(92, Math.round(690 / cols) - 6);
-    const ringHalf = -Math.round(ringSize / 2);
-    const i = Math.max(0, Math.min(n - 1, f.index | 0));
-    const cfg = {
-      reveal: { dots: 7, dist: 88, size: 10, color: '#9fd8cf', life: 440, ring: true },
-      strike: { dots: 9, dist: 104, size: 13, color: '#e08a7e', life: 540, ring: true },
-      chord: { dots: 6, dist: 76, size: 9, color: '#e6cd8a', life: 380, ring: true },
-      flag: { dots: 0, dist: 0, size: 0, color: '#e6cd8a', life: 380, ring: true },
-      unflag: { dots: 0, dist: 0, size: 0, color: '#9fc3d4', life: 300, ring: true },
-      deny: { dots: 0, dist: 0, size: 0, color: '#e08a7e', life: 320, ring: true },
-      tap: { dots: 3, dist: 40, size: 7, color: '#9fd8cf', life: 380, ring: false },
-      win: { dots: 10, dist: 130, size: 11, color: '#e6cd8a', life: 900, ring: true },
-    }[f.type];
-    if (!cfg) return null;
-    const dots = [];
-    for (let d = 0; d < cfg.dots; d += 1) {
-      const size = cfg.size + (d % 3) * 2;
-      dots.push({
-        id: d,
-        a: Math.round(360 * d / cfg.dots + 11 + (d % 2 ? 8 : -5)),
-        d: cfg.dist - (d % 3) * 16,
-        size: size,
-        mt: -size / 2,
-        delay: (d % 4) * 18,
-      });
-    }
-    this.scheduleMineFxClear(cfg.life + 80);
-    return [{
-      id: f.key + '-' + f.type,
-      type: f.type,
-      x: ((i % cols + 0.5) / cols * 100).toFixed(2),
-      y: ((Math.floor(i / cols) + 0.5) / rows * 100).toFixed(2),
-      color: cfg.color,
-      ring: cfg.ring,
-      ringSize: ringSize,
-      ringHalf: ringHalf,
-      dots: dots,
-    }];
-  },
-
-  scheduleMineFxClear: function (ms) {
-    const self = this;
-    if (this.mineFxTimer) clearTimeout(this.mineFxTimer);
-    this.mineFxTimer = setTimeout(function () {
-      self.mineFxTimer = null;
-      if (!self.pageAlive) return;
-      self.setData({ mineFxList: [] });
-    }, ms);
-  },
-
   // 结算五段演出：S/A 满 1.8 秒，B/C/F 压到 900ms；全程不用逐帧 setData。
+  // 大字文案与时间线都从 settle-view 取，页面只负责按点挂 settlePhase。
   startSettle: function (rv, grade) {
     this.clearSettleTimers();
-    const timeline = visual.settleTimeline(grade);
-    // 大数字只报一件事：这一局把本门往前推了几关。推不动就写「未推进」，
-    // 不写 +0——+0 读起来像算错，玩家会以为是数值出了 bug。
-    const gain = rv.advanced ? '+1' : '—';
-    const gainLabel = rv.advanced ? '关' : (rv.wiped ? '本局作废' : (rv.goalMissed ? '目标未达成' : '未推进'));
+    const spec = settleView.startPatch(rv, grade, this.data.percent);
     const self = this;
-    this.setData({
-      settlePhase: 0,
-      settleFull: visual.SETTLE.fullGrades.indexOf(grade) >= 0,
-      settleGain: gain,
-      settleGainLabel: gainLabel,
-      settlePercent: this.data.percent,
-    });
-    for (let i = 1; i < timeline.length; i += 1) {
+    this.setData(spec.patch);
+    for (let i = 1; i < spec.timeline.length; i += 1) {
       const id = setTimeout(function () {
         if (self.pageAlive && self.data.showResult) self.setData({ settlePhase: i });
-      }, timeline[i]);
+      }, spec.timeline[i]);
       this.settleTimers.push(id);
     }
   },
@@ -1176,16 +824,8 @@ Page({
       params: this.method ? practiceData.buildParamsAt(this.method, this.data.level) : {},
       render: function (vm) {
         if (!self.pageAlive) return;
-        // 教学盘也要有声音：学习闭环的一半是「做对了立刻有回应」，
-        // 原先教学 render 不走浮字通道，全屏只剩一句话。音量与正式局同一套，不额外加强。
-        if (vm.fx && vm.fx.key !== self.lastFxKey) {
-          self.lastFxKey = vm.fx.key;
-          sfx.tone(vm.fx.tone);
-        }
-        if (vm.beatKey !== undefined && vm.beatKey !== self.lastBeatKey) {
-          self.lastBeatKey = vm.beatKey;
-          sfx.play(vm.beatAccent ? 'beataccent' : 'beat');
-        }
+        // 教学盘也要有声音（浮字与拍子），但不要粒子 / 触感——那是一局的压力。
+        self.fx.sound(vm);
         // 教学盘没有命灯、刻度与连击：只给盘面 + 一句该怎么做。
         self.setData({
           vm: vm, tutorial: true, started: true,
@@ -1323,7 +963,7 @@ Page({
   onSwapTo: function (event) {
     const id = event.currentTarget.dataset.id;
     if (!id || id === this.skillId) { this.setData({ swapOpen: false }); return; }
-    getApp().globalData.lastSkillId = id;
+    navParams.setLastSkill(id);
     wx.redirectTo({ url: '/pages/practice/practice?skillId=' + id });
   },
 
@@ -1340,99 +980,51 @@ Page({
     wx.navigateTo({ url: nav.practiceHelpUrl('', 'charge') });
   },
 
+  // 选段选关的规则（只由走通推进、回打不推、未至的点了有答）都在 level-picker.js；
+  // 页面只把玩家动作转过去，按返回结果决定「重算 / 答哪句话」。
+  applyPick: function (r) {
+    if (r.toast) { toast(r.toast); return; }
+    if (r.close) this.setData({ pickerOpen: false });
+    if (r.changed) {
+      this.refresh();
+      this.buildGame();
+    }
+  },
+
   // 关卡切换：一次一格，只能往回翻到已走通的关。往前推进只靠走通。
   onLevel: function (event) {
     if (this.data.started || this.data.countdown > 0) return;
     const dir = Number(event.currentTarget.dataset.d) || 0;
     if (!dir) return;
-    const next = this.data.level + dir;
-    if (next < 1 || next > this.data.levelMax) {
-      if (next > this.data.levelMax) {
-        // 到顶不让人白点：说清「下一关怎么来」。关卡只靠走通推进，
-        // 所以这里不能说「攒够多少点才开新关」——那句话现在已经是假的。
-        toast(this.data.cleared >= this.data.levelTotal
-          ? '本门 1000 关已走完，已是「大圆满」'
-          : '本门打到第 ' + this.data.levelMax + ' 关：走通它，下一关才开');
-      }
-      return;
-    }
-    this.levelOverride = next;
-    this.refresh();
-    this.buildGame();
+    this.applyPick(this.picker.step(dir, this.data));
   },
 
   // 段在外层切：点已走到的段就落到那一段已至的最高关，段内别处再点关号。
-  // 它只换「看哪一段、打哪一关」——不解锁、不跳关，往前仍只有走通当前关一条路。
   onPickStage: function (event) {
     if (this.data.started || this.data.countdown > 0) return;
-    const idx = Number(event.currentTarget.dataset.idx);
-    if (!(idx >= 0 && idx < practiceData.STAGES.length)) return;
-    const d = practiceData.STAGES[idx];
-    // 没走到的段不给切：压暗写着「未至」只是提示，手指落上去仍要答一句差在哪。
-    if (this.data.levelMax < d.from) {
-      toast('这一段还没走到，先走通第 ' + this.data.levelMax + ' 关');
-      return;
-    }
-    // 已经在看的段不跳：回打本段低关时点一下当前的段，不该被拽回进度线。
-    if (idx === this.data.stageIndex) return;
-    this.levelOverride = Math.min(d.to, this.data.levelMax);
-    this.refresh();
-    this.buildGame();
+    this.applyPick(this.picker.pickStage(Number(event.currentTarget.dataset.idx), this.data));
   },
 
   // 选关面板：段已在外面切好，这里只铺当前段。让回打旧关不用按几百次箭头。
   onOpenLevelPicker: function () {
     if (this.data.started || this.data.countdown > 0) return;
-    const idx = levelData.stageOfLevel(this.data.level);
+    const idx = this.picker.stageOfLevel(this.data.level);
     const self = this;
     this.setData({
       pickerOpen: true,
-      pickerLevels: this.buildPickerLevels(idx),
+      pickerLevels: this.picker.buildLevels(idx, this.data.level, this.data.levelMax),
       // 先清空：同段重复打开时值若没变，scroll-into-view 不会重新定位。
       pickerScrollTo: '',
     });
     // scroll-view 到这一帧才建出来，scroll-into-view 要等渲染后才吃得稳。
     setTimeout(function () {
-      self.setData({ pickerScrollTo: 'lv-' + self.pickerAnchor(idx) });
+      self.setData({ pickerScrollTo: 'lv-' + self.picker.anchor(idx, self.data.level, self.data.levelMax) });
     }, 60);
-  },
-
-  buildPickerLevels: function (idx) {
-    const d = practiceData.STAGES[idx];
-    const levelMax = this.data.levelMax;
-    const cur = this.data.level;
-    const out = [];
-    // 整段都铺出来。只列已到达的关会让这一段像被截断——后半段的关号凭空消失，
-    // 玩家读不出「这一段还有多少」，也看不出自己离段尾多远。
-    // 走没走到是这个人的进度，看不看得见是面板的事，两件事分开。
-    for (let lv = d.from; lv <= d.to; lv += 1) {
-      out.push({ v: lv, cur: lv === cur, locked: lv > levelMax });
-    }
-    return out;
-  },
-
-  // 滚到当前关（在当前段内时），否则落段首——打开面板不该让人从头往下找。
-  pickerAnchor: function (idx) {
-    const d = practiceData.STAGES[idx];
-    const cur = this.data.level;
-    return (cur >= d.from && cur <= d.to && cur <= this.data.levelMax) ? cur : d.from;
   },
 
   onPickLevel: function (event) {
     if (this.data.started || this.data.countdown > 0) return;
-    const lv = Number(event.currentTarget.dataset.lv);
-    if (!(lv >= 1)) return;
-    // 未至的关铺在盘上但不可点：压暗只是提示，不是禁用——
-    // 真点下去必须答一句「差在哪」，否则就是「点了没反应」。
-    if (lv > this.data.levelMax) {
-      toast('第 ' + lv + ' 关还没走到，先走通第 ' + this.data.levelMax + ' 关');
-      return;
-    }
-    this.setData({ pickerOpen: false });
-    if (lv === this.data.level) return;
-    this.levelOverride = lv;
-    this.refresh();
-    this.buildGame();
+    this.applyPick(this.picker.pick(Number(event.currentTarget.dataset.lv), this.data));
   },
 
   onCloseLevelPicker: function () {
@@ -1442,9 +1034,7 @@ Page({
   // 回到「已通 + 1」：连打几局之后跳回进度线，不用一路点回去。
   onLevelResume: function () {
     if (this.data.started || this.data.countdown > 0) return;
-    this.levelOverride = 0;
-    this.refresh();
-    this.buildGame();
+    this.applyPick(this.picker.resume());
   },
 
   // 阶段新法的开关：逆诵 / 死门 / 收势这类是「改规矩」，练到手就该能关——
@@ -1483,10 +1073,10 @@ Page({
     if (!this.controller) return;
     // 划刀玩法由透明触摸层接管，静态格子的 tap 一律不判，避免划完抬手又补一次点击。
     if (this.data.vm && this.data.vm.extras.showSwipe) return;
-    const before = this.lastFxKey;
+    const before = this.fx.fxKey();
     this.controller.tap(index);
     // 玩法没给浮字（点空、翻已开的格子）就补一声轻响，让每次触碰都有回应。
-    if (this.lastFxKey === before) sfx.play('tap');
+    if (this.fx.fxKey() === before) sfx.play('tap');
     // 步法键连按同一个方向时，光看画面容易怀疑「这一下点上没有」，补一次极轻的触感。
     if (this.data.vm && this.data.vm.stage === 'scroll' && wx.vibrateShort) {
       try { wx.vibrateShort({ type: 'light' }); } catch (e) { /* 部分环境不支持震动 */ }
@@ -1500,9 +1090,9 @@ Page({
     }
     if (!this.controller) return;
     if (this.data.vm && this.data.vm.extras.showSwipe) return;
-    const before = this.lastFxKey;
+    const before = this.fx.fxKey();
     this.controller.longpress(Number(event.currentTarget.dataset.index));
-    if (this.lastFxKey === before) sfx.play('tap');
+    if (this.fx.fxKey() === before) sfx.play('tap');
   },
 
   // 华容道的块不在 cells 里：整块按百分比定位渲染，点一下就把这一块选中。
@@ -1621,7 +1211,7 @@ Page({
     const path = this.swipePath;
     this.swipePath = null;
     if (!this.boardReady()) return;
-    const before = this.lastFxKey;
+    const before = this.fx.fxKey();
     // 抬手时刻减去最后一次换格的时刻，就是在最后那一桩停住的时长。
     // 只在半途快速划过时它接近 0；到靶心压住不动再抬手就能过收势。
     const hold = Math.max(0, Date.now() - (this.lastStepAt || Date.now()));
@@ -1631,7 +1221,7 @@ Page({
     }
     this.controller.swipe(path, { hold: hold });
     // 轻点一下（路径不足两桩）玩法不判也不罚，这里补一声轻响当作「这一刀没递出去」。
-    if (this.lastFxKey === before) sfx.play('tap');
+    if (this.fx.fxKey() === before) sfx.play('tap');
   },
 
   // 四向推盘：手指从盘上往哪个方向划，全盘就往哪个方向挤。
@@ -1741,280 +1331,39 @@ Page({
     });
   },
 
+  // 一局打完：账目文案、进境事件、按钮分工全在 settle-view.js 构造（含三个结算口的
+  // ok:false 拦截——引擎拒绝结算时不读空结果的字段）。页面只做四件事：
+  // 拿结果、给触感与音效、挂状态、起演出。
   onFinish: function (res) {
     if (!this.pageAlive) return;
-    const skillId = this.skillId;
     const grade = res.grade || 'C';
-    const color = worldData.GRADE_COLOR[grade] || '#8a8f83';
-    const gradeTitle = copy.GRADE_TITLE[grade] || '';
-    let rv;
-
-    // F 有两种来历，处置完全不同：
-    //   ① 玩家点「结束」→ 这一局作废，不进结算，由 onAbandon 直接作废；
-    //   ② 玩法自己判负（阵溃 / 心神耗尽 / 时辰到没通完）→ 是一局打完的结果，
-    //      按失败结算：零收益（进度 / 灵力 / 灵石 / 加成都不给）。
-    // 突破局只有一种 F：气机一乱，走 ①。
-    if (grade === 'F' && (this.aborting || this.mode === 'breakthrough')) {
-      let btFail = null;
-      if (this.mode === 'breakthrough') {
-        // 冲关不成也是花钱的：布阵的灵石散掉一半，得在结算里如实说。
-        btFail = store.commitCritical(function (s) { return engine.applyBreakthrough(s, 'F'); });
-        // 灵石不够 / 境界已满时引擎拒绝结算，返回的只有 ok:false 与 msg。
-        // 不拦会在结算卡里写出「散了 undefined 枚」。
-        if (btFail && btFail.ok === false) {
-          toast(btFail.msg || '这一局没能结算');
-          this.onQuitToPrep();
-          return;
-        }
-      }
-      rv = {
-        kind: 'abandon',
-        // 大字位只放得下一个字，又不能写「F」——那是打崩的评级，玩家自己退的不算。
-        // 破折号 = 本局没有成绩，与下面「本局作废」是同一句话。
-        grade: '—',
-        aborted: true,
-        gradeColor: '#8a8f83',
-        // 玩家自己退的，不写「失败」——大字已经是破折号，副标题只需说清这一局不算数。
-        gradeTitle: '本局作废',
-        headline: this.mode === 'breakthrough' ? '突破失败' : '中途结束',
-        subline: this.mode === 'breakthrough'
-          ? '气机散了，根基没伤，再来一次。'
-          : '这回不算数，随时可以重新起手。',
-        summary: res.summary,
-        lines: btFail && btFail.stoneCost > 0
-          ? [{ k: '灵石', v: '−' + btFail.stoneCost + ' · 余 ' + btFail.stoneAfter }]
-          : [],
-        notes: btFail && btFail.stoneCost > 0
-          ? ['冲关失手，布阵的灵石散了 ' + btFail.stoneCost + ' 枚；余下的还在，调整好再来。']
-          : [],
-        titles: [],
-        // 冲关局没有盘面可留（那一盘是蓄力条），两个去处与成功时一致。
-        primary: this.mode === 'breakthrough' ? copy.UI.actions.backHome : copy.UI.actions.again,
-        secondary: this.mode === 'breakthrough' ? copy.UI.actions.goSkills : copy.UI.actions.back,
-      };
-    } else if (this.mode === 'breakthrough') {
-      const r = store.commitCritical(function (s) { return engine.applyBreakthrough(s, grade); });
-      if (r && r.ok === false) {
-        toast(r.msg || '这一局没能结算');
-        this.onQuitToPrep();
-        return;
-      }
-      rv = {
-        kind: 'breakthrough',
-        grade: grade,
-        gradeColor: color,
-        gradeTitle: gradeTitle,
-        headline: '突破 · ' + r.realmName,
-        subline: '境界加成提高，战力上限打开。',
-        summary: res.summary,
-        lines: [
-          // 布阵是花出去的钱：写「−60」而不是「+60」。
-          { k: '灵石', v: '−' + r.stoneCost + ' · 余 ' + r.stoneAfter },
-          { k: '境界', v: r.realmName },
-          { k: '战力', v: r.powerBefore + ' → ' + r.powerAfter + '（+' + (r.powerAfter - r.powerBefore) + '）' },
-          // 气海是突破的第二重所得，而且当天就能摸到：破境即补满，一趟能多练几局。
-          { k: '灵力上限', v: r.qiCapBefore + ' → ' + r.qiCapAfter + '（+' + (r.qiCapAfter - r.qiCapBefore) + '）' },
-          { k: '灵力', v: '已补满 ' + r.qiAfter + ' / ' + r.qiCapAfter },
-        ],
-        notes: ['此后闭关与对战都按新境界计算：闭关每分钟的灵力与每日份例不变，但可修上限更高、气海更深。'],
-        titles: (r.newTitles || []).map(function (t) { return t.name; }),
-        primary: copy.UI.actions.backHome,
-        secondary: copy.UI.actions.goSkills,
-      };
-    } else {
-      const lv = this.data.level;
-      const r = store.commitCritical(function (s) {
-        return engine.applyPractice(s, skillId, grade, {
-          level: lv, score: res.score || 0, goalMissed: res.goalMissed,
-        });
-      });
-      // 引擎拒绝开局时不带结算字段：地阶功法在筑基期能进静室、能打完，
-      // 但 applyPractice 会因境界不足直接返回 {ok:false}。不拦就会读
-      // r.buffMultiplier.toFixed 抛异常，玩家只看到一屏空卡。
-      if (r && r.ok === false) {
-        toast(r.msg || '这一局没能结算');
-        this.onQuitToPrep();
-        return;
-      }
-      // 参悟只换关卡进度，不产资源：结算卡里灵力是「花掉的」，不是「赚到的」。
-      // 这一行是玩家唯一能核对的账，所以耗气的三个修正也要在同一屏写清（见 notes）。
-      const lines = r.wiped
-        // 失败不是「得 0 分」，是这一局不作数：一排 +0 会让人以为自己算错了。
-        ? [
-          { k: '所得', v: '无 · 未完成' },
-          { k: '灵力', v: '−' + r.qiCost + '（不退）' },
-          { k: '局内得分', v: String(res.score || 0) },
-        ]
-        : [
-          // 主行只报一件事：这一局把本门往前推了没有。推了一关写 +1，
-          // 没推写清为什么（目标没做成 / 回关 / 已到顶），不写 +0。
-          { k: '进境', v: r.advanced ? '+1 关（' + r.clearedAfter + ' / ' + r.levelTotal + '）'
-            : (r.goalMissed ? '目标未达成 · 不推进'
-              : (r.levelBelowCap ? '回关 · 不推进' : '已走通全部 ' + r.levelTotal + ' 关')) },
-          // 没做成目标：这一关不往前推，但也不算失败。这一行必须单列——
-          // 不写的话玩家会以为卡住了（进度没动），或者反过来以为过关了（有收益）。
-          // 做成了也单列：这一门是「做成即收工」，目标就是终点，结算不认它等于终点没有回执。
-          ...(res.goalDone ? [{ k: '本局目标', v: '已达成 · 收工' }]
-            : (r.goalMissed ? [{ k: '本局目标', v: '未达成 · 这一关还没通' }] : [])),
-          // 打的是本门当前关就写「本关」，往回翻就写「回关」。
-          // 关号是一条 1–1000 的长轴，段名只是这段读法：写「入门 · 第 3 / 1000 关」，
-          // 玩家才不会以为「大成的第 3 关」与「入门的第 3 关」是同一格。
-          ...(r.level > 0 ? [{
-            k: '关卡',
-            v: r.stageName + ' · 第 ' + r.level + ' / ' + r.levelTotal + ' 关'
-              + (r.levelWasCurrent ? '（本关）' : ' · 回关'),
-          }] : []),
-          // 结算也报一次盘面规格：玩家打完最容易问「刚才那局难在哪」，
-          // 只在准备屏说过一次等于没说。整句 brief 放不下，用与局内同一份短版。
-          ...(this.data.stageBoardShort ? [{
-            k: copy.UI.labels.boardSpec,
-            v: this.data.stageBoardShort,
-          }] : []),
-          // 兜底句「与上一关规格相同」每关都出现，摆到结算只会像卡住了；
-          // 真有看得见的变化才单列一行。
-          ...(this.data.levelChange && this.data.levelChange.indexOf('与上一关规格相同') !== 0 ? [{
-            k: copy.UI.labels.boardChange,
-            v: this.data.levelChange,
-          }] : []),
-          { k: '灵力', v: '−' + r.qiCost + ' · 余 ' + r.qiAfter + ' / ' + r.qiMax },
-          // 这一门的分有一大半是「剩余手数折出来的」。只报总分，玩家会以为全是自己打出来的，
-          // 也就看不懂「为什么收得少反而拿了更高档」。拆成两截，账才核得上。
-          { k: '局内得分', v: res.goalBonus > 0
-            ? Math.max(0, (res.score || 0) - res.goalBonus) + ' + 余手折 ' + res.goalBonus
-            : String(res.score || 0) },
-        ];
-      // 失败没给加成：这行留着会让玩家以为「崩了还蹭到了 30 分钟加速」。
-      if (!r.wiped) lines.push({ k: '挂机加速', v: '×' + r.buffMultiplier.toFixed(1) + ' · 30 分钟' });
-      // 战力是阶梯值：只跟段位系数与境界加成走，段位不跳它就一分不动。
-      // 所以不能只报「这局涨了多少战力」（大多数局都是 0，等于每局告诉玩家白练），
-      // 要连「离下一境还差多少」一起报——玩家心里的目标一直是境界，不是某一门的段位。
-      const dp = r.powerAfter - r.powerBefore;
-      lines.push({ k: '战力', v: dp > 0 ? r.powerAfter + '（+' + dp + '）' : r.powerAfter + ' · 跨段才涨' });
-      const btAfter = engine.breakthroughInfo(store.get());
-      if (!btAfter.maxed) {
-        lines.push({ k: '距离「' + btAfter.nextName + '」', v: '还差 ' + Math.max(0, btAfter.need - r.powerAfter) + ' 战力' });
-      }
-      // 本局进境：打一局和「修仙变强」之间那根看得见的因果。
-      // 只收「真的变了」的事，没变就一行都不显示——每局都摆一句等于没有信息。
-      // 事件全部来自本局结算的 r 字段，不新造数值、不改评级线。
-      const milestones = [];
-      // shown 记下已经上正面的事件，notes 里相同的那条就不必再说一遍。
-      const shown = {};
-      if (!r.wiped) {
-        if (r.promoted) { milestones.push('踏入「' + r.stageAfterName + '」，盘面换新、耗气跟着涨'); shown.promoted = true; }
-        if (r.tierUp) { milestones.push('【' + r.skillName + '】入「' + r.tierName + '」，属性加成提高'); shown.tierUp = true; }
-        if (r.newRecord) { milestones.push('本门新纪录 ' + (res.score || 0) + ' 分'); shown.newRecord = true; }
-        if (r.fortune) { milestones.push(r.fortune.text); shown.fortune = true; }
-        if (r.newTitles && r.newTitles.length) milestones.push('得名号：' + r.newTitles.map(function (t) { return t.name; }).join('、'));
-      }
-
-      // 玩法层可以带自己的评级依据（星罗烛天诀写「走了几步 / 最优几步 / 为什么不是 S」）。
-      // 它排在最前：玩家最先想知道的是这一局本身，而不是下一关在哪。
-      const notes = Array.isArray(res.notes) ? res.notes.slice() : [];
-      // 失败不是「成绩差」，是没走完：先把理由摆在最前，玩家才知道这一局到底栽在哪。
-      // 灵力不退是这套经济的硬规则——起手就烧了，崩掉的只是这一局的进度与加成。
-      if (grade === 'F') {
-        notes.unshift('本局未走完，本门不推进度，挂机加成也不给；'
-          + '起手烧掉的 ' + r.qiCost + ' 点灵力不退。');
-      }
-      // 没做成目标不是失败，但也不是过关：说清「这一关不推、也不算失败、重打不算回关」，
-      // 三件事少写一件玩家就会往坏处猜（以为白练了，或者以为进度丢了）。
-      if (r.goalMissed) {
-        notes.unshift('本局预算走完还没做成目标，这一关没有往前推；重打同一关不算回关，耗气不变。');
-      }
-      // 耗气要当场可复算：玩家看到「灵力 −17」，得知道这个 17 是怎么来的。
-      // 只在真被修正时才展开，标准档位不啰嗦。
-      if (r.methodQiFactor !== 1 || r.tierQiCost > 1 || r.realmOverCost > 1 || r.qiSave > 0) {
-        notes.push('本局耗气 ' + r.qiCost + '：' + r.stageName + '段基数'
-          + (r.methodQiFactor !== 1 ? ' × 节奏 ' + r.methodQiFactor.toFixed(2) : '')
-          + (r.tierQiCost > 1 ? ' × ' + r.tierLabel + ' ' + r.tierQiCost.toFixed(2) : '')
-          + (r.realmOverCost > 1 ? ' × 境界超限 ' + r.realmOverCost.toFixed(1) : '')
-          + (r.qiSave > 0 ? '，心法省 ' + Math.round(r.qiSave * 100) + '%' : '')
-          + '，悟性再省一截。');
-      }
-      // 回关折减要当场说：面板上退了几关、结算只给一部分，不解释就像算错了。
-      if (r.levelBelowCap) {
-        // 回关唯一的意义是练手感 / 刷记录：进度不推，所以耗气也不折——不能因为回关就便宜。
-        notes.push('回打第 ' + r.level + ' 关（本门已走到第 ' + r.curLevel + ' 关，退 '
-          + r.levelGap + ' 关）：这一局不推进度，耗气照本段基数算。'
-          + '想推本门的进度，回第 ' + r.curLevel + ' 关打。');
-      }
-      // 走通的那一关要说出来：关卡靠过关推进，不报玩家就不知道刚才那局推没推进。
-      if (r.advanced) {
-        notes.push('第 ' + r.level + ' 关已走通（本门 ' + r.level + ' / ' + r.levelTotal
-          + '）：下一局接第 ' + Math.min(r.levelTotal, r.level + 1) + ' 关。');
-      } else if (!r.wiped && r.levelWasCurrent && r.level >= r.levelTotal) {
-        notes.push('本门 ' + r.levelTotal + ' 关已全部走通：' + r.stageAfterName + '。');
-      }
-      // 晋段若已在正面报过，notes 不再重复（shown 由 milestones 那一节标记）。
-      if (r.promoted && !shown.promoted) notes.push('踏入「' + r.stageAfterName + '」：这一段换了盘面，一局耗气也跟着涨。');
-      if (r.tierUp && !shown.tierUp) notes.push('【' + r.skillName + '】入「' + r.tierName + '」，属性加成提高。');
-      if (r.cross) notes.push('触类旁通：换了门功法，本局运功更顺，耗气少 8%。');
-      if (r.levelFellBack) notes.push('所选关超出本门当前进度，已按第 ' + r.curLevel + ' 关结算。');
-      if (r.realmAbove) {
-        notes.push('人物境界已超本门可修上限「' + r.maxRealmName + '」：照样能练，但本局耗气 ×'
-          + r.realmOverCost.toFixed(1) + '；进度照推，该换更高阶的功法了。');
-      }
-      if (r.newRecord && !shown.newRecord) {
-        notes.push(r.prevBest > 0
-          ? '破了本门纪录：' + (res.score || 0) + ' 分，此前最佳 ' + r.prevBest + ' 分。'
-          : '立下本门首个纪录：' + (res.score || 0) + ' 分。');
-      } else if (!r.newRecord && r.bestScore > 0) notes.push('本门最佳 ' + r.bestScore + ' 分，这回 ' + (res.score || 0) + ' 分。');
-      if (r.fortune && !shown.fortune) notes.push(r.fortune.text);
-      if (r.dailyReady) notes.push('今日参悟已满，回洞府可领份例。');
-      rv = {
-        kind: 'practice',
-        grade: grade,
-        gradeColor: color,
-        // 失败时 headline 与 gradeTitle 都会写「失败」，标题行会重复两遍；
-        // 这里让副标题改说「本局未完成」，把「为什么一分不给」留在 notes 里。
-        gradeTitle: grade === 'F' ? '本局未完成' : gradeTitle,
-        headline: grade === 'F'
-          ? '失败'
-          : (r.promoted ? '晋段 · ' + r.stageAfterName : '参悟完成'),
-        subline: r.methodName + ' · ' + res.summary,
-        summary: res.summary,
-        // 演出大字与准备页「上局战绩」都读这几个字段。曾只把它们写进结算明细
-        // lines，rv 自己没带：走通一关也恒显示「— / 未推进」，上局那行只剩标题。
-        advanced: !!r.advanced,
-        clearedAfter: r.clearedAfter,
-        goalMissed: !!r.goalMissed,
-        levelBelowCap: !!r.levelBelowCap,
-        wiped: !!r.wiped,
-        lines: lines,
-        milestones: milestones,
-        notes: notes,
-        titles: (r.newTitles || []).map(function (t) { return t.name; }),
-        // 一局打完，十有八九还想再来一局——它才该是那颗金按钮。
-        // 「留在本页」退成下方文字链：那是给想多看两眼盘面的人留的。
-        primary: copy.UI.actions.again,
-        secondary: copy.UI.actions.backSkills,
-      };
+    const rv = settleView.buildResult(res, {
+      mode: this.mode,
+      aborting: this.aborting,
+      skillId: this.skillId,
+      level: this.data.level,
+      stageBoardShort: this.data.stageBoardShort,
+      levelChange: this.data.levelChange,
+    });
+    if (rv.rejected) {
+      toast(rv.message || '这一局没能结算');
+      this.onQuitToPrep();
+      return;
     }
-
     if (wx.vibrateShort && (grade === 'S' || grade === 'A')) {
       try { wx.vibrateShort({ type: grade === 'S' ? 'heavy' : 'light' }); } catch (e) { /* 部分环境不支持震动 */ }
     }
     if (grade === 'S' || grade === 'A') sfx.play('clear');
     else if (grade === 'F') sfx.play('fail');
     else sfx.play('settle');
-    // 结算的两颗按钮 + 一条文字链：金按钮「再来一局」（一局打完多半还想连刷）、
-    // 次按钮「返回功法」、文字链「留在本页」（留着盘面多看两眼）。
-    // 突破结算没有盘面也没有下一局，保持原来的两个去处。
-    rv.canStay = this.mode !== 'breakthrough';
-    let recordBrief = '';
-    if (rv.canStay) {
-      const gain = rv.advanced ? '走通第 ' + rv.clearedAfter + ' 关'
-        : (rv.goalMissed ? '目标未达成' : (rv.levelBelowCap ? '回关' : ''));
-      // 这一行是准备页上唯一还看得见的上一局结论，所以写短、写准：
-      // 中途结束 / 失败各自一个词，别再拼「这一局没走完」那种一读就断的短语。
-      const briefTitle = rv.kind === 'abandon' ? '结束' : (grade === 'F' ? '失败' : rv.gradeTitle);
-      recordBrief = '上局 · ' + (briefTitle || '') + (gain ? ' · ' + gain : '');
-    }
     this.clearCountdown();
     // 这一局已经打完：结算卡上的返回不该再被问「本局作废」。
     this.disarmLeaveGuard();
-    this.setData({ showResult: true, result: rv, recordBrief: recordBrief, started: false, boardHeld: false });
+    this.setData({
+      showResult: true, result: rv,
+      recordBrief: settleView.briefOf(rv, grade),
+      started: false, boardHeld: false,
+    });
     this.syncBar();
     this.refresh();
     if (this.data.sceneOn) this.startSettle(rv, grade);

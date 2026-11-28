@@ -33,7 +33,8 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 - `minigames/` **不许** `require` `data/visual.js`（玩法不知道自己的主题色）；
 - `minigames/` **不许** `require` `utils/game.js`（玩法不知道进度、货币、境界）；
 - `data/` **不许** `require` `pages/` 或 `utils/`（除了 `economy.js` 这类纯常量互相引用）；
-- 页面**不许**自己算进度、耗气、评级线——一律从 `utils/game.js`（门面）或 `data/practice.js` 拿。
+- 页面**不许**自己算进度、耗气、评级线——一律从 `utils/game.js`（门面）或 `data/practice.js` 拿；
+- 页面**不许**按门名（`gameId === 'xxx'`）决定特效 / 震动 / 音效：玩法只抛带 key 的通用信号（`fx / cleared / mineFx / linkPath / linesClear / blocks / beatKey`），长相由参悟页目录下的 `fx-layer.js` 统一决定；「误判要不要轻震」这类反馈调性由玩法模块自己**声明**（`haptic: { bad: 'light' }`，经 `minigames.hapticOf()` 读），特效层只读声明。
 
 ## 3. `data/` —— 十三个文件，各自管什么
 
@@ -197,6 +198,9 @@ styles/*.wxss                  ← 皮肤（唯一数值出处：tokens.wxss）
 ## 11. 代码指路
 
 - `app.js`（283 行）—— 启动、bootstrap、冲突、游客、错误记录
+- `pages/practice/`（2026-11 整改后拆成四件）—— `practice.js` 页面骨架与交互；`fx-layer.js` 一帧 vm → 一揽子 setData 补丁（粒子 / 震动 / 拍子，不认门名）；`settle-view.js` 结算卡构造与五段演出；`level-picker.js` 选段 / 选关（只返回 `{ close / changed / toast }`，弹与刷由页面做）。读参悟页逻辑的断言走 `readPracticePage()`（`layout.test.js`）/ `practicePageSrc()`（`verify.js`），把目录下 js 拼起来再匹配——只认 `practice.js` 一个文件的话，搬一次函数就红一次。
+- `utils/nav-params.js` —— 跨页传参唯一出入口（`lastSkillId` 兜底、`skillsTab` 一次性传参）；页面不许直写 `globalData` 这两个字段
+- `utils/page-kit.js` —— 页面公共骨架（存档订阅的挂 / 摘）
 - `utils/game/`（十个文件）—— 引擎；`utils/game.js` 只是转发门面
 - `utils/store.js` —— 存档
 - `data/practice.js` / `data/economy.js` —— 数值
